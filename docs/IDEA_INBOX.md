@@ -1,19 +1,33 @@
-# Question, Idea and Decision Inbox
+# Hart Logistics — Open Design Decisions
 
-This is a **triage queue**, not a list of approved implementation tasks. Only capture discussions with lasting project impact; answer ordinary questions without creating needless records. Keep items concise and link detailed evidence/decisions rather than duplicating logs.
+**These questions are not implementation authorization.** Owner-directed planning is active under HL-PLAN-001. Accepted requirements appear in [architecture](LOGISTICS_DESIGN.md). Grouped here by risk and decision order; default when uncertain is no change/no loss to 1.4.1 worlds.
 
-## Open items
+| ID | Priority | Decision needed | Why it matters | Status / revisit |
+| --- | --- | --- | --- | --- |
+| HL-Q-001 | Critical | Are experimental creator toggles acceptable for new MR custom block inventories on the reported 1.26.63.1/26.63 target? If not, which supported alternative / version gate? | Stable block entities exist, but 1.26.50 notes place their `container` field under experimental updates; existing worlds must not be silently converted into experiments. | **Owner decision + compatibility check**, before native MR implementation |
+| HL-Q-002 | Critical | Exactly what forms a storage network and determines controller-region boundaries? Pipe connectivity, Collector→Receiver links, explicit linking, or hybrid? | Single closed loop/one controller and multi-controller networks must both work. | Decide before network implementation |
+| HL-Q-003 | Critical | On controller unload, destruction, split/merge or simultaneous first placement, who owns item and capacity records? | Prevent double controller authority and lost storage on failover. | Design proof needed |
+| HL-Q-004 | Critical | Can any transporter face automatically extract, or only configured input connections? How to protect filtered storage chests from being drained? | Input-only constraint must not empty stored output. | Owner interface decision |
+| HL-Q-005 | Critical | Should MR inventory slots count against Receiver 250,000-item limit, or have separate slot-limited capacity? Same for Bulk Storage MR acceptance. | Defines backpressure, queue accounting and overflow behavior. | Owner decision |
+| HL-Q-006 | High | What constitutes network Bulk Storage being **completely full** for wildcard permission when banks/blocks are unloaded, unreachable or stale? | Preserve strict last-resort wildcard guarantee without blocking indefinitely. | Decide consistency/fail-safe policy |
+| HL-Q-007 | High | Which item types are known lossless buckets vs native-only MR, especially custom item components and metadata-rich items? | Avoid silent flattening. | Item classification matrix and examples |
+| HL-Q-008 | High | How do Transporters choose outgoing faces and destinations at T/cross/six-way junctions, and prevent routing loops? | Makes routing deterministic and throughput scalable. | Proposed algorithm needed |
+| HL-Q-009 | High | What are MR vs ordinary service weights, starvation protections, and use of legacy FIFO outside managed networks? | MR prioritized as required, ordinary still makes forward progress. | Owner scheduling preference and tests |
+| HL-Q-010 | High | What actions are allowed when player breaks a populated Bulk Storage or native-storage Collector/Receiver? | Never silently delete 200k items / native stacks. | Design break/evacuation policy |
+| HL-Q-011 | High | What is the rollback strategy after Q5 has already processed new transactions, and how long do we retain Q4? | Retained Q4 is stale after cutover; rollback must not re-add moved items. | Migration design and user acceptance |
+| HL-Q-012 | High | How do we handle blocked, full, disconnected or delayed destinations and exact in-flight acknowledgment across unloaded chunks? | Crash/partition safety and transaction durability. | Protocol needed |
+| HL-Q-013 | Medium | Pipe shape/collision/UVs, connection rules, orientation and visual variant choices for 4×4 plumbing? | UI/model reliability. | Visual review before assets |
+| HL-Q-014 | Medium | Does the 1.4.1 minimum engine version 1.26.50 remain required, or is 1.26.63.1 merely the testing target for a later new release? | Avoid accidental pack version break. | Owner compatibility-policy decision |
+| HL-Q-015 | Later | What stable cross-addon native bucket API will HartBots Depot expose, and what transfer ACK contract will guarantee conservation? | Future native Depot extraction requires separate HartBots work, not authorized today. | Revisit when owner authorizes HartBots compatibility change |
+| HL-Q-016 | High | Should existing q4 standalone Receivers retain FIFO default, while Q5 only activates advanced routing for managed networks? | No 1.4.1 regression vs improving head-of-line blocking. | Owner decision |
 
-| ID | Raised / context | Type | Question or proposal | Disposition | Revisit trigger |
-| --- | --- | --- | --- | --- | --- |
-| — | — | — | No untriaged items in the blueprint itself. | — | — |
+## Decisions already confirmed
 
-## Resolved / promoted
+- **BL-001:** 1.4.1 is inviolable baseline; no current capability loss acceptable.
+- **D-001:** Bulk Storage adds 200,000 bucketized ordinary-item capacity per member and filters outrank overflow; network wildcard only when bulk space is exhausted.
+- **D-002:** The first Bulk Storage between Receiver and Collector acts as controller, *not Collector*; one controller can govern a complete closed loop; multiple controllers can coordinate in larger networks.
+- **D-003:** Transporter is a six-way ~4×4 pipe, high-throughput, extracts from supported containers but **does not directly distribute to normal containers**; hoppers remain valid.
+- **D-004:** Q5 must migrate q4 losslessly while adding destination-aware batching and native MR handling; MR prioritized; original q2/q3/q4 paths protected.
+- **D-005:** HartBots Depot is a reference; future native integration is deferred. No HartBots repo access.
+- **D-006:** Current phase is **documentation/planning only**, no gameplay implementation.
 
-| ID | Context | Resolution | Reference |
-| --- | --- | --- | --- |
-| INBOX-001 | Owner observed that exploratory questions were redirecting development away from project outcomes. | Accepted as cross-project roadmap and intake governance (BP-004), not permission for unrelated implementation. | [Roadmap policy](ROADMAP_POLICY.md) |
-
-## How to add an item
-
-Use an `INBOX-###` ID, the originating context/date, type (**question, idea, defect, risk, decision**), one-sentence impact, disposition (**answered/closed, deferred, decision needed, milestone candidate, urgent blocker**), and an explicit revisit trigger. Only move an item into **Now** after owner approval and a documented tradeoff. Close resolved items or convert them into reviewed roadmap milestones; don't accumulate abandoned speculative work.

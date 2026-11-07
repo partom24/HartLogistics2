@@ -1,26 +1,22 @@
-# Engineering Evidence Register
+# Hart Logistics 2 — Evidence Register
 
-Record project-specific proof here instead of scattering unqualified PASS claims across chats.
+The engineering blueprint template's old E-* entries referred to a **different repository/project** and were not Hart Logistics development evidence. Those example claims were replaced. Evidence levels follow [engineering standard](ENGINEERING_STANDARD.md).
 
-| ID | Scope | Level | Evidence / artifact | Limits and open questions |
+| ID | Scope | Evidence level | Source | What it does **not** prove |
 | --- | --- | --- | --- | --- |
-| E-001 | Blueprint policy and code | SOURCE REVIEW | Initial repository commit; standard and Python validator | No target-runtime acceptance or external application adoption implied |
-| E-002 | Initial GitHub Actions run | OFFLINE PASS (structure), self-test FAIL | [Run 41757930071](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/41757930071), commit `c119545f316368a0cf3cc9b21bd169a9b5471da2` | Fixture inherited `GITHUB_REPOSITORY`; one self-test failed. No runtime implication. |
-| E-003 | Corrected contract CI | OFFLINE PASS | [Run 41758054525](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/41758054525), commit `cd061acc813618ae0c6b0acc725711a0c3aa64fa` | Structural contract PASS; 7/7 self-tests PASS. No platform runtime or release approval implied. |
-| E-004 | Temporary instrumentation validator | OFFLINE PASS | [Run 41821776217](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/41821776217), commit `70c1e01d8038c05e464d196a90d2fe7c6bb8707d` | Structural contract and self-tests PASS; cannot prove actual runtime independence of diagnostic code. |
+| HL-E-001 | Original Hart Logistics 1.4.1 owner-uploaded mcaddon | Source artifact fingerprint / SOURCE REVIEW | Original filename and exact SHA-256 in [baseline registry](BASELINE_REGISTRY.md) | No runtime acceptance or Git-frozen tree; source is not yet committed |
+| HL-E-002 | 1.4.1 pack inspection | SOURCE REVIEW / previously reported offline syntax checks | Conversation-file inspection: behavior/resource packs, script, manifests; earlier JSON/JS/PNG parsing reports | Does not establish game behavior, world-migration safety or successful new build |
+| HL-E-003 | HartBots 1.8.2 Depot reference | SOURCE REVIEW | Owner-uploaded mcaddon (separate project); no repo queried | No native cross-addon integration, compatibility proof or change authorization |
+| HL-E-004 | Native MR transfer capability | **OWNER-REPORTED RUNTIME TESTING**, artifacts not in this repository | Owner reports extensive prior container→container MoveItem/ItemStack method testing with enchanted items, sacks, potions, music discs | Does not verify an experimental *custom block container* on server 1.26.63.1/client v26.63 or a crash-safe cross-chunk transaction |
+| HL-E-005 | Owner's environment | OWNER-REPORTED, not yet reproduced | Server launch log: `Version: 1.26.63.1`; client `v26.63` | Not a completed compatibility test or proof pack loaded on that server |
+| HL-E-006 | Planning docs in HartLogistics2 | Document update only | HL-PLAN-001; architecture, migration, test plan and decision inbox in this PR | No gameplay implementation, CI success, world tests or release approval |
 
-| E-005 | Code hygiene v1.2.0 policy and structural gate | OFFLINE PASS | [Run 41824546597](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/41824546597), commit `49ae2a98f5fd99d57707498d8eec8b315fc1a098` | Structural contract and self-tests passed; confirms policy presence and validator operation, **not** actual code cleanliness or regression safety. |
+## Evidence to capture before implementation/release
 
-| E-006 | Roadmap governance and milestone contract v1.3.0 | OFFLINE PASS | [PR run 41930143367](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/41930143367), head `4598ad4ca78a161a4217e0dedb7f9baef2f61d88` | Structural validator and 21/21 Python self-tests passed. This establishes file/section/declared milestone consistency only; cannot prove owner authorization, effective triage, or project runtime compliance. |
+1. Source commit/tree and original mcaddon checksum, pack UUIDs and exact Bedrock engine/API versions.
+2. World-copy and experiment settings, test commands and retained before/after item metadata records.
+3. Q4 journal crash-injection evidence at each cutover boundary; total/per-item conservation and idempotence.
+4. Native MR transfer fidelity observations covering exact components and failure paths.
+5. All 1.4.1 feature regression paths, no-new-block legacy mode, loaded/unloaded regions and multi-controller topology.
+6. Distinguish SOURCE REVIEW → OFFLINE PASS → RUNTIME OBSERVED → INTEGRATION ACCEPTED → RELEASE APPROVED. None is implied by a document merge.
 
-Each future entry should contain:
-1. Exact source Git SHA and, when relevant, distributable SHA-256.
-2. Date, runtime/build version and machine/test environment.
-3. Explicit command, fixture, operator observation or linked result.
-4. Observed result, not an inferred outcome.
-5. Known gaps, regression boundaries, and next targeted verification.
-
-Historic proof remains valid within its recorded scope until contradicted or affected by an identified change. An untested neighboring behavior is **unknown**, not an excuse to erase unrelated proofs. Do not claim a test passed merely because source includes a test or GitHub displays a green check for a different stage.
-
-| E-007 | v1.3.1 blueprint maintenance PR #2 | OFFLINE PASS | Merged commit `d8e70e283defd311fffd28a45400967b16b240c0`; [main-branch CI run 41936225671](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/41936225671) succeeded | Structural validator and self-tests only; no runtime, consumer adoption, release approval or owner acceptance is implied. |
-| E-008 | Bounded AI contributor friction corrections, PR #3 | OFFLINE PASS | [CI run 42108325805](https://github.com/partom24/Project-Engineering-Blueprint/actions/runs/42108325805) at commit `af5fd24e1e71564a8b85cd3874b15660ff762cc1`: structural validator and 32/32 Python self-tests PASS | Validates the tested commit only; follow-up documentation updates, actual project adoption, owner acceptance and release approval are not inferred. |

@@ -1,41 +1,41 @@
-# Architecture Decision Register
+# Hart Logistics 2 — Architecture Decisions
 
-Keep decisions that materially affect this project; do not try to document every behavior of the underlying platform.
+**Owner-confirmed requirements only; no gameplay source implementation is implied.** For unresolved choices see [inbox](IDEA_INBOX.md). Inherited blueprint-specific ADR examples were replaced when adapting this repository for Hart Logistics.
 
-## ADR-001 — Single authoritative active source
-**Status:** Accepted.  
-**Decision:** Each project declares one logical active implementation source. Frozen/archived material may be inspected but cannot become implicit dependencies.  
-**Reason:** Avoid competing versions, mistaken source ports, and stale AI handoffs.
+## HL-ADR-001 — Non-regression 1.4.1 baseline
+**Status:** Owner required; accepted in planning.  
+**Decision:** Preserve **every** Hart Logistics 1.4.1 capability and saved-world identity; no deletion, behavior loss, item duplication, unsound metadata transformation or manual Receiver purge is acceptable as a release tradeoff.  
+**Consequences:** Preserve original manifest UUIDs, block IDs, q2/q3/q4 data and journal, redstone/filters/links, hopper and dispenser/dropper behavior. No code changes until explicit authorization.
 
-## ADR-002 — Evidence and releases remain separate
-**Status:** Accepted.  
-**Decision:** Offline checks, runtime observation, integrated acceptance, and release approval require distinct evidence.  
-**Reason:** A passing script does not imply a deployable artifact or authorize publication.
+## HL-ADR-002 — Bulk Storage and cooperative controllers
+**Status:** Owner-confirmed requirements; membership/failover algorithm undecided.  
+**Decision:** 200,000 bucketizable items per Bulk Storage block; capacity adds across a connected network. First designated Bulk Storage in a Receiver-to-Collector bank/region is its controller. Controllers coordinate local and remote filtered routing, Bulk overflow and only-last-resort network wildcard. Valid topology includes one controller across an entire closed loop and multiple controllers across interconnected banks.  
+**Consequences:** Implement deterministic region IDs, controller failover and capacity reconciliation before routing.
 
-## ADR-003 — Platform profiles extend, never replace, universal rules
-**Status:** Accepted.  
-**Decision:** Optional engine/language-specific profile notes introduce only applicable checks.  
-**Reason:** Minimize ceremony and avoid imposing a game-server model on a Python library or a Discord bot.
+## HL-ADR-003 — Transporter is an input-only container conduit
+**Status:** Owner-confirmed requirements; input designation undecided.  
+**Decision:** Normal-sized placed block with ~4×4 pipe center, six-way connections, high-speed transfers from Receiver/Bulk to Sorter. Adjacent ordinary containers can be **sources** but must never be Transporter **destinations**. Native hoppers remain valid in all old layouts.  
+**Consequences:** Protect filtered output chests; final storage requires Sorter, not direct pipe insertion.
 
-## ADR-004 — Temporary testing/debugging code is task-scoped
-**Status:** Accepted 2026-11-04.  
-**Decision:** Tag and register temporary testing/debugging helpers, ensure core operation does not depend on them, and delete the code plus wiring when its task is accepted/completed. Permanent regression suites may remain outside runtime.
-**Reason:** Avoid obsolete diagnostic commands, misleading AI source reviews, and unintended production dependencies.
+## HL-ADR-004 — Q5 safe hybrid storage
+**Status:** Owner-confirmed direction; schema/protocol undecided.  
+**Decision:** Migrate q4 without loss; ordinary lane uses compact bucketized counts and destination-aware selection; metadata-rich lane uses native Minecraft ItemStack-preserving transfers. Prioritize MR service without accidental starvation. Collectors/Receivers evolve as storage endpoints while retaining legacy use.  
+**Consequences:** Stable native API compatibility and staged q4→Q5 journal/cutover must be proven before adoption.
 
-## ADR-005 — Maintainability is continuous and evidence-bound
-**Status:** Accepted 2026-11-04.  
-**Decision:** Require proportional code hygiene in every meaningful change: reuse existing systems, avoid unnecessary duplication and complexity, remove safe-to-delete dead scaffolding in the affected scope, track material unresolved debt, and preserve known-good behavior. Do not demand sweeping, unrelated refactors or cosmetic line-count targets.  
-**Reason:** Prevent lifecycle accumulation of obsolete code and competing solutions without creating regressions from indiscriminate cleanup.
+## HL-ADR-005 — HartBots reference without repo changes
+**Status:** Owner-confirmed scope.  
+**Decision:** Use uploaded HartBots 1.8.2 Depot source to inform 200k-style bucket storage and plan future Transporter extraction. A native cross-pack transfer interface may be authorized later, but **only HartLogistics2 repository is accessible in this project**.  
+**Consequences:** No HartBots implementation or release work now; fallback via Depot output inventory can be explored separately.
 
-## ADR-006 — Roadmap-led execution, questions captured before reprioritization
-**Status:** Accepted 2026-11-04.  
-**Decision:** Every project maintains an outcome-oriented milestone roadmap (Completed/Now/Next/Later) and deferred-question inbox. Only the owner-authorized current milestone directs implementation; exploratory questions are answered and, when consequential, captured without triggering development. Priority changes document the displaced work and reason. Urgent blockers may stop unsafe work but do not authorize speculative rewrites.  
-**Reason:** Preserve strategic focus and make progress visible while keeping good suggestions available for deliberate future decisions.
+## HL-ADR-006 — Planning phase only
+**Status:** Owner-confirmed.  
+**Decision:** Design and repository-documentation updates are permitted. Gameplay changes, source import, migration, world edits and release remain unapproved.  
+**Consequences:** Active roadmap milestone is HL-PLAN-001; keep evidence claims bounded and owner decisions separate.
 
-## ADR-007 — Proportional docs and explicit release candidate gate
-**Status:** Implemented in main on 2026-11-04; owner acceptance not recorded.  
-**Decision:** Use concise task-first AGENTS instructions, require declared contract paths instead of every optional policy filename, and enforce candidate temporary-code cleanliness separately from historical artifact approval.  
-**Reason:** Reduce repetitive AI reading and small-project overhead while retaining safety and release gates.
+## HL-ADR-007 — Runtime target and experiment gate
+**Status:** Reported environment; API decision pending.  
+**Decision:** Owner's server is **1.26.63.1**, client **v26.63**, recorded as a future test target. Existing 1.4.1 minimum **1.26.50** is not silently raised. Native custom block container inventory use cannot be assumed stable on this target; obtain specific proof and policy decision before requiring experiments.  
+**Consequences:** Version and feature compatibility matrix is a prerequisite to implementation; no claim of successful in-game test.
 
-## Recording future decisions
-Use **ID, decision, context, alternatives, implications, evidence, status, and supersedes**. Mark old decisions superseded instead of rewriting the past.
+Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
+

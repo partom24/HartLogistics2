@@ -1,16 +1,26 @@
-# AI / contributor operating contract
+# Hart Logistics 2 — contributor operating contract
 
-## Start here
-Read `project-blueprint.json`, its declared current roadmap and development-state handoff, then the project README and relevant active source. Consult specialized policies, applicable platform profiles, evidence and decisions **only when the task needs them**. The declared contract paths take precedence over example filenames. Tracked Git source is authoritative; chat summaries, stale files and frozen snapshots cannot silently override it. **One-time new-repository setup:** replace blueprint example milestones, status, evidence and history with the new project's actual facts; do not carry template-specific achievements into the product. Preserve genuine history when adopting in an existing project.
+## Authority and repository boundary
 
-## Working rules
-1. **Source and state:** change only the declared active implementation; frozen/archived trees are read-only. Preserve established behavior, persisted state, identities and public interfaces. Investigate existing evidence before replacing or retesting.
-2. **Roadmap and questions:** follow the owner-authorized **Now** outcome; exploratory questions are not implementation requests. An explicit owner request for a bounded bug fix, test fix or documentation maintenance may proceed without creating or displacing a milestone; record its scope and checks in the PR/handoff only as needed. New features or changes that displace priorities need an owner decision. Stop unsafe work on genuine blockers.
-3. **Small and maintainable:** use existing code and supported native APIs first. Avoid parallel implementations, speculative abstractions, unrelated refactors, duplicate installers and permanent per-feature branches. Remove only safely proven obsolete logic in affected scope.
-4. **Temporary vs permanent tests:** runtime-connected task diagnostics must be optional, tagged `TEMP_TEST:<ID>` or `TEMP_DEBUG:<ID>`, registered in `temporary_instrumentation`, and fully removed at task completion. Standalone non-runtime `TEMP_TEST` probes in a declared `source.test_roots` directory need the tag but **no separate registry entry**; remove them before acceptance or release (the release gate checks). Keep useful, deliberately maintained regression tests as untagged permanent test assets, never mandatory runtime dependencies.
-5. **Proof, not assumptions:** SOURCE REVIEW, OFFLINE PASS, RUNTIME OBSERVED, INTEGRATION ACCEPTED and RELEASE APPROVED are separate. State limitations; don't invent runtime results, approvals or regressions.
-6. **Safe operation:** use only established build/update paths; do not deploy to production, create additional servers, migrate stored data or reset state without authorization. Fail closed on uncertain identity, source or safety guards.
-7. **Release is separate:** an earlier approved release is historical metadata, not permission for new changes. For a new release candidate, require owner approval, identified source/artifact and `python scripts/validate_blueprint.py --release-gate` (if installed); no task-scoped instrumentation may ship.
-8. **Concise handoff, separate history:** keep the declared current-state handoff a brief snapshot of active source, present verified state, current blockers/unknowns and next action—**not** a dated changelog. Completed milestones belong in the roadmap, dated engineering history in the append-only development ledger, and supporting proof in the evidence register. Consult the ledger only when the task needs history. Update applicable documents at meaningful changes, not for every commit.
+- **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.
+- Read [project-blueprint.json](project-blueprint.json), [roadmap](docs/ROADMAP.md), [current state](docs/CURRENT_DEVELOPMENT_STATE.md), [design](docs/LOGISTICS_DESIGN.md), [Q5 migration](docs/Q5_MIGRATION_DESIGN.md) and relevant source before proposing changes.
+- The owner has approved **planning/documentation only** at present. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
+- The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline; its source is not yet committed. The addon/ directory currently contains a placeholder, not an executable pack.
 
-The same protections apply to small and large projects; documentation detail should match risk. Compact projects may use labeled roadmap/inbox and handoff/evidence sections in shared files as declared in the contract. Detailed repository, roadmap, code hygiene, instrumentation and release policies remain authoritative where applicable, but need not all be read or copied for every task.
+## Non-negotiable compatibility contract
+
+1. **No loss of any 1.4.1 capability**: preserve Sorter/Collector/Receiver functions, modes, filters, linking, hopper paths, dropper/dispenser handling, redstone semantics, Q4 data, q2/q3 migration, and recovery. No optimization may silently weaken these contracts.
+2. **Persisted state is critical**: preserve pack UUIDs, block identifiers, saved links, block states, queue keys, journal behavior and original items. Existing worlds must not require manually emptying Receivers to upgrade.
+3. **Separate decisions from hypotheses**: an agreed requirement is not yet implemented or tested. [Open questions](docs/IDEA_INBOX.md) are *not* permission to code.
+4. **Q4 → Q5 must be lossless**: stage new storage separately, verify exact item counts/identities and journal state, atomically commit authority, preserve rollback evidence without replaying stale data after cutover.
+5. **MR items require native item fidelity**: do not silently serialize, flatten, delete or duplicate item metadata. Native container APIs and version/experiment gates must be confirmed before code relies on them.
+6. **Native hoppers remain valid** in all formerly supported positions; new Transporters are an additive path, not a mandatory replacement.
+7. **Testing claims are bounded**: SOURCE REVIEW and OFFLINE PASS are not RUNTIME OBSERVED or INTEGRATION ACCEPTED. Owner-reported native MR testing is valuable but its artifacts have not been imported to Git.
+8. **Release requires owner approval**, identified source, target-runtime evidence, and release gate. No automatic promotion from a passing build or PR.
+
+Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy](docs/REPOSITORY_POLICY.md), [code hygiene](docs/CODE_HYGIENE_POLICY.md), [temporary instrumentation](docs/TEMPORARY_INSTRUMENTATION_POLICY.md), and [release policy](docs/RELEASE_POLICY.md) whenever relevant. Avoid speculative refactors, duplicate implementations, unsafe cleanups and persistent per-feature branches.
+
+## Current allowed work
+
+Refine planning documents, compare agreed requirements with the 1.4.1 upload, enumerate design decisions and prepare test plans. The next boundary is an **explicit owner decision** to import source or begin implementation; do not infer it from technical discussion.
+
