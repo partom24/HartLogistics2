@@ -78,3 +78,7 @@
 For every **owner-facing manual BDS session**, first show **What is being tested / Why now / Prior evidence reused / User action / Pass condition**, then the complete results. Automated development work should report useful gate outcomes and not demand user attention after each test. Every physical rig must satisfy [Test Rig Cards and Evidence Reuse](TEST_RIG_CONTRACT.md): exact **one- versus two-Sorter** counts, XYZ, facing, Hopper output, all required rig spacing (or explicitly none), redstone, contents, steps, expected results and reset. **No physical rigs are READY yet.**
 
 **PG-01 and PG-02 are GO at their stated source/offline scope** (see [Bundle 0 results](BUNDLE0_RESULTS.md)). **PG-03–PG-11 remain NOT RUN**; no Bedrock in-game/LAB deployment test or temporary rig has run. All disposable synthetic fixtures were cleaned. Further source code and LAB execution require their own authorization. This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.
+
+## Owner source-delivery correction (2026-11-07)
+
+PG-03 through PG-05 test code is Git-tracked source, not an .mcpack distribution. A guarded PowerShell Git-to-LAB installer must be implemented and validated before Windows LAB deployment. The earlier .mcpack artifact/CI upload path is retired; no new test bundle has been added and BDS gates are NOT RUN.

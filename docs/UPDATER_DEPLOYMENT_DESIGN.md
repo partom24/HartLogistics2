@@ -71,3 +71,7 @@ No LAB operator should be asked to set up a manual world rig without a [READY te
 - Exact Git checkout location, release naming/versioning, packaging artifact identities, approval record and process used to nominate a release candidate.
 
 This deployment architecture is a **planning artifact, not code implementation or test evidence**.
+
+## Disposable probe: Git source + PowerShell path
+
+Per owner correction, Bundle 1 must use Git-tracked test-only behavior pack source and a guarded PowerShell source update/cleanup process. Do not distribute .mcpack downloads. Only the exact allowed LAB server path may be targeted; verify Git commit/origin, stopped BDS, source hashes, safe world pack registration, backup and rollback. Neither original 1.4.1 packs nor any production files may be modified. **Currently unimplemented/unverified on Windows**: the earlier Bundle 0 updater is Python-only and supports original BP/RP installs, not independent temporary probe packs. This gap blocks LAB installation until the PowerShell path is built and checked.

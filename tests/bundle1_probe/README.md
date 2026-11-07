@@ -10,6 +10,14 @@
 
 **Pass condition:** PG03 native slots exist; PG04 exact MR name+lore, identity and counts survive both native methods and a blocked target; PG05 item survives true restart, without duplicated contents and with menu accessible.
 
+## Owner correction: Git source and PowerShell LAB update
+
+The exact temporary probe source is already tracked under tests/bundle1_probe/behavior_pack in the authorized HartLogistics2 Git repository. The earlier .mcpack artifact was an unnecessary alternate delivery channel; CI no longer builds or uploads it. Do not manually download or import an .mcpack.
+
+Required delivery is a guarded PowerShell update process using an exact pinned, clean Git checkout. Once implemented and separately authorized, it should stage only the independent disposable probe behavior-pack files into the exact LAB root, verify file hashes, safely register and later unregister only the probe in a disposable LAB world, and preserve all original 1.4.1 BP/RP identities and unrelated packs. It must fail closed for wrong Git origins, unapproved paths, running BDS, unexpected world configuration, or symlink/junction paths. No experiments or cheats are to be changed.
+
+**Current status:** Bundle 0 implemented a Python LAB updater for the original BP/RP; no equivalent PowerShell test-probe installer has been built or Windows-tested yet. It is not safe to treat that Python updater or the historic CI artifact as deployment approval. Do not access either server to improvise the missing workflow. PG-03/04/05 remain NOT RUN and the manual rig remains NOT READY.
+
 ## Proposed complete rig geometry (subject to world validation)
 
 In a **fresh clean disposable Overworld LAB world**, choose and record an empty anchor \`(X,Y,Z)\`. **Exactly 4 blocks, one horizontal X row**:
@@ -33,4 +41,4 @@ Craft **two temporary probes from one dirt** using the test pack's shapeless rec
 
 **Cleanup:** Remove/discard this dedicated disposable LAB world and temporary pack after the test; do not break a filled custom block without safe item-handling. Delete the temporary script/manifest/block/recipe from Git and \`temporary_instrumentation\` entry **as soon as PG03–05 conclude**, while keeping permanent offline tests and evidence. Do not silently leave a probe deployed. No server files or commands were accessed/executed by creating this plan.
 
-**Cleanup clarification:** `tests/test_bundle1_probe.py`, `tests/bundle1_probe/offline_sim.cjs`, `tests/bundle1_probe/build_probe.py`, and their CI steps are **also temporary**, not permanent regression tests. Delete them with the probe pack when PG-03–PG-05 close. Only keep evidence and genuinely independent permanent tests.
+**Cleanup clarification:** `tests/test_bundle1_probe.py`, `tests/bundle1_probe/offline_sim.cjs`, and their CI steps are **also temporary**, not permanent regression tests. Delete them with the probe pack when PG-03–PG-05 close. Only keep evidence and genuinely independent permanent tests.

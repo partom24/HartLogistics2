@@ -20,7 +20,7 @@ Determine whether **server 1.26.63.1 / client v26.63** under the owner's approve
 
 **Full CI run:** [42344178135](https://github.com/partom24/HartLogistics2/actions/runs/42344178135), completed successful. Other regression tests also passed (37 template and 9 LAB-updater offline tests), but do not count as BDS MR acceptance.
 
-**Temporary packaged artifact:** [View run and download `TEMP-HartLogistics-PG03-05-LAB-ONLY`](https://github.com/partom24/HartLogistics2/actions/runs/42344178135). GitHub downloads a ZIP containing `HartLogistics_PG03-05_DISPOSABLE_LAB_ONLY.mcpack`. Artifact ID `13563080206`, expires **2026-11-14 UTC**. Its contents are for the **disposable LAB only**, not the real addon. Git source: [probe README](../tests/bundle1_probe/README.md).
+**Delivery corrected:** Use Git-tracked source under [tests/bundle1_probe/behavior_pack](../tests/bundle1_probe/behavior_pack), not the separately packaged .mcpack. Earlier CI run 42344178135 did build historical artifact 13563080206, but the packaging/upload steps and packager have now been retired. The intended guarded PowerShell source-to-LAB installer is **not implemented or Windows-tested yet**; Bundle 0's Python installer operates on the original BP/RP, not this independent test pack. Do not use the archived artifact as the installation route.
 
 ## Actual BDS gates — unresolved
 

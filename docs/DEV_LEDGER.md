@@ -117,3 +117,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - CI run **42344178135 completed success**. Relevant new prep tests: 12 Python static probe-contract checks, JS syntax check, **11 Node mock-only scenarios** of native transfer, leftover/throw cases, no unintended source mutations, metadata corruption detection and boot-gated restart check. Old tests continue passing. No Bedrock runtime invocation occurred.
 - `tests/bundle1_probe/build_probe.py` packaged a deterministic 3,547-byte `.mcpack` and uploaded temporary artifact ID **13563080206**, expires 2026-11-14 UTC. The probe is an isolated test-only pack, not a release. Only the LAB environment may ever run it.
 - **PG-03, PG-04, PG-05 = NOT RUN in BDS**. Actual custom inventory feature flags, ItemStack custody and UI collision require real 26.63 integration. The owner won't be asked for a rig before the LAB world/anchor can be made READY. No server accessed.
+
+## 2026-11-07 — Correct Bundle 1 distribution workflow
+
+- Owner requested original Git-sourced delivery via PowerShell rather than a separate downloadable .mcpack. The previous archive was redundant.
+- Removed the temporary .mcpack packager and GitHub Actions upload/build steps; the original temporary BP source remains Git-tracked under tests/bundle1_probe/behavior_pack.
+- Bundle 0's installer was Python, not PowerShell, and does not install this isolated test BP. PowerShell source installer remains to be built and Windows synthetic-tested; do not report LAB readiness until then. No servers were accessed.

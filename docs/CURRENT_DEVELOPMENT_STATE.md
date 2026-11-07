@@ -51,3 +51,7 @@ Prepared a **test-only** `tests/bundle1_probe/behavior_pack` for PG-03–PG-05; 
 - Bundle 1 temporary probe additionally has mock-only offline Node simulations and a deterministic test-only packager. The generated `.mcpack` is **not a Hart Logistics release**. GitHub Actions artifact is temporary. All PG-03–PG-05 runtime gates remain NOT RUN until evidence from BDS.
 
 - **Bundle 1 offline preparation evidence:** GitHub Actions run [42344178135](https://github.com/partom24/HartLogistics2/actions/runs/42344178135) passed structural validation, 12 temporary static probe checks, Node syntax, **11 mock-only transfer/restart/error scenarios**, and creation of a disposable `.mcpack` test artifact. **BDS PG-03/04/05 still NOT RUN.** The test-only BP is not a HartLogistics2 distributable release, and its temporary code/CI wiring must be deleted after the tests complete.
+
+## Bundle 1 source delivery correction
+
+Owner requires Git-tracked probe source delivered via guarded PowerShell LAB updates, not .mcpack artifacts. Removed ongoing artifact generation; the disposable pack source remains under tests/. A PowerShell installer does not yet exist and must be validated separately from the existing Python updater. PG-03/04/05 are NOT RUN, lab rig NOT READY, no world accessed.
