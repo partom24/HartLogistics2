@@ -42,3 +42,7 @@ This repository was created from an engineering blueprint template. Shared polic
 The original source import is complete. Future gameplay implementation still requires separate owner authorization and must preserve original pack UUIDs, identifiers, persistent state and 1.4.1 capabilities. CI/source-hash checks alone do not prove runtime compatibility.
 
 **Linking UI:** [Menu-based Collector/Receiver linking design](docs/UI_LINKING_DESIGN.md) documents the explicit link/relink button and compatibility requirements.
+
+## Temporary Bundle 1 native-container probe — Windows LAB operator handoff
+
+For PG-03–PG-05 only, use the [Git-source PowerShell LAB updater](tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) with the [safe operator instructions](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). It is **not** an `.mcpack` download or a Hart Logistics 2 release. On Windows, both PowerShell 5.1 and 7 passed 48 simulated safety assertions ([CI 42377591621](https://github.com/partom24/HartLogistics2/actions/runs/42377591621)); **actual BDS checks NOT RUN**. Temporary test files and wiring must be removed after PG-03–PG-05.
