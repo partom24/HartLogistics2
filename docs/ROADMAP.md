@@ -123,3 +123,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - **Status:** controlled PG15 clean-restart HOLD evidence remains accepted; physical durable cross-object exactly-once transfer is **NOT** established. All uncertain intents HOLD and never auto-repeat, auto-settle, release reservations or credit Bulk; matching SETTLED physical snapshot is only observation.
 - **Next:** identify an actual documented Bedrock-stable server-side exclusive item store or transaction primitive; if none, seek an alternate design that does not promise physically spendable virtual 200,000-item banks. Reuse prior LAB results; do not risk a forced crash or another owner intervention until a credible new primitive exists.
 
+## PG-17 original cross-lane safety model after reference-only concept review (2026-11-07)
+
+- Conceptually reviewed three owner-uploaded standalone files about a single writer, metadata-rich native direct moves, and Q5 physical output. Source files **reference only**, never imported/copied. Independent [PG17 design](PG17_REFERENCE_CONCEPTS.md) and [cross-lane model](../candidates/transport/cross_lane_hazard_audit.mjs) with 38 Node cases + 36 ordered route-pair conflicts (HL-E-043) define what eventual integration must not conflate.
+- A cooperative writer arbitration can detect multi-lane races across Q4/native/Q5/Bulk, but not block foreign player/addon changes to vanilla chests; readback receipt and native ItemStack clone/slot writes do not establish a crash-atomic journal+inventory commit. Whole-stack native move into known empty slot is a **design direction only**. Partial multi-write merges and spendable Bulk ledger updates remain blocked.
+- No new pack or user test required. Next engineering work should make a separately testable native metadata-preservation plan under explicit fail-closed custody limitations, and investigate a credible engine-enforced physical custody boundary before any Q5/Bulk runtime service.
+
