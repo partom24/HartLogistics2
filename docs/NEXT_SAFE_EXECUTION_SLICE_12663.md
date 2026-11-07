@@ -31,3 +31,12 @@
 - How are multiple Bulk controllers elected and safely reconciled on topology splits/merges/unloaded members?
 
 These are decisions for a subsequent gameplay authorization, **not** blockers to offline testing and topology-model refinement. No changes to server settings, cheats, experiment flags, pack identities, client version or cloned LAB world are implied.
+
+## After PG-08 menu BDS acceptance — next ordinary Transporter safety hypothesis (2026-11-07)
+
+The menu-only PG-08 LAB checks have GO by owner confirmation, with physical test rig cleanup pending. This does **not** remove the PG-03 native MR container dependency for Q5 nor authorize more gameplay code.
+
+Added `tests/test_transport_authority_model.py` (**13 offline unit scenarios; no BDS access**) as a **candidate fail-closed permission gate**, not a committed product decision. It requires already-authoritatively-assigned region identities, a complete/loaded known topology without unknown boundaries, one current live controller claim for a local region, and a verified six-face path contained within that region. It refuses automatic first-placement election, duplicates, offline controller, old topology epoch, split/disconnected paths, and cross-region movement without a separately proved handoff protocol. A positive permit is only a modeled hypothetical permission, **not a transfer, durable journal commit, reservation, full network test or an implementation license**.
+
+**Next design choice, still open:** deterministic durable election/ownership across unloaded chunks, route/lease epochs, safe cross-controller coordination, and capacity reservations must be specified and approved before an ordinary-item LAB Transporter prototype. Maintain existing 1.4.1 Hopper and native MR fallback unchanged, and do not initiate another owner manual test while offline modeling is sufficient.
+
