@@ -19,7 +19,8 @@ export const JOURNAL_STATES = Object.freeze([
 ]);
 
 const exactKey = s => typeof s === "string" &&
-    /^[a-zA-Z0-9:|,._/-]{1,160}$/.test(s);
+    /^[a-zA-Z0-9:|,._/-]{1,160}$/.test(s) &&
+    !s.includes("..") && !s.includes("//");
 const goodEpoch = n => Number.isSafeInteger(n) && n > 0;
 const object = v => v !== null && typeof v === "object" && !Array.isArray(v);
 const deny = (reason, extra={}) => Object.freeze({
@@ -69,6 +70,8 @@ export function evaluateCustodyAdmission(data={}) {
       data.destination.isSingleInventory!==true ||
       data.source.size!==27 || data.destination.size!==27 ||
       data.source.exactOrdinarySingleItem!==true ||
+      data.source.exactlyEmpty!==false ||
+      data.destination.exactOrdinarySingleItem!==false ||
       data.destination.exactlyEmpty!==true) {
     return deny("physical_endpoint_snapshot_untrusted");
   }
