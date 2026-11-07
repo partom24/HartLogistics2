@@ -15,6 +15,8 @@
 
 **Preservation requirement:** no lost 1.4.1 capability, item, identity, filter, linkage, redstone gate, hopper path or queue on upgrade.
 
+Full current **ingress/egress path preservation matrix**: [1.4.1 ingress and egress](BASELINE_INGRESS_EGRESS_MATRIX.md). It enumerates supported and conditional Sorter, Collector, Receiver and Hopper routes, including item-entity ejection and direct-only unsafe-item fallback.
+
 ## Future Git-frozen baseline gate
 
 After explicit owner authorization to import the unchanged 1.4.1 source, pin its actual Git tree SHA in project-blueprint.json under source.frozen_references and verify every original file against the source archive hash manifest. Until then, source.frozen_references intentionally remains **empty**. The word 'baseline' here does **not** mean this source already exists in Git or has passed new runtime acceptance.

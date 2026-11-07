@@ -2,6 +2,8 @@
 
 **Status: owner requirements captured; planning only, NOT implemented or tested.** For uncertainties see [decision inbox](IDEA_INBOX.md), for Receiver migration see [Q5 design](Q5_MIGRATION_DESIGN.md), for acceptance see [test plan](COMPATIBILITY_TEST_PLAN.md).
 
+For exact pre-existing item ingress/egress acceptance see the **[source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md)**. Future block integration must not change any existing E01–E11 path without a lossless compatibility adapter.
+
 ## Non-negotiable preservation
 
 Every 1.4.1 capability remains supported: existing Sorter FILTER/AUTO/WILDCARD/BYPASS modes and filter semantics, item-frame filtering, Collector/Receiver links, vanilla hoppers and legacy output paths, redstone controls, dropper/dispenser behavior, original identities, queue recovery, legacy q2/q3 conversion and all saved-world state. A network without new blocks must keep the original operating behavior. New routing policies must be opt-in through a correctly established network, never silently applied globally.

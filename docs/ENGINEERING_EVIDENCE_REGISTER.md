@@ -11,6 +11,8 @@ The engineering blueprint template's old E-* entries referred to a **different r
 | HL-E-005 | Owner's environment | OWNER-REPORTED, not yet reproduced | Server launch log: `Version: 1.26.63.1`; client `v26.63` | Not a completed compatibility test or proof pack loaded on that server |
 | HL-E-006 | Planning docs in HartLogistics2 | Document update only | HL-PLAN-001; architecture, migration, test plan and decision inbox in this PR | No gameplay implementation, CI success, world tests or release approval |
 
+| HL-E-007 | Baseline Sorter/Collector/Receiver ingress and egress routes | **SOURCE REVIEW** | [1.4.1 route matrix](BASELINE_INGRESS_EGRESS_MATRIX.md): accepted edges E01–E11, unsupported N01–N07, end-to-end routes R01–R06, and function/line trace index against original upload | No new in-game test or proof on owner-reported server 1.26.63.1/client 26.63; behavior remains conditional on orientation/redstone/storage/load/item eligibility |
+
 ## Evidence to capture before implementation/release
 
 1. Source commit/tree and original mcaddon checksum, pack UUIDs and exact Bedrock engine/API versions.
