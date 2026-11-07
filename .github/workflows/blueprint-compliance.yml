@@ -35,3 +35,27 @@ jobs:
 
       - name: Bundle 1 native-transfer mock simulations (offline only)
         run: node tests/bundle1_probe/offline_sim.cjs
+
+  bundle1-powershell-offline-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+      - name: Parse Windows PowerShell updater and synthetic tests
+        shell: powershell
+        run: |
+          $paths = @('tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1', 'tests/bundle1_probe/Test-PowerShellUpdater.ps1')
+          foreach ($path in $paths) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          }
+      - name: Windows PowerShell 5.1 synthetic installer checks
+        shell: powershell
+        run: |
+          .\tests\bundle1_probe\Test-PowerShellUpdater.ps1
+      - name: PowerShell 7 synthetic installer checks
+        shell: pwsh
+        run: |
+          .\tests\bundle1_probe\Test-PowerShellUpdater.ps1

@@ -35,6 +35,13 @@
       "task": "Temporary standalone BDS native custom-container feasibility probe; remove on PG03-05 closure",
       "path": "tests/bundle1_probe/behavior_pack/scripts/main.js",
       "status": "active"
+    },
+    {
+      "id": "PG03-05-PS",
+      "kind": "test",
+      "task": "Temporary Git-sourced PowerShell LAB-only source updater for PG03-05; delete on task close",
+      "path": "tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1",
+      "status": "active"
     }
   ],
   "planning": {

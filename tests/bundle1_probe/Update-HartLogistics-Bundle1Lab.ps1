@@ -38,8 +38,8 @@ $script:Expected = @('manifest.json','blocks\mr_container.json',
                      'recipes\probe_recipe.json','scripts\main.js')
 
 function Deny([string]$Message) { throw ('REFUSED PG03-05: ' + $Message) }
-function Git([string[]]$Words) {
-    $output = & git -C $script:Repo @Words 2>&1
+function Invoke-CheckedGit([string[]]$Words) {
+    $output = & git.exe -C $script:Repo @Words 2>&1
     if ($LASTEXITCODE -ne 0) { Deny ('Git failure: ' + ($Words -join ' ')) }
     return (($output | Out-String).Trim())
 }
@@ -85,13 +85,13 @@ function SameMap($A,$B) {
 function GitSource([bool]$RequirePin) {
     NoLinks $script:Repo
     NoLinks $script:Source
-    $origin=Git -Words @('remote','get-url','origin')
+    $origin=Invoke-CheckedGit -Words @('remote','get-url','origin')
     if ($origin -notmatch '^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)partom24/HartLogistics2(?:\.git)?/?$') {
         Deny 'Git remote must be the authorized partom24/HartLogistics2 only'
     }
-    $head=Git -Words @('rev-parse','HEAD')
+    $head=Invoke-CheckedGit -Words @('rev-parse','HEAD')
     if ($head -notmatch '^[a-f0-9]{40}$') { Deny 'Git HEAD is not a full SHA' }
-    if ((Git -Words @('status','--porcelain','--untracked-files=all'))) {
+    if ((Invoke-CheckedGit -Words @('status','--porcelain','--untracked-files=all'))) {
         Deny 'Git worktree must be clean and free of untracked files'
     }
     if ($Commit -and $Commit -cne $head) { Deny 'Pinned -Commit mismatches Git HEAD' }
@@ -245,7 +245,7 @@ function AddRegistration([string]$Raw) {
     return $result
 }
 function EncodeUtf8Like([byte[]]$Original,[string]$Text) {
-    $bytes=(New-Object Text.UTF8Encoding($false)).GetBytes($Text)
+    $bytes=([System.Text.UTF8Encoding]::new($false)).GetBytes($Text)
     if($Original.Length -ge 3 -and $Original[0] -eq 239 -and
        $Original[1] -eq 187 -and $Original[2] -eq 191) {
         $joined=New-Object byte[] ($bytes.Length+3)
@@ -367,10 +367,10 @@ if($MyInvocation.InvocationName -eq '.'){return}
 if($Apply -and $Mode -notin @('Install','Cleanup')){Deny '-Apply permitted only with Install or Cleanup'}
 $snapshot=GitSource ($Mode -in @('Install','Cleanup'))
 if($Mode -eq 'Sync'){
-    $current=Git -Words @('branch','--show-current')
+    $current=Invoke-CheckedGit -Words @('branch','--show-current')
     if($current -cne $script:Branch){Deny 'Sync requires docs/hart-logistics-planning branch'}
-    [void](Git -Words @('fetch','--no-tags','origin',$script:Branch))
-    [void](Git -Words @('merge','--ff-only','FETCH_HEAD'))
+    [void](Invoke-CheckedGit -Words @('fetch','--no-tags','origin',$script:Branch))
+    [void](Invoke-CheckedGit -Words @('merge','--ff-only','FETCH_HEAD'))
     Write-Output 'Fast-forward source sync complete. Re-run Plan/Install with new HEAD.'
     return
 }
