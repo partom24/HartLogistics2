@@ -189,3 +189,7 @@ Sources:
 
 - New pure Python `tests/test_bundle2_offline_safety.py`: **25/25 methods PASS** (5 legacy source contracts, 8 shadow migration and crash gate model, 12 menu/workflow policy checks). [Successful CI 42384039945](https://github.com/partom24/HartLogistics2/actions/runs/42384039945), 90 methods total including earlier suites.
 - [Report](BUNDLE2_PREPARATION_RESULTS.md) explicitly separates tested abstractions from untested Bedrock behavior; main 1.4.1 BP/RP unchanged, no server touched, no temp instrument created. PG-06/PG-07/PG-08 real BDS remain NOT RUN and native MR aspects blocked by PG-03 NO-GO. Future PG-08 gameplay prototype requires controlled new candidate and installer, not shortcutting Q5 or saved-link safety.
+
+## 2026-11-07 — Read-only owner handoff for Bundle 2
+
+Prepared fixed-path, non-mutating PowerShell preflight `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1`. It reads only the approved cloned LAB server properties, original BP/RP registrations and manifests, and retired PG03 probe leftovers. It does not read world LevelDB, access PROD, or edit any files. CI uses disposable synthetic runner fixture and confirms hashes unchanged after run. No future LAB GUI, Q5 cutover or gameplay upgrade is implied.

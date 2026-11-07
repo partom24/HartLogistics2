@@ -90,3 +90,7 @@ After the PG-03 NO-GO and complete cleanup, added **pure offline Transporter top
 ## Bundle 2 begun — PG-06–PG-08 offline-only preparation (2026-11-07)
 
 Owner authorized proceeding to **Bundle 2** after Bundle 1 PG-03 NO-GO. Added purely offline structural preservation checks for legacy placed blocks, q2/q3/q4/journal keys, a **non-runtime q4→shadow-q5 crash model**, and a **non-runtime per-player menu/confirmation model**. None changes gameplay, original addon source, world data or experiment flags. **PG-06/07/08 BDS = NOT RUN**; PG-06/07 cannot fully pass while stable native MR storage is unavailable. PG-08 can progress through independent menu policy evidence but still needs verified actual LAB UI before acceptance.
+
+## Bundle 2 operator-ready read-only pack check (2026-11-07)
+
+Added standalone [PowerShell LAB pack preflight](../scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1) for owner to inspect registered Hart 1.4.1 BP/RP and final probe removal in approved LAB clone, without modifying anything. This read-only snapshot does NOT inspect saved links/queues/experiment flags and is NOT PG-06/07/08 acceptance. GitHub-hosted synthetic Windows fixture checks only; real owner execution pending.

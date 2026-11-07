@@ -33,3 +33,49 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_transport_topology_model.py' -v
       - name: Offline Bundle 2 placed-block, q4 to q5 and menu safety models
         run: python -m unittest discover -s tests -p 'test_bundle2_offline_safety.py' -v
+
+
+  bundle2-readonly-preflight-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+      - name: Syntax and allowlist checks
+        shell: powershell
+        run: |
+          $s = '.\scripts\diagnostics\Read-HartLogistics-Bundle2Lab.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $s).Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          $t = Get-Content -LiteralPath $s -Raw
+          if (-not $t.Contains('C:\Servers\Thomas_MCBedrock - Copy (2)')) { throw 'Missing LAB allowlist' }
+          if ($t -match '(?m)^\s*(Set-Content|Remove-Item|Copy-Item|Move-Item|New-Item|Out-File|Invoke-WebRequest)\b') { throw 'Writes found' }
+      - name: Synthetic fixture (GitHub-hosted ephemeral runner only)
+        shell: powershell
+        run: |
+          $lab = 'C:\Servers\Thomas_MCBedrock - Copy (2)'
+          if (Test-Path -LiteralPath $lab) { throw 'Unexpected runner LAB path already exists' }
+          try {
+            [void](New-Item -ItemType Directory -Path (Join-Path $lab 'worlds\ThomasServer') -Force)
+            [void](New-Item -ItemType Directory -Path (Join-Path $lab 'behavior_packs\HartBP') -Force)
+            [void](New-Item -ItemType Directory -Path (Join-Path $lab 'resource_packs\HartRP') -Force)
+            [IO.File]::WriteAllText((Join-Path $lab 'server.properties'), 'level-name=ThomasServer')
+            [IO.File]::WriteAllText((Join-Path $lab 'behavior_packs\HartBP\manifest.json'), '{"header":{"uuid":"4854d263-05dd-4f79-a21c-7ba969295c2d","version":[1,4,1]}}')
+            [IO.File]::WriteAllText((Join-Path $lab 'resource_packs\HartRP\manifest.json'), '{"header":{"uuid":"91316442-0f26-4fbb-88f3-2e39ea843a1a","version":[1,4,1]}}')
+            $bpJson = '[ // optional comment' + [Environment]::NewLine + '{"pack_id":"4854d263-05dd-4f79-a21c-7ba969295c2d","version":[1,4,1],},' + [Environment]::NewLine + ']'
+            [IO.File]::WriteAllText((Join-Path $lab 'worlds\ThomasServer\world_behavior_packs.json'), $bpJson)
+            [IO.File]::WriteAllText((Join-Path $lab 'worlds\ThomasServer\world_resource_packs.json'), '[{"pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a","version":[1,4,1]}]')
+            $paths = @('server.properties','behavior_packs\HartBP\manifest.json','resource_packs\HartRP\manifest.json','worlds\ThomasServer\world_behavior_packs.json','worlds\ThomasServer\world_resource_packs.json')
+            $before = @{}
+            foreach ($p in $paths) { $f=Join-Path $lab $p; $before[$f]=(Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
+            $result = & '.\scripts\diagnostics\Read-HartLogistics-Bundle2Lab.ps1' | Out-String
+            Write-Host $result
+            if ($result -notmatch 'Hart BP registry: 1 match\(es\), versions 1\.4\.1') { throw 'BP parse failed' }
+            if ($result -notmatch 'Hart RP registry: 1 match\(es\), versions 1\.4\.1') { throw 'RP parse failed' }
+            if ($result -notmatch 'Retired PG03 probe registered: False') { throw 'False-positive probe' }
+            foreach ($p in $paths) { $f=Join-Path $lab $p; if ((Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash -ne $before[$f]) { throw "Diagnostic mutated fixture $p" } }
+            Write-Host 'Read-only synthetic PASS'
+          } finally {
+            if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
+          }
