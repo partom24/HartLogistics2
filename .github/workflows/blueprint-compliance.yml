@@ -25,3 +25,5 @@ jobs:
         run: python scripts/validate_blueprint.py
       - name: Run blueprint validator self-tests only
         run: python tests/test_validate_blueprint.py -v
+      - name: Run HartLogistics LAB updater offline safety tests
+        run: python -m unittest discover -s tests -p 'test_hartlogistics_lab_updater.py' -v
