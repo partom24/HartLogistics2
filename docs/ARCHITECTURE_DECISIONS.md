@@ -24,10 +24,10 @@
 
 ## HL-ADR-008 — Replace direct-only Q4 MR fallback with native custodied MR storage
 
-**Status:** Owner-selected architecture 2026-11-06; implementation and runtime acceptance pending.  
+**Status:** Owner-selected **persistent lossless MR custody outcome** 2026-11-06; selected **custom-block container mechanism blocked** by PG-03 NO-GO on nonexperimental BDS 1.26.63.1 (2026-11-07). Replacement mechanism, implementation and runtime acceptance remain pending.  
 **Decision:** Collectors and Receivers become persistent native custom-container endpoints for metadata-rich ItemStacks, using native slot-to-slot transfers whenever supported and recoverable. This **supersedes any recommendation to retain the original Q4 direct-only Hopper fallback permanently**. Existing 1.4.1 ingress/egress *behavior* remains a strict release contract; the old fallback may be retired **after** its MR delivery capability and old-world routes are demonstrably preserved in the new path.  
 **Rationale:** Q4 serialization and its empty-queue + instantly available destination requirement were limiting workarounds; native custody allows blocked MR items to wait safely and supports MR-rich throughput.  
-**Consequences / gates:** Retain legacy fallback only as a transitional compatibility mechanism; do not silently enable experiments or remove working behavior. Prove native block inventory availability on the owner-reported server 1.26.63.1/client v26.63, native slot persistence on existing placed blocks, metadata integrity, backpressure, unload/restart transfer safety and redstone/hopper/Sorter compatibility. No gameplay source changes authorized.
+**Consequences / gates:** Preserve working legacy MR routes until a replacement demonstrably preserves the capability; do not enable experiments or remove working behavior. Bundle 1's custom probe could not be obtained in the permitted BDS target, therefore **PG-04/05 are blocked/unrun, not transfer/persistence failures**. Vanilla-container-backed storage or a supported later runtime is an **unapproved feasibility option**, not a decision in this ADR. Any proposal must prove existing-world upgrades, exact metadata and item counts, backpressure, unload/restart/crash conservation, saved links, redstone/hopper/Sorter compatibility and menu safety. The owner reports Bundle 2 in development; this blocker only gates features requiring the missing MR endpoint. No new gameplay authorization is inferred.
 
 ## HL-ADR-005 — HartBots reference without repo changes
 **Status:** Owner-confirmed scope.  
