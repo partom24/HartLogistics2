@@ -40,3 +40,7 @@ See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-perfo
 - **Open:** controller boundary/discovery/failover, pipe extraction control, routing at junctions, wildcard behavior with unavailable banks and MR items, capacity accounting, MR prioritization/fairness, save transaction protocol and legacy upgrade path. See [inbox](IDEA_INBOX.md).
 - **Bundle 0 source import and offline LAB updater preparation were specifically authorized and completed**. This does not authorize Q5, new blocks, in-game probes, any server changes or release. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
 
+
+## Bundle 1 PowerShell handoff (2026-11-07)
+
+The Git-tracked isolated MR probe now has a **source-first, temporary, PowerShell LAB-only installer** with exact commit/allowlist/registration/cleanup checks. Windows PowerShell 5.1/7 synthetic tests passed in CI; [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md). **No actual BDS gameplay verification or LAB installation has occurred**. Do not construe this tooling completion as Q5 implementation or PG03-05 GO.

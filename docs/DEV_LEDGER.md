@@ -123,3 +123,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Owner requested original Git-sourced delivery via PowerShell rather than a separate downloadable .mcpack. The previous archive was redundant.
 - Removed the temporary .mcpack packager and GitHub Actions upload/build steps; the original temporary BP source remains Git-tracked under tests/bundle1_probe/behavior_pack.
 - Bundle 0's installer was Python, not PowerShell, and does not install this isolated test BP. PowerShell source installer remains to be built and Windows synthetic-tested; do not report LAB readiness until then. No servers were accessed.
+
+## 2026-11-07 — Delivered PowerShell Git-to-LAB updater for Bundle 1
+
+- Implemented `tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1` with **source-only Plan**, clean Git-only **Sync**, read-only exact-LAB **CheckLab**, staged/hash-verified **Install**, owned-lease/hash-preserving **Cleanup**. Hardcoded LAB root, pinned Git source, specific test pack UUID, no experiment/cheat changes, no original addon changes.
+- Created Windows native `Test-PowerShellUpdater.ps1` temporary synthetic suite, executed **46 assertions in Windows PowerShell 5.1 and 46 in PowerShell 7** (CI run 42377204920), plus Linux structural checks. It tests JSONC preservation, ownership, exact registry restoration and fail closed on unrelated changes. Future commits may rerun additional tests.
+- Added operator guide for Git clone/fast-forward, Plan/CheckLab, explicit Install/cleanup. **Actual LAB BDS, PG03/04/05 tests remain NOT RUN**. Installer/CI probes tracked as temporary; delete on task acceptance.

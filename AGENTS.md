@@ -54,3 +54,7 @@ Owner-selected UI design: explicit **Link / Relink Receiver** button inside the 
 ## Owner-preferred LAB test distribution
 
 Temporary probe source is distributed via the authorized Git checkout and a guarded PowerShell LAB update pathway, **not manual mcpack downloads**. Bundle 0's Python updater only handles the original packs. Before installing independent probe source, build/validate a separate PowerShell path under the same strict LAB-only and temporary-instrumentation cleanup rules. No unapproved production or LAB operations.
+
+## Bundle 1 PowerShell source delivery status (2026-11-07)
+
+The previously missing [disposable PG03-05 PowerShell updater](tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) is now **implemented and offline Windows-tested** (PowerShell 5.1/7 synthetic install/restore, 46 assertions per version). See [guide](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). Earlier 'not yet implemented' text is superseded. No real LAB/production host touched. All PG03-05 Bedrock runtime results are **NOT RUN**, and manual rig needs READY card. Temporary runtime and updater instrumentation must be deleted at task closure.

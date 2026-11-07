@@ -82,3 +82,7 @@ For every **owner-facing manual BDS session**, first show **What is being tested
 ## Owner source-delivery correction (2026-11-07)
 
 PG-03 through PG-05 test code is Git-tracked source, not an .mcpack distribution. A guarded PowerShell Git-to-LAB installer must be implemented and validated before Windows LAB deployment. The earlier .mcpack artifact/CI upload path is retired; no new test bundle has been added and BDS gates are NOT RUN.
+
+## PowerShell LAB source deployment now prepared
+
+The [Git source-to-LAB PowerShell updater](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) has passed Windows 5.1 and PowerShell 7 **synthetic** install/cleanup checks; see [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md). The earlier note saying this PowerShell path was unimplemented is superseded. **No live Windows LAB install or PG-03–PG-05 Bedrock runtime result yet.** The probe and updater remain temporary and must be removed promptly after their purpose ends.

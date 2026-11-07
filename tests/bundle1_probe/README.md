@@ -42,3 +42,7 @@ Craft **two temporary probes from one dirt** using the test pack's shapeless rec
 **Cleanup:** Remove/discard this dedicated disposable LAB world and temporary pack after the test; do not break a filled custom block without safe item-handling. Delete the temporary script/manifest/block/recipe from Git and \`temporary_instrumentation\` entry **as soon as PG03–05 conclude**, while keeping permanent offline tests and evidence. Do not silently leave a probe deployed. No server files or commands were accessed/executed by creating this plan.
 
 **Cleanup clarification:** `tests/test_bundle1_probe.py`, `tests/bundle1_probe/offline_sim.cjs`, and their CI steps are **also temporary**, not permanent regression tests. Delete them with the probe pack when PG-03–PG-05 close. Only keep evidence and genuinely independent permanent tests.
+
+## PowerShell Git-source installer — delivered
+
+A [temporary Git-source installer](Update-HartLogistics-Bundle1Lab.ps1) now exists and passed Windows PowerShell 5.1 and PowerShell 7 **synthetic tests**. It supports source-only Plan, Git Sync, read-only CheckLab, and guarded Install/Cleanup into the sole LAB root. Earlier statements saying it was not yet implemented are superseded. See [full operator guide](../../docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). **The real BDS compatibility checks remain NOT RUN and the manual rig NOT READY.** Remove this temporary installer, BP and synthetic test harnesses immediately on task completion.

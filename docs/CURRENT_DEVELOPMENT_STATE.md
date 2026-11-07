@@ -55,3 +55,8 @@ Prepared a **test-only** `tests/bundle1_probe/behavior_pack` for PG-03–PG-05; 
 ## Bundle 1 source delivery correction
 
 Owner requires Git-tracked probe source delivered via guarded PowerShell LAB updates, not .mcpack artifacts. Removed ongoing artifact generation; the disposable pack source remains under tests/. A PowerShell installer does not yet exist and must be validated separately from the existing Python updater. PG-03/04/05 are NOT RUN, lab rig NOT READY, no world accessed.
+
+## PowerShell LAB delivery ready for operator use (2026-11-07)
+
+- The [temporary Git-source PowerShell installer](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) is now implemented and has passed synthetic Windows PowerShell 5.1/7 execution checks, including exact registry recovery. Earlier records describing it as unimplemented are superseded. See [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md).
+- This does **not** mean installation on the owner's LAB succeeded. PG-03/04/05 BDS behavior remains **NOT RUN** and the in-world manual rig remains NOT READY until world/anchor validation. No server operations performed here; temporary code remains tracked for prompt cleanup.

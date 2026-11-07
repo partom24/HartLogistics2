@@ -75,3 +75,9 @@ This deployment architecture is a **planning artifact, not code implementation o
 ## Disposable probe: Git source + PowerShell path
 
 Per owner correction, Bundle 1 must use Git-tracked test-only behavior pack source and a guarded PowerShell source update/cleanup process. Do not distribute .mcpack downloads. Only the exact allowed LAB server path may be targeted; verify Git commit/origin, stopped BDS, source hashes, safe world pack registration, backup and rollback. Neither original 1.4.1 packs nor any production files may be modified. **Currently unimplemented/unverified on Windows**: the earlier Bundle 0 updater is Python-only and supports original BP/RP installs, not independent temporary probe packs. This gap blocks LAB installation until the PowerShell path is built and checked.
+
+## 2026-11-07 — PowerShell source-to-LAB test installer implemented and Windows-validated
+
+- The standalone disposable [PG-03–PG-05 PowerShell updater](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) now exists under the Git-tracked test tree and supports **Plan (source only), Sync (Git fast-forward), CheckLab (read only), Install and Cleanup**. Install/Cleanup require exact pinned Git SHA and `-Apply`; cleanup additionally requires confirmation that test items are cleared/disposable.
+- One-time source deployment is from the **four Git files** in `tests/bundle1_probe/behavior_pack`, not an `.mcpack`. Independent pack ID; original BP/RP untouched; JSONC-preserving registration addition and byte-for-byte restoration under lease/hash checks. No Git change to production updater and no HartBots code execution.
+- GitHub [Windows synthetic run 42377204920](https://github.com/partom24/HartLogistics2/actions/runs/42377204920) passed **46 assertions on PowerShell 5.1 and 46 on PowerShell 7** plus structural CI. This is **not a real LAB installation or PG03–05 runtime pass**. [Operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md) gives exact commands and cleanup.

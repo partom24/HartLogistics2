@@ -39,3 +39,9 @@ Determine whether **server 1.26.63.1 / client v26.63** under the owner's approve
 All probe sources, recipe, special block, Python static tests, Node mocks, packager, CI steps, generated artifact and `project-blueprint.json.temporary_instrumentation` entry are **temporary**. Delete their repo/runtime wiring **immediately once PG-03–PG-05 are completed or abandoned**, retain only this results document and supported permanent quality tests. Before task acceptance verify normal repository and actual pack behavior without probes. Run release-gate validation only after removing them. No auto deployment, experiments, cheats, production edits or original HartBots updater invocation.
 
 **Next dependency:** Real BDS runtime access, a validated clean disposable LAB world/anchor and one fully READY rig. The automation performed here does not prove any custom-container behavior on the owner's server.
+
+## Updated 2026-11-07 — PowerShell workflow delivered
+
+The earlier entry saying the PowerShell updater was missing is **superseded**. The [Git-tracked updater](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) has Plan, Sync, CheckLab, Install and Cleanup. [Windows CI 42377204920](https://github.com/partom24/HartLogistics2/actions/runs/42377204920) passed **46 synthetic assertions each** on Windows PowerShell 5.1 and PowerShell 7 (92 assertions across both executions), plus structural checks. It tested source staging, world pack registration, exact SHA-256 and byte-restoring cleanup, JSONC variants, overwrite refusal and fail-closed third-party edits.
+
+Use [operator instructions](BUNDLE1_POWERSHELL_LAB_GUIDE.md) for Git clone, safe preview, explicit install and cleanup. **No actual BDS LAB run occurred; PG-03/04/05 still NOT RUN**. The retired `.mcpack` archive should not be used.
