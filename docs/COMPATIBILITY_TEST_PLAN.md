@@ -1,6 +1,6 @@
 # Hart Logistics — Compatibility and Acceptance Matrix
 
-**Planning checklist, not execution evidence.** Target reported by owner: **Dedicated server 1.26.63.1; client 26.63**. The original 1.4.1 pack minimum **1.26.50** remains a separate compatibility claim requiring testing. All tests use copied/backed-up worlds and original source hashes.
+**Planning checklist, not execution evidence.** Target reported by owner: **Dedicated server 1.26.63.1; client 26.63**. The original 1.4.1 pack minimum **1.26.50** remains a separate compatibility claim requiring testing. All **in-game, release and migration tests occur exclusively** at LAB `C:\\Servers\\Thomas_MCBedrock - Copy (2)`, on copied/disposable worlds; production `C:\\Servers\\Thomas_MCBedrock` is out of bounds. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
 

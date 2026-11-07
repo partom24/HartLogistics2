@@ -7,6 +7,7 @@ Hart Logistics 2 is the planned evolution of the owner-supplied **Hart Logistics
 ## Start here
 
 - [Current state](docs/CURRENT_DEVELOPMENT_STATE.md): what is actually in this repository today.
+- [Updater and deployment boundaries](docs/UPDATER_DEPLOYMENT_DESIGN.md): lab-only testing, imported production-updater permission, and production execution hold.
 - [1.4.1 ingress/egress matrix](docs/BASELINE_INGRESS_EGRESS_MATRIX.md): source-traced supported routes and prohibited regressions.
 - [Roadmap](docs/ROADMAP.md): authorized planning milestone and future candidates.
 - [Logistics design](docs/LOGISTICS_DESIGN.md): agreed requirements for Bulk Storage, Transporters, controllers and dual-lane handling.

@@ -22,6 +22,10 @@
 | HL-Q-016 | High | Should existing q4 standalone Receivers retain FIFO default, while Q5 only activates advanced routing for managed networks? | No 1.4.1 regression vs improving head-of-line blocking. | Owner decision |
 | HL-Q-017 | Critical | What stable/native inventory and persistent custody mechanism will replace Q4's MR direct-only fallback on **already placed** Collector and Receiver blocks in server 1.26.63.1/client v26.63? | Owner has chosen replacement, but experimental feature policy, native slot availability, migration, crash-atomic cross-chunk moves and full-inventory behavior need proof before switching. | **Architecture chosen; implementation gate remains** |
 
+| HL-Q-018 | High | What are the actual LAB `level-name`, pack installation locations and controlled shutdown/restart procedure? | Updater must fail closed; do not assume HartBots template world name/paths are correct. | Verify only on LAB before updater implementation |
+| HL-Q-019 | Medium | What LAB updater invocation and backup/rebuild workflow should be used: manual dry-run/`-Apply` with backup, or separately approved full lab restore from the owner's ZIP? | Lab may be disposable but routine updates still need audited, deterministic behavior. | Owner preference before tool implementation |
+| HL-Q-020 | High | How is a release candidate formally nominated and what separate approval permits any production updater execution/production apply? | Production path must stay untouchable during development; importing script is explicitly allowed without running. | Release-governance definition needed |
+
 ## Decisions already confirmed
 
 - **BL-001:** 1.4.1 is inviolable baseline; no current capability loss acceptable.
@@ -32,4 +36,6 @@
 - **D-007 (owner choice, 2026-11-06):** The restricted Q4 direct-only MR Hopper fallback is **to be migrated/replaced by native custom-container MR custody** in Collectors and Receivers. Preserve its successful transport behavior throughout the transition, **not** its algorithm forever. Native inventory stability, placement upgrades, capacity and crash safety remain gated; see [Q5 design](Q5_MIGRATION_DESIGN.md).
 - **D-005:** HartBots Depot is a reference; future native integration is deferred. No HartBots repo access.
 - **D-006:** Current phase is **documentation/planning only**, no gameplay implementation.
+- **D-008:** LAB `C:\\Servers\\Thomas_MCBedrock - Copy (2)` is the only server release-testing location and is disposable. PRODUCTION `C:\\Servers\\Thomas_MCBedrock` is protected until release candidate nomination.
+- **D-009:** HartBots production updater script is **approved for import into HartLogistics2** but **may not be executed before a nominated release candidate**. Separate explicit production authorization still required for any production modification.
 

@@ -44,5 +44,11 @@
 **Decision:** Owner's server is **1.26.63.1**, client **v26.63**, recorded as a future test target. Existing 1.4.1 minimum **1.26.50** is not silently raised. Native custom block container inventory use cannot be assumed stable on this target; obtain specific proof and policy decision before requiring experiments.  
 **Consequences:** Version and feature compatibility matrix is a prerequisite to implementation; no claim of successful in-game test.
 
+## HL-ADR-009 — Lab-only testing and production-excluded updater
+
+**Status:** Owner-confirmed deployment boundary, 2026-11-06; implementation pending.
+**Decision:** Use the HartBots uploaded updater system as a model for HartLogistics. The only allowed server release/integration-testing location is the disposable lab `C:\\Servers\\Thomas_MCBedrock - Copy (2)`. No tests or changes to production `C:\\Servers\\Thomas_MCBedrock` before an identified release candidate is nominated. Owner **expressly permits importing the HartBots production updater script as a reference**, but prohibits running it, including dry-run, until nomination; candidate nomination does **not** automatically authorize writing to production.
+**Consequences:** Develop guarded LAB-only tooling first, not an automated production route. Adapt hardcoded HartBots repository, IDs, pack versions and paths; require full cold backup, source/artifact pinning and distinct owner approval for any later production promotion. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
+
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 

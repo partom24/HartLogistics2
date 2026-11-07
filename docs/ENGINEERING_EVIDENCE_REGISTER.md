@@ -13,6 +13,8 @@ The engineering blueprint template's old E-* entries referred to a **different r
 
 | HL-E-007 | Baseline Sorter/Collector/Receiver ingress and egress routes | **SOURCE REVIEW** | [1.4.1 route matrix](BASELINE_INGRESS_EGRESS_MATRIX.md): accepted edges E01–E11, unsupported N01–N07, end-to-end routes R01–R06, and function/line trace index against original upload | No new in-game test or proof on owner-reported server 1.26.63.1/client 26.63; behavior remains conditional on orientation/redstone/storage/load/item eligibility |
 
+| HL-E-008 | Uploaded HartBots updater design (not execution) | **SOURCE REVIEW** | Owner's `scripts.zip` SHA-256 `9127f132bc22022ea9d236f1092945f0a7f32a31b0ab0ec2603d39844cb8bfbf`; production script SHA-256 `4f7c136c566a431211b055a9e95f37fc46dce5262dd461b655a6422a0a6f76ee`; [updater design](UPDATER_DEPLOYMENT_DESIGN.md) | Neither updater script has been run or imported as executable HartLogistics tooling; no LAB access, no production access, no deployment verification |
+
 ## Evidence to capture before implementation/release
 
 1. Source commit/tree and original mcaddon checksum, pack UUIDs and exact Bedrock engine/API versions.

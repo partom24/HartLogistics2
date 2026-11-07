@@ -17,7 +17,8 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 ## Next
 
 - **HL-IMPORT-001 (candidate, not approved):** Import the unchanged 1.4.1 behavior/resource source under addon/, pin a Git baseline, record the original archive/hash and establish buildable/source-review fixtures without altering gameplay.
-- **HL-TEST-001 (candidate, not approved):** Build preservation tests for 1.4.1: redstone, all Sorter modes, item frames, vanilla hopper and dispenser/dropper routes, linking, q2/q3/q4 data, journal/crash recovery, exact item counts, metadata and unload/reload.
+- **HL-TEST-001 (candidate, not approved):** Build preservation tests for 1.4.1: redstone, all Sorter modes, item frames, vanilla hopper and dispenser/dropper routes, linking, q2/q3/q4 data, journal/crash recovery, exact item counts, metadata and unload/reload. All in-game testing is restricted to the disposable LAB server.
+- **HL-UPDATER-001 (candidate, not approved):** Adapt guarded HartBots-inspired updater to HartLogistics2 for **LAB-only** installation; source/import reference allowed. Dry-run defaults, strict path/pack checks, staged backup/hash verification, preserve other packs, rollback on error. The HartBots **production updater may be imported as inert reference source**, but **must not be run before a nominated release candidate**. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 - **HL-Q5-001 (candidate, not approved):** Implement and test staged Q4→Q5 migration and a metadata-preserving native lane, conditional on platform support and acceptance.
 - **HL-TRANSPORT-001 and HL-BULK-001 (candidates, not approved):** Implement Transporter and Bulk Storage with bounded transfer budgets, network-aware routing and failure recovery.
 
@@ -31,5 +32,5 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 - **Hard gate:** zero 1.4.1 capability loss; the supplied archive remains the comparison baseline, not an accepted Git frozen reference.
 - **Hard gate:** native custom block container functionality in 1.26.50 may require the Upcoming Creator Features experiment; verify stable API/target-version compatibility before requiring it. See [Q5 design](Q5_MIGRATION_DESIGN.md).
 - **Open:** controller boundary/discovery/failover, pipe extraction control, routing at junctions, wildcard behavior with unavailable banks and MR items, capacity accounting, MR prioritization/fairness, save transaction protocol and legacy upgrade path. See [inbox](IDEA_INBOX.md).
-- No implementation milestone, source import, world migration or release is presently authorized.
+- No gameplay implementation milestone, source import, world migration or release is presently authorized. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
 

@@ -4,7 +4,7 @@
 
 - **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.
 - Read [project-blueprint.json](project-blueprint.json), [roadmap](docs/ROADMAP.md), [current state](docs/CURRENT_DEVELOPMENT_STATE.md), [design](docs/LOGISTICS_DESIGN.md), [Q5 migration](docs/Q5_MIGRATION_DESIGN.md) and relevant source before proposing changes.
-- The owner has approved **planning/documentation only** at present. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
+- The owner has approved **planning/documentation only** at present, with explicit permission to **import the provided HartBots production updater as inert reference source** into this repository. Do not execute production updater scripts (even dry-run) or access/modify the live server before a nominated release candidate, and require separate explicit owner authorization for any subsequent production operation. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
 - The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline; its source is not yet committed. The addon/ directory currently contains a placeholder, not an executable pack.
 
 ## Non-negotiable compatibility contract
@@ -19,6 +19,12 @@
 8. **Release requires owner approval**, identified source, target-runtime evidence, and release gate. No automatic promotion from a passing build or PR.
 
 Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy](docs/REPOSITORY_POLICY.md), [code hygiene](docs/CODE_HYGIENE_POLICY.md), [temporary instrumentation](docs/TEMPORARY_INSTRUMENTATION_POLICY.md), and [release policy](docs/RELEASE_POLICY.md) whenever relevant. Avoid speculative refactors, duplicate implementations, unsafe cleanups and persistent per-feature branches.
+
+## Deployment boundary
+
+- LAB: `C:\\Servers\\Thomas_MCBedrock - Copy (2)` is the **only authorized Minecraft integration and release-testing server**; disposable, may be rebuilt from an owner's ZIP. Future updater must use exact canonical allowlist.
+- PRODUCTION: `C:\\Servers\\Thomas_MCBedrock` is a **hard deny for all test activity**. No production edits until a release candidate has been nominated. **Import of a production updater script is permitted, execution (including dry-run) is not permitted before nomination; nomination does not itself authorize a production apply.**
+- Treat [updater deployment design](docs/UPDATER_DEPLOYMENT_DESIGN.md) as mandatory for any build/install/deploy work. HartBots scripts in the uploaded ZIP are references, not authorized executable HartLogistics tools.
 
 ## Current allowed work
 
