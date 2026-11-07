@@ -232,8 +232,15 @@ function AddRegistration([string]$Raw) {
     }
     $end=$old.Clean.LastIndexOf(']')
     if($end -lt 0){Deny 'Registry terminator not found'}
-    $prefix=$old.Clean.Substring(0,$end).TrimEnd()
-    $sep=if($old.Items.Count -gt 0 -and -not $prefix.EndsWith(',')){','}else{''}
+    # The sanitized JSONC parser blanks trailing commas. Inspect the original
+    # source suffix after the final item, removing suffix-only comments, so a
+    # trailing comma before a comment cannot accidentally become two commas.
+    $index=$end-1
+    while($index -ge 0 -and [char]::IsWhiteSpace($old.Clean[$index])){$index--}
+    $suffix=$Raw.Substring($index+1,$end-$index-1)
+    $suffixWithoutComments=[regex]::Replace($suffix,'(?s)/\*.*?\*/|//[^\r\n]*','')
+    $hasTrailingComma=$suffixWithoutComments.Contains(',')
+    $sep=if($old.Items.Count -gt 0 -and -not $hasTrailingComma){','}else{''}
     $element='{"pack_id":"'+$script:ProbeId+'","version":[0,0,1]}'
     $insert=$sep+[Environment]::NewLine+'  '+$element+[Environment]::NewLine
     $result=$Raw.Substring(0,$end)+$insert+$Raw.Substring($end)

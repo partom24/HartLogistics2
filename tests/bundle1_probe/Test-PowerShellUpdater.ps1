@@ -48,7 +48,9 @@ try {
         $caseNumber++
         Write-Output ('Registry test shape '+$caseNumber)
         $old=Registry $raw
+        Write-Output ('  parsed original shape '+$caseNumber)
         $updated=AddRegistration $raw
+        Write-Output ('  appended original shape '+$caseNumber)
         $now=Registry $updated
         Assert ($now.Items.Count -eq $old.Items.Count+1) 'Only one entry added'
         Assert ([string]$now.Items[-1].pack_id -eq $script:ProbeId) 'New UUID exact'
