@@ -266,12 +266,18 @@ function EncodeUtf8Like([byte[]]$Original,[string]$Text) {
 }
 function AtomicWrite([string]$Path,[byte[]]$Bytes) {
     $tmp=$Path+'.PG03-05.pending'
-    if(Test-Path -LiteralPath $tmp){Deny 'Conflicting pending registry file'}
+    $replaceBackup=$Path+'.PG03-05.atomic-backup'
+    if((Test-Path -LiteralPath $tmp) -or (Test-Path -LiteralPath $replaceBackup)){
+        Deny 'Conflicting pending registry replacement or backup'
+    }
     try {
         [IO.File]::WriteAllBytes($tmp,$Bytes)
-        [IO.File]::Replace($tmp,$Path,$null)
+        # Windows PowerShell 5.1/.NET Framework rejects a null backup path.
+        # The persistent original registry copy lives separately in our lease.
+        [IO.File]::Replace($tmp,$Path,$replaceBackup)
     } finally {
         if(Test-Path -LiteralPath $tmp){Remove-Item -LiteralPath $tmp -Force}
+        if(Test-Path -LiteralPath $replaceBackup){Remove-Item -LiteralPath $replaceBackup -Force}
     }
 }
 function CopyStage([string]$SourceDir,[string]$Destination) {
