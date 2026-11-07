@@ -32,6 +32,13 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 
 Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. Bundle 2–3 focused checks, reuse accepted prior work, start with a plain-language purpose, prepare the full READY rig card before manual LAB setup, and stop dependent features on NO-GO. **Owner accepted this preliminary test plan only with strict [temporary instrumentation cleanup](docs/TEMPORARY_INSTRUMENTATION_POLICY.md): remove probes, test parameters, hooks and associated registry entries as soon as their last test dependency ends, before task acceptance—not only at release.** Track and tag temporary runtime helpers, keep any shared 2–3-test probe only for explicitly active dependent checks, and run the release gate before RC. All current gates are NOT RUN; plan acceptance alone does not authorize source import, gameplay changes or deployment.
 
+## Accepted implementation defaults (2026-11-07)
+
+- Hopper and Transporter are interchangeable **Sorter input** mechanisms sharing priority/filter/redstone rules; pipe atop Sorter columns, adjacent ordinary container means **source**, not final storage; never pipe→ordinary chest output. No output chest at/above pipe Y in intended topology.
+- Persist network IDs and deterministic controller ownership; never infer wildcard permission from stale/unloaded Bulk storage. Keep separate finite native MR slots/backpressure from ordinary Receiver queue counts.
+- Q4→Q5 migration **stops all Hart Logistics script routing server-wide** under a durable maintenance epoch. Unloaded legacy blocks are **PENDING** until auto-migrated on chunk load, not magically mutated while unloaded. Show status in block menus when loaded; do not assume vanilla Hopper mechanics globally stop. Ensure proven safe resume/rollback before clearing the freeze. See [Q5 migration design](docs/Q5_MIGRATION_DESIGN.md).
+- These approvals are **design choices, not implementation authorization**. Source import, gameplay changes, experimental flags, LAB execution and production remain governed by existing gates.
+
 ## Current allowed work
 
 Refine planning documents, compare agreed requirements with the 1.4.1 upload, enumerate design decisions and prepare test plans. The next boundary is an **explicit owner decision** to import source or begin implementation; do not infer it from technical discussion.

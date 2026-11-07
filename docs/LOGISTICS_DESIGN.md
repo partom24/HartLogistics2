@@ -29,12 +29,12 @@ Both new blocks must use **new, distinct model/texture/icon assets** — not reu
 - The first Bulk Storage block in its designated controller region becomes that region's controller. Further Bulk Storage blocks extend capacity without competing for controller authority.
 - Controllers communicate across the connected network; local delivery, cross-bank routing, fallback and route loops require explicit policies.
 
-**Proposed design boundaries (not yet decided):**
-- Network identity, region boundaries and membership may require persistent IDs independent of geometry; exact discovery mechanism not chosen.
+**Accepted principles; implementation details pending:**
+- **Persistent network/region identities, controlled discovery and deterministic controller authority are approved**; precise membership/election algorithm remains to be designed.
 - Keep one authoritative durable owner for each item quantity; pooled network capacity should not imply uncontrolled duplicate copies of bucket balances.
 - Controller election/failover and merging/splitting regions require deterministic reconciliation with safe behavior during unloads.
-- "Completely out of space" needs an exact definition for inaccessible, chunk-unloaded, paused and disconnected members.
-- Capacity is a count of individual items, not slots or stacks. MR item capacity is a separate open question.
+- **Unknown/unloaded/disconnected member capacity is never automatically counted as full**; hold safely instead of wildcard. Exact authoritative usable-capacity accounting/reconciliation still needs definition.
+- Ordinary Bulk capacity is a count of individual items, not slots or stacks. **MR uses separate finite native slots with backpressure**, not conversion into ordinary count buckets. Whether Bulk itself accepts MR remains open.
 - Breaking a populated Bulk Storage block must not silently lose contents; choose block-protection, safe evacuation or item-drop behavior before implementation.
 
 ## New block 2: Hart Transporter
@@ -51,8 +51,17 @@ Both new blocks must use **new, distinct model/texture/icon assets** — not reu
 - "Any theoretical amount" means scalable, bounded batching/streaming with no arbitrary routing-throughput cap tied to vanilla hopper rates; not infinite items per tick or unbounded RAM.
 - Transfers must be conservative and idempotent: reserve source amount, verify destination acceptance, commit/acknowledge, and recover after interruption without duplicates.
 - Address junction path selection, endpoint discovery, destination reservation, loop/TTL handling, backpressure and fairness before implementation.
-- Transporter extraction from adjacent filtered chest must not accidentally empty stored results. Exactly how to mark/configure input faces is unresolved.
+- **Owner's placement rule:** any ordinary container adjacent to a Transporter is a deliberately provided **input source**; storage output chests are downstream of Sorters and never at Transporter Y-level or above in the intended design. **No mandatory input-face configuration is needed just to prevent draining absent adjacent output chests.** Still validate that script extraction cannot touch unrelated or invalid source inventories.
 - Standard six-face geometry does not imply opening a connection to every adjacent container. Model collision/hitbox and water behavior remain open.
+
+## Accepted routing, topology and capacity defaults — 2026-11-07
+
+- **Transporter ⇄ Hopper at Sorter intake:** interchangeable source conveyances atop Sorter columns, sharing **exactly the same** Sorter acceptance/filter/priority/redstone logic. Throughput may differ, but item-routing semantics must not. Preserve old Hopper-only columns.
+- **Extraction by deliberate placement:** Transporters run **along the top of Sorters**. Any ordinary container touching a Transporter is intentionally a **source**, not storage output; the layout puts final output chests **below the Transporter level**, routed via a Sorter. **Do not require a separate face-enable menu switch** merely to distinguish output chests that are prohibited by this physical convention. Transporter does not insert into ordinary containers.
+- **Controller governance:** persistent network/region IDs, controlled discovery and deterministic controller + item authority. The actual region election, split/merge protocol and stale-member reconciliation still need engineering proof.
+- **Bulk fallback:** absent/unloaded/stale capacity is **unknown, not full**. Hold safely until capacity is verified; wildcard requires proven exhaustion of usable shared Bulk space.
+- **MR slots:** separate native physical slot capacity with backpressure, distinct from Receiver's ordinary-count Q5 limit. Exact native slot count not decided; legacy ordinary capacity stays protected.
+- **Q4→Q5:** global *Hart Logistics script routing* maintenance freeze, automatic on-load migration of currently unloaded blocks, and visible per-block status in menus. See [migration design](Q5_MIGRATION_DESIGN.md).
 
 ## Dual-lane design (owner requirement)
 
@@ -98,7 +107,7 @@ MR items use native ItemStack preservation and preferred handling; whether MR it
 
 **Accepted requirements:** zero 1.4.1 regression; two blocks and their purposes; 200k/additional Bulk Storage; distributed or single controller topology; Transporter input-only to ordinary containers; six-face 4×4 pipe; native hoppers continue; Q4→Q5 safe migration; MR-native lane and prioritized service; future HartBots Depot extraction.
 
-**Not decided:** controller region identity/election, connection topology, input selection, item identity classification, destination capacity reservations, MR inventory size/slot accounting, throughput targets, wildcard on partitions/unloads, experimental API policy, controller failover and block removal. See [inbox](IDEA_INBOX.md).
+**Not decided:** precise controller network membership/election/split and crash protocol (principles accepted), junction-routing algorithm, item identity classification, destination reservation details, **exact MR slot count** (separate MR capacity approved), throughput targets, precise recovery when Bulk-capacity observations are unknown (fail-closed behavior approved), experimental API policy, physical block removal and version-safe resume criteria after deferred migration. See [inbox](IDEA_INBOX.md).
 
 ## Collector / Receiver menu interaction (owner choice)
 

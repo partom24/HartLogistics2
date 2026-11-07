@@ -75,6 +75,16 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 - Confirm newly placed and already-existing block entities both have usable persistent native slots on the **server 1.26.63.1/client v26.63** target *under the user's approved world settings*. No automatic experiment enablement.
 - **Do not require keeping the old bypass implementation after the native behavior is verified and accepted**. The protected contract is lossless end-to-end capability and existing path access.
 
+## Owner-approved network intake and global migration checks
+
+**What is being tested:** Verify **Hopper and Transporter feed identical Sorter rules** (priority, filter/auto/wildcard, redstone) in one explicitly specified column rig. Transporter runs atop Sorter; any adjacent ordinary container is a **source**, no storage chest at or above Transporter level, and no direct Transporter→storage chest output. Test one input at a time, with no guessed extra sorter heights or spacing. Reuse 1.4.1 Hopper evidence where unchanged.
+
+**What is being tested:** Verify persistent controller IDs and deterministic authority under a single loop and multi-controller split/merge; verify a missing/unloaded/stale Bulk member is **unknown, not full**, and cannot trigger early wildcard routing. Verify separate finite MR slots backpressure without changing ordinary Receiver 250k count behavior. Favor deterministic offline transactions/boundaries; build LAB rig only for unresolved integration.
+
+**What is being tested:** During Q4→Q5, **all Hart Logistics routing handlers** observe a durable world-wide maintenance gate, including already scheduled legacy paths. Test pre-freeze/in-flight checkpoints, server restart while paused, staged Receiver cutover, old Sorter/Collector/Receiver activation after previously unloaded chunks load, and menu status PENDING/MIGRATING/VERIFIED/BLOCKED. An unloaded block must not be claimed migrated. Confirm vanilla Hopper movement is either safely isolated or reconciled; do not claim the script pause stops vanilla game mechanics. **Resume only after a validated global/late-load version gate.**
+
+**Preliminary-bundle mapping:** Keep existing **2–3 tests per bundle**, no newly requested large rigs: PG-07 checks global freeze/deferred migration and journal recovery, PG-08 checks menu notification and link preservation, PG-09 checks interchangeable Hopper/Transporter intake, PG-10 checks unknown Bulk capacity and MR backpressure, PG-11 checks deterministic controller authority and partitions. See [preliminary gates](PRELIMINARY_GO_NO_GO.md).
+
 ## Accounting invariant
 
 For each transaction and lossless item identity, **total owned by source queues + in-flight reserved units + destination accepted inventory/storage** must remain conserved, accounting for explicitly player-extracted or item-consumed quantities. An item is never owned by two places. MR items additionally need byte/semantic fidelity checks (enchantments, name, lore and relevant components) using the authoritative native APIs.

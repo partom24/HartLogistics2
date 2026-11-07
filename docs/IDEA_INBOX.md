@@ -5,11 +5,11 @@
 | ID | Priority | Decision needed | Why it matters | Status / revisit |
 | --- | --- | --- | --- | --- |
 | HL-Q-001 | Critical | Are experimental creator toggles acceptable for new MR custom block inventories on the reported 1.26.63.1/26.63 target? If not, which supported alternative / version gate? | **Documented API contract:** when exposed, block inventory yields a normal `Container` with `moveItem` / `transferItem`. **Unverified on 26.63:** custom-block container availability without experimental flags and actual native move/persistence behavior. General vanilla Container→Container MR transfers need not be retested. | **Focused LAB proof + owner experiment policy**, before native MR implementation |
-| HL-Q-002 | Critical | Exactly what forms a storage network and determines controller-region boundaries? Pipe connectivity, Collector→Receiver links, explicit linking, or hybrid? | Single closed loop/one controller and multi-controller networks must both work. | Decide before network implementation |
+| HL-Q-002 | Critical | **What precise boundaries, connections and tie-breakers define network membership and controller region?** | **Owner-approved principles:** persistent network IDs, controlled discovery, deterministic controller ownership. Must choose the concrete algorithm for single-loop and multi-controller split/merge. | **Direction accepted; implementation algorithm open** |
 | HL-Q-003 | Critical | On controller unload, destruction, split/merge or simultaneous first placement, who owns item and capacity records? | Prevent double controller authority and lost storage on failover. | Design proof needed |
-| HL-Q-004 | Critical | Can any transporter face automatically extract, or only configured input connections? How to protect filtered storage chests from being drained? | Input-only constraint must not empty stored output. | Owner interface decision |
-| HL-Q-005 | Critical | Should MR inventory slots count against Receiver 250,000-item limit, or have separate slot-limited capacity? Same for Bulk Storage MR acceptance. | Defines backpressure, queue accounting and overflow behavior. | Owner decision |
-| HL-Q-006 | High | What constitutes network Bulk Storage being **completely full** for wildcard permission when banks/blocks are unloaded, unreachable or stale? | Preserve strict last-resort wildcard guarantee without blocking indefinitely. | Decide consistency/fail-safe policy |
+| HL-Q-004 | Critical | **How should valid deliberate adjacent source containers be recognized and protected from unrelated extraction?** | **Owner-approved layout:** Transporter along Sorter tops; any adjacent ordinary container is intentionally a source, and no output chest is placed at or above Transporter Y. No mandatory per-face toggle just to avoid those absent output chests. | **Placement rule accepted; source whitelist/safety details open** |
+| HL-Q-005 | Critical | **How many native MR slots are supported/needed for Collector and Receiver, and whether Bulk accepts MR at all?** | **Owner decided:** separate physical MR slots and backpressure; ordinary Receiver 250,000-count lane unaffected. Actual sizes and Bulk MR applicability need evidence/approval. | **Separation accepted; sizing and Bulk eligibility open** |
+| HL-Q-006 | High | **How is usable Bulk capacity verified across partitions and stale/unloaded members?** | **Owner decided:** unknown/stale/offline ≠ full; hold items safely, never wildcard just because capacity information is absent. Need a bounded reconciliation/alert strategy. | **Fail-closed behavior accepted; implementation accounting open** |
 | HL-Q-007 | High | Which item types are known lossless buckets vs native-only MR, especially custom item components and metadata-rich items? | Avoid silent flattening. | Item classification matrix and examples |
 | HL-Q-008 | High | How do Transporters choose outgoing faces and destinations at T/cross/six-way junctions, and prevent routing loops? | Makes routing deterministic and throughput scalable. | Proposed algorithm needed |
 | HL-Q-009 | High | What are MR vs ordinary service weights, starvation protections, and use of legacy FIFO outside managed networks? | MR prioritized as required, ordinary still makes forward progress. | Owner scheduling preference and tests |
@@ -27,6 +27,10 @@
 | HL-Q-020 | High | How is a release candidate formally nominated and what separate approval permits any production updater execution/production apply? | Production path must stay untouchable during development; importing script is explicitly allowed without running. | Release-governance definition needed |
 
 | HL-Q-021 | Medium | Which original silhouette, texture palette and icon should Bulk Storage use, and should its controller status be visible? | Distinction from existing blocks is mandatory; precise art direction is not decided. | Decide at asset design review; [asset policy](RESOURCE_ASSET_POLICY.md) |
+
+| HL-Q-023 | Critical | What **durable global Hart Logistics routing-freeze epoch**, per-block on-load migration trigger and safe resume protocol handles unloaded blocks without indefinite deadlock? | Owner approved world-wide freeze and automatic deferred migration on chunk load; vanilla Hopper transfers and unknown unloaded-block registries require explicit custody checks. | **Safety direction accepted; concrete protocol and LAB proof open** |
+
+
 
 ## Decisions already confirmed
 
@@ -48,3 +52,12 @@
 
 - **D-013 (owner choice, 2026-11-06):** Link/relink initiation moves into an explicit button on the Collector menu, with Receiver selection and confirmation. Normal placement/right-click must not silently arm linking; existing saved links and transport behavior persist. See [UI design](UI_LINKING_DESIGN.md).
 - **HL-Q-022 (open):** Decide link/unlink player permissions, pending-selection expiration and simultaneous edits. Test UI behavior alongside future native MR inventory on 26.63 without experimental assumptions. These do not prevent baseline source import.
+
+## 2026-11-07 — Owner accepted defaults
+
+- **D-014:** Hopper and Transporter are interchangeable **Sorter input mechanisms**; same filter/priority/redstone decisions; old Hopper-only routes stay supported.
+- **D-015:** Transporter goes **on top of Sorter columns**; neighboring ordinary containers are deliberately source inventories, **not** storage chests. Final storage is handled by downstream Sorters, with no output chests at Transporter Y or above. No forced extra per-face input toggle.
+- **D-016:** Persistent controller/network identities, controlled discovery, deterministic controller authority; exact membership/election/recovery design still pending.
+- **D-017:** Unloaded/stale/unknown Bulk capacity is not 'full'; hold safely rather than permit wildcard prematurely.
+- **D-018:** Receiver Q5 native MR slots have independent finite capacity and backpressure, separate from ordinary-count lane; exact slot quantity remains to be proven.
+- **D-019:** Q4→Q5 enters a **global Hart Logistics routing pause**, uses crash-safe staged migration, **automatically processes unloaded legacy blocks when they load**, and shows status in block menus. No claim of migrating genuinely unloaded blocks or pausing vanilla Hopper mechanics.

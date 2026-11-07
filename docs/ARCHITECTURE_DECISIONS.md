@@ -71,6 +71,31 @@
 **Reason:** Immediately identifiable function and resource-pack regression avoidance.  
 **Consequences:** Distinct namespaced resource definitions, side-by-side visual acceptance and no new resource references to old block assets. Exact art direction remains open. “Bulk sorter” provisionally refers to planned Bulk Storage, not a third new block. See [asset contract](RESOURCE_ASSET_POLICY.md).
 
+## HL-ADR-014 — Transporters interchangeable with Hoppers as Sorter inputs
+
+**Status:** Owner-confirmed, 2026-11-07.  
+**Decision:** A Transporter and a vanilla Hopper are alternative valid ways to feed the **same Sorter column intake**, including the same filters, priority, pause/redstone and destination acceptance. Preserve 1.4.1 Hopper layouts without requiring pipes. **Transporters run along the top of Sorter columns.** An ordinary container adjacent to a Transporter is intentionally a **source**, not a filtered output chest; do not require a separate input-face toggle solely to protect a chest the owner will not place next to piping. Storage chests are placed downstream of Sorters, **not at the same Y level as or above Transporters** in the intended layout. Transporters never write directly into ordinary storage containers.  
+**Consequences:** Shared Sorter intake adapter; do not duplicate/weaken existing sorter logic. Ordinary neighboring containers are intake-only under this explicit placement convention; no forced auto-extraction from unrelated unsupported inventories. Test source recognition and chest placement assumptions in one precise rig. See [logistics design](LOGISTICS_DESIGN.md).
+
+## HL-ADR-015 — Persisted deterministic controller network ownership
+
+**Status:** Owner-approved design principle, 2026-11-07; concrete topology/election algorithm still to be engineered.  
+**Decision:** Use durable network identities, controlled network discovery, and deterministic controller/item/capacity authority across single-loop and multi-controller networks, including chunk unload/reload, splits and merges.  
+**Consequences:** An inaccessible/unloaded member must not be interpreted as an erased owner or free capacity; suspend ambiguous routing and reconcile before resuming. Specific region rules, controller tie-breaks and crash protocol remain engineering design tasks.
+
+## HL-ADR-016 — Conservative Bulk overflow and separate MR capacity
+
+**Status:** Owner-approved, 2026-11-07.  
+**Decision:** A missing, unreachable, unloaded or stale Bulk capacity advertisement does **not** mean "Bulk full". Only verified exhaustion of usable ordinary Bulk capacity permits wildcard routing; otherwise **hold items safely**, not guess. The Receiver's Q5 ordinary-count capacity stays distinct from **finite native MR physical slots**, which backpressure when full; MR stacks are never flattened.  
+**Consequences:** Track verified capacity with expiry/ownership; unknown capacity blocks premature wildcard decisions. Keep existing legacy 250,000 ordinary-count queue contract unless separately authorized to alter it; actual MR slot number still needs API/UX validation.
+
+## HL-ADR-017 — Global Hart Logistics routing freeze for Q4→Q5 migration
+
+**Status:** Owner-confirmed intent, 2026-11-07; fail-safe resume/on-load implementation not proven.  
+**Decision:** Place all Hart Logistics routing handlers into a durable, server-wide **maintenance freeze** before staging Q5. Migrate/verify already-loaded legacy Sorters/Collectors/Receivers and **automatically migrate those currently unloaded when their chunks later become available**. Show migration state in block menus/status, including blocked/pending explanations, without requiring individual manual upgrade clicks.  
+**Technical boundary:** Minecraft scripting cannot directly inspect/modify a genuinely unloaded block; do not report it migrated before load. Vanilla Hopper operation is not stopped merely by pausing Hart scripts. Resume only with proven version gating, crash-safe migration ownership and safe disposition of remaining unloaded/pending blocks. Keep migration freeze observable rather than indefinite without operator recovery.  
+**Consequences:** This supersedes Q5's earlier per-Receiver-only quiescence concept. Protect Q4 journal/links/counters, avoid loss/duplication. See [Q5 migration plan](Q5_MIGRATION_DESIGN.md).
+
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 
 ## HL-ADR-013 — Menu-button Collector/Receiver linking

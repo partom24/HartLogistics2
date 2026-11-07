@@ -38,6 +38,10 @@ The Collector → Receiver linking action will move to an explicit **Link / Reli
 - **What is being tested:** Menu opens and Link button reliably selects and confirms the intended Receiver without losing any existing link. **Reused evidence:** Old 1.4.1 routing/identity mechanisms; no arbitrary-item transport retest. **New evidence:** UI display, cancel/relink, saved-world link migration, sneak-placement, multiplayer and native MR inventory conflicts.
 - If manual in-world testing is necessary, use only LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`, with a complete [READY rig card](TEST_RIG_CONTRACT.md) giving exact block counts, topology, placement, distances and expected outcomes.
 
+## Migration status surfaces (owner decision, 2026-11-07)
+
+On **loaded** Collector, Receiver, Sorter and relevant controller status/menu interfaces, show **Migration pending**, **Migrating — routing paused**, **Migration complete**, or **Migration requires attention** with a succinct explanation. Menu status is **read-only** until migration/version checks are safe; it must never bypass the server-wide Hart Logistics routing freeze or automatically relink the block. Block menu availability depends on its chunk being loaded; for unloaded blocks display an aggregate summary if reliable, not a fictitious live menu. The exact Sorter status presentation is subject to preserving its item-frame/filter actions and normal interaction behavior. See [Q5 migration protocol](Q5_MIGRATION_DESIGN.md).
+
 ## Open choices
 
 Authorization to link/unlink (all players vs operators/owners); pending session expiration and concurrent relink policy; optional status screens; whether another explicit gesture is useful for access to MR storage. These details do **not** block source import or documenting this chosen workflow.
