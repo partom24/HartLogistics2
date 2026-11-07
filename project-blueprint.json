@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "standard_version": "1.3.1",
+  "project": {
+    "name": "Project-Engineering-Blueprint",
+    "kind": "blueprint",
+    "platform_profiles": [
+      "generic"
+    ]
+  },
+  "source": {
+    "active": "scripts",
+    "test_roots": ["tests"],
+    "frozen_references": [],
+    "archives": []
+  },
+  "state": {
+    "lifecycle": "active-development",
+    "current_state": "docs/CURRENT_DEVELOPMENT_STATE.md",
+    "evidence": "docs/ENGINEERING_EVIDENCE_REGISTER.md"
+  },
+  "release": {
+    "approved": false,
+    "commit": null,
+    "artifact_sha256": null,
+    "approval_reference": null,
+    "evidence_reference": null
+  },
+  "temporary_instrumentation": [],
+  "planning": {
+    "roadmap": "docs/ROADMAP.md",
+    "inbox": "docs/IDEA_INBOX.md",
+    "current_milestone": "BP-007"
+  }
+}
