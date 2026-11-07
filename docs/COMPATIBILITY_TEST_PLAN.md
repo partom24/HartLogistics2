@@ -67,6 +67,10 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 
 **What is being tested:** Standard `Container.moveItem` / `transferItem` into and out of a new native **custom-block** container on 26.63; exact ItemStack metadata and persisted slots after reload. **Not being retested:** previously established vanilla container-to-container ItemStack transfer behavior. The test includes one ordinary inventory→custom→ordinary transfer, one custom→custom transfer, blocked/full acceptance and a targeted MR fidelity check. Verify native `minecraft:inventory` availability and world experiment settings before moving an item. No setup request until a complete [READY LAB rig](TEST_RIG_CONTRACT.md) is prepared. See [Q5 custom-container gate](Q5_MIGRATION_DESIGN.md#native-custom-container-api-proof--focused-2663-gate).
 
+## Candidate temporary ticking-area migration accelerator
+
+**What is being tested:** Can an existing 1.4.1 registered-but-unloaded chunk be **temporarily loaded, checked and migrated**, and its uniquely named Hart Logistics ticking area **removed immediately** without unintended vanilla Hopper transfers? Within existing **PG-07**, not another separate go/no-go test. Check 26.63 command permissions and world cheat settings *without changing them*, ticking-area quota/collision, name-based add/remove, retry/restart cleanup and the continued fallback to migrate on normal load when commands are unsupported. Pass requires **zero leftover Hart-owned areas**, a safe global routing gate and exact preserved item/link state; never use `tickingarea remove_all`. See [migration candidate](Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07).
+
 ## MR fallback replacement acceptance gate
 
 - On **pre-upgrade 1.4.1 worlds**, first verify the original E07/R06 direct-only Hopper path. Then confirm that, under Q5, the same directed Hopper source can retain an MR stack in a Collector's native inventory while the Receiver is unloaded and in the Receiver while downstream Hopper is blocked, without changing item identity or required redstone semantics.

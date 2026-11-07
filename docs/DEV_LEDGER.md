@@ -72,3 +72,10 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Owner accepted interchangeable Hopper/Transporter Sorter intake; physical Transporter-over-Sorter topology with adjacent ordinary containers treated as deliberate **sources** (storage chests only downstream, not at or above pipe level); durable network IDs and deterministic controller ownership; conservative Bulk unknown-capacity hold; separate MR physical slots with backpressure; and staged Q4→Q5 recovery.
 - Migration specifically requires a **server-wide Hart Logistics routing freeze** and automatic legacy Sorter/Collector migration when unloaded chunks become loaded. Unloaded blocks cannot be migrated directly; proposed durable pending/on-load state and block menu notifications, plus safe global resume after verification. Vanilla Hopper ticks are not assumed stopped by add-on freeze.
 - Updated PG-07–PG-11 and architecture/Q5 documents; no game code or server paths changed, and no tests executed.
+
+## 2026-11-07 — Owner asks about ticking-area-assisted unloaded-block migration
+
+- Confirmed from official Bedrock documentation: named ticking areas keep chunks active, world maximum 10 areas, up to 100 chunks/area, radius ≤4; command requires cheats/appropriate authority. Script command access on the owner's dedicated 1.26.63.1 runtime remains **untested**.
+- Re-read original 1.4.1 locally uploaded `main.js`: Sorter registry and Collector/Receiver logistics entries persist dimension/XYZ coordinates, permitting a candidate targeted chunk worklist (subject to completeness verification).
+- Documented **optional**, one-area-at-a-time, named/owned/leased migration accelerator under the existing global routing freeze, with vanilla Hopper safety, crash/restart lease reconciliation, **immediate removal of only Hart-owned areas**, and on-load fallback when unavailable.
+- Incorporated the optional test in **PG-07**, no new bundle. No ticking area was created; no server or gameplay source was changed.

@@ -39,6 +39,10 @@ Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before und
 - Q4→Q5 migration **stops all Hart Logistics script routing server-wide** under a durable maintenance epoch. Unloaded legacy blocks are **PENDING** until auto-migrated on chunk load, not magically mutated while unloaded. Show status in block menus when loaded; do not assume vanilla Hopper mechanics globally stop. Ensure proven safe resume/rollback before clearing the freeze. See [Q5 migration design](docs/Q5_MIGRATION_DESIGN.md).
 - These approvals are **design choices, not implementation authorization**. Source import, gameplay changes, experimental flags, LAB execution and production remain governed by existing gates.
 
+## Optional ticking-area migration proposal (not yet approved)
+
+Q5 migration may **investigate** temporary named ticking areas to load recorded legacy-block chunks under the existing global routing freeze. The [Q5 candidate design](docs/Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07) requires exact ownership, one small area at a time, no unapproved cheat changes, safe vanilla Hopper handling, durable recovery and **immediate deletion of only Hart-owned areas**. No `tickingarea remove_all`; preserve on-load migration fallback. This is a proposed PG-07 subcheck, not authorization for command execution or deployment.
+
 ## Current allowed work
 
 Refine planning documents, compare agreed requirements with the 1.4.1 upload, enumerate design decisions and prepare test plans. The next boundary is an **explicit owner decision** to import source or begin implementation; do not infer it from technical discussion.

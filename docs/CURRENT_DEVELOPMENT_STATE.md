@@ -29,6 +29,10 @@
 
 The owner **approved the [PG-01–PG-11 preliminary test plan](PRELIMINARY_GO_NO_GO.md) conditional on immediate temporary-test cleanup under the existing [template instrumentation policy](TEMPORARY_INSTRUMENTATION_POLICY.md)**. Execute related checks 2–3 at a time with reused evidence and rigs; remove their temporary parameters and wiring as soon as no longer needed and before task acceptance, not merely before release. All gates are **NOT RUN**; no manual rig is READY. Any NO-GO stops only the affected dependent implementation. No new gameplay source or server test has been authorized.
 
+## Optional ticking-area migration accelerator — under review
+
+Owner proposed temporary ticking areas to proactively load known legacy blocks during Q4→Q5. Official Bedrock docs support named areas but impose world quota/permissions; they keep vanilla mechanics ticking. Added [optional Q5 design](Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07) and one **optional PG-07 subcheck** requiring clean area removal/recovery and no unapproved cheat toggle. This is **NOT RUN / NOT APPROVED** as executable migration code. Automatic on-normal-chunk-load migration remains the safe fallback.
+
 ## Next bounded action
 
 Review [design](LOGISTICS_DESIGN.md), [Q5 migration plan](Q5_MIGRATION_DESIGN.md), and [open decisions](IDEA_INBOX.md) with the owner. Do not write, import or release gameplay source until expressly authorized.

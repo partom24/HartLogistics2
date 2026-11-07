@@ -32,6 +32,8 @@
 
 
 
+| HL-Q-024 | High | Can **temporary named ticking areas** safely accelerate migration of recorded-but-unloaded Sorters/Collectors/Receivers on 26.63, and should the release use them if the permission/cheat requirements and vanilla Hopper isolation are acceptable? | Owner asked about feasibility. Up to ten areas/world; script command rights and cheat setting not yet proven. All Hart-owned areas/leases must be removed promptly, with crash recovery; no `remove_all`. On-load fallback stays. | **Optional candidate; PG-07 research + LAB proof needed; not yet approved implementation** |
+
 ## Decisions already confirmed
 
 - **BL-001:** 1.4.1 is inviolable baseline; no current capability loss acceptable.
