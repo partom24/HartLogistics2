@@ -20,6 +20,7 @@ Only one experiment-owned world dynamic property, hartlogistics:pg15_intent_cut_
 - New LAB candidate **1.5.4-LAB-PG15**; same Hart Logistics BP/RP UUIDs, stable server dependency 2.7.0 and server-ui 2.2.0; no new custom blocks/items.
 - Owner-run launcher at candidates/pg15/Start-HartLogistics-PG15Lab.ps1 with source-only Plan, read-only CheckLab, stopped-server Install -Apply and exact-tag backup/rollback. A new install backup tag must be retained along with all PG08/PG13/PG14 backups. Nothing installs just by merging Git.
 - Do not enable cheats or experiments, change world settings, force-kill the server, or run any other custody/queue command during a pending PG15 cut.
+- **Do not roll back or remove PG15 while its INTENT marker is pending.** A pack rollback restores pack files/registrations, not world dynamic properties; removing the commands before controlled cleanup could strand the PG15 marker. Preserve the LAB and report unexpected HOLD rather than forcing rollback or deleting world files.
 
 ## Reuse existing two test-only single chests
 
