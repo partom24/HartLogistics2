@@ -30,7 +30,7 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 
 ## Preliminary go/no-go tests
 
-Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. **Bundle only the owner's hands-on BDS checks, 2–3 per rig/session**. No such cap applies to automated/offline/CI verification, or fully automated BDS checks within a separately authorized LAB scope; run even 100+ tests without needless user stops. Reuse accepted prior work, start manual BDS requests with a plain-language purpose, prepare a full READY rig card before owner setup, and stop dependent features on NO-GO. **Owner accepted this preliminary test plan only with strict [temporary instrumentation cleanup](docs/TEMPORARY_INSTRUMENTATION_POLICY.md): remove probes, test parameters, hooks and associated registry entries as soon as their last test dependency ends, before task acceptance—not only at release.** Track and tag temporary runtime helpers, keep any shared probe only for explicitly active dependent checks, and run the release gate before RC. PG-01/02 passed at their offline scope; PG-03–PG-11 remain NOT RUN. Plan acceptance alone does not authorize further gameplay changes, experiments or deployment.
+Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. **Bundle only the owner's hands-on BDS checks, 2–3 per rig/session**. No such cap applies to automated/offline/CI verification, or fully automated BDS checks within a separately authorized LAB scope; run even 100+ tests without needless user stops. Reuse accepted prior work, start manual BDS requests with a plain-language purpose, prepare a full READY rig card before owner setup, and stop dependent features on NO-GO. **Owner accepted this preliminary test plan only with strict [temporary instrumentation cleanup](docs/TEMPORARY_INSTRUMENTATION_POLICY.md): remove probes, test parameters, hooks and associated registry entries as soon as their last test dependency ends, before task acceptance—not only at release.** Track and tag temporary runtime helpers, keep any shared probe only for explicitly active dependent checks, and run the release gate before RC. PG-01/02 passed at their scoped baseline/offline gates; PG-03 NO-GO, PG-04/05 blocked, PG-06–11 NOT RUN. Bundle 1 temporary testing code has been removed after owner-confirmed LAB cleanup. Plan acceptance alone does not authorize further gameplay changes, experiments or deployment.
 
 ## Accepted implementation defaults (2026-11-07)
 
@@ -45,7 +45,7 @@ Q5 migration may **investigate the stable `world.tickingAreaManager` Script API*
 
 ## Current allowed work
 
-Bundle 0 source import/PG-01 and offline PG-02 are specifically authorized and complete. Continue planning and source verification only without a fresh owner decision. **The next boundary is explicit authorization of Bundle 1 PG-03–PG-05** before creating game probes, changing runtime pack behavior, enabling experiments or accessing LAB. Do not infer this permission from Bundle 0 or structural CI.
+Bundle 0 source import/PG-01 and offline PG-02 are specifically authorized and complete. Continue planning and source verification only without a fresh owner decision. **Bundle 1 probe is completed and cleaned up** with PG-03 NO-GO; future gameplay implementation, new probe types, experimental flags or additional LAB execution require explicit separate scope. Do not infer this permission from Bundle 0 or structural CI.
 
 ## Approved future link interaction
 
@@ -55,13 +55,9 @@ Owner-selected UI design: explicit **Link / Relink Receiver** button inside the 
 
 Temporary probe source is distributed via the authorized Git checkout and a guarded PowerShell LAB update pathway, **not manual mcpack downloads**. Bundle 0's Python updater only handles the original packs. Before installing independent probe source, build/validate a separate PowerShell path under the same strict LAB-only and temporary-instrumentation cleanup rules. No unapproved production or LAB operations.
 
-## Bundle 1 PowerShell source delivery status (2026-11-07)
+## Bundle 1 closeout (2026-11-07)
 
-The previously missing [disposable PG03-05 PowerShell updater](tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) is now **implemented and offline Windows-tested** (PowerShell 5.1/7 synthetic install/restore, 48 assertions per version). See [guide](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). Earlier 'not yet implemented' text is superseded. No real LAB/production host touched. All PG03-05 Bedrock runtime results are **NOT RUN**, and manual rig needs READY card. Temporary runtime and updater instrumentation must be deleted at task closure.
-
-## PG-03–PG-05 launcher lifecycle
-
-A [standalone operator PowerShell launcher](tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) now retrieves the test source via authorized Git and invokes the guarded LAB-only source installer. It is tracked under `TEMP_TEST:PG03-05-LAUNCH` in the blueprint and **must be removed with the probe** immediately after the specific testing task ends; do not retain as general production deployment software. It cannot enable cheats/experiments or target production. CI verified Windows PowerShell 5.1/7 synthetic update/cleanup and launcher refusal without `-Apply`; **no BDS runtime pass**.
+The owner confirmed **Windows LAB cleanup**, with the original pack-registry bytes restored. The disposable PG-03–PG-05 behavior pack, PowerShell installers/launcher, CI simulations and all three `temporary_instrumentation` entries were deleted from Git; **do not regenerate or re-deploy them** by default. PG-03 NO-GO, PG-04/05 BLOCKED under non-experimental BDS 1.26.63.1. See [completed evidence](docs/BUNDLE1_PREPARATION_RESULTS.md) and [supported-storage alternatives](docs/MR_CUSTODY_ALTERNATIVES_12663.md).
 
 ## LAB clone fact — do not re-ask (2026-11-07)
 
@@ -69,4 +65,4 @@ Owner explicitly established: LAB \`C:\Servers\Thomas_MCBedrock - Copy (2)\world
 
 ## 2026-11-07 PG-03 native custom-container gate failure
 
-Owner BDS LAB screenshots: /give @s hlprobe:mr_container 2 is rejected as unexpected identifier, Creative search empty. Official 1.26.50 puts minecraft:block_entity.container in experimental, and newer 26.70.23 Preview announces its promotion. Under no-experiments BDS 1.26.63.1, PG-03 NO-GO, PG-04/05 BLOCKED; do not prompt for a physical rig, experiments or implicit version upgrade. Preserve 1.4.1 behavior/MR fidelity. The owner last Installed the probe BP and has NOT reported Cleanup; do not delete Git test launcher/instrumentation until safe LAB Cleanup confirmed. See docs/BUNDLE1_PREPARATION_RESULTS.md.
+Owner BDS LAB screenshots: /give @s hlprobe:mr_container 2 is rejected as unexpected identifier, Creative search empty. Official 1.26.50 puts minecraft:block_entity.container in experimental, and newer 26.70.23 Preview announces its promotion. Under no-experiments BDS 1.26.63.1, PG-03 NO-GO, PG-04/05 BLOCKED; do not prompt for a physical rig, experiments or implicit version upgrade. Preserve 1.4.1 behavior/MR fidelity. The owner subsequently CONFIRMED LAB Cleanup. Temporary Git test pack, launchers and instrumentation have been deleted; the old no-cleanup warning is superseded. See docs/BUNDLE1_PREPARATION_RESULTS.md.

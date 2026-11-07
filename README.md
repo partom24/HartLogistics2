@@ -43,8 +43,8 @@ The original source import is complete. Future gameplay implementation still req
 
 **Linking UI:** [Menu-based Collector/Receiver linking design](docs/UI_LINKING_DESIGN.md) documents the explicit link/relink button and compatibility requirements.
 
-## Temporary Bundle 1 native-container probe — Windows LAB operator handoff
+## Bundle 1 feasibility result — 2026-11-07
 
-For PG-03–PG-05 only, use the [Git-source PowerShell LAB updater](tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) with the [safe operator instructions](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). It is **not** an `.mcpack` download or a Hart Logistics 2 release. On Windows, both PowerShell 5.1 and 7 passed 48 simulated safety assertions ([CI 42377591621](https://github.com/partom24/HartLogistics2/actions/runs/42377591621)); **actual BDS checks NOT RUN**. Temporary test files and wiring must be removed after PG-03–PG-05.
+**PG-03 NO-GO** for native custom-block container storage on the current non-experimental 1.26.63.1 LAB; **PG-04/PG-05 BLOCKED**. The owner confirmed successful temporary pack unregistration and LAB registry restoration; all disposable probe files, PowerShell launchers, simulated tests, CI steps and temporary-instrumentation entries have been **removed** from this repository. Preserve the original 1.4.1 runtime and MR bypass until another custody design is approved.
 
-**One-file Windows LAB helper:** [Start-HartLogistics-Bundle1Lab.ps1](tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) obtains Git source and runs the guarded test-pack source updater; see [Plan, CheckLab, Install and Cleanup instructions](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). Default is a non-mutating source plan. This is **temporary BDS test tooling, not a release**.
+Read [Bundle 1 evidence](docs/BUNDLE1_PREPARATION_RESULTS.md), the [native MR custody alternatives](docs/MR_CUSTODY_ALTERNATIVES_12663.md), and the [Q5 migration gates](docs/Q5_MIGRATION_DESIGN.md). No in-game MR transfers or persistence were claimed.

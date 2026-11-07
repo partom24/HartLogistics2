@@ -31,7 +31,7 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Preliminary subsystem stop/go gates
 
-See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-performed BDS sessions to 2–3 related checks per complete reusable rig**; run as many automated/offline/CI tests as useful, or authorized automated LAB tests, without artificial 2–3-test pauses, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. PG-01/02 passed at their offline scope; PG-03–PG-11 remain NOT RUN. Plan approval alone does not authorize gameplay code, experiments or LAB deployment.
+See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-performed BDS sessions to 2–3 related checks per complete reusable rig**; run as many automated/offline/CI tests as useful, or authorized automated LAB tests, without artificial 2–3-test pauses, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. PG-01/02 GO at documented scope; PG-03 NO-GO; PG-04/05 BLOCKED; PG-06–11 NOT RUN. Plan approval alone does not authorize gameplay code, experiments or LAB deployment.
 
 ## Decisions and blockers
 
@@ -41,6 +41,6 @@ See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-perfo
 - **Bundle 0 source import and offline LAB updater preparation were specifically authorized and completed**. This does not authorize Q5, new blocks, in-game probes, any server changes or release. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
 
 
-## Bundle 1 PowerShell handoff (2026-11-07)
+## Bundle 1 closed, 2026-11-07
 
-The Git-tracked isolated MR probe now has a **source-first, temporary, PowerShell LAB-only installer** with exact commit/allowlist/registration/cleanup checks. Windows PowerShell 5.1/7 synthetic tests passed in CI; [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md). **No actual BDS gameplay verification or LAB installation has occurred**. Do not construe this tooling completion as Q5 implementation or PG03-05 GO.
+The Windows Git-to-LAB PowerShell probe passed synthetic tests and owner-observed install/cleanup, but the custom native block identifier was unavailable on the non-experimental 1.26.63.1 BDS target. **PG-03 NO-GO, PG-04/05 BLOCKED**. Owner subsequently confirmed final LAB cleanup; every disposable probe/launcher and CI wiring has been removed. Only evidence and original 1.4.1 source remain. Next step: evaluate the [lossless MR storage alternatives](MR_CUSTODY_ALTERNATIVES_12663.md) and obtain owner direction before a new runtime spike; no gameplay implementation is approved.

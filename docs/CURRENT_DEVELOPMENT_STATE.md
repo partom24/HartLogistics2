@@ -1,4 +1,6 @@
-**LATEST BUNDLE 1 GATE:** PG-03 = NO-GO for custom native block inventory under BDS 1.26.63.1 without experiments. Owner Creative search and /give rejection show no registered probe. PG-04/05 BLOCKED. Temporary pack still appears installed after last owner Install; await confirmed Cleanup before removing Git harness. Details: docs/BUNDLE1_PREPARATION_RESULTS.md. Older statements below are historical.
+**LATEST 2026-11-07 CLOSEOUT:** Owner confirmed LAB probe Cleanup SUCCESS; all disposable PG-03–PG-05 test source, installers, CI steps and blueprint temporary instrumentation removed from Git. PG-03 NO-GO on no-experiments 1.26.63.1; PG-04/05 BLOCKED; PG-06–PG-11 NOT RUN. Original 1.4.1 BP/RP unchanged. Native MR custody alternatives documented in [MR_CUSTODY_ALTERNATIVES_12663.md](MR_CUSTODY_ALTERNATIVES_12663.md). Prior dated statements below are archived history, NOT current instructions.
+
+**LATEST BUNDLE 1 GATE:** PG-03 = NO-GO for custom native block inventory under BDS 1.26.63.1 without experiments. Owner Creative search and /give rejection show no registered probe. PG-04/05 BLOCKED. Owner subsequently confirmed successful LAB cleanup; temporary Git pack, launchers, mocks, tests and CI wiring have now been removed. Details: docs/BUNDLE1_PREPARATION_RESULTS.md. Older statements below are historical.
 
 # Current Development State — Hart Logistics 2
 
