@@ -83,7 +83,7 @@ function apply(state, action, data) {
       }
       if (total !== data.count) hold("reservation_quantity_mismatch");
       state.transactions[data.txId] = {
-        status: "reserved", reservation: structuredClone(data), receiptId: null
+        status: "reserved", reservation: structuredClone(data), receiptId: null, receipt: null
       };
       break;
     }
@@ -108,6 +108,7 @@ function apply(state, action, data) {
       }
       old.status = "settled";
       old.receiptId = data.receiptId;
+      old.receipt = structuredClone(data);
       state.receipts[data.receiptId] = data.txId;
       break;
     }
@@ -232,7 +233,8 @@ export function appendEvent(file, action, data, { expectedHead, fault } = {}) {
       (action === "HANDOFF_INTENT" && ["intent", "settled"].includes(currentTx.status)) ||
       (action === "ABORT" && currentTx.status === "aborted") ||
       (action === "SETTLE" && currentTx.status === "settled" &&
-        currentTx.receiptId === data.receiptId)
+        currentTx.receiptId === data.receiptId &&
+        canonical(currentTx.receipt) === canonical(data))
     )) {
       return { ...initial, duplicate: true, canPerformPhysicalMove: false };
     }
