@@ -29,7 +29,7 @@
 
 **Prior evidence reused:** Original source inspection and uploaded HartBots updater reference. **Never execute the original HartBots production updater for this gate.**
 
-**Bundle 1 preparation:** Disposable [PG-03–PG-05 test-only BP](../tests/bundle1_probe/README.md) and standalone offline guards are now prepared. **No BDS tests run; probe temporarily registered under instrumentation policy.**
+**Bundle 1 preparation:** [Disposable PG-03–PG-05 test-only BP](../tests/bundle1_probe/README.md), static checks, offline transfer mocks, and `.mcpack` packaging are prepared. [CI run 42344178135](https://github.com/partom24/HartLogistics2/actions/runs/42344178135) reports **12 static checks + 11 mock scenarios PASS** (alongside existing tests), but **PG-03–PG-05 actual BDS runtime tests remain NOT RUN**. Probe and CI wiring are temporary under the instrumentation policy; a manual rig remains NOT READY until the actual disposable LAB world/anchor are validated.
 
 ## Bundle 1 — Custom native MR container feasibility (3 feasibility gates; one tiny LAB probe)
 

@@ -111,3 +111,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Added a test-only Node VM simulation for native Container handoffs, blocked-target return/throw variants, exact metadata checks, menu callback and restart marker behavior; these are **mock-only**, NOT BDS acceptance.
 - Added deterministic temporary `.mcpack` packager and CI artifact (7-day expiry) so the single test BP can be installed in a future authorized disposable LAB world without changing `addon/`.
 - Important hygiene: the static Python probe checks, Node simulator, packager, CI steps and disposable test pack are **all temporary** and must be deleted with the `temporary_instrumentation` entry on task closure; retaining CI tests that depend on deleted probe assets would be a test-spec defect.
+
+## 2026-11-07 — Bundle 1 offline simulations PASS; runtime gates remain pending
+
+- CI run **42344178135 completed success**. Relevant new prep tests: 12 Python static probe-contract checks, JS syntax check, **11 Node mock-only scenarios** of native transfer, leftover/throw cases, no unintended source mutations, metadata corruption detection and boot-gated restart check. Old tests continue passing. No Bedrock runtime invocation occurred.
+- `tests/bundle1_probe/build_probe.py` packaged a deterministic 3,547-byte `.mcpack` and uploaded temporary artifact ID **13563080206**, expires 2026-11-14 UTC. The probe is an isolated test-only pack, not a release. Only the LAB environment may ever run it.
+- **PG-03, PG-04, PG-05 = NOT RUN in BDS**. Actual custom inventory feature flags, ItemStack custody and UI collision require real 26.63 integration. The owner won't be asked for a rig before the LAB world/anchor can be made READY. No server accessed.
