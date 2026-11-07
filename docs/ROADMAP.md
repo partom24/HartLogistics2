@@ -52,3 +52,7 @@ The Windows Git-to-LAB PowerShell probe passed synthetic tests and owner-observe
 ## Bundle 2 initiated — offline-only (2026-11-07)
 
 After explicit owner authorization, source-derived PG-06 legacy identity/link/queue checks, PG-07 **abstract** crash/restart and frozen shadow-Q5 model, and PG-08 standalone link/confirmation/revision menu policy checks passed offline (25/25; [results](BUNDLE2_PREPARATION_RESULTS.md)). Actual PG-06/07/08 BDS gates **NOT RUN**, PG-03 native MR blocker persists. No original addon behavior, Q5 state, UI component, server flags or worlds changed. Menu UI is the next independently feasible candidate, **not** automatic approval for rollout.
+
+## PG-08 candidate implementation (2026-11-07)
+
+A first *isolated, uninstalled* Collector/Receiver menu candidate now exists under `candidates/pg08` with a source-hash-verified offline derived-pack build and targeted JS/Python mock test suites. It is **not implemented in the active 1.4.1 `addon/`**, has not passed verified CI or any BDS check, and cannot be treated as accepted runtime UI. Prior PG-08 abstract model test status remains separate. Candidate iteration must prove source/build checks first; a narrowly approved LAB install then tests cancel/relink/unchanged sneak behavior only after the failed 1.5.0 registered pack/world state is assessed. Q5 and native MR custody stay blocked.
