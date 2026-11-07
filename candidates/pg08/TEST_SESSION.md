@@ -1,3 +1,5 @@
+**LAB INSTALL / BDS STARTUP ACCEPTED (2026-11-07, scoped):** Owner approved and performed `Install -Apply` from pinned `846889dfa2516c303bea79d663746f02deb7f26e`; rollback backup **`lab-5af88e18cff3`** must be retained. Subsequent BDS startup displayed Hart Logistics **1.5.1-LAB-PG08** `ready;` with 664 Sorters, 54 Collectors and 31 Receivers. No menu UI or link persistence test has been executed. The two `enchanted_book` / `saddle` source-hold warnings arise from unchanged conservative legacy Q4 fallback; this lab is not a native-MR custody test. **Rig NOT READY** until exact empty safe Overworld XYZ and eight-block surrounding clearance are verified. Historical preflight-only statements below refer to earlier gates.
+
 # PG-08 LAB menu smoke session — NOT READY for owner placement yet
 
 **Target:** BDS 1.26.63.1, client 26.63; existing owner LAB clone
