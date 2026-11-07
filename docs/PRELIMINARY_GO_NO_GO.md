@@ -29,6 +29,8 @@
 
 **Prior evidence reused:** Original source inspection and uploaded HartBots updater reference. **Never execute the original HartBots production updater for this gate.**
 
+**Bundle 1 preparation:** Disposable [PG-03–PG-05 test-only BP](../tests/bundle1_probe/README.md) and standalone offline guards are now prepared. **No BDS tests run; probe temporarily registered under instrumentation policy.**
+
 ## Bundle 1 — Custom native MR container feasibility (3 feasibility gates; one tiny LAB probe)
 
 **What is being tested:** Can a custom block actually participate in normal native ItemStack/Container transfers on **26.63** and survive reloads without interfering with linking menus?

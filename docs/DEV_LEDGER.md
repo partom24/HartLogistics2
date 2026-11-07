@@ -99,3 +99,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - **Autonomous offline/synthetic/CI and separately authorized automated LAB verification have no 2–3-count limit.** If 100 checks can run without owner intervention, complete all useful checks without artificial stop points. Actual failures/safety/authorization boundaries still stop dependent actions.
 - Updated preliminary gates, test-rig contract, compatibility plan, roadmap, and contributor instructions. Immediate cleanup of temporary instrumentation remains mandatory at the end of its real dependency, irrespective of test count.
 - Documentation only; no tests, runtime changes or server operations were triggered by this clarification.
+
+## 2026-11-07 — Begin Bundle 1 test-only preparation
+
+- After owner instruction to continue, prepared an isolated temporary custom-container BDS test BP and offline contract tests under `tests/` without changing any original 1.4.1 addon file.
+- Probe checks native 9-slot custom-block inventory, `Container.moveItem`/`transferItem` and exact one-class MR name+lore metadata, full destination backpressure, restart persistence and script menu coexistence.
+- `TEMP_TEST:PG03-05` registered as active in project blueprint; must delete temporary probe/wiring/registry after task. Actual BDS test not run, no server accessed or settings changed.
