@@ -84,3 +84,7 @@ Added source-derived regression contracts for existing 1.4.1 MR direct-only bypa
 ## Next step: ordinary network model before MR replacement (2026-11-07)
 
 After the PG-03 NO-GO and complete cleanup, added **pure offline Transporter topology** candidate tests and a [sequenced milestone plan](NEXT_SAFE_EXECUTION_SLICE_12663.md). Neither defines accepted controller election nor creates a block or changes the 1.4.1 addon. Future gameplay implementation and BDS tests require separate explicit authorization; no experiment changes or PROD access.
+
+## Bundle 2 begun — PG-06–PG-08 offline-only preparation (2026-11-07)
+
+Owner authorized proceeding to **Bundle 2** after Bundle 1 PG-03 NO-GO. Added purely offline structural preservation checks for legacy placed blocks, q2/q3/q4/journal keys, a **non-runtime q4→shadow-q5 crash model**, and a **non-runtime per-player menu/confirmation model**. None changes gameplay, original addon source, world data or experiment flags. **PG-06/07/08 BDS = NOT RUN**; PG-06/07 cannot fully pass while stable native MR storage is unavailable. PG-08 can progress through independent menu policy evidence but still needs verified actual LAB UI before acceptance.

@@ -178,3 +178,9 @@ Sources:
 
 - User requested move forward after PG-03 closeout. Proposed an **ordinary-network-first** development order so MR direct-only 1.4.1 path stays safe until a native custodian is proven. Added offline-only deterministic 6-neighbor pipe topology tests, loop and split/merge scenarios (720 node insertion orders), plus [safe execution note](NEXT_SAFE_EXECUTION_SLICE_12663.md).
 - No live Transporter/Bulk code was implemented, no original `addon/` files changed, and no server accessed. Controller election and unloaded topology remain future gates, not accepted algorithms.
+
+## 2026-11-07 — Owner authorized Bundle 2; non-runtime safety tests first
+
+- Began Bundle 2 PG-06–PG-08 using no-world-write offline checks: legacy placed-block identity/link/queue compatibility, modeled durable maintenance/Q4→Q5 authority under interruption, and modeled Collector/Receiver menu link/relink/unlink confirmation and multi-player safety.
+- PG-03 native MR endpoint remains NO-GO, so no staged native ItemStack custody, Q5 cutover, block conversion, server deployment or real menu UI implementation was performed. **PG-06/07/08 actual BDS = NOT RUN**.
+- These are permanent conceptual and source-preservation tests, not temporary gameplay instrumentation. No change to test rig/world/cheats/protected production.

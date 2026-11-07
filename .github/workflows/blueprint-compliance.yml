@@ -31,3 +31,5 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_legacy_mr_offline_invariants.py' -v
       - name: Verify offline six-face Transporter graph connectivity proposal
         run: python -m unittest discover -s tests -p 'test_transport_topology_model.py' -v
+      - name: Offline Bundle 2 placed-block, q4 to q5 and menu safety models
+        run: python -m unittest discover -s tests -p 'test_bundle2_offline_safety.py' -v
