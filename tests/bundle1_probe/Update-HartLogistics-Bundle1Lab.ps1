@@ -1,4 +1,4 @@
-# TEMP_TEST:PG03-05
+# TEMP_TEST:PG03-05-PS
 <#
 .SYNOPSIS
     Git-source updater for the standalone disposable PG-03/04/05 LAB probe.
@@ -212,8 +212,10 @@ function Registry([string]$Raw) {
     $clean=CleanJsonc $Raw
     $s=$clean.Trim()
     if(-not ($s.StartsWith('[') -and $s.EndsWith(']'))){Deny 'World registry must be a JSON array'}
-    try {$items=@(ConvertFrom-Json -InputObject $clean -ErrorAction Stop)}
-    catch {Deny 'World registry JSONC is not parseable'}
+    try {
+        $parsed=ConvertFrom-Json -InputObject $clean -ErrorAction Stop
+        if ($null -eq $parsed) {$items=@()} else {$items=@($parsed)}
+    } catch {Deny 'World registry JSONC is not parseable'}
     foreach($item in $items) {
         if($null -eq $item -or $null -eq $item.PSObject.Properties['pack_id'] -or
            $null -eq $item.PSObject.Properties['version']) {
