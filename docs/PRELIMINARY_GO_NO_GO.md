@@ -1,6 +1,6 @@
 # Preliminary Go / No-Go Tests — Hart Logistics 2
 
-**Owner-approved preliminary test plan, 2026-11-06, CONDITIONAL ON THE TEMPLATE'S IMMEDIATE TEMPORARY-INSTRUMENTATION CLEANUP POLICY.** All gates remain NOT RUN; no manual test rig is READY. Plan approval does not itself authorize gameplay code changes, source import, experiment toggles, LAB deployment or production operations. These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
+**Owner-approved preliminary test plan, 2026-11-06, CONDITIONAL ON THE TEMPLATE'S IMMEDIATE TEMPORARY-INSTRUMENTATION CLEANUP POLICY.** **PG-01 = GO (exact source import)** and **PG-02 = GO (offline/synthetic installer safeguards)**; PG-03–PG-11 remain **NOT RUN** and no manual LAB rig is READY. See [Bundle 0 results](BUNDLE0_RESULTS.md). Plan approval does not itself authorize gameplay code changes, source import, experiment toggles, LAB deployment or production operations. These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
 
 **What is being tested?** Whether we can preserve 1.4.1, use native MR inventory on server **1.26.63.1 / client v26.63**, migrate Q4 to Q5 without loss, offer menu linking, and extend routing with Bulk Storage/Transporters safely.
 
@@ -75,4 +75,4 @@
 
 For every bundle, first show **What is being tested / Why now / Prior evidence reused / User action / Pass condition**, then the complete results. Every physical rig must satisfy [Test Rig Cards and Evidence Reuse](TEST_RIG_CONTRACT.md): exact **one- versus two-Sorter** counts, XYZ, facing, Hopper output, all required rig spacing (or explicitly none), redstone, contents, steps, expected results and reset. **No physical rigs are READY yet.**
 
-**All PG-01–PG-11 are NOT RUN, with owner acceptance of the *plan* conditional on removal of every disposable test artifact as soon as its purpose ends.** This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.
+**PG-01 and PG-02 are GO at their stated source/offline scope** (see [Bundle 0 results](BUNDLE0_RESULTS.md)). **PG-03–PG-11 remain NOT RUN**; no Bedrock in-game/LAB deployment test or temporary rig has run. All disposable synthetic fixtures were cleaned. Further source code and LAB execution require their own authorization. This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.
