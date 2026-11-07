@@ -69,3 +69,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - **NOT DONE:** playable block/texture, controller election, durable physical item custody, actual slot/bank attachment routing, crash-safe journal, Bulk split/merge and multi-controller authorization, or a runtime LAB test. Existing `addon/` source remains immutable and MR/Q5 native custody is still blocked.
 - **NEXT:** standalone fault-injected durable journal and reconstruction model to establish crash/retry guarantees before any actual physical item movement or Bedrock integration. No repeat PG-08 rig or owner-side actions requested for this offline stage.
 
+## Ordinary transfer journal milestone — offline fault proof (2026-11-07)
+
+- **DONE, standalone Node model only:** [append-only journal and fault test matrix](TRANSPORT_JOURNAL_FAULT_MODEL.md) with **25 simulated crash/replay/corruption tests**. Every possible post-intent interruption remains ambiguous and is quarantined/HOLD until separately authoritative receipt evidence exists; never retry source debits merely because the ACK was lost. Journal bank accounting is modeled for new empty 200,000-item ordinary Bulk members only.
+- **NOT DONE:** Bedrock Script API-compatible durable persistence, authenticated physical source/destination receipts, crash-atomic transfer and reconciliation; actual new blocks, assets, controller elections and cross-chunk routing remain open. Node `fsync` on synthetic files is not Bedrock-world durability evidence. Do not ask owner to test or enable experiments.
+- **NEXT unblocked safety work:** verify Minecraft-supported persistent journal/receipt primitives on the installed stable API using source research and an isolated non-deploying adapter design; if crash-atomic custody is unavailable, maintain HOLD and propose bounded reconciliation instead of claiming item movement is safe. Original 1.4.1 and PG-08 LAB install remain unchanged.
+
