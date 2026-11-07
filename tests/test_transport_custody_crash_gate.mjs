@@ -11,9 +11,9 @@ function data(){
     sourceId:"minecraft:overworld|-955|69|-804",
     destinationId:"minecraft:overworld|-951|69|-804",
     itemId:"minecraft:cobblestone"};
-  const endpoint=(id)=>({
+  const endpoint=(id,isSource)=>({
     id,typeId:"minecraft:chest",loaded:true,isSingleInventory:true,
-    size:27,exactOrdinarySingleItem:true,exactlyEmpty:true,
+    size:27,exactOrdinarySingleItem:isSource,exactlyEmpty:!isSource,
     playerWritable:true,automationWritable:false,foreignAddonsBlocked:false
   });
   return {
@@ -21,7 +21,7 @@ function data(){
     region:{networkId:tx.networkId,epoch:tx.epoch,fullTopologyKnown:true,
       unknownBoundary:false,sameLoadedRegion:true,ownerCount:1,
       controllerId:"controller-1",claimedControllerId:"controller-1"},
-    source:endpoint(tx.sourceId),destination:endpoint(tx.destinationId),
+    source:endpoint(tx.sourceId,true),destination:endpoint(tx.destinationId,false),
     fence:{networkId:tx.networkId,epoch:tx.epoch,controllerId:"controller-1",
       compareAndSwapAttested:true,liveAtExecution:true,
       blocksCompetingWriters:true},
@@ -107,8 +107,9 @@ test("unknown, double, unloaded, or modified physical endpoints fail",()=>{
   for(const which of ["source","destination"]){
     for(const edit of [
       {loaded:false},{size:54},{size:0},{isSingleInventory:false},
-      {id:"stale-chest"},{exactOrdinarySingleItem:false},
-      {exactlyEmpty:false}
+      {id:"stale-chest"},
+      ...(which==="source" ? [{exactOrdinarySingleItem:false},{exactlyEmpty:true}] :
+           [{exactOrdinarySingleItem:true},{exactlyEmpty:false}])
     ]){
       const a=syntheticSealed();a[which]={...a[which],...edit};
       assert.equal(evaluateCustodyAdmission(a).reason,"physical_endpoint_snapshot_untrusted");
