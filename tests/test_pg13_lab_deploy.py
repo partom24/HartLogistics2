@@ -166,13 +166,11 @@ class SyntheticPG13LAB(unittest.TestCase):
         with self.assertRaises(lab.UnsafeLab):
             pg.create_rollback_plan(self.lab, self.current, self.previous, backup.name)
 
-    def test_default_source_only_refuses_apply_without_real_lab_access(self):
-        with self.assertRaisesRegex(AssertionError, "safe stop"):
-            # Substituting a sentinel proves no actual Windows LAB inquiry.
-            with patch.object(pg.pg08, "check_real_root",
-                              side_effect=AssertionError("safe stop")):
-                # Missing --commit means the fail-closed arg check fires first.
-                self.assertEqual(pg.main(["--apply"]), 2)
+    def test_unsafe_apply_refused_before_real_lab_access(self):
+        # Substituting a sentinel proves no actual Windows LAB inquiry.
+        with patch.object(pg.pg08, "check_real_root",
+                          side_effect=AssertionError("must not contact real LAB")):
+            self.assertEqual(pg.main(["--apply"]), 2)
 
 if __name__ == "__main__":
     unittest.main()
