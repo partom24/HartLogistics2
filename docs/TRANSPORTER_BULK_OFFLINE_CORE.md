@@ -37,3 +37,8 @@ The test suite [`test_transport_bulk_core.mjs`](../tests/test_transport_bulk_cor
 - **Still open:** exact deterministic first-Bulk controller election, persistent discovery and epoch lease ownership, split/merge inventory custody, verified member→route attachment, physical receipt journal/CAS, and safe full/broken Bulk behavior. See [design inbox](IDEA_INBOX.md) HL-Q-002/003/006/008/010/012. None is silently settled by this code.
 - **Next safe unit of work:** implement and fault-test the *durable* reservation/recovery protocol in a standalone candidate with artificial crashes before attaching a single real Sorter/Hopper/Transporter and creating original art. A later **bounded, owner-approved LAB installation** is needed to test actual Bedrock behavior; this offline milestone does not install anything or request a new manual rig.
 - **MR remains separate:** PG-03/04/05 and full PG-06/07 Q4→Q5 migration remain blocked, and the 1.4.1 direct-only metadata-rich fallback must not be replaced until native custody is proven.
+
+## Continued offline custody milestone
+
+The following milestone introduces a separate **Node-only** append-only journal simulator and 25 fault tests; see the [crash-state / recovery fault matrix](TRANSPORT_JOURNAL_FAULT_MODEL.md). A durable HANDOFF_INTENT does not prove a physical item moved. The simulator explicitly **holds ambiguous post-intent transactions and never auto-replays an extraction**, rather than falsely claiming exactly-once transfer. It does **not** close the Bedrock persistent-store, controller election, native MR or authenticated receipt gates listed above; no gameplay code, asset, LAB or production file changes were made.
+
