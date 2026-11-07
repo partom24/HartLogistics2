@@ -4,7 +4,7 @@
 
 **What is being tested?** Whether we can preserve 1.4.1, use native MR inventory on server **1.26.63.1 / client v26.63**, migrate Q4 to Q5 without loss, offer menu linking, and extend routing with Bulk Storage/Transporters safely.
 
-**Rule:** Execute **2–3 closely related checks together** with a common code spike or rig. If a gate fails, **stop only its dependent subsystem**. Do not rerun unaffected prior successful tests. All in-world tests are LAB-only, at `C:\Servers\Thomas_MCBedrock - Copy (2)`. Production `C:\Servers\Thomas_MCBedrock` is never a test environment. The imported production updater **must not be run before a nominated release candidate**, including dry-run; production edits need separate approval.
+**Owner clarification, 2026-11-07:** The **2–3 checks per group is only a limit on the owner's hands-on BDS test work**, not a cap on developer-executed checks, offline/synthetic tests, CI, or fully automated BDS verification when separately authorized. Run as many independent automated checks as are useful (even **100+**) without stopping for arbitrary 2–3-test milestones or asking the owner to intervene. Group **only the manual, owner-performed BDS steps** in 2–3 coherent checks per fully specified reusable rig/session. The existing PG-01–PG-11 headings are *organizing go/no-go milestones*, not an automation throttle. If a gate fails, stop only its dependent subsystem and record the failure; don't run meaningless downstream checks. Do not rerun unaffected prior successful tests. All in-world tests are LAB-only, at `C:\Servers\Thomas_MCBedrock - Copy (2)`. Production `C:\Servers\Thomas_MCBedrock` is never a test environment. The imported production updater **must not be run before a nominated release candidate**, including dry-run; production edits need separate approval.
 
 ## Mandatory cleanup gate for every PG test and bundle
 
@@ -12,13 +12,13 @@
 
 - **At introduction:** tag runtime-connected temporary code `TEMP_TEST:<ID>` or `TEMP_DEBUG:<ID>` and register it under `project-blueprint.json.temporary_instrumentation` with the exact owner task/path. Standalone non-runtime temporary `TEMP_TEST` probes in declared `source.test_roots` must be tagged, but do not require registry entries while active. Test parameters and temporary configuration must be tracked with their cleanup owner, even if no taggable source code is involved.
 - **At the earliest end of use:** remove test-only arguments/settings, special debug routes, temporary commands, injection hooks, probe-only block/asset definitions, initialization wires, event subscriptions and any stale registrations. Restore clean defaults and confirm normal behavior without the probes. LAB-only experimental world settings must not leak into normal-world or production configuration; restore/reset the disposable LAB as appropriate.
-- **At each PG verdict:** explicitly record `Temporary instrumentation: NONE / ACTIVE for named next test / CLEANUP REQUIRED`. A result may report the observed technical finding, but its task is **not accepted/closed** until cleanup is complete. If a shared 2–3-test batch still needs a common probe, document its remaining purpose and remove it immediately after the last dependent check—not months later or only before RC.
+- **At each PG verdict:** explicitly record `Temporary instrumentation: NONE / ACTIVE for named next test / CLEANUP REQUIRED`. A result may report the observed technical finding, but its task is **not accepted/closed** until cleanup is complete. If any automated or manual test sequence still needs a common probe, document its remaining purpose and remove it immediately after the last dependent check—not months later or only before RC.
 - **Permanent non-runtime regression suites:** retain useful deliberately permanent tests under the test-only tree without `TEMP_TEST` markers. Preserve test evidence/log summaries; delete disposable test harnesses. Never convert temporary runtime behavior into a production dependency just to avoid cleanup.
 - **Before release candidate:** run `python scripts/validate_blueprint.py --release-gate` on the exact RC source and review for untagged leftover helpers; `temporary_instrumentation` must be empty and no tagged temporary probes remain. A green structural test is not a replacement for manual cleanup review.
 
 **Do not bundle extra tests merely to justify keeping temporary instrumentation alive.** This condition applies to PG-01 through PG-11 and subsequent focused follow-up tests.
 
-## Bundle 0 — Source and installer safety (2 checks; offline, no Minecraft rig)
+## Bundle 0 — Source and installer safety (2 feasibility gates; any number of offline subtests)
 
 **What is being tested:** Can we preserve the untouched 1.4.1 baseline and safely prepare a LAB-only update process?
 
@@ -29,7 +29,7 @@
 
 **Prior evidence reused:** Original source inspection and uploaded HartBots updater reference. **Never execute the original HartBots production updater for this gate.**
 
-## Bundle 1 — Custom native MR container feasibility (3 checks; one tiny LAB probe)
+## Bundle 1 — Custom native MR container feasibility (3 feasibility gates; one tiny LAB probe)
 
 **What is being tested:** Can a custom block actually participate in normal native ItemStack/Container transfers on **26.63** and survive reloads without interfering with linking menus?
 
@@ -41,7 +41,7 @@
 
 **Prior evidence reused:** Owner-reported safe ordinary Container→Container MR moves. **We test only the new custom-block endpoints, not every enchanted item/potion/music disc.** If PG-03 fails, skip PG-04/05; no extra rigs. The tiny shared rig needs a complete **READY rig card** with exact blocks, positions, facing and separation **before** any owner setup.
 
-## Bundle 2 — Existing-world conversion and link safety (3 checks; one disposable 1.4.1 LAB world copy)
+## Bundle 2 — Existing-world conversion and link safety (3 feasibility gates; one disposable 1.4.1 LAB world copy)
 
 **What is being tested:** Can old placed Collector/Receiver blocks retain their identities, links and queued items while acquiring safe MR storage and menu linking?
 
@@ -53,7 +53,7 @@
 
 **Reuse:** 1.4.1 ingress/egress source matrix, previously established routing primitives and native ItemStack behavior. A **minimal authorized probe implementation** is needed; documents cannot pass a runtime test. Only verify changed handoffs, not arbitrary ordinary item IDs.
 
-## Bundle 3 — Minimal network architecture feasibility (3 checks; one planned, expandable LAB layout)
+## Bundle 3 — Minimal network architecture feasibility (3 feasibility gates; one planned, expandable LAB layout)
 
 **What is being tested:** Can new high-speed plumbing use existing Sorter filtering and shared Bulk Storage without item loss, unauthorized chest access or controller loops?
 
@@ -73,6 +73,6 @@
 | **NO-GO** | A safety/compatibility requirement fails. | Stop affected feature and review alternatives; do not patch around metadata loss. |
 | **BLOCKED / NOT RUN** | Missing permission, rig, artifact, runtime or evidence. | No implied pass; resolve prerequisite. |
 
-For every bundle, first show **What is being tested / Why now / Prior evidence reused / User action / Pass condition**, then the complete results. Every physical rig must satisfy [Test Rig Cards and Evidence Reuse](TEST_RIG_CONTRACT.md): exact **one- versus two-Sorter** counts, XYZ, facing, Hopper output, all required rig spacing (or explicitly none), redstone, contents, steps, expected results and reset. **No physical rigs are READY yet.**
+For every **owner-facing manual BDS session**, first show **What is being tested / Why now / Prior evidence reused / User action / Pass condition**, then the complete results. Automated development work should report useful gate outcomes and not demand user attention after each test. Every physical rig must satisfy [Test Rig Cards and Evidence Reuse](TEST_RIG_CONTRACT.md): exact **one- versus two-Sorter** counts, XYZ, facing, Hopper output, all required rig spacing (or explicitly none), redstone, contents, steps, expected results and reset. **No physical rigs are READY yet.**
 
 **PG-01 and PG-02 are GO at their stated source/offline scope** (see [Bundle 0 results](BUNDLE0_RESULTS.md)). **PG-03–PG-11 remain NOT RUN**; no Bedrock in-game/LAB deployment test or temporary rig has run. All disposable synthetic fixtures were cleaned. Further source code and LAB execution require their own authorization. This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.

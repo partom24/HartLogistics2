@@ -92,3 +92,10 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - **PG-02 offline GO:** developed `scripts/hartlogistics_lab_updater.py` and permanent `tests/test_hartlogistics_lab_updater.py`; **nine** offline synthetic checks passed, including exact LAB path guard, UUID/hash gate, JSONC preservation, no-write plan, staged SHA install/backup and rollback for injected pack/registry failure. Tooling commit `2fe2871e14340ae3a434e46ef1d03112b94b2735`. CI now executes permanent safety tests.
 - Production updater archive/scripts were never executed (even in dry-run). No Minecraft server was accessed. No world setting/experiment changed, no gameplay features implemented and no release authorized. Bundle 1 and any actual LAB operation require separate approval.
 - Simulated temporary directories were removed after tests; no temporary runtime flags, probes or experimental wiring remain. See [Bundle 0 results](BUNDLE0_RESULTS.md).
+
+## 2026-11-07 — Owner clarification: 2–3 checks only for hands-on BDS work
+
+- Owner specifically limited **their own hands-on BDS testing** to 2–3 related checks per reusable, fully specified rig/session, not all tests or development work.
+- **Autonomous offline/synthetic/CI and separately authorized automated LAB verification have no 2–3-count limit.** If 100 checks can run without owner intervention, complete all useful checks without artificial stop points. Actual failures/safety/authorization boundaries still stop dependent actions.
+- Updated preliminary gates, test-rig contract, compatibility plan, roadmap, and contributor instructions. Immediate cleanup of temporary instrumentation remains mandatory at the end of its real dependency, irrespective of test count.
+- Documentation only; no tests, runtime changes or server operations were triggered by this clarification.

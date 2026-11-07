@@ -6,7 +6,7 @@
 
 ## Preliminary feasibility batches
 
-[Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md) defines **PG-01–PG-11** in four small batches (2 offline baseline/updater checks; 3 native MR feasibility; 3 existing-world migration/menu checks; 3 network routing feasibility). **All NOT RUN; no rig is READY.** Each is a targeted subsystem stop/go decision, **not a complete release regression suite**. Do not require later network feasibility tests before beginning authorized baseline preparation.
+[Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md) defines **PG-01–PG-11** in four organizational groups (2 offline baseline/updater gates; 3 native MR feasibility; 3 existing-world migration/menu; 3 network feasibility). **PG-01/02 = GO at their documented offline scope; PG-03–PG-11 NOT RUN; no BDS rig READY.** These are targeted stop/go decisions, **not complete release regression**. **No fixed limit applies to autonomous offline, CI or authorized automated LAB tests**; only owner-performed BDS sessions should group 2–3 checks per reusable setup. Do not require later network feasibility tests before beginning authorized baseline preparation.
 
 ## Test selection and physical-rig contract
 
@@ -87,7 +87,7 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 
 **What is being tested:** During Q4→Q5, **all Hart Logistics routing handlers** observe a durable world-wide maintenance gate, including already scheduled legacy paths. Test pre-freeze/in-flight checkpoints, server restart while paused, staged Receiver cutover, old Sorter/Collector/Receiver activation after previously unloaded chunks load, and menu status PENDING/MIGRATING/VERIFIED/BLOCKED. An unloaded block must not be claimed migrated. Confirm vanilla Hopper movement is either safely isolated or reconciled; do not claim the script pause stops vanilla game mechanics. **Resume only after a validated global/late-load version gate.**
 
-**Preliminary-bundle mapping:** Keep existing **2–3 tests per bundle**, no newly requested large rigs: PG-07 checks global freeze/deferred migration and journal recovery, PG-08 checks menu notification and link preservation, PG-09 checks interchangeable Hopper/Transporter intake, PG-10 checks unknown Bulk capacity and MR backpressure, PG-11 checks deterministic controller authority and partitions. See [preliminary gates](PRELIMINARY_GO_NO_GO.md).
+**Preliminary-bundle mapping:** Keep **2–3 owner-performed BDS checks per rig**, while allowing unlimited safe autonomous subtests within their authorized environment; no newly requested large rigs: PG-07 checks global freeze/deferred migration and journal recovery, PG-08 checks menu notification and link preservation, PG-09 checks interchangeable Hopper/Transporter intake, PG-10 checks unknown Bulk capacity and MR backpressure, PG-11 checks deterministic controller authority and partitions. See [preliminary gates](PRELIMINARY_GO_NO_GO.md).
 
 ## Accounting invariant
 

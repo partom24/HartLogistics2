@@ -1,6 +1,12 @@
 # Hart Logistics 2 — Test Rig Cards and Evidence Reuse
 
-**Owner-required testing standard — 2026-11-06. Planning only.** No physical rig in this document has been approved, built or tested.
+**Owner-required testing standard — clarified 2026-11-07.** No physical rig in this document has been approved, built or tested.
+
+## Hands-on BDS limit vs autonomous test runs
+
+The owner clarified that **bundling two or three tests** means **two or three user-performed BDS checks per prepared setup/session**. There is **no 2–3-test cap** on automated/offline/CI checks, nor on **fully automated BDS tests once that LAB execution is separately authorized**. If 100 automated tests can run successfully without owner participation, run them without artificial stopping points. Still stop on an actual failure, changed risk, unsafe state, or an authorization boundary; no automatic access to production, unapproved LAB deployment, experiment toggles or gameplay changes.
+
+For manual BDS work, show only the 2–3 relevant interactive checks with one complete READY rig card and all separation/orientation/column requirements up front. Automation may collect more evidence behind the scenes before or after that session. Do not make the user manually execute checks that can be safely automated. Preserve previously proven unaffected behavior without retest.
 
 ## What the owner sees first
 
@@ -40,9 +46,9 @@ Do not claim that every legacy behavior has runtime acceptance solely from readi
 
 ## Temporary-test parameter removal — mandatory at each test boundary
 
-The owner has accepted the preliminary 2–3-test bundles **only with immediate cleanup of disposable testing settings**. Apply the [Temporary Testing and Debugging Instrumentation Policy](TEMPORARY_INSTRUMENTATION_POLICY.md) to every rig, including offline, script-only and in-world probes. Document all temporary test switches, commands, event hooks, added probe blocks/assets and diagnostic parameters at creation. Remove them **as soon as they are no longer needed**, not merely at release; remove their wiring and `temporary_instrumentation` entries before task acceptance. Temporary experiments stay confined to disposable LAB worlds and must not be copied to production. Keep genuinely permanent non-runtime regression tests, as distinguished by the template policy.
+The owner accepted the preliminary go/no-go plan **with immediate cleanup of disposable testing settings**, regardless of how many autonomous tests are run. The 2–3 grouping limits the owner's manual BDS effort only. Apply the [Temporary Testing and Debugging Instrumentation Policy](TEMPORARY_INSTRUMENTATION_POLICY.md) to every rig, including offline, script-only and in-world probes. Document all temporary test switches, commands, event hooks, added probe blocks/assets and diagnostic parameters at creation. Remove them **as soon as they are no longer needed**, not merely at release; remove their wiring and `temporary_instrumentation` entries before task acceptance. Temporary experiments stay confined to disposable LAB worlds and must not be copied to production. Keep genuinely permanent non-runtime regression tests, as distinguished by the template policy.
 
-Every test result must state whether the temporary setup has been removed; a shared rig/probe used by two or three gates may remain only through those documented dependent checks. Cleanup is a prerequisite to closing the test task.
+Every test result must state whether the temporary setup has been removed; a shared rig/probe used by automated or manual gates may remain only through those documented dependent checks. Cleanup is a prerequisite to closing the test task.
 
 ## Rig card: mandatory before owner builds anything
 
