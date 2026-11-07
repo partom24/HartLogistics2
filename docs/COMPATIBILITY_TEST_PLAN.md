@@ -4,6 +4,14 @@
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
 
+## Test selection and physical-rig contract
+
+**Before every test request**, give the owner a short **“What is being tested”** summary (purpose, why it is needed now, previously accepted evidence, whether a manual setup is necessary, and expected PASS). The mandatory [Test Rig Cards and Evidence Reuse policy](TEST_RIG_CONTRACT.md) defines this format.
+
+**Before any physical LAB build**, provide a complete **READY** rig card with exact number of Sorters (one vs two in a column, for example), all other block counts, block-by-block XYZ and facing, Hopper directions, links, redstone, initial inventory, topology and **verified distance/clearance from every relevant nearby rig** (or expressly **no special inter-rig separation**), and reset instructions. A hidden setup constraint discovered after a conforming build is our test-specification defect; don't require avoidable rebuilds.
+
+**Evidence reuse first:** classify each test as **previously accepted/unaffected (skip)**, **previously accepted/affected (focused regression)**, **owner-reported previous success (record scope, avoid unnecessary rerun)** or **new/unproven (source review/automation, manual only if justified)**. Do not repeat unrelated 1.4.1 or prior native-ItemStack tests just to start a new milestone. Existing evidence is not automatically proof of changed queue migration, cross-chunk native inventory or other new end-to-end behavior.
+
 ## Risk-based item selection — owner testing policy (2026-11-06)
 
 **Do not limit each routing or throughput test to a predetermined named item, and do not repeat equivalent tests for cobblestone, glass, sand, etc. solely because their IDs differ.** For ordinary unmodified items with the same relevant inventory and serialization semantics, one representative is sufficient for a given routing/transfer invariant; use any suitable readily available item. Test *behavior*, not arbitrary item names.

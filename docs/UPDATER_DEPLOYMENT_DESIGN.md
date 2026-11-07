@@ -52,6 +52,8 @@ Nine files were inspected, not run:
 - **After candidate nomination:** the owner must separately authorize any execution and explicitly authorize production mutation. Validate nominated exact commit/artifact, pack IDs/version, cold full-server backup, server stopped and no auto-restart, registries, destination root, rollback steps and signed-off lab acceptance.
 - **No shortcuts:** no copying files, promoting packs, adjusting world registries or world state in production merely because an updater script exists or a PR is merged.
 
+No LAB operator should be asked to set up a manual world rig without a [READY test rig card](TEST_RIG_CONTRACT.md). The card starts with a **what is being tested** summary and identifies prior accepted tests that can be skipped; exact placement/count/isolation requirements must be specified before assembly.
+
 ## Known open deployment decisions
 
 - Actual `level-name` in LAB/PROD and whether there are multiple worlds/pack locations; must be verified on LAB before coding assumptions.

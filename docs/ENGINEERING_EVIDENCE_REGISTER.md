@@ -15,6 +15,10 @@ The engineering blueprint template's old E-* entries referred to a **different r
 
 | HL-E-008 | Uploaded HartBots updater design (not execution) | **SOURCE REVIEW** | Owner's `scripts.zip` SHA-256 `9127f132bc22022ea9d236f1092945f0a7f32a31b0ab0ec2603d39844cb8bfbf`; production script SHA-256 `4f7c136c566a431211b055a9e95f37fc46dce5262dd461b655a6422a0a6f76ee`; [updater design](UPDATER_DEPLOYMENT_DESIGN.md) | Neither updater script has been run or imported as executable HartLogistics tooling; no LAB access, no production access, no deployment verification |
 
+## Reuse previously accepted testing
+
+The owner reports that several safe transfer behaviors were established during earlier development attempts. **Do not require repeating an unaffected test simply because its work occurred before HartLogistics2.** Preserve the owner-provided observation, scope, versions and relevant behavior when it becomes available; classify it as **OWNER-REPORTED** until the underlying logs/fixtures are reviewed. Document a per-test reuse judgment: **unaffected and reusable**, **affected by a changed contract**, or **new/unproven**. Run **only** focused validations introduced by materially changed behavior. The [test-card policy](TEST_RIG_CONTRACT.md) requires a clear upfront summary and full physical setup if a manual test is actually necessary. No blanket claim of runtime acceptance follows from undocumented prior tests.
+
 ## Evidence to capture before implementation/release
 
 1. Source commit/tree and original mcaddon checksum, pack UUIDs and exact Bedrock engine/API versions.

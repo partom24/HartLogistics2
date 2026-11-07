@@ -57,5 +57,12 @@
 **Reason:** Avoid redundant slow tests while maintaining comprehensive 1.4.1 regression and new-path conservation coverage.
 **Consequences:** Do not drop tests for old ingress/egress, redstone, crashes, full destinations, filter discrimination, identities or native MR fidelity. See [compatibility test plan](COMPATIBILITY_TEST_PLAN.md).
 
+## HL-ADR-011 — Fully specified manual rigs and up-front test explanation
+
+**Status:** Owner-confirmed test workflow 2026-11-06.  
+**Decision:** Every proposed test begins with a short **What is being tested** summary, why the test is required, what is already proven, action needed, and expected result. **Reuse accepted prior evidence** for unchanged behavior instead of routinely rerunning tests. Before a physical LAB test, give the owner a complete **READY** rig card (exact Sorter count/column height, block coordinates/orientations, links, redstone, distances from other rigs or explicitly none, steps, reset and pass/fail).  
+**Rationale:** The owner should not build a rig and then be told it was too close to another, too far away, or used an undocumented number of Sorters; nor repeat safe prior experiments needlessly.  
+**Consequences:** Unknown topology/spacing requirements make the card NOT READY; if discovered afterward, correct the instructions rather than attributing error to the user. Old evidence is reused only for its actual scope; new risks get narrow differential tests. See [test policy](TEST_RIG_CONTRACT.md).
+
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 
