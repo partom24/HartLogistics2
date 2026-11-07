@@ -83,9 +83,15 @@ function Get-Registry([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         return @{ exists=$false; entries=@() }
     }
-    $data = Read-Jsonc $Path
-    if ($null -eq $data -or $data -isnot [Array]) { throw "Registry is not an array: $Path" }
-    return @{ exists=$true; entries=@($data) }
+    Assert-NoJunction $Path
+    $raw = [IO.File]::ReadAllText($Path)
+    if (-not $raw.TrimStart().StartsWith('[')) {
+        throw "Registry must start with JSON array: $Path"
+    }
+    # Windows PowerShell may unwrap single-element arrays across function
+    # boundaries, so explicitly collect values in an array here.
+    $entries = @(Read-Jsonc $Path)
+    return @{ exists=$true; entries=$entries }
 }
 function Get-Installed([string]$Folder, [string]$Uuid) {
     $found=@()
