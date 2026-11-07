@@ -78,6 +78,9 @@ class PG08CandidateBuildTests(unittest.TestCase):
                 if not path.is_file():
                     continue
                 relative = path.relative_to(base)
+                # Only pack trees are installed; addon/README.md is repository documentation.
+                if relative.parts[0] not in ("behavior_pack", "resource_pack"):
+                    continue
                 self.assertTrue((dest / relative).is_file())
                 if str(relative).replace("\\", "/") not in modified:
                     self.assertEqual(path.read_bytes(), (dest / relative).read_bytes())
