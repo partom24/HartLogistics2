@@ -29,3 +29,5 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_hartlogistics_lab_updater.py' -v
       - name: Check legacy MR preservation and proposed ordinary network fail-closed invariants
         run: python -m unittest discover -s tests -p 'test_legacy_mr_offline_invariants.py' -v
+      - name: Verify offline six-face Transporter graph connectivity proposal
+        run: python -m unittest discover -s tests -p 'test_transport_topology_model.py' -v

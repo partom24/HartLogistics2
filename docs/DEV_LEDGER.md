@@ -173,3 +173,8 @@ Sources:
 
 - Added permanently useful offline-only tests for original 1.4.1 metadata-rich ItemStack direct bypass, and conservative conceptual ordinary Bulk/filter/wildcard choices. Exhaustively checked 256 direct-gate combinations and 125 three-bank capacity-state combinations, mocked pre/post-move restart, without accessing BDS or modifying addon.
 - Model explicitly ASSUMES atomic native transfer. It is **not** proof of Bedrock persistence, crash atomicity, custom native inventories, or future network implementation. No test-only runtime code was added; temporary instrumentation remains empty.
+
+## 2026-11-07 — Follow-on offline Transporter graph and MR-safe milestone
+
+- User requested move forward after PG-03 closeout. Proposed an **ordinary-network-first** development order so MR direct-only 1.4.1 path stays safe until a native custodian is proven. Added offline-only deterministic 6-neighbor pipe topology tests, loop and split/merge scenarios (720 node insertion orders), plus [safe execution note](NEXT_SAFE_EXECUTION_SLICE_12663.md).
+- No live Transporter/Bulk code was implemented, no original `addon/` files changed, and no server accessed. Controller election and unloaded topology remain future gates, not accepted algorithms.

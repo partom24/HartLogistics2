@@ -80,3 +80,7 @@ The owner reconfirmed that \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\Thoma
 ## Independent offline tests after Bundle 1 (2026-11-07)
 
 Added source-derived regression contracts for existing 1.4.1 MR direct-only bypass and model-based capacity safety for potential ordinary Bulk network routing, with no gameplay edits or server operations. Future MR storage implementation remains blocked until one design receives independent native custody verification and owner approval.
+
+## Next step: ordinary network model before MR replacement (2026-11-07)
+
+After the PG-03 NO-GO and complete cleanup, added **pure offline Transporter topology** candidate tests and a [sequenced milestone plan](NEXT_SAFE_EXECUTION_SLICE_12663.md). Neither defines accepted controller election nor creates a block or changes the 1.4.1 addon. Future gameplay implementation and BDS tests require separate explicit authorization; no experiment changes or PROD access.
