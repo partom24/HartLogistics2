@@ -210,12 +210,12 @@ class MenuPolicyModel:
         self.tickets[player] = LinkTicket(player, col.id, "", col.link, col.revision, now + 100)
         return self.tickets[player]
 
-    def confirm_unlink(self, player, ticket, now, accept, storage_fails=False):
+    def confirm_unlink(self, player, ticket, now, accept, storage_fails=False, paused=False):
         if not accept:
             self.tickets.pop(player, None)
             return False
         col = self.collectors.get(ticket.collector)
-        if (self.tickets.get(player) != ticket or not col or not col.loaded or
+        if (self.tickets.get(player) != ticket or paused or not col or not col.loaded or
                 now > ticket.expires_at or col.revision != ticket.revision or
                 col.link != ticket.old_link):
             return False
@@ -466,6 +466,25 @@ class MenuWorkflowModel(unittest.TestCase):
         self.assertFalse(s.confirm_unlink("P1", t, 11, True, storage_fails=True))
         self.assertEqual(s.collectors["C1"].link, "Rold")
         self.assertEqual(s.persisted["C1"], "Rold")
+
+    def test_unlink_during_global_maintenance_pause_keeps_original_link(self):
+        # Q5 migration status is read-only; its freeze blocks unlink as well as relink.
+        s = self.state
+        ticket = s.request_unlink("P1", "C1", 10)
+        self.assertFalse(s.confirm_unlink("P1", ticket, 11, True, paused=True))
+        self.assertEqual(s.collectors["C1"].link, "Rold")
+        self.assertEqual(s.persisted["C1"], "Rold")
+
+    def test_stale_unlink_cannot_erase_concurrently_updated_link(self):
+        s = self.state
+        ticket = s.request_unlink("P1", "C1", 10)
+        # A later confirmed link from another player invalidates the earlier menu.
+        s.arm("P2", "C1", 11)
+        relink = s.prepare_confirmation("P2", "Rnew", 12)
+        self.assertTrue(s.confirm("P2", relink, 13, True))
+        self.assertFalse(s.confirm_unlink("P1", ticket, 14, True))
+        self.assertEqual(s.collectors["C1"].link, "Rnew")
+        self.assertEqual(s.persisted["C1"], "Rnew")
 
     def test_two_player_pending_sessions_are_isolated(self):
         s = self.state
