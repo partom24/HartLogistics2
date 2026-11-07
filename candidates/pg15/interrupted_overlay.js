@@ -109,7 +109,7 @@ function pg15Run(origin, action) {
             }
             const mode = action === "pre" ? "PRE" : "POST";
             const raw = pg15Encode(mode, PG15_INSTANCE);
-            // Durable INTENT readback before any physical item touch.
+            // Immediate INTENT readback, not a power-loss durability guarantee.
             pg15WriteChecked(raw);
             if (pg15Read().state !== "INTENT_HOLD") {
                 throw new Error("intent_not_readable");
