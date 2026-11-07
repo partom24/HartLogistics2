@@ -35,6 +35,7 @@ function fresh() {
   let destType = "minecraft:chest";
   let sourceSize = 27, destSize = 27;
   let moveFault = null, setFault = null, blockFault = null;
+  const neighborTypes = new Map();
   let moves = 0;
   const containers = {};
   containers[SRC] = {
@@ -74,7 +75,16 @@ function fresh() {
       assert.equal(id, "minecraft:overworld");
       return { getBlock(position) {
         if (blockFault) throw Error("Unloaded chunk");
-        return blocks[[position.x, position.y, position.z].join("|")];
+        const key = [position.x, position.y, position.z].join("|");
+        if (blocks[key]) return blocks[key];
+        return {
+          typeId: neighborTypes.get(key) ||
+            (position.y === 68 ? "minecraft:stone_bricks" : "minecraft:air"),
+          getComponent(componentId) {
+            assert.equal(componentId, "minecraft:inventory");
+            return undefined;
+          }
+        };
       } };
     },
     getDynamicProperty(key) {
@@ -135,6 +145,7 @@ function fresh() {
     moveFault(mode) { moveFault = mode; },
     setFault(fn) { setFault = fn; },
     blockFault(b) { blockFault = b; },
+    neighborType(key, type) { neighborTypes.set(key, type); },
     sourceType(t) { sourceType = t; },
     destType(t) { destType = t; },
     sourceSize(n) { sourceSize = n; },
@@ -243,6 +254,21 @@ test("unloaded container failure is never replaced with a guess", () => {
   assert.match(p.run("transfer"), /HOLD: uncertain/);
   assert.equal(r.moves, 0);
   assert.equal(r.writes.length, 0);
+});
+test("adjacent hopper, chest, or redstone automation denies physical movement", () => {
+  for (const [key, type] of [
+    ["-955|68|-804", "minecraft:hopper"],
+    ["-955|70|-804", "minecraft:hopper"],
+    ["-954|69|-804", "minecraft:chest"],
+    ["-951|69|-803", "minecraft:dispenser"],
+    ["-951|68|-804", "hartsorter:sorter"]
+  ]) {
+    const r = fresh(), p = r.spawn(1);
+    r.neighborType(key, type);
+    assert.match(p.run("transfer"), /HOLD: uncertain/);
+    assert.equal(r.moves, 0);
+    assert.equal(r.writes.length, 0);
+  }
 });
 test("non-player/console/outside room cannot mutate test inventories", () => {
   for (const setup of [
