@@ -28,6 +28,10 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 - PRODUCTION: `C:\Servers\Thomas_MCBedrock` is a **hard deny for all test activity**. No production edits until a release candidate has been nominated. **Import of a production updater script is permitted, execution (including dry-run) is not permitted before nomination; nomination does not itself authorize a production apply.**
 - Treat [updater deployment design](docs/UPDATER_DEPLOYMENT_DESIGN.md) as mandatory for any build/install/deploy work. HartBots scripts in the uploaded ZIP are references, not authorized executable HartLogistics tools.
 
+## Preliminary go/no-go tests
+
+Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. Bundle 2–3 focused checks, reuse accepted prior work, start with a plain-language purpose, prepare the full READY rig card before manual LAB setup, and stop dependent features on NO-GO. **All current gates are NOT RUN**; planning does not authorize their execution.
+
 ## Current allowed work
 
 Refine planning documents, compare agreed requirements with the 1.4.1 upload, enumerate design decisions and prepare test plans. The next boundary is an **explicit owner decision** to import source or begin implementation; do not infer it from technical discussion.

@@ -54,3 +54,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Reviewed Microsoft 1.26.50 custom block container notes and stable `BlockInventoryComponent` / `Container` API reference. The intended custom inventory endpoint is a standard `Container` offering native `moveItem` / `transferItem` methods; 1.26.50 lists creation/access as experimental.
 - Defined minimum **26.63 LAB-only** proof of availability under approved world flags, native ordinary→custom→ordinary and custom→custom moves, exact representative MR metadata, blocked transfers and saved persistence. Reuse prior vanilla Container→Container evidence; no blanket item-category re-tests.
 - This is **API/source research and test planning only**, not an in-game validation or authorization to enable experiments/change gameplay code.
+
+## 2026-11-06 — Preliminary go/no-go batch plan
+
+- Owner requests preliminary go/no-go test list bundled **2–3 related tests together** to reduce developer/owner setup and test time.
+- Planned PG-01–PG-11: offline baseline/updater safety (2), native 26.63 custom MR inventory (3), existing-world Q4→Q5/menu conversion (3), and minimal Transporter/Bulk/controller viability (3). Each has GO and NO-GO criteria, prior-proof reuse and minimum setup.
+- All gates NOT RUN and no rig READY. Documentation only; no original add-on, lab or production server changes.

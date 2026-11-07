@@ -27,6 +27,10 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 - HartBots Depot native high-throughput integration via a separately approved interface/change in that project. No HartBots repository access in this project.
 - Performance optimization, tuning, more block variants or new release only after baseline and integration acceptance.
 
+## Preliminary subsystem stop/go gates
+
+See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Run only **2–3 related checks in a batch**, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. Gates are **planned but not run**; they do not authorize code by themselves.
+
 ## Decisions and blockers
 
 - **Hard gate:** zero 1.4.1 capability loss; the supplied archive remains the comparison baseline, not an accepted Git frozen reference.

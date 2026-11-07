@@ -24,6 +24,10 @@
 - **Unknown:** complete world-upgrade safety, Q5 migration feasibility under interrupted writes, controller reconciliation, native custom block inventory availability without experiments, transport throughput and end-to-end item conservation.
 - Structural GitHub Actions/validator results for **this planning change** are not yet recorded; check the PR before claiming PASS.
 
+## Planned preliminary gate batches
+
+The owner requested [PG-01–PG-11 staged stop/go tests](PRELIMINARY_GO_NO_GO.md), executed 2–3 at a time with reused evidence and rigs. All are **NOT RUN**; no manual rig is READY. Any NO-GO stops only the affected dependent implementation. No new gameplay source or server test has been authorized.
+
 ## Next bounded action
 
 Review [design](LOGISTICS_DESIGN.md), [Q5 migration plan](Q5_MIGRATION_DESIGN.md), and [open decisions](IDEA_INBOX.md) with the owner. Do not write, import or release gameplay source until expressly authorized.

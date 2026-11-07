@@ -4,6 +4,10 @@
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
 
+## Preliminary feasibility batches
+
+[Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md) defines **PG-01–PG-11** in four small batches (2 offline baseline/updater checks; 3 native MR feasibility; 3 existing-world migration/menu checks; 3 network routing feasibility). **All NOT RUN; no rig is READY.** Each is a targeted subsystem stop/go decision, **not a complete release regression suite**. Do not require later network feasibility tests before beginning authorized baseline preparation.
+
 ## Test selection and physical-rig contract
 
 **Before every test request**, give the owner a short **“What is being tested”** summary (purpose, why it is needed now, previously accepted evidence, whether a manual setup is necessary, and expected PASS). The mandatory [Test Rig Cards and Evidence Reuse policy](TEST_RIG_CONTRACT.md) defines this format.
