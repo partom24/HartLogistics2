@@ -117,10 +117,37 @@ function pg14Scan(container) {
     }
     return found;
 }
+function pg14CheckNoAdjacentAutomation(dimension, position) {
+    // Only single, isolated test chests: nothing next to sides or above,
+    // solid non-automating floor below. Loaded neighbors are mandatory.
+    const adjacent = [
+        [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0],
+        [0, -1, 0]
+    ];
+    for (const [dx, dy, dz] of adjacent) {
+        const neighbor = dimension.getBlock({
+            x: position.x + dx, y: position.y + dy, z: position.z + dz
+        });
+        if (!neighbor) throw new Error("unknown_adjacent_block");
+        if (dy !== -1 && neighbor.typeId !== "minecraft:air") {
+            throw new Error("test_chest_not_isolated");
+        }
+        if (dy === -1 && (
+            neighbor.typeId === "minecraft:air" ||
+            neighbor.typeId === "minecraft:hopper" ||
+            neighbor.typeId.startsWith("hartsorter:") ||
+            neighbor.getComponent("minecraft:inventory")
+        )) {
+            throw new Error("test_chest_floor_not_safe");
+        }
+    }
+}
 function pg14Rig() {
     const dimension = world.getDimension("minecraft:overworld");
     const source = pg14Chest(dimension, PG14_SRC);
     const dest = pg14Chest(dimension, PG14_DST);
+    pg14CheckNoAdjacentAutomation(dimension, PG14_SRC);
+    pg14CheckNoAdjacentAutomation(dimension, PG14_DST);
     return { source: source.container, dest: dest.container };
 }
 function pg14Before(rig) {
