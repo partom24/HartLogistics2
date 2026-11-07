@@ -51,6 +51,16 @@ jobs:
         run: |
           node --check candidates/pg08/menu_overlay.js
           node tests/test_pg08_menu_mock.cjs
+      - name: Verify PG13 shadow 1.5.2 candidate and no baseline changes
+        run: python -m unittest discover -s tests -p 'test_pg13_candidate_build.py' -v
+      - name: Run actual isolated PG13 shadow command callbacks in Node VM
+        run: |
+          node --check candidates/pg13/shadow_overlay.js
+          node tests/test_pg13_shadow_mock.cjs
+      - name: Compile isolated PG13 candidate and check full JavaScript syntax
+        run: |
+          python candidates/pg13/prepare_candidate.py
+          node --check --input-type=module < build/pg13-lab/behavior_pack/scripts/main.js
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
