@@ -45,6 +45,10 @@ jobs:
         run: |
           node --check candidates/transport/custody_crash_gate.mjs
           node --test tests/test_transport_custody_crash_gate.mjs
+      - name: Verify original cross-lane hazard model rejects phantom custody
+        run: |
+          node --check candidates/transport/cross_lane_hazard_audit.mjs
+          node --test tests/test_transport_cross_lane_hazard_audit.mjs
       - name: Fault-inject standalone ordinary transfer append-only journal on ephemeral runner
         run: |
           node --check candidates/transport/ordinary_journal.node.mjs
