@@ -75,3 +75,6 @@ For each transaction and lossless item identity, **total owned by source queues 
 
 Record source commit, original archive SHA-256, pack manifest versions and UUIDs, world copy ID, server/client versions, experiments, scripts/commands, measured results and fault-injection point. A PASS for blueprint validation does not satisfy any of these runtime tests. Never release without owner approval.
 
+## Menu-based link workflow regression
+
+**What is being tested:** A player can open a Collector menu, choose **Link / Relink Receiver**, select and confirm the intended Receiver, and preserve existing links when canceled. Reuse already accepted item transport/metadata evidence; **do not** repeat unrelated sorting tests. Focus on new UI behavior: opening the menu, no implicit link on placement, saved 1.4.1 link preservation, relink/cancel/unlink confirmation, stale destination, two-player isolation, sneaking to place adjacent blocks, Receiver linked-Collector status, redstone unaffected and interaction with new native MR container inventory. Any manual test requires a [READY rig](TEST_RIG_CONTRACT.md) on LAB only. See [UI design](UI_LINKING_DESIGN.md).

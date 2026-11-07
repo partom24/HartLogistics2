@@ -73,3 +73,9 @@
 
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 
+## HL-ADR-013 — Menu-button Collector/Receiver linking
+
+**Status:** Owner-selected, 2026-11-06; implementation and LAB verification pending.  
+**Decision:** A Collector configuration form has an explicit **Link / Relink Receiver** button. After selection, clicking a Receiver prompts confirmation before writing the new link. Collector placement or ordinary interaction alone must no longer arm linking. Receiver also has a status menu.  
+**Preservation:** Existing 1.4.1 saved link IDs, linked item movement, redstone and sneak-placement behavior remain; changing the click gesture is an owner-requested UI improvement.  
+**Implementation gate:** The 1.4.1 manifest does not yet include `@minecraft/server-ui`; add a stable compatible 2.x module at implementation time, use canceled before-interaction plus deferred form, and test collision with native MR inventory on server 1.26.63.1/client 26.63. See [UI design](UI_LINKING_DESIGN.md).

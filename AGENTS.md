@@ -32,3 +32,6 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 
 Refine planning documents, compare agreed requirements with the 1.4.1 upload, enumerate design decisions and prepare test plans. The next boundary is an **explicit owner decision** to import source or begin implementation; do not infer it from technical discussion.
 
+## Approved future link interaction
+
+Owner-selected UI design: explicit **Link / Relink Receiver** button inside the Collector menu; select Receiver and confirm before storing. No implicit linking on placement, preserve all saved links, transport behavior and sneak-place. Before code changes, check stable `@minecraft/server-ui` dependency and native inventory UI collision for 26.63. See [menu design](docs/UI_LINKING_DESIGN.md).

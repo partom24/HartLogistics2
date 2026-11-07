@@ -100,3 +100,6 @@ MR items use native ItemStack preservation and preferred handling; whether MR it
 
 **Not decided:** controller region identity/election, connection topology, input selection, item identity classification, destination capacity reservations, MR inventory size/slot accounting, throughput targets, wildcard on partitions/unloads, experimental API policy, controller failover and block removal. See [inbox](IDEA_INBOX.md).
 
+## Collector / Receiver menu interaction (owner choice)
+
+Replace direct link selection on Collector placement or standing click with a **Link / Relink Receiver** button inside a Collector configuration menu and explicit confirmation at the intended Receiver. Preserve saved links, old hopper and sorter paths, redstone and sneak-place. Add a Receiver status menu. With future native MR containers, verify that the scripted menu and any native inventory opening do not conflict. See [menu linking design](UI_LINKING_DESIGN.md).

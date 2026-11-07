@@ -38,3 +38,4 @@ This repository was created from an engineering blueprint template. Shared polic
 
 When implementation is explicitly authorized, preserve the exact original pack UUIDs, original block identifiers and persisted state; record source import and test proof before claiming compatibility.
 
+**Linking UI:** [Menu-based Collector/Receiver linking design](docs/UI_LINKING_DESIGN.md) documents the explicit link/relink button and compatibility requirements.

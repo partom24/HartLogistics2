@@ -108,3 +108,6 @@ The migration is **replacement of mechanism, preservation of capability**, so th
 
 **Review rule:** Any planned change affecting an E/R route above must retain that route or have an explicit testable compatibility adapter. Failure to reproduce an existing supported route is a release blocker, not an acceptable feature tradeoff.
 
+## Future link-control transition — not 1.4.1 behavior
+
+The owner selected **menu-based linking** for the next version. Source-reviewed old entry points are `selectCollector`, `useReceiver` (approximately lines 2058–2092) and Collector placement/interaction handlers (approximately lines 3876–4023). The original standing-click or placement-to-select *gesture* may be replaced; **existing links, Collector→Receiver ingress, saved link identities, redstone and sneak-place ability must remain valid**. The new menu behavior is documented in [UI linking design](UI_LINKING_DESIGN.md), not presented as current 1.4.1 implementation.

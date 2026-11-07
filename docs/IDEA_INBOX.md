@@ -44,3 +44,7 @@
 - **D-011 (owner testing policy, 2026-11-06):** Before any LAB rig request, provide an up-front **what is being tested** summary and a fully specified **READY** rig including exact sorter columns, block placement, connections, spacing/isolation, steps and results. Unknown constraints mean NOT READY. Previously accepted/unaffected results should be reused, with evidence boundaries, rather than retesting prior safe behavior. See [test rig/evidence policy](TEST_RIG_CONTRACT.md).
 - **D-010 (owner testing policy, 2026-11-06):** Test by **behavioral equivalence classes**, not arbitrary item types. Cobblestone, glass and sand do not each need separate ordinary-movement tests absent a relevant mechanical difference. Test actual differences (MR fidelity, distinct bucket identity, stack limits, special mechanics, proven item-specific bugs) with representative cases; see [test plan](COMPATIBILITY_TEST_PLAN.md).
 
+## Menu linking — confirmed and remaining details
+
+- **D-013 (owner choice, 2026-11-06):** Link/relink initiation moves into an explicit button on the Collector menu, with Receiver selection and confirmation. Normal placement/right-click must not silently arm linking; existing saved links and transport behavior persist. See [UI design](UI_LINKING_DESIGN.md).
+- **HL-Q-022 (open):** Decide link/unlink player permissions, pending-selection expiration and simultaneous edits. Test UI behavior alongside future native MR inventory on 26.63 without experimental assumptions. These do not prevent baseline source import.
