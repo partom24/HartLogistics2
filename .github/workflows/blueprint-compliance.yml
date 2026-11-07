@@ -33,6 +33,16 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_transport_topology_model.py' -v
       - name: Offline Bundle 2 placed-block, q4 to q5 and menu safety models
         run: python -m unittest discover -s tests -p 'test_bundle2_offline_safety.py' -v
+      - name: Verify PG08 menu candidate offline build source gates
+        run: python -m unittest discover -s tests -p 'test_pg08_candidate_build.py' -v
+      - name: Exercise actual PG08 menu candidate with Node mocks
+        run: |
+          node --check candidates/pg08/menu_overlay.js
+          node tests/test_pg08_menu_mock.cjs
+      - name: Compile isolated PG08 candidate and check JavaScript syntax
+        run: |
+          python candidates/pg08/prepare_candidate.py
+          node --check build/pg08-lab/behavior_pack/scripts/main.js
 
 
   bundle2-readonly-preflight-windows:
