@@ -1,49 +1,51 @@
-**LAB INSTALL / BDS STARTUP ACCEPTED (2026-11-07, scoped):** Owner approved and performed `Install -Apply` from pinned `846889dfa2516c303bea79d663746f02deb7f26e`; rollback backup **`lab-5af88e18cff3`** must be retained. Subsequent BDS startup displayed Hart Logistics **1.5.1-LAB-PG08** `ready;` with 664 Sorters, 54 Collectors and 31 Receivers. No menu UI or link persistence test has been executed. The two `enchanted_book` / `saddle` source-hold warnings arise from unchanged conservative legacy Q4 fallback; this lab is not a native-MR custody test. **Rig NOT READY** until exact empty safe Overworld XYZ and eight-block surrounding clearance are verified. Historical preflight-only statements below refer to earlier gates.
+# PG-08 LAB menu smoke session — READY physical rig card (2026-11-07)
 
-# PG-08 LAB menu smoke session — NOT READY for owner placement yet
+**What is being tested:** Only the new in-game Collector/Receiver menu: deliberate Link/Relink selection, Receiver confirmation/cancellation, saved-link persistence after restart, explicit unlink, and ordinary sneak-place against a Collector.
 
-**Target:** BDS 1.26.63.1, client 26.63; existing owner LAB clone
-`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer`.
-Never use production, enable experiments, reset the clone, or install the old PG-03 probe.
+**Why now:** The 1.5.1 PG-08 UI replaces the implicit 1.4.1 Collector-selection gesture while preserving its routing/queue model. It is the one newly changed behavior not yet observed on the actual Bedrock target.
 
-**Actual owner LAB preflight evidence (2026-11-07):** Owner ran `CheckLab` against the already-identified cloned LAB `ThomasServer` at pinned source SHA `82adedea7f1e79284118765f596ae2ac0bbe01d8` using Python 3.12. Console: `LAB PREFLIGHT PASS: READ-ONLY. Nothing installed.` This resolves the earlier preflight blocker only. **No install was done, and this manual rig is still NOT READY** until explicit approval of the narrow LAB-only Hart Logistics BP/RP install and a confirmed safe absolute Overworld XYZ. Do not start placing blocks or execute Install on the strength of a read-only preflight alone.
+**Prior evidence:** Owner successfully ran LAB-only installer against the existing cloned world at pinned source `846889dfa2516c303bea79d663746f02deb7f26e` and retained rollback backup **`lab-5af88e18cff3`**. BDS 1.26.63.1 loaded `Hart Logistics 1.5.1-LAB-PG08` successfully with **664 Sorters / 54 Collectors / 31 Receivers / v2 5-shard registry**. GitHub Linux/Windows automated menu, build, install and rollback tests passed. The two logged `minecraft:enchanted_book` and `minecraft:saddle` source-hold notices are from the unchanged 1.4.1 conservative fallback; no MR/Q5 test is required here.
 
-## What we will prove
+**Action required:** **READY for one manual LAB rig and three tests.** The owner provided Overworld screenshots showing an empty enclosed stonebrick room and opposite inside corners (approx.) **(-937.30, 69.00, -776.30)** and **(-968.64, 69.00, -817.56)**. Only verify the actual target floor blocks and immediate clear spaces before placing; do not alter the room's structure or assume contents under its floor. No new installation, experiments, cheats, world reset or separate probe.
 
-**What:** A Collector menu explicitly links, relinks and unlinks a Receiver, with real confirmation/cancellation, saved-world persistence, and normal sneak-placement. **Why now:** It changes only the Collector/Receiver UI/linked-ID write, not the MR native storage blocked by PG-03.
+**Pass condition:** Only explicitly confirmed UI actions change the link, canceled operations do not, one saved link survives a normal LAB restart, and sneak-place continues to work. This is not Q5/MR/native-storage/throughput acceptance.
 
-**Previous evidence:** 1.4.1 original routes and all 72 BP/RP source bytes preserved; GitHub CI runs Node menu mocks and Python/Linux/Windows synthetic installer/rollback tests. Those are **not BDS menu acceptance** and are not an excuse to repeat every item type's old routing.
+## Identification and absolute positioning
 
-**Owner action:** No blocks or settings now. Wait until candidate CI, versioned LAB-only installer and **read-only actual LAB preflight** pass. Then nominate a safe empty **absolute Overworld coordinate (X,Y,Z)**. Do not guess an unoccupied region. **Readiness: NOT READY** until those prerequisites and real XYZ/clearance are documented.
+- **Test ID:** PG-08 / LAB menu smoke, room coordinates card v1. Source installed from main commit `846889dfa2516c303bea79d663746f02deb7f26e`, candidate BP/RP version **1.5.1**, original pack UUIDs preserved.
+- **LAB:** `C:\Servers\Thomas_MCBedrock - Copy (2)`, cloned world `ThomasServer`, **Overworld**, BDS **1.26.63.1**, client **26.63**, existing no-experiments/no-cheats policy. Never production `C:\Servers\Thomas_MCBedrock`.
+- **Room:** Owner supplied empty enclosed room and interior corner player positions. X range roughly **-968.64 to -937.30**; Z range **-817.56 to -776.30**; standing player's Y **69**, visually stonebrick floor beneath (expected solid floor Y=68, air Y=69). Stay inside room; no terrain excavation.
+- **Anchor:** Hart Collector **C = (-953, 69, -797)**. All candidate block spaces are separated from the walls and are on the same straight X-axis; linked Receiver direction does not matter for the menu test.
 
-## Single proposed rig (not constructed)
+| Type | Count | Absolute (X,Y,Z) | Facing / special conditions |
+| --- | ---: | --- | --- |
+| **Hart Collector C** | 1 | **(-953, 69, -797)** | Stand on room floor; ordinary player-facing placement; no Sorter/input source |
+| **Hart Receiver A** | 1 | **(-950, 69, -797)** | Three blocks east (+X) of C; **no Hopper below** |
+| **Hart Receiver B** | 1 | **(-947, 69, -797)** | Six blocks east (+X) of C; **no Hopper below** |
+| **Harmless ordinary block** | 1 temporarily | **(-953, 69, -796)** | Sneak-place against C's south (+Z) face, then remove only this block |
+| Sorter | **0** | n/a | No Sorter or vertical Sorter column; no frame/filter |
+| Hopper, chest/container, Transporter, Bulk Storage, redstone, item stacks | **0** | n/a | No physical transfers or Q4/Q5 queue mutations required |
 
-Once the absolute anchor is identified as safe, the complete block list is:
+**Top view (positive X to right, positive Z downward):**
 
-| Object | Exact relative position | Count | Facing / notes |
-| --- | --- | ---: | --- |
-| Hart Collector C | (X, Y, Z) | 1 | Orient away from existing networks; not attached to Sorters |
-| Hart Receiver A | (X+3, Y, Z) | 1 | No Hopper beneath; link target A |
-| Hart Receiver B | (X+6, Y, Z) | 1 | No Hopper beneath; relink target B |
-| Dummy ordinary building block | Placed while sneaking against C, then removed | 1 | Check original sneak-place |
-| Sorter, Hopper, redstone, item contents | **None** | **0** | No inventory transfer or MR fidelity is under test |
+```text
+             -953             -950             -947        X →
+Z = -797      [ C ] -- 3 --    [ A ] -- 3 --     [ B ]
+Z = -796      [ D ]  (temporary sneak-placement only)
+```
 
-Minimum isolation: no neighboring installed Hart Logistics Collector/Receiver/Sorter paths, vanilla Hopper/container network or unrelated rigs within **8 blocks of any of the three test blocks**; verify protected structures are not displaced. Inspect all three target spaces, the block beneath each Receiver and the selected placement face before the session. All test inventories and queues must be empty. Absolute anchor, dimension and available clearance must be verified and filled into this card **before marking READY**. Do not ask the owner to improvise a site.
+**Isolation/clearance:** The screenshots show no other Hart blocks, Hoppers or active rigs *inside the room*, and the measured interior provides at least about 9 blocks between B and the nearest X wall; Z clearances are about 20 blocks. The rig's three test blocks are deliberately within 8 blocks of each other; the **8-block separation applies to unrelated existing networks only**. It is not evidence of concealed under-floor equipment: before placing, visually confirm all three placements are air above solid non-container floor and no existing logistics/container equipment is exposed immediately adjacent or underneath. If any spot is obstructed, **stop without building and report it**. Do not guess a new position. Keep the room/chunk loaded while testing.
 
-## Three manual checks, one reusable rig
+**Initial state:** Each newly placed C/A/B has an empty/no-input network, no in-flight item, no redstone power or queue to migrate. C starts **unlinked**. Do not connect them to any existing 54 Collector / 31 Receiver records or Hopper. Unaffected 1.4.1 routes are not being retested.
 
-1. **Menu and gesture:** Place C/A/B; placing C must not select a Receiver. Standing interaction with C shows Hart Collector menu with Link/Relink, Unlink, Details and Close. Close leaves link unchanged. Sneak-place one harmless block against C: it must place normally, without showing/arming the menu. Remove only that dummy block.
-2. **Confirmation and cancel:** In Collector menu select Link, choose Receiver A, confirm; C shows A. Start Relink to B but cancel; C still shows A. Then confirm Relink to B; C shows B. Do not test throughput or add items.
-3. **Persistence and unlink:** Stop/restart LAB BDS under the owner's normal controlled server procedure; re-open C and confirm B is still linked. Select Unlink, cancel, verify B remains; then confirm Unlink and verify C reports unlinked. No second restart required unless menu readback/persistence is uncertain.
+## Three checks — reuse the same three-block rig
 
-**Pass:** Only confirmed actions change the saved link; pre-existing links elsewhere remain intact; no unexpected inventory or Hopper interactions; target version loads with no script errors. If any new block is unavailable, menu does not open, old link changes on cancel, or saved link is missing after restart: **stop, mark PG-08 NO-GO, preserve world/logs and do not deploy elsewhere**.
+1. **Menu and gesture.** Place C, A, B at the coordinates above. Confirm C placement does **not automatically arm selection**; interact standing with C: expect **Hart Collector** menu including Link/Relink, Unlink, Details and Close. Close without link change. While sneaking, place dummy D against C at the coordinate shown; it should place normally without opening a menu; remove D only. If the UI does not appear, stop and preserve log.
+2. **Link, cancel, relink.** C menu: **Link / Relink Receiver** → interact with Receiver A → confirm; re-open C and verify link is A. Again **Link / Relink** → Receiver B → **Cancel**; verify C still links A. Repeat → B → **Confirm**; verify C now links B. No item insertion, Hoppers or throughput test.
+3. **Restart, unlink, cancel.** Stop and normally restart **LAB BDS only** (production unaffected); re-open C and verify it still links to B. Select **Unlink**, choose **Cancel**, re-open and verify B remains. Select **Unlink** and **Confirm**; re-open and verify C says unlinked.
 
-## Preflight, installation and rollback discipline
+**PASS:** All three checks produce the stated UI and saved-link results, no unexpected Script errors, no pre-existing network interactions. **FAIL / stop:** Menu unavailable, canceled write changed link, link disappears after restart, test-owned blocks appear connected to unrelated equipment, or script reports PG-08 link write/readback hold. Do not repeatedly attempt writes on failure. Preserve server log and screenshots.
 
-Source from `main` after the PG08 readiness PR is merged, via `Start-HartLogistics-PG08Lab.ps1` and its guarded Python 3.11 helper. Default `Plan` only checks source. `CheckLab` is read-only, against the exact LAB with stopped BDS. `Install -Apply` may run **only after explicit owner approval** for that LAB install and preflight PASS; installer creates backups of only the Hart Logistics BP/RP and original registry bytes while preserving other registrations. The failed Hart Logistics 1.5.0 code need not be preserved by the user, but the transaction backup is retained for safe restoration.
+**Evidence:** Screenshot of C's menu; C details after A, after cancel-to-B, and after confirmed B; one after restart showing B; final unlinked state; any relevant BDS error lines. Record precise observed deviations rather than repeating every previous transfer test.
 
-`Rollback -BackupTag <exact tag> -Apply` is available only when the installed candidate still matches the source and registration; it restores Hart Logistics packs and version entries while retaining unrelated current JSONC content. It **does not revert world data changed by gameplay**. Do not remove the world or other packs. Always stop LAB BDS before install or rollback; production may stay running and must never be touched.
-
-After the last check: empty the three blocks; remove only test-owned objects (and the test dummy), ensure no physical items or in-flight transfers remain. Normal Collector/Receiver absent records may remain for future same-coordinate replacement by 1.4.1 design. Test-only instrumentation: **none installed** (candidate is a menu feature spike, not a PG-03 probe). Full Q5/MR acceptance remains BLOCKED/NOT RUN.
-
-**Status records:** PG-08 currently **OFFLINE VERIFIED / REAL BDS NOT RUN**, and this rig is **NOT READY** until actual LAB preflight and exact safe anchor are established. These constraints are mandatory even when CI is green.
+**Cleanup:** After finishing and confirming no items are present, remove only C, A, B and D (if still there), preserve the room and existing world data. No temporary probe, test flag or third-party pack to delete. Retain rollback tag **`lab-5af88e18cff3`** until menu acceptance/return plan is decided. If reverting the LAB pack later, stop LAB BDS, use guarded `Rollback -BackupTag lab-5af88e18cff3 -Apply` only under explicit scope; it restores packs/registrations but **does not revert saved-world gameplay edits**. Never reset production.
