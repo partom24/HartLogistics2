@@ -35,6 +35,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_bundle2_offline_safety.py' -v
       - name: Verify PG08 menu candidate offline build source gates
         run: python -m unittest discover -s tests -p 'test_pg08_candidate_build.py' -v
+      - name: Simulate PG08 LAB 1.5.0 multi-pack install and rollback
+        run: python -m unittest discover -s tests -p 'test_pg08_lab_deploy.py' -v
       - name: Exercise actual PG08 menu candidate with Node mocks
         run: |
           node --check candidates/pg08/menu_overlay.js
@@ -50,6 +52,12 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v5
+      - name: Set up Python for synthetic PG08 deployment checks
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify PG08 LAB replacement safety on Windows fixture
+        run: python -m unittest discover -s tests -p 'test_pg08_lab_deploy.py' -v
       - name: Syntax and allowlist checks
         shell: powershell
         run: |
