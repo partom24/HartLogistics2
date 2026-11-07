@@ -136,3 +136,8 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Launcher clones/fast-forwards only authorized Git source to a local user workspace, prints source plan by default, checks LAB read-only when selected, and installs/cleans the temporary pack only on explicit `-Apply` via the guarded core updater. `Cleanup` also needs explicit inventory-cleared confirmation.
 - Source parser and refusal-without-Apply checked on Windows; both 48-assertion synthetic PowerShell 5.1/7 suites and blueprint CI passed in run 42377972891. No server accessed; BDS PG03-05 **NOT RUN**.
 - Launcher and its `TEMP_TEST:PG03-05-LAUNCH` registry entry are temporary; delete as soon as test work completes, along with temporary probe/CI wiring.
+
+## 2026-11-07 — Owner ran real Windows LAB updater normal cycle
+
+- Owner reported one successful full launcher cycle at `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`: Plan (source only), CheckLab (read only, `worlds\ThomasServer` in exact LAB-copy path), Install -Apply (owned source BP + lease), Cleanup -Apply -ConfirmProbeCleared (restored world registry, removed owned probe).
+- **GO at updater normal-install/cleanup observation scope**, not a claim that files were independently inspected afterward, nor that BDS runtime tested native containers. PG-03–PG-05 remain **NOT RUN**. Temporary LAB installation has been removed; Git temporary probe/instrumentation stays ACTIVE only for pending in-world checks. Need verify disposable world before any physical rig instructions.

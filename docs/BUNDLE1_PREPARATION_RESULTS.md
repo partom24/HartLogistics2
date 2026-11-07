@@ -49,3 +49,18 @@ Use [operator instructions](BUNDLE1_POWERSHELL_LAB_GUIDE.md) for Git clone, safe
 ## One-file PowerShell launcher available (2026-11-07)
 
 The owner-facing [standalone PowerShell launcher](../tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) downloads **source by Git**, not a separately packaged `.mcpack`, and delegates to the guarded Windows-tested updater. Its actual repo blob SHA-1 was verified against the distributed file (`abe4dec65eeabcff911ca7833ad126716a02fcb2`). Default mode only clones/updates a **local Git checkout** and previews the plan; CheckLab is read only; Install and Cleanup demand explicit `-Apply`. The launcher/parser/guard job and both PowerShell synthetic suites succeeded in [CI 42377972891](https://github.com/partom24/HartLogistics2/actions/runs/42377972891). **Actual Windows LAB BDS tests remain NOT RUN**. See [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md).
+
+## 2026-11-07 — Owner-observed actual Windows LAB updater cycle
+
+**Source of evidence:** Owner-provided PowerShell transcript, not an independent filesystem audit or Bedrock runtime log. Executed from `PS C:\HartMods>` using `Start-HartLogistics-Bundle1Lab.ps1` with Git commit `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`.
+
+| Operation | Owner-observed output | Gate |
+| --- | --- | --- |
+| `Plan` default | Source-only plan, exact pinned Git checkout `C:\Users\Administrator\AppData\Local\HartLogistics2-PG03-05` | **PASS — observed** |
+| `CheckLab` | Read-only preflight selected `C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer`; probe registration was False | **PASS — observed** |
+| `Install -Apply` | Installed source at `C:\Servers\Thomas_MCBedrock - Copy (2)\behavior_packs\_HartLogistics_PG03-05_TEMP_ONLY`; lease at `C:\Servers\Thomas_MCBedrock - Copy (2)\_HartLogistics_PG03-05_TEMP_LEASE` | **PASS — normal install path observed** |
+| `Cleanup -Apply -ConfirmProbeCleared` | Reported original world-registration bytes restored and only owned temporary probe removed | **PASS — normal cleanup path observed** |
+
+**Meaning:** Git-backed PowerShell launcher worked on the owner's Windows machine against the **approved LAB-copy path** for one normal install/cleanup cycle. This upgrades the updater's deployment evidence beyond CI's synthetic tests. It **does not** prove interrupted-install recovery on the actual machine, BDS pack loading, native custom-block support, script UI coexistence, or the actual item-transfer/persistence gates. The selected world is named `ThomasServer` inside the LAB copy; **confirm it is safe/disposable before any in-world test or world reset**. No evidence says the production root was accessed. **After Cleanup the temporary probe is not installed**, so the next BDS session requires another explicit `Install -Apply` while LAB BDS is stopped.
+
+**Verdicts:** PowerShell source updater normal LAB cycle **GO (observed scope only)**; **PG-03/PG-04/PG-05 = NOT RUN**. Temporary code remains ACTIVE for named follow-up BDS tests; the user-provided cleanup removed the LAB deployment, **not** the test source and instrumentation registry in Git (still needed for PG-03–PG-05). Maintain prompt cleanup when those tests conclude.

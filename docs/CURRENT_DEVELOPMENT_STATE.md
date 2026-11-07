@@ -64,3 +64,7 @@ Owner requires Git-tracked probe source delivered via guarded PowerShell LAB upd
 ## Downloadable PowerShell launcher ready (2026-11-07)
 
 The verified one-file [Git-backed PowerShell launcher](../tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) is operator-ready. It fetches only the authorized project/branch to a local user checkout, delegates to the guarded source updater, defaults to a source-only plan and requires `-Apply` for LAB mutations. [Latest Windows CI 42377972891](https://github.com/partom24/HartLogistics2/actions/runs/42377972891) succeeded. Original BP/RP intact, no actual LAB touched, **PG03/04/05 NOT RUN**. See [exact usage](BUNDLE1_POWERSHELL_LAB_GUIDE.md).
+
+## Owner-observed real LAB PowerShell deployment cycle (2026-11-07)
+
+Owner-provided terminal transcript at source commit `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4` showed **Plan, CheckLab, Install and Cleanup successful** on the exact allowed LAB-copy path and selected world `ThomasServer`. Installer claims restored registry/removed only temporary test BP. This is **actual Windows LAB updater smoke-test success**, beyond synthetic CI; **not** evidence of any BDS run. The probe was cleaned up, so it must be reinstalled before PG-03–PG-05. Confirm disposable LAB world and rig anchor first. [Detailed transcript interpretation](BUNDLE1_PREPARATION_RESULTS.md#2026-11-07--owner-observed-actual-windows-lab-updater-cycle).

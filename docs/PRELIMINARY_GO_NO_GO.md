@@ -86,3 +86,7 @@ PG-03 through PG-05 test code is Git-tracked source, not an .mcpack distribution
 ## PowerShell LAB source deployment now prepared
 
 The [Git source-to-LAB PowerShell updater](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) has passed Windows 5.1 and PowerShell 7 **synthetic** install/cleanup checks; see [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md). The earlier note saying this PowerShell path was unimplemented is superseded. **No live Windows LAB install or PG-03–PG-05 Bedrock runtime result yet.** The probe and updater remain temporary and must be removed promptly after their purpose ends.
+
+## Actual owner-observed Windows LAB updater smoke cycle (2026-11-07)
+
+At Git SHA `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`, owner console reports Plan/CheckLab/Install/Cleanup all succeeded on **exact LAB copy** targeting `worlds\ThomasServer`. This **confirms the normal PowerShell source-deploy/cleanup path**, distinct from synthetic CI. Because Cleanup was run, no temporary probe currently remains installed. **PG-03–PG-05 remain NOT RUN**: no in-game native inventory, metadata transfer or persistence/menu evidence yet. Verify that the LAB world is disposable and establish exact safe XYZ before owner BDS rig setup. [Observed result](BUNDLE1_PREPARATION_RESULTS.md#2026-11-07--owner-observed-actual-windows-lab-updater-cycle).

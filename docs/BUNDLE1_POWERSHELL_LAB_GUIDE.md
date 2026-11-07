@@ -111,3 +111,7 @@ Finally, once PG-03–PG-05 are accepted/abandoned, project development removes 
 GitHub Windows synthetic CI does not verify Microsoft Bedrock custom inventory availability, script menu competition, or a true restart on 1.26.63.1. Those are **PG-03/04/05 NOT RUN** until tested on BDS. If a custom container requires an unapproved experimental toggle, stop and record a NO-GO; never enable cheats or experiments to make this probe work.
 
 **Historical archive:** The older `.mcpack` CI artifact was a delivery mistake and is not used by this workflow.
+
+## Owner-observed LAB Install/Cleanup smoke test — 2026-11-07
+
+The owner executed the downloaded one-file launcher in PowerShell and reported **Plan PASS, read-only CheckLab PASS, Install -Apply PASS and Cleanup -Apply -ConfirmProbeCleared PASS** against `C:\Servers\Thomas_MCBedrock - Copy (2)` (selected LAB world `worlds\ThomasServer`). Pinned source commit: `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`. This confirms a normal LAB install/cleanup path from operator output, **not** BDS runtime compatibility. **Probe is no longer installed** after Cleanup. To run PG-03–PG-05, reconfirm the LAB world is disposable and prepare a READY anchor/rig card, then reinstall with `-Mode Install -Apply` while LAB BDS is stopped. Do not enable experiments/cheats or use production. See [evidence](BUNDLE1_PREPARATION_RESULTS.md#2026-11-07--owner-observed-actual-windows-lab-updater-cycle).
