@@ -4,6 +4,8 @@
 `C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer`.
 Never use production, enable experiments, reset the clone, or install the old PG-03 probe.
 
+**Actual owner LAB preflight evidence (2026-11-07):** Owner ran `CheckLab` against the already-identified cloned LAB `ThomasServer` at pinned source SHA `82adedea7f1e79284118765f596ae2ac0bbe01d8` using Python 3.12. Console: `LAB PREFLIGHT PASS: READ-ONLY. Nothing installed.` This resolves the earlier preflight blocker only. **No install was done, and this manual rig is still NOT READY** until explicit approval of the narrow LAB-only Hart Logistics BP/RP install and a confirmed safe absolute Overworld XYZ. Do not start placing blocks or execute Install on the strength of a read-only preflight alone.
+
 ## What we will prove
 
 **What:** A Collector menu explicitly links, relinks and unlinks a Receiver, with real confirmation/cancellation, saved-world persistence, and normal sneak-placement. **Why now:** It changes only the Collector/Receiver UI/linked-ID write, not the MR native storage blocked by PG-03.
