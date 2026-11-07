@@ -68,7 +68,8 @@ export function explainOverlap(a,b){
 /** Read-only forensic audit over all concurrent in-flight claims.
  * A missing observation is not an empty observation.
  */
-export function auditObservedConcurrency({legs,pendingMarkers,scanComplete}={}){
+export function auditObservedConcurrency(input={}){
+  const {legs,pendingMarkers,scanComplete}=obj(input)?input:{};
   if(scanComplete!==true || !Array.isArray(legs) ||
      !Array.isArray(pendingMarkers)) {
     return report("HOLD","incomplete_global_writer_inventory");
@@ -116,8 +117,9 @@ export function auditObservedConcurrency({legs,pendingMarkers,scanComplete}={}){
  * Native moveItem can be studied for an entire ItemStack to an empty slot.
  * A plain "identical" destination stack does not certify a multi-write merge.
  */
-export function reviewRouteDesign({route,shape,sourceItem,destinationEmpty,
-                                    hasIndependentPhysicalCustody}={}){
+export function reviewRouteDesign(input={}){
+  const {route,shape,sourceItem,destinationEmpty,
+         hasIndependentPhysicalCustody}=obj(input)?input:{};
   if(!routenames.has(route)){
     return report("HOLD","unknown_route");
   }
@@ -151,8 +153,9 @@ export function reviewRouteDesign({route,shape,sourceItem,destinationEmpty,
 /** No future adapter may infer that a receipt merely *looking* settled
  * implies authority to delete an intent or move any item.
  */
-export function inspectInterruptedPath({phase,sourceBefore,destinationAfter,
-                                        queueAfter,receiptPersisted}={}){
+export function inspectInterruptedPath(input={}){
+  const {phase,sourceBefore,destinationAfter,
+         queueAfter,receiptPersisted}=obj(input)?input:{};
   if(!["BEFORE_MOVE","AFTER_PHYSICAL_MOVE","AFTER_LOGICAL_DEBIT",
        "AFTER_RECEIPT"].includes(phase)){
     return report("HOLD","unknown_interruption_window");
