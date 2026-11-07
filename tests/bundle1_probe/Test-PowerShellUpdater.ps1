@@ -40,10 +40,10 @@ try {
     foreach($raw in @(
         '[]',
         $base,
-        '[{"pack_id":"'+$otherId+'","version":[1,4,1]},]',
+        ('[{"pack_id":"'+$otherId+'","version":[1,4,1]},]'),
         ('['+[Environment]::NewLine+'// prior user comment'+[Environment]::NewLine+
           '{"pack_id":"'+$otherId+'","version":[1,4,1]}, /*tail */ ]'),
-        '[{"pack_id":"'+$otherId+'","version":[1,4,1],"label":"https://example.test/a//b"}]'
+        ('[{"pack_id":"'+$otherId+'","version":[1,4,1],"label":"https://example.test/a//b"}]')
     )) {
         $caseNumber++
         Write-Output ('Registry test shape '+$caseNumber+': '+$raw)
