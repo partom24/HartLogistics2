@@ -49,7 +49,7 @@ if (-not $python) {
 }
 if (-not $python) { Refuse 'Python 3.11 is required; no installation attempted' }
 $pyName = $python.Source
-$version = (& $pyName @pyArgs -c 'import sys;print(".".join(map(str,sys.version_info[:2])))')
+$version = (& $pyName @pyArgs -c 'import sys;print(str(sys.version_info.major)+chr(46)+str(sys.version_info.minor))')
 if ($LASTEXITCODE -ne 0 -or $version -ne '3.11') {
     Refuse 'Python 3.11 is required; no installation attempted'
 }
