@@ -149,6 +149,7 @@ export function replayJournal(file) {
     try { event = JSON.parse(lines[index]); }
     catch { hold("invalid_json_at_" + index); }
     if (!event || event.seq !== index || event.prev !== previous ||
+        typeof event.action !== "string" ||
         !validKey(event.action.toLowerCase()) ||
         !event.data || typeof event.data !== "object" ||
         typeof event.hash !== "string" ||
@@ -213,7 +214,8 @@ export function createJournal(file, { networkId, epoch, bankIds }) {
  * manually clear the orphan only after confirming that process is dead.
  */
 export function appendEvent(file, action, data, { expectedHead, fault } = {}) {
-  if (!validKey(action.toLowerCase()) || !data || typeof data !== "object") {
+  if (typeof action !== "string" || !validKey(action.toLowerCase()) ||
+      !data || typeof data !== "object" || Array.isArray(data)) {
     hold("bad_append_request");
   }
   const lock = file + ".lock";
@@ -242,26 +244,37 @@ export function appendEvent(file, action, data, { expectedHead, fault } = {}) {
     // Validate in memory using exactly the same replay contract BEFORE writing.
     const state = {
       networkId: initial.networkId, epoch: initial.epoch,
-      bankIds: initial.bankIds, transactions: structuredClone(initial.transactions),
-      receipts: structuredClone(initial.receipts)
+      bankIds: initial.bankIds,
+      transactions: Object.assign(emptyMap(), structuredClone(initial.transactions)),
+      receipts: Object.assign(emptyMap(), structuredClone(initial.receipts))
     };
     apply(state, action, data);
     const fd = openSync(file, "a");
+    let writeStarted = false;
     try {
+      writeStarted = true;
       writeAll(fd, canonical(event) + "\n");
       if (fault === "after_write_before_fsync") {
-        crashed = true;
         hold("SIMULATED_CRASH_BEFORE_FSYNC");
       }
       fsyncSync(fd);
       if (fault === "after_fsync_before_return") {
-        crashed = true;
         hold("SIMULATED_CRASH_AFTER_FSYNC");
       }
+    } catch (error) {
+      // A write/fsync exception makes durability uncertain. Leave lock in place
+      // for explicit reconciliation; do not silently unlock and retry.
+      if (writeStarted) crashed = true;
+      throw error;
     } finally { closeSync(fd); }
-    const next = replayJournal(file);
-    return { ...next, duplicate: false,
-             canPerformPhysicalMove: action === "HANDOFF_INTENT" };
+    try {
+      const next = replayJournal(file);
+      return { ...next, duplicate: false,
+               canPerformPhysicalMove: action === "HANDOFF_INTENT" };
+    } catch (error) {
+      crashed = true;
+      throw error;
+    }
   } finally {
     closeSync(lockFd);
     if (!crashed) unlinkSync(lock);
