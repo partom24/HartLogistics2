@@ -129,3 +129,10 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Implemented `tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1` with **source-only Plan**, clean Git-only **Sync**, read-only exact-LAB **CheckLab**, staged/hash-verified **Install**, owned-lease/hash-preserving **Cleanup**. Hardcoded LAB root, pinned Git source, specific test pack UUID, no experiment/cheat changes, no original addon changes.
 - Created Windows native `Test-PowerShellUpdater.ps1` temporary synthetic suite, executed **46 assertions in Windows PowerShell 5.1 and 46 in PowerShell 7** (CI run 42377591621), plus Linux structural checks. It tests JSONC preservation, ownership, exact registry restoration and fail closed on unrelated changes. Future commits may rerun additional tests.
 - Added operator guide for Git clone/fast-forward, Plan/CheckLab, explicit Install/cleanup. **Actual LAB BDS, PG03/04/05 tests remain NOT RUN**. Installer/CI probes tracked as temporary; delete on task acceptance.
+
+## 2026-11-07 — Downloadable, Git-backed one-file PowerShell LAB launcher
+
+- Prepared verified standalone `Start-HartLogistics-Bundle1Lab.ps1` (SHA-256 `7590f4901bf526f14602641b06ca95e5540a5783492998e561ab0bd94c9684ed`), byte-for-byte matching Git blob `abe4dec65eeabcff911ca7833ad126716a02fcb2` in `tests/bundle1_probe/`.
+- Launcher clones/fast-forwards only authorized Git source to a local user workspace, prints source plan by default, checks LAB read-only when selected, and installs/cleans the temporary pack only on explicit `-Apply` via the guarded core updater. `Cleanup` also needs explicit inventory-cleared confirmation.
+- Source parser and refusal-without-Apply checked on Windows; both 48-assertion synthetic PowerShell 5.1/7 suites and blueprint CI passed in run 42377972891. No server accessed; BDS PG03-05 **NOT RUN**.
+- Launcher and its `TEMP_TEST:PG03-05-LAUNCH` registry entry are temporary; delete as soon as test work completes, along with temporary probe/CI wiring.

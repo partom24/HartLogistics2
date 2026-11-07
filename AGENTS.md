@@ -58,3 +58,7 @@ Temporary probe source is distributed via the authorized Git checkout and a guar
 ## Bundle 1 PowerShell source delivery status (2026-11-07)
 
 The previously missing [disposable PG03-05 PowerShell updater](tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) is now **implemented and offline Windows-tested** (PowerShell 5.1/7 synthetic install/restore, 48 assertions per version). See [guide](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). Earlier 'not yet implemented' text is superseded. No real LAB/production host touched. All PG03-05 Bedrock runtime results are **NOT RUN**, and manual rig needs READY card. Temporary runtime and updater instrumentation must be deleted at task closure.
+
+## PG-03–PG-05 launcher lifecycle
+
+A [standalone operator PowerShell launcher](tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) now retrieves the test source via authorized Git and invokes the guarded LAB-only source installer. It is tracked under `TEMP_TEST:PG03-05-LAUNCH` in the blueprint and **must be removed with the probe** immediately after the specific testing task ends; do not retain as general production deployment software. It cannot enable cheats/experiments or target production. CI verified Windows PowerShell 5.1/7 synthetic update/cleanup and launcher refusal without `-Apply`; **no BDS runtime pass**.

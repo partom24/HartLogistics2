@@ -60,3 +60,7 @@ Owner requires Git-tracked probe source delivered via guarded PowerShell LAB upd
 
 - The [temporary Git-source PowerShell installer](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) is now implemented and has passed synthetic Windows PowerShell 5.1/7 execution checks, including exact registry recovery. Earlier records describing it as unimplemented are superseded. See [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md).
 - This does **not** mean installation on the owner's LAB succeeded. PG-03/04/05 BDS behavior remains **NOT RUN** and the in-world manual rig remains NOT READY until world/anchor validation. No server operations performed here; temporary code remains tracked for prompt cleanup.
+
+## Downloadable PowerShell launcher ready (2026-11-07)
+
+The verified one-file [Git-backed PowerShell launcher](../tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) is operator-ready. It fetches only the authorized project/branch to a local user checkout, delegates to the guarded source updater, defaults to a source-only plan and requires `-Apply` for LAB mutations. [Latest Windows CI 42377972891](https://github.com/partom24/HartLogistics2/actions/runs/42377972891) succeeded. Original BP/RP intact, no actual LAB touched, **PG03/04/05 NOT RUN**. See [exact usage](BUNDLE1_POWERSHELL_LAB_GUIDE.md).

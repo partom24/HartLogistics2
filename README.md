@@ -46,3 +46,5 @@ The original source import is complete. Future gameplay implementation still req
 ## Temporary Bundle 1 native-container probe — Windows LAB operator handoff
 
 For PG-03–PG-05 only, use the [Git-source PowerShell LAB updater](tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) with the [safe operator instructions](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). It is **not** an `.mcpack` download or a Hart Logistics 2 release. On Windows, both PowerShell 5.1 and 7 passed 48 simulated safety assertions ([CI 42377591621](https://github.com/partom24/HartLogistics2/actions/runs/42377591621)); **actual BDS checks NOT RUN**. Temporary test files and wiring must be removed after PG-03–PG-05.
+
+**One-file Windows LAB helper:** [Start-HartLogistics-Bundle1Lab.ps1](tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) obtains Git source and runs the guarded test-pack source updater; see [Plan, CheckLab, Install and Cleanup instructions](docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). Default is a non-mutating source plan. This is **temporary BDS test tooling, not a release**.

@@ -46,3 +46,7 @@ Craft **two temporary probes from one dirt** using the test pack's shapeless rec
 ## PowerShell Git-source installer — delivered
 
 A [temporary Git-source installer](Update-HartLogistics-Bundle1Lab.ps1) now exists and passed Windows PowerShell 5.1 and PowerShell 7 **synthetic tests**. It supports source-only Plan, Git Sync, read-only CheckLab, and guarded Install/Cleanup into the sole LAB root. Earlier statements saying it was not yet implemented are superseded. See [full operator guide](../../docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). **The real BDS compatibility checks remain NOT RUN and the manual rig NOT READY.** Remove this temporary installer, BP and synthetic test harnesses immediately on task completion.
+
+## Simplified operator download
+
+For a single downloadable Windows `.ps1` instead of manual `git clone`, use the [temporary bootstrap launcher](Start-HartLogistics-Bundle1Lab.ps1). It obtains this exact source from Git, then calls the guarded source updater. [Exact commands and prerequisites](../../docs/BUNDLE1_POWERSHELL_LAB_GUIDE.md). The launcher is temporary tracked instrumentation; no game packs or binaries are embedded.

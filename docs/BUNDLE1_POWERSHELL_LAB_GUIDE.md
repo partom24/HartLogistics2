@@ -16,7 +16,40 @@ It updates only that independent test BP and its single world registration in th
 
 **Guards:** exact non-overridable LAB root, no path junctions/symlinks, expected BDS files, safe world `level-name`, single valid world behavior-packs registry, stopped **LAB** BDS, pinned clean Git origin/commit, exact source file inventory and SHA-256 stage verification. Registry backup and exact byte restoration on cleanup; refuse overwrite or concurrent changes. Default Plan never opens server paths.
 
-## One-time Git setup (PowerShell on the Windows host)
+## Easiest option: download one PowerShell launcher
+
+[Download/inspect the launcher source](../tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) from GitHub, or use the owner-provided verified standalone file. Save it to an ordinary Windows folder **outside both Minecraft server directories**.
+
+The launcher **uses Git for Windows** to clone or fast-forward only `partom24/HartLogistics2` at `docs/hart-logistics-planning` into `%LOCALAPPDATA%\HartLogistics2-PG03-05`, obtains the exact Git commit and delegates to the independently validated source updater. The downloaded launcher is **not an .mcpack** and contains **no game-source copy**. The source stays in Git.
+
+Run it in PowerShell from the directory where you saved it:
+
+```powershell
+.\Start-HartLogistics-Bundle1Lab.ps1
+.\Start-HartLogistics-Bundle1Lab.ps1 -Mode CheckLab
+```
+
+First command clones/updates **local Git files only** and prints the plan; it **does not read or modify Minecraft server files**. Second command reads only the exact LAB world/settings/pack registry to check feasibility. **Do not change cheats or experiments.**
+
+When the disposable LAB world has been verified, stop its BDS cleanly and run:
+
+```powershell
+.\Start-HartLogistics-Bundle1Lab.ps1 -Mode Install -Apply
+```
+
+After the test, preserve/discard the disposable test inventories as intended, stop LAB BDS and remove the temporary probe:
+
+```powershell
+.\Start-HartLogistics-Bundle1Lab.ps1 -Mode Cleanup -Apply -ConfirmProbeCleared
+```
+
+Cleanup **refuses** if the registry or installed probe changed unexpectedly. Do not force removal or silently discard MR test items. If Windows blocks the downloaded script because of its file security mark, review the source and use the file's Properties → **Unblock** (or `Unblock-File` for this reviewed file) instead of disabling execution policy globally.
+
+The launcher is temporary code tracked as `TEMP_TEST:PG03-05-LAUNCH`. CI on Windows parses it and confirms Install without explicit `-Apply` **refuses before touching LAB**. The Git-tracked launcher blob SHA-1 is `abe4dec65eeabcff911ca7833ad126716a02fcb2`; SHA-256 of its verified downloaded copy is `7590f4901bf526f14602641b06ca95e5540a5783492998e561ab0bd94c9684ed`. [Windows verification run](https://github.com/partom24/HartLogistics2/actions/runs/42377972891).
+
+If you prefer using your existing Git checkout rather than the standalone launcher, follow the direct source workflow below.
+
+## Alternative: direct Git checkout (PowerShell on Windows)
 
 You need **Git for Windows** and **Windows PowerShell 5.1 or PowerShell 7**. Choose a local workspace that is **not inside either Minecraft server directory**.
 
