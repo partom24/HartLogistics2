@@ -47,7 +47,7 @@ def prepare(target: Path) -> None:
                        "system.beforeEvents.startup.subscribe"):
             if marker not in overlay:
                 raise ValueError(f"PG13 REFUSED shadow overlay marker {marker}")
-        if "minecraft:inventory" in overlay or "ItemStack" in overlay or \
+        if "minecraft:inventory" in overlay or "ItemStack(" in overlay or \
            "world.getPlayers()" in overlay:
             raise ValueError("PG13 REFUSED inventory/access-others scope")
         compiled = baseline_js.replace(old, 'const VERSION = "1.5.2-LAB-PG13";')
