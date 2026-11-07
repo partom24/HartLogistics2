@@ -1,3 +1,5 @@
+**BUNDLE 2 OFFLINE STATUS (2026-11-07): PG-06/PG-07/PG-08 source-model preparation completed with 25/25 new tests PASS; all 3 actual BDS gates remain NOT RUN, with native MR/real cutover dependencies blocked by PG-03. No Q5/menus implemented; see [Bundle 2 evidence](BUNDLE2_PREPARATION_RESULTS.md).**
+
 **LATEST AS OF 2026-11-07:** Owner confirmed successful LAB probe Cleanup. Disposable probe, PowerShell tools, mocks, CI and temporary instrumentation were removed from Git. **PG-03 NO-GO; PG-04/05 BLOCKED; PG-06–11 NOT RUN.** Earlier Bundle 1 setup narratives below are historic and are **not** instructions to reinstall a deleted harness. See [final evidence](BUNDLE1_PREPARATION_RESULTS.md) and [MR custody alternatives](MR_CUSTODY_ALTERNATIVES_12663.md).
 
 # Preliminary Go / No-Go Tests — Hart Logistics 2

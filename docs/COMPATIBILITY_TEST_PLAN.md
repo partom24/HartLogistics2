@@ -104,3 +104,7 @@ Record source commit, original archive SHA-256, pack manifest versions and UUIDs
 ## Owner cleanup and MR alternatives, 2026-11-07
 
 Owner successfully unregistered the temporary probe in LAB with original registry restoration. The disposable test code and all temporary instrument entries are removed from Git. PG-03 NO-GO on target 1.26.63.1/no-experiments; PG-04/05 BLOCKED. See [evidence](BUNDLE1_PREPARATION_RESULTS.md) and [native custody candidate comparison](MR_CUSTODY_ALTERNATIVES_12663.md). No next BDS rig is authorized until a new design and test scope are approved.
+
+## Bundle 2 offline model progress — 2026-11-07
+
+[Bundle 2 preparation evidence](BUNDLE2_PREPARATION_RESULTS.md) records 25/25 new pure-Python source, Q4→shadow-Q5 recovery and menu-policy checks PASS. This is independent offline preparation, **not** PG-06/PG-07/PG-08 BDS acceptance. PG-03 native MR inventory remains NO-GO on the required no-experiment 1.26.63.1 target. No menu, Q5 storage or legacy placed-block upgrade has been installed into the owner's cloned LAB world. Optional pack-scoped ticking-area migration accelerator remains untested pending a proven safe cutover path.

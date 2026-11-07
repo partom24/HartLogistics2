@@ -48,3 +48,7 @@ The Windows Git-to-LAB PowerShell probe passed synthetic tests and owner-observe
 ## Proposed next independent slice (2026-11-07)
 
 [Safe execution plan](NEXT_SAFE_EXECUTION_SLICE_12663.md) proposes preserving existing native MR bypass while first proving ordinary Transporter topology and Bulk overflow model offline. All tests are independent of the experimental custom inventory feature; actual new block/gameplay implementation remains a separate authorization gate. No BDS manual rig requested.
+
+## Bundle 2 initiated — offline-only (2026-11-07)
+
+After explicit owner authorization, source-derived PG-06 legacy identity/link/queue checks, PG-07 **abstract** crash/restart and frozen shadow-Q5 model, and PG-08 standalone link/confirmation/revision menu policy checks passed offline (25/25; [results](BUNDLE2_PREPARATION_RESULTS.md)). Actual PG-06/07/08 BDS gates **NOT RUN**, PG-03 native MR blocker persists. No original addon behavior, Q5 state, UI component, server flags or worlds changed. Menu UI is the next independently feasible candidate, **not** automatic approval for rollout.
