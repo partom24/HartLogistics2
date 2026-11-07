@@ -36,6 +36,7 @@ $otherId='00000000-1111-2222-3333-444444444444'
 $base='[{"pack_id":"'+$otherId+'","version":[1,4,1]}]'
 try {
     # Distinct registry shapes preserve prior registration content.
+    $caseNumber=0
     foreach($raw in @(
         '[]',
         $base,
@@ -44,6 +45,8 @@ try {
           '{"pack_id":"'+$otherId+'","version":[1,4,1]}, /*tail */ ]'),
         '[{"pack_id":"'+$otherId+'","version":[1,4,1],"label":"https://example.test/a//b"}]'
     )) {
+        $caseNumber++
+        Write-Output ('Registry test shape '+$caseNumber)
         $old=Registry $raw
         $updated=AddRegistration $raw
         $now=Registry $updated
