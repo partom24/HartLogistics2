@@ -50,5 +50,12 @@
 **Decision:** Use the HartBots uploaded updater system as a model for HartLogistics. The only allowed server release/integration-testing location is the disposable lab `C:\Servers\Thomas_MCBedrock - Copy (2)`. No tests or changes to production `C:\Servers\Thomas_MCBedrock` before an identified release candidate is nominated. Owner **expressly permits importing the HartBots production updater script as a reference**, but prohibits running it, including dry-run, until nomination; candidate nomination does **not** automatically authorize writing to production.
 **Consequences:** Develop guarded LAB-only tooling first, not an automated production route. Adapt hardcoded HartBots repository, IDs, pack versions and paths; require full cold backup, source/artifact pinning and distinct owner approval for any later production promotion. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 
+## HL-ADR-010 — Risk-based item test coverage, not exhaustive ordinary IDs
+
+**Status:** Owner-confirmed testing policy 2026-11-06.
+**Decision:** Tests target meaningful item mechanics, transfer contracts, and failure cases; ordinary unmodified items with equivalent behavior do **not** require separate named cases (e.g. cobblestone, glass and sand). Use representative ordinary items, **two distinct ordinary identities where bucket isolation matters**, and different stack-limit classes only where inventory semantics matter. Specifically verify separate **MR metadata mechanisms** and any proven item-specific defects.
+**Reason:** Avoid redundant slow tests while maintaining comprehensive 1.4.1 regression and new-path conservation coverage.
+**Consequences:** Do not drop tests for old ingress/egress, redstone, crashes, full destinations, filter discrimination, identities or native MR fidelity. See [compatibility test plan](COMPATIBILITY_TEST_PLAN.md).
+
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 

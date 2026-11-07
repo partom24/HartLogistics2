@@ -54,10 +54,10 @@
 
 ## Edge cases that must be tested
 
-- Empty, partially full and full Receivers; many distinct item types; one massive bucket; q4 page boundaries; mixed stack limits.
+- Empty, partially full and full Receivers; representative ordinary item IDs; **at least two distinct ordinary item identities** for bucket segregation; many unique identities when specifically stress-testing bucket indexing; one massive bucket; q4 page boundaries; genuinely different stack-limit classes. Do not require cobblestone, glass and sand separately if equivalent under the behavior being tested.
 - q2/q3 history; q4 journal each phase; power loss before/during/after Q5 cutover; crash after destination insert but before source acknowledgment.
 - Redstone pauses, old hopper output, Dropper/Collector links, Receiver placement/breaking, chunk unload and cross-dimensional identities if supported.
-- MR item with enchantments, attributes, potion data, lore/name, custom properties, unusual max stack size, sacks with contents, custom item forms, and potentially unsupported metadata.
+- Representative **MR metadata mechanisms** (enchantments, attributes, potion data, lore/name, custom properties, sacks with contents, custom item forms, unusual stack limits or unknown components), selected for the relevant behavior rather than exhaustive item-ID coverage; preserve exact native properties through transfer/restart. Add a specific item regression case only for a proven special semantic or defect.
 - Missing or incompatible experimental container feature in an existing non-experimental world: preserve item custody; fail closed, never auto-enable world experiments.
 - Transfer starvation/priority behavior at mixed load, including ordinary lane progress while MR items are continuous.
 - Controller missing, network split, stale capacity advertisement and wildcard gating.

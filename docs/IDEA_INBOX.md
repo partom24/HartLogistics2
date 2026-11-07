@@ -38,4 +38,5 @@
 - **D-006:** Current phase is **documentation/planning only**, no gameplay implementation.
 - **D-008:** LAB `C:\Servers\Thomas_MCBedrock - Copy (2)` is the only server release-testing location and is disposable. PRODUCTION `C:\Servers\Thomas_MCBedrock` is protected until release candidate nomination.
 - **D-009:** HartBots production updater script is **approved for import into HartLogistics2** but **may not be executed before a nominated release candidate**. Separate explicit production authorization still required for any production modification.
+- **D-010 (owner testing policy, 2026-11-06):** Test by **behavioral equivalence classes**, not arbitrary item types. Cobblestone, glass and sand do not each need separate ordinary-movement tests absent a relevant mechanical difference. Test actual differences (MR fidelity, distinct bucket identity, stack limits, special mechanics, proven item-specific bugs) with representative cases; see [test plan](COMPATIBILITY_TEST_PLAN.md).
 

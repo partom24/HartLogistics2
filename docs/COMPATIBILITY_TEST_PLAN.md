@@ -4,6 +4,22 @@
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
 
+## Risk-based item selection — owner testing policy (2026-11-06)
+
+**Do not limit each routing or throughput test to a predetermined named item, and do not repeat equivalent tests for cobblestone, glass, sand, etc. solely because their IDs differ.** For ordinary unmodified items with the same relevant inventory and serialization semantics, one representative is sufficient for a given routing/transfer invariant; use any suitable readily available item. Test *behavior*, not arbitrary item names.
+
+| Test dimension | Required coverage | Item-selection rule |
+| --- | --- | --- |
+| Ordinary transport, sorting, queueing, batching | Quantity conservation, ingress/egress, routing modes, full/partial destinations, hop chains, throughput, restart and blocked paths | Representative ordinary bucket-safe item(s); **no forced cobblestone/glass/sand suite** |
+| Item identity separation | Different bucket IDs never merge or route to one another's filters | Use **at least two distinct ordinary item identities** to verify segregation; specific IDs arbitrary |
+| Stack/inventory limits | Stack size or other relevant inventory behavior differs (e.g. nonstackable vs stackable, partial stack acceptance) | Select representatives of **genuinely different mechanics**, not every item in each class |
+| MR-native lane | Metadata survives through native slots and moves; no lossy conversion | Representative *distinct metadata mechanisms* (e.g. enchantments, potion properties, contained inventories/sacks, item names/lore/custom components) as required by supported item APIs |
+| Special integrations/bugs | Dropper vs Dispenser ejection, item-specific components or a reproduced problematic case | Test the specific item/feature **only when its semantics materially affect the path**; preserve reproduction fixtures for actual defects |
+
+Item count, unique item identity, stack behavior, inventory ownership and state transitions remain strict assertions. Randomized or property-based tests may exercise broader identities without making each one a mandatory named regression test. If a future defect shows two apparently equivalent items behave differently, add a **focused, evidence-backed exception**, not a blanket item catalog.
+
+The source-traced [1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md) remains the route coverage authority. **Reducing redundant item examples does not reduce coverage of old capabilities, failure states, metadata or crash safety.**
+
 ## Baseline: preserve 1.4.1 exactly
 
 | Area | Required test |
