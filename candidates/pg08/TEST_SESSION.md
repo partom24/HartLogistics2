@@ -1,3 +1,5 @@
+**OWNER BDS UI PARTIAL RESULT (2026-11-07):** Initial Collector C `(-953,69,-797)` → Receiver A `(-950,69,-797)` **confirmed in-game**. Owner screenshots show real `Confirm Receiver` form with Cancel/Link and green `Link confirmed` message. A later `Selection armed` prompt is **not** cancellation/relink evidence. To finish check 2: touch B `(-947,69,-797)` and choose **Cancel**, re-open C and verify A; re-arm from C, touch B and choose **Link**, verify C now points to B. Then perform check 3 restart/unlink. Remaining PASS criteria are still pending; physical rig stays in LAB, backup `lab-5af88e18cff3` retained. No additional blocks needed.
+
 # PG-08 LAB menu smoke session — READY physical rig card (2026-11-07)
 
 **What is being tested:** Only the new in-game Collector/Receiver menu: deliberate Link/Relink selection, Receiver confirmation/cancellation, saved-link persistence after restart, explicit unlink, and ordinary sneak-place against a Collector.
