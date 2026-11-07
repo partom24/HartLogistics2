@@ -142,3 +142,7 @@ The user's prior native container-to-container MR testing is **owner-reported ev
 ## Native MR gate outcome, 2026-11-07
 
 PG-03 = NO-GO for 1.26.63.1 without experiments; native custom block inventory container field is experimental until a newer 26.70.23 Preview. Owner LAB /give command rejected custom item, though the deployment installer succeeded. PG-04/05 BLOCKED, so do not implement custom native slots for existing Collector/Receiver or begin lossless Q5 migration based on unsupported endpoint. Preserve the original direct MR fallback, metadata and ordinary q4 custody. A safe stable runtime alternative or an owner-approved future stable version is required. See docs/BUNDLE1_PREPARATION_RESULTS.md.
+
+## Post-PG03 decision memo (2026-11-07)
+
+The owner confirmed final cleanup of the unsupported temporary pack. The disposable native-container probe and its code/CI wiring have been removed. [Candidate native MR custody alternatives on 1.26.63.1](MR_CUSTODY_ALTERNATIVES_12663.md) compare legacy direct-only custody, vanilla backing inventories, entity-native inventories and a future stable engine. **No alternative is approved or runtime-tested**. Keep the original 1.4.1 MR direct-path behavior as safety baseline; do not modify Collector/Receiver MR holding, Q5 migration, old placed blocks, pack UUIDs or player worlds to implement an unproven alternative.

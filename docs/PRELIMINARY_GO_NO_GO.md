@@ -1,3 +1,5 @@
+**LATEST AS OF 2026-11-07:** Owner confirmed successful LAB probe Cleanup. Disposable probe, PowerShell tools, mocks, CI and temporary instrumentation were removed from Git. **PG-03 NO-GO; PG-04/05 BLOCKED; PG-06–11 NOT RUN.** Earlier Bundle 1 setup narratives below are historic and are **not** instructions to reinstall a deleted harness. See [final evidence](BUNDLE1_PREPARATION_RESULTS.md) and [MR custody alternatives](MR_CUSTODY_ALTERNATIVES_12663.md).
+
 # Preliminary Go / No-Go Tests — Hart Logistics 2
 
 **Owner-approved preliminary test plan, 2026-11-06, CONDITIONAL ON THE TEMPLATE'S IMMEDIATE TEMPORARY-INSTRUMENTATION CLEANUP POLICY.** **PG-01 = GO (exact source import)** and **PG-02 = GO (offline/synthetic installer safeguards)**; **PG-03 = NO-GO** under target no-experiments 1.26.63.1; **PG-04/05 = BLOCKED** and PG-06–11 NOT RUN; no manual LAB rig built. See [Bundle 0 results](BUNDLE0_RESULTS.md). Plan approval does not itself authorize gameplay code changes, source import, experiment toggles, LAB deployment or production operations. These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
@@ -29,7 +31,7 @@
 
 **Prior evidence reused:** Original source inspection and uploaded HartBots updater reference. **Never execute the original HartBots production updater for this gate.**
 
-**Bundle 1 preparation:** [Disposable PG-03–PG-05 test-only BP](../tests/bundle1_probe/README.md), static checks, offline transfer mocks, and `.mcpack` packaging are prepared. [CI run 42344178135](https://github.com/partom24/HartLogistics2/actions/runs/42344178135) reports **12 static checks + 11 mock scenarios PASS** (alongside existing tests), but **PG-03–PG-05 actual BDS runtime tests remain NOT RUN**. Probe and CI wiring are temporary under the instrumentation policy; a manual rig remains NOT READY until the actual disposable LAB world/anchor are validated.
+**Bundle 1 preparation:** disposable PG-03–PG-05 test-only BP (now removed), static checks, offline transfer mocks, and `.mcpack` packaging are prepared. [CI run 42344178135](https://github.com/partom24/HartLogistics2/actions/runs/42344178135) reports **12 static checks + 11 mock scenarios PASS** (alongside existing tests), but **PG-03–PG-05 actual BDS runtime tests remain NOT RUN**. Probe and CI wiring are temporary under the instrumentation policy; a manual rig remains NOT READY until the actual disposable LAB world/anchor are validated.
 
 ## Bundle 1 — Custom native MR container feasibility (3 feasibility gates; one tiny LAB probe)
 
@@ -85,7 +87,7 @@ PG-03 through PG-05 test code is Git-tracked source, not an .mcpack distribution
 
 ## PowerShell LAB source deployment now prepared
 
-The [Git source-to-LAB PowerShell updater](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) has passed Windows 5.1 and PowerShell 7 **synthetic** install/cleanup checks; see [operator guide](BUNDLE1_POWERSHELL_LAB_GUIDE.md). The earlier note saying this PowerShell path was unimplemented is superseded. **No live Windows LAB install or PG-03–PG-05 Bedrock runtime result yet.** The probe and updater remain temporary and must be removed promptly after their purpose ends.
+The former Git source-to-LAB PowerShell updater (now removed) has passed Windows 5.1 and PowerShell 7 **synthetic** install/cleanup checks; see retired operator guide (removed). The earlier note saying this PowerShell path was unimplemented is superseded. **No live Windows LAB install or PG-03–PG-05 Bedrock runtime result yet.** The probe and updater remain temporary and must be removed promptly after their purpose ends.
 
 ## Actual owner-observed Windows LAB updater smoke cycle (2026-11-07)
 

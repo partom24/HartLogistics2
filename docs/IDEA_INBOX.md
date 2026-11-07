@@ -67,3 +67,7 @@
 ## Native MR architecture blocker, 2026-11-07
 
 HL-Q-001 and HL-Q-017 cannot be closed positively on target 1.26.63.1: custom block container remains experimental and PG-03 NO-GO without toggles; PG-04/05 BLOCKED. Choose a verified stable lossless native ItemStack custody mechanism or a future explicitly approved stable runtime version. Do not enable cheats/experiments or weaken metadata fidelity. See docs/BUNDLE1_PREPARATION_RESULTS.md.
+
+## MR custody alternatives needing owner decision (post-2026-11-07 PG-03 NO-GO)
+
+[MR custody alternatives on 1.26.63.1](MR_CUSTODY_ALTERNATIVES_12663.md) compare a guarded vanilla inventory backing block (physical-world footprint and Hopper security), persistent container entity (entity lifecycle and duplication risks), and waiting for stable no-experiment custom block containers in a future server/client release. **None is approved or validated.** Legacy direct-only MR bypass remains preserved as interim behavior, not a new persistent queue. Stop experimental API use; all prior Bundle 1 temporary code is deleted after confirmed LAB cleanup.
