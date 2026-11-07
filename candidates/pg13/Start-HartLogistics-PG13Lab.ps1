@@ -6,7 +6,7 @@
   read-only preflight. Install/Rollback: require -Apply, exact LAB-only guards,
   pinned Git source, and the existing Python transaction/backup utility.
   No production operations, experiments, world resets or auto-restarts.
-  Only exact existing PG13 1.5.1 can be upgraded; unrelated mods and world registry preserved.
+  Only exact existing PG08 1.5.1 can be upgraded; unrelated mods and world registry preserved.
 .EXAMPLE
   .\Start-HartLogistics-PG13Lab.ps1
 .EXAMPLE
