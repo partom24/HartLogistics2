@@ -22,6 +22,13 @@
 **Decision:** Migrate q4 without loss; ordinary lane uses compact bucketized counts and destination-aware selection; metadata-rich lane uses native Minecraft ItemStack-preserving transfers. Prioritize MR service without accidental starvation. Collectors/Receivers evolve as storage endpoints while retaining legacy use.  
 **Consequences:** Stable native API compatibility and staged q4→Q5 journal/cutover must be proven before adoption.
 
+## HL-ADR-008 — Replace direct-only Q4 MR fallback with native custodied MR storage
+
+**Status:** Owner-selected architecture 2026-11-06; implementation and runtime acceptance pending.  
+**Decision:** Collectors and Receivers become persistent native custom-container endpoints for metadata-rich ItemStacks, using native slot-to-slot transfers whenever supported and recoverable. This **supersedes any recommendation to retain the original Q4 direct-only Hopper fallback permanently**. Existing 1.4.1 ingress/egress *behavior* remains a strict release contract; the old fallback may be retired **after** its MR delivery capability and old-world routes are demonstrably preserved in the new path.  
+**Rationale:** Q4 serialization and its empty-queue + instantly available destination requirement were limiting workarounds; native custody allows blocked MR items to wait safely and supports MR-rich throughput.  
+**Consequences / gates:** Retain legacy fallback only as a transitional compatibility mechanism; do not silently enable experiments or remove working behavior. Prove native block inventory availability on the owner-reported server 1.26.63.1/client v26.63, native slot persistence on existing placed blocks, metadata integrity, backpressure, unload/restart transfer safety and redstone/hopper/Sorter compatibility. No gameplay source changes authorized.
+
 ## HL-ADR-005 — HartBots reference without repo changes
 **Status:** Owner-confirmed scope.  
 **Decision:** Use uploaded HartBots 1.8.2 Depot source to inform 200k-style bucket storage and plan future Transporter extraction. A native cross-pack transfer interface may be authorized later, but **only HartLogistics2 repository is accessible in this project**.  

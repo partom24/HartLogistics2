@@ -64,13 +64,26 @@
 - In Q4, a blocked or un-reconstructible **FIFO head stops Receiver dequeue** (L2391–2467), without claiming items disappeared. Q5 aims to improve routing while preserving this legacy path until explicitly approved.
 - **Not currently present:** Transporter, Bulk Storage, native MR inventory in Hart Collector/Receiver, Q5, native HartBots Depot extraction. These are planned capabilities, not accepted 1.4.1 ingress/egress.
 
+## Planned Q5 replacement of MR fallback (not a 1.4.1 baseline fact)
+
+**Owner decision 2026-11-06:** Replace E07/R06's **restricted direct-only fallback** with **native MR storage in both Collector and Receiver**; do not preserve the exact bypass algorithm permanently. **This section is a future requirement, not a claim about 1.4.1 code.**
+
+| 1.4.1 evidence | Required future behavior | Migration acceptance |
+| --- | --- | --- |
+| **E07 / R06:** unsafe item travels Hopper → Collector control → Receiver output Hopper only when Q4 is empty and output is immediately available | Directed Hopper → Collector native MR slots → linked Receiver native MR slots → existing below-Receiver Hopper or an approved Transporter-to-Sorter path | Safe source extraction, native exact metadata, persistent buffering, original Hopper destination preserved, redstone guard retained |
+| **N06:** Sorter → Collector unsafe MR cannot enter Q4 | Sorter → Collector native MR storage → Receiver native MR storage → destination | Existing Sorter filter priority, matching, storage-capacity and pause rules must still govern acceptance |
+| **E06/R04:** ejected Dropper/Dispenser items currently require queue-safe serialization | Investigate native MR uptake only for qualifying triggered item ejections | Keep existing pulse safety; no deletion of unmatched/unsafe ejected item before durable ownership |
+| **E09/E11:** Receiver Q4 → Hopper below → next Sorter | Maintain existing Receiver → Hopper below → Sorter and downstream storage for both supported lanes | No forced Transporter installation; existing linked hopper/sorter networks still work |
+
+The migration is **replacement of mechanism, preservation of capability**, so the phrase “preserve the fallback” in old planning discussion is **not** the final requirement. Keep old fallback during migration only where necessary to prevent regression, then retire it after evidence-based native replacement approval. See [Q5 design](Q5_MIGRATION_DESIGN.md).
+
 ## E. Regression evidence to collect after source import
 
 | Test group | Required preservation proof |
 | --- | --- |
 | R01/E02/E03 | Modes FILTER/AUTO/WILDCARD/BYPASS; supported storage types; full/partial inventories; powered individual Sorter + Hopper lock; untouched standalone behavior |
 | R02/E04/E08/E09/E11 | Link preservation; safe q4 queue; remote Receiver unloaded during ingress; FIFO drain; receiver Hopper-to-next-Sorter chain |
-| R03/E05/E07 | Six-face *directional* Hopper acceptance; locked/unlocked states; direct-only MR fallback when queue empty, and safe hold when queue has backlog |
+| R03/E05/E07 | Six-face *directional* Hopper acceptance; locked/unlocked states; prove that **native MR Collector→Receiver buffering** replaces fallback behavior safely after migration; before cutover, legacy direct-only behavior remains intact for old-world compatibility |
 | R04/E06 | Real Dropper/Dispenser pulse capture; deliberate Collector power rejection; same-pulse grace; no manual-item or unrelated entity interception |
 | R05 | Chained network hops; sustained queue pressure and backpressure; absence of involuntary routing changes without new controller |
 | MR identities | Native Sorter direct moves preserve accepted item properties; unsupported q4 serialization is rejected; no duplicate or missing items across restart/journal |

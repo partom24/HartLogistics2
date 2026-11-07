@@ -20,6 +20,7 @@
 | HL-Q-014 | Medium | Does the 1.4.1 minimum engine version 1.26.50 remain required, or is 1.26.63.1 merely the testing target for a later new release? | Avoid accidental pack version break. | Owner compatibility-policy decision |
 | HL-Q-015 | Later | What stable cross-addon native bucket API will HartBots Depot expose, and what transfer ACK contract will guarantee conservation? | Future native Depot extraction requires separate HartBots work, not authorized today. | Revisit when owner authorizes HartBots compatibility change |
 | HL-Q-016 | High | Should existing q4 standalone Receivers retain FIFO default, while Q5 only activates advanced routing for managed networks? | No 1.4.1 regression vs improving head-of-line blocking. | Owner decision |
+| HL-Q-017 | Critical | What stable/native inventory and persistent custody mechanism will replace Q4's MR direct-only fallback on **already placed** Collector and Receiver blocks in server 1.26.63.1/client v26.63? | Owner has chosen replacement, but experimental feature policy, native slot availability, migration, crash-atomic cross-chunk moves and full-inventory behavior need proof before switching. | **Architecture chosen; implementation gate remains** |
 
 ## Decisions already confirmed
 
@@ -28,6 +29,7 @@
 - **D-002:** The first Bulk Storage between Receiver and Collector acts as controller, *not Collector*; one controller can govern a complete closed loop; multiple controllers can coordinate in larger networks.
 - **D-003:** Transporter is a six-way ~4×4 pipe, high-throughput, extracts from supported containers but **does not directly distribute to normal containers**; hoppers remain valid.
 - **D-004:** Q5 must migrate q4 losslessly while adding destination-aware batching and native MR handling; MR prioritized; original q2/q3/q4 paths protected.
+- **D-007 (owner choice, 2026-11-06):** The restricted Q4 direct-only MR Hopper fallback is **to be migrated/replaced by native custom-container MR custody** in Collectors and Receivers. Preserve its successful transport behavior throughout the transition, **not** its algorithm forever. Native inventory stability, placement upgrades, capacity and crash safety remain gated; see [Q5 design](Q5_MIGRATION_DESIGN.md).
 - **D-005:** HartBots Depot is a reference; future native integration is deferred. No HartBots repo access.
 - **D-006:** Current phase is **documentation/planning only**, no gameplay implementation.
 

@@ -25,11 +25,19 @@
 | Routing | Local vs remote matching filtered destination; full chests; overflow; wildcard last with accurate full-state; broken pathways; no loops |
 | Transporters | All six faces, junctions, extraction from allowed input, no direct chest outputs, native hopper path unaffected |
 | High throughput | Full/partial/blocked batches; bounded time/memory/write rate; near-capacity/long pipes; fairness |
-| MR lane | Native ItemStack metadata fidelity: enchanted/sacks/potions/music discs/named/custom; no lossy serialization; bounded slots/backpressure |
-| Q4→Q5 | Idempotent per-Receiver conversion; recovery at every write boundary; mixed legacy format data; no double replay |
+| MR lane | Native ItemStack metadata fidelity: enchanted/sacks/potions/music discs/named/custom; no lossy serialization; bounded slots/backpressure; existing placed Collector/Receiver native containers persist across reloads |
+| Q4→Q5 | Idempotent per-Receiver conversion; recovery at every write boundary; mixed legacy format data; no double replay; **retire Q4 MR direct-only fallback only after native Collector+Receiver MR custody replaces E07/R06 in verified old-world routes** |
 | Partition | Chunk unload, server restart, redstone pause, controller disagreement, delayed transfer ACK, rerouting without duplicates |
 | Versioning | 1.26.63.1 server + 26.63 client; stable/experimental API flags; separately test minimum-version support if still promised |
 | HartBots | Later: coexistence without cross-pack data access; depot output via native inventory fallback; direct interface only after separate authorization |
+
+## MR fallback replacement acceptance gate
+
+- On **pre-upgrade 1.4.1 worlds**, first verify the original E07/R06 direct-only Hopper path. Then confirm that, under Q5, the same directed Hopper source can retain an MR stack in a Collector's native inventory while the Receiver is unloaded and in the Receiver while downstream Hopper is blocked, without changing item identity or required redstone semantics.
+- Preserve normal Sorter→Collector ingress and Receive→Hopper→Sorter downstream output; prove MR items can use the native lane when Q4 serialization was formerly unsafe.
+- Force unload/restart/crash attempts at every custody handoff; confirm exactly one persistent owner for each MR ItemStack and no silent fallback to metadata-destroying JSON.
+- Confirm newly placed and already-existing block entities both have usable persistent native slots on the **server 1.26.63.1/client v26.63** target *under the user's approved world settings*. No automatic experiment enablement.
+- **Do not require keeping the old bypass implementation after the native behavior is verified and accepted**. The protected contract is lossless end-to-end capability and existing path access.
 
 ## Accounting invariant
 

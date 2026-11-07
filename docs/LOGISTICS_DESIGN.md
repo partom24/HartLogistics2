@@ -67,6 +67,19 @@ The Collector and Receiver should evolve into native-ItemStack-preserving storag
 
 Owner reports **server 1.26.63.1 and client v26.63** as the intended test environment (reported 2026-11-06, **not tested**). The 1.4.1 manifest declares a **1.26.50** minimum and **@minecraft/server 2.7.0** dependency. Microsoft's 1.26.50 release notes classify `minecraft:block_entity.container` as an **experimental** feature, even though the base block-entity component is stable. Do **not** assume an experimental world toggle is authorized or acceptable on existing worlds; verify native container behavior for both server 1.26.63.1/client 26.63 and older supported versions. Existing placed-block upgrade and dynamic-property custody require copied-world tests.
 
+## MR fallback replacement: accepted owner decision (2026-11-06)
+
+The owner chose **migration to native custom-container inventory** over indefinite preservation of the old Q4 **Hopper → Collector → direct Receiver output Hopper** MR workaround. **The delivered capability is protected, not the old internal algorithm.** This is a planned, gated replacement, not permission to delete any existing code now.
+
+- Make Collectors and Receivers **persistent native MR inventory endpoints**. Keep their existing block IDs, links, redstone semantics, hopper ingress/egress and standard Q4→Q5 migration. Both Hopper→Collector and Sorter→Collector should be able to admit MR items to the Collector's native slots once proven safe, with metadata intact.
+- MR items can **wait inside the Collector while the linked Receiver is unloaded/full**, and in the Receiver while its next output is blocked. Native slots, not lossy JSON, own the MR ItemStacks. Intake must fail closed when slots are full, preserving the original source item.
+- When both native endpoints are accessible, design verified native slot-to-slot transfers, with backpressure, restart and journal/acknowledgment safety. **A native in-memory move does not by itself prove crash-atomic transfer** across containers/chunks; document custody and recovery before implementation.
+- Preserve the **old hop route externally**: a Receiver still delivers safely to the hopper below or a subsequently approved Transporter path, and Sorters remain responsible for final ordinary-container distribution. Do not bypass established redstone gates, filter choices or old hopper-only installations.
+- During migration, retain the **legacy direct-only fallback as a guarded compatibility path only until the new MR path is supported, migrated and runtime-accepted**. Do not remove it prematurely; after acceptance, it can be retired in favor of equivalent-or-better native MR delivery. No permanent retention requirement for the old direct-only algorithm.
+- Native custom block inventories on server **1.26.63.1** / client **v26.63** remain an **API stability / experiment-policy gate**. This owner decision selects the target architecture; it does **not** authorize enabling experiments or claim custom block container support has been verified.
+
+MR service priority must be honored without starving ordinary items, and native inventory slot limits/backpressure are mandatory. See [Q5 migration](Q5_MIGRATION_DESIGN.md) and the [baseline route matrix](BASELINE_INGRESS_EGRESS_MATRIX.md).
+
 ## Network-wide routing priorities
 
 For an ordinary item on an explicitly governed network:
