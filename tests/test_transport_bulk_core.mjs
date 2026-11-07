@@ -288,7 +288,7 @@ test("ack receipt must match exact item, ID, network, epoch and physical success
                  "receipt_not_proven");
   }
   assert.equal(bulkCapacityStatus(s).free, 200000 - 64);
-  assert.deepEqual(s.banks["bulk-1"].counts, {});
+  assert.deepEqual(Object.entries(s.banks["bulk-1"].counts), []);
 });
 
 test("verified receipt commits exact bucket once; replay cannot double count", () => {
