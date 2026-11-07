@@ -29,7 +29,7 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Preliminary subsystem stop/go gates
 
-See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Run only **2–3 related checks in a batch**, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. Gates are **planned but not run**; they do not authorize code by themselves.
+See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Run only **2–3 related checks in a batch**, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. Gates are **not run**; plan approval does not authorize code, source import, experiments or deployment by itself.
 
 ## Decisions and blockers
 

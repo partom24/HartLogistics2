@@ -38,6 +38,12 @@ Existing evidence can be reused when the underlying behavior, inputs, API contra
 
 Do not claim that every legacy behavior has runtime acceptance solely from reading 1.4.1 source; do not throw away valid owner knowledge merely because its report isn't yet attached. Ask for prior test artifacts **only when they materially affect a specific acceptance decision**. Maintain no-regression standard for all 1.4.1 capabilities.
 
+## Temporary-test parameter removal — mandatory at each test boundary
+
+The owner has accepted the preliminary 2–3-test bundles **only with immediate cleanup of disposable testing settings**. Apply the [Temporary Testing and Debugging Instrumentation Policy](TEMPORARY_INSTRUMENTATION_POLICY.md) to every rig, including offline, script-only and in-world probes. Document all temporary test switches, commands, event hooks, added probe blocks/assets and diagnostic parameters at creation. Remove them **as soon as they are no longer needed**, not merely at release; remove their wiring and `temporary_instrumentation` entries before task acceptance. Temporary experiments stay confined to disposable LAB worlds and must not be copied to production. Keep genuinely permanent non-runtime regression tests, as distinguished by the template policy.
+
+Every test result must state whether the temporary setup has been removed; a shared rig/probe used by two or three gates may remain only through those documented dependent checks. Cleanup is a prerequisite to closing the test task.
+
 ## Rig card: mandatory before owner builds anything
 
 When physical testing is justified, deliver a complete **versioned and prevalidated** card. An incomplete card is **NOT READY** and must not instruct the owner to assemble a rig.
@@ -83,6 +89,8 @@ Expected destination, timing, count and state:
 PASS / FAIL:
 Reset / cleanup:
 Evidence to capture:
+Temporary test parameters/hooks/assets and cleanup owner:
+Cleanup completed (or remaining dependent test and due trigger):
 ```
 
 **No current test rig is declared READY.** Readiness is test-specific, and any required distance or component count must be determined before the first setup request.

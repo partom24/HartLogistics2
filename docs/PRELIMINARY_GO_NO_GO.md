@@ -1,10 +1,22 @@
 # Preliminary Go / No-Go Tests — Hart Logistics 2
 
-**Owner-requested small batches, 2026-11-06. Proposal only — no test has run and no manual test rig is READY.** These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
+**Owner-approved preliminary test plan, 2026-11-06, CONDITIONAL ON THE TEMPLATE'S IMMEDIATE TEMPORARY-INSTRUMENTATION CLEANUP POLICY.** All gates remain NOT RUN; no manual test rig is READY. Plan approval does not itself authorize gameplay code changes, source import, experiment toggles, LAB deployment or production operations. These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
 
 **What is being tested?** Whether we can preserve 1.4.1, use native MR inventory on server **1.26.63.1 / client v26.63**, migrate Q4 to Q5 without loss, offer menu linking, and extend routing with Bulk Storage/Transporters safely.
 
 **Rule:** Execute **2–3 closely related checks together** with a common code spike or rig. If a gate fails, **stop only its dependent subsystem**. Do not rerun unaffected prior successful tests. All in-world tests are LAB-only, at `C:\Servers\Thomas_MCBedrock - Copy (2)`. Production `C:\Servers\Thomas_MCBedrock` is never a test environment. The imported production updater **must not be run before a nominated release candidate**, including dry-run; production edits need separate approval.
+
+## Mandatory cleanup gate for every PG test and bundle
+
+**Owner condition:** follow the existing [Temporary Testing and Debugging Instrumentation Policy](TEMPORARY_INSTRUMENTATION_POLICY.md), not only the final release gate. As soon as a temporary testing parameter, toggle, diagnostic, mock, command, probe block, script hook or other test-only runtime component is **no longer needed for the currently active test**, remove it and its startup/event wiring. **Before a PG task is marked accepted/completed**, all its disposable helpers and associated `temporary_instrumentation` entries must be removed. Do not merely disable or hide them.
+
+- **At introduction:** tag runtime-connected temporary code `TEMP_TEST:<ID>` or `TEMP_DEBUG:<ID>` and register it under `project-blueprint.json.temporary_instrumentation` with the exact owner task/path. Standalone non-runtime temporary `TEMP_TEST` probes in declared `source.test_roots` must be tagged, but do not require registry entries while active. Test parameters and temporary configuration must be tracked with their cleanup owner, even if no taggable source code is involved.
+- **At the earliest end of use:** remove test-only arguments/settings, special debug routes, temporary commands, injection hooks, probe-only block/asset definitions, initialization wires, event subscriptions and any stale registrations. Restore clean defaults and confirm normal behavior without the probes. LAB-only experimental world settings must not leak into normal-world or production configuration; restore/reset the disposable LAB as appropriate.
+- **At each PG verdict:** explicitly record `Temporary instrumentation: NONE / ACTIVE for named next test / CLEANUP REQUIRED`. A result may report the observed technical finding, but its task is **not accepted/closed** until cleanup is complete. If a shared 2–3-test batch still needs a common probe, document its remaining purpose and remove it immediately after the last dependent check—not months later or only before RC.
+- **Permanent non-runtime regression suites:** retain useful deliberately permanent tests under the test-only tree without `TEMP_TEST` markers. Preserve test evidence/log summaries; delete disposable test harnesses. Never convert temporary runtime behavior into a production dependency just to avoid cleanup.
+- **Before release candidate:** run `python scripts/validate_blueprint.py --release-gate` on the exact RC source and review for untagged leftover helpers; `temporary_instrumentation` must be empty and no tagged temporary probes remain. A green structural test is not a replacement for manual cleanup review.
+
+**Do not bundle extra tests merely to justify keeping temporary instrumentation alive.** This condition applies to PG-01 through PG-11 and subsequent focused follow-up tests.
 
 ## Bundle 0 — Source and installer safety (2 checks; offline, no Minecraft rig)
 
@@ -63,4 +75,4 @@
 
 For every bundle, first show **What is being tested / Why now / Prior evidence reused / User action / Pass condition**, then the complete results. Every physical rig must satisfy [Test Rig Cards and Evidence Reuse](TEST_RIG_CONTRACT.md): exact **one- versus two-Sorter** counts, XYZ, facing, Hopper output, all required rig spacing (or explicitly none), redstone, contents, steps, expected results and reset. **No physical rigs are READY yet.**
 
-**All PG-01–PG-11 are NOT RUN.** This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.
+**All PG-01–PG-11 are NOT RUN, with owner acceptance of the *plan* conditional on removal of every disposable test artifact as soon as its purpose ends.** This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.

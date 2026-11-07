@@ -30,7 +30,7 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 
 ## Preliminary go/no-go tests
 
-Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. Bundle 2–3 focused checks, reuse accepted prior work, start with a plain-language purpose, prepare the full READY rig card before manual LAB setup, and stop dependent features on NO-GO. **All current gates are NOT RUN**; planning does not authorize their execution.
+Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. Bundle 2–3 focused checks, reuse accepted prior work, start with a plain-language purpose, prepare the full READY rig card before manual LAB setup, and stop dependent features on NO-GO. **Owner accepted this preliminary test plan only with strict [temporary instrumentation cleanup](docs/TEMPORARY_INSTRUMENTATION_POLICY.md): remove probes, test parameters, hooks and associated registry entries as soon as their last test dependency ends, before task acceptance—not only at release.** Track and tag temporary runtime helpers, keep any shared 2–3-test probe only for explicitly active dependent checks, and run the release gate before RC. All current gates are NOT RUN; plan acceptance alone does not authorize source import, gameplay changes or deployment.
 
 ## Current allowed work
 
