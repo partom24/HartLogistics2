@@ -66,3 +66,7 @@ A [standalone operator PowerShell launcher](tests/bundle1_probe/Start-HartLogist
 ## LAB clone fact — do not re-ask (2026-11-07)
 
 Owner explicitly established: LAB \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\` is a **clone of their previous production world**, not an initially empty disposable world. This fact was already known before the owner re-confirmed it. For PG-03–PG-05, **do not ask again** whether LAB is cloned/disposable or instruct creating/deleting/resetting this world. Test only in a validated isolated area, clean up test-owned blocks after verifying inventories, then unregister the probe. LAB rebuild from a newer production-derived copy is possible **only when separately chosen/authorized**, not a test default.
+
+## 2026-11-07 PG-03 native custom-container gate failure
+
+Owner BDS LAB screenshots: /give @s hlprobe:mr_container 2 is rejected as unexpected identifier, Creative search empty. Official 1.26.50 puts minecraft:block_entity.container in experimental, and newer 26.70.23 Preview announces its promotion. Under no-experiments BDS 1.26.63.1, PG-03 NO-GO, PG-04/05 BLOCKED; do not prompt for a physical rig, experiments or implicit version upgrade. Preserve 1.4.1 behavior/MR fidelity. The owner last Installed the probe BP and has NOT reported Cleanup; do not delete Git test launcher/instrumentation until safe LAB Cleanup confirmed. See docs/BUNDLE1_PREPARATION_RESULTS.md.

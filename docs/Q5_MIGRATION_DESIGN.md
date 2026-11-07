@@ -138,3 +138,7 @@
 
 The user's prior native container-to-container MR testing is **owner-reported evidence**, not a Git-committed test fixture or proof that custom block-entity containers are stable in this runtime. Import or link the original test evidence before claiming that specific new integration is proven.
 
+
+## Native MR gate outcome, 2026-11-07
+
+PG-03 = NO-GO for 1.26.63.1 without experiments; native custom block inventory container field is experimental until a newer 26.70.23 Preview. Owner LAB /give command rejected custom item, though the deployment installer succeeded. PG-04/05 BLOCKED, so do not implement custom native slots for existing Collector/Receiver or begin lossless Q5 migration based on unsupported endpoint. Preserve the original direct MR fallback, metadata and ordinary q4 custody. A safe stable runtime alternative or an owner-approved future stable version is required. See docs/BUNDLE1_PREPARATION_RESULTS.md.

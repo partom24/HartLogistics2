@@ -63,3 +63,7 @@
 - **D-017:** Unloaded/stale/unknown Bulk capacity is not 'full'; hold safely rather than permit wildcard prematurely.
 - **D-018:** Receiver Q5 native MR slots have independent finite capacity and backpressure, separate from ordinary-count lane; exact slot quantity remains to be proven.
 - **D-019:** Q4→Q5 enters a **global Hart Logistics routing pause**, uses crash-safe staged migration, **automatically processes unloaded legacy blocks when they load**, and shows status in block menus. No claim of migrating genuinely unloaded blocks or pausing vanilla Hopper mechanics.
+
+## Native MR architecture blocker, 2026-11-07
+
+HL-Q-001 and HL-Q-017 cannot be closed positively on target 1.26.63.1: custom block container remains experimental and PG-03 NO-GO without toggles; PG-04/05 BLOCKED. Choose a verified stable lossless native ItemStack custody mechanism or a future explicitly approved stable runtime version. Do not enable cheats/experiments or weaken metadata fidelity. See docs/BUNDLE1_PREPARATION_RESULTS.md.

@@ -1,3 +1,5 @@
+**LATEST COMPATIBILITY RESULT:** PG-03 NO-GO for 1.26.63.1 with experiments disabled; PG-04/05 blocked. Do NOT reinstall, create a manual four-block rig or enable experiments. This page is retained primarily for safe removal of the TEMP pack last installed in LAB.
+
 # Bundle 1 — Git → PowerShell → disposable LAB (PG-03–PG-05)
 
 **Operator-ready source delivery, 2026-11-07.** The [temporary PowerShell updater](../tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1) is Git-tracked and has passed **synthetic Windows PowerShell 5.1 and PowerShell 7 tests**, not a real Windows BDS deployment. The pack is deliberately a **source directory**, **not** an .mcpack download. **PG-03/04/05 remain NOT RUN** in BDS.
@@ -119,3 +121,12 @@ The owner executed the downloaded one-file launcher in PowerShell and reported *
 ## Clarification: LAB is an existing clone, not a disposable empty world
 
 Owner already established that \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\` is a **clone of their previous production world**. Earlier instructions that suggested making a fresh disposable LAB world or discarding/resetting \`ThomasServer\` for PG-03–PG-05 were unnecessarily disruptive and are superseded. **Keep the clone**, use an empty/isolated location for the four-block probe, back up when needed, and clean up only owned temporary blocks and pack registration. The owner's ability to refresh the LAB from a production-derived ZIP **does not authorize a refresh for this test**. Remaining rig details: exact XYZ/clearance still need inspection in the cloned world, **not** a new world creation request.
+
+
+## Current next action: uninstall the unsupported temporary probe
+
+With LAB BDS stopped and no valuable items/blocks from the probe (none were obtained in the screenshot session), use the same downloaded one-file launcher from its PowerShell folder:
+
+    .\Start-HartLogistics-Bundle1Lab.ps1 -Mode Cleanup -Apply -ConfirmProbeCleared
+
+The command restores the original LAB world behavior-pack registry and deletes only the owned temporary probe/lease if the safety checks match. Do not reset the cloned LAB world. If cleanup refuses, keep its lease, report the exact refusal and do not delete pack files manually. Notify the project when cleanup succeeds so Git temporary instrumentation can immediately be removed.

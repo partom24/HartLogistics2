@@ -1,6 +1,6 @@
 # Bundle 1 — Native Custom-Container Probe: Preparation and Offline Evidence
 
-**Prepared 2026-11-07. BDS PG-03, PG-04, PG-05 are NOT RUN and not accepted.** No original 1.4.1 BP/RP file changed and no server/world was accessed. The test-only script is tagged `TEMP_TEST:PG03-05` and registered while active.
+**LATEST STATUS (2026-11-07): PG-03 NO-GO on target no-experiments 1.26.63.1; PG-04/05 BLOCKED/NOT EXECUTED. Earlier preparation statuses below are superseded.** No original 1.4.1 BP/RP file changed and no server/world was accessed. The test-only script is tagged `TEMP_TEST:PG03-05` and registered while active.
 
 ## Purpose
 
@@ -64,3 +64,18 @@ The owner-facing [standalone PowerShell launcher](../tests/bundle1_probe/Start-H
 **Meaning:** Git-backed PowerShell launcher worked on the owner's Windows machine against the **approved LAB-copy path** for one normal install/cleanup cycle. This upgrades the updater's deployment evidence beyond CI's synthetic tests. It **does not** prove interrupted-install recovery on the actual machine, BDS pack loading, native custom-block support, script UI coexistence, or the actual item-transfer/persistence gates. The selected world is named `ThomasServer` inside the LAB copy; **confirm it is safe/disposable before any in-world test or world reset**. No evidence says the production root was accessed. **After Cleanup the temporary probe is not installed**, so the next BDS session requires another explicit `Install -Apply` while LAB BDS is stopped.
 
 **Verdicts:** PowerShell source updater normal LAB cycle **GO (observed scope only)**; **PG-03/PG-04/PG-05 = NOT RUN**. Temporary code remains ACTIVE for named follow-up BDS tests; the user-provided cleanup removed the LAB deployment, **not** the test source and instrumentation registry in Git (still needed for PG-03–PG-05). Maintain prompt cleanup when those tests conclude.
+
+
+## PG-03 target-runtime NO-GO, 2026-11-07
+
+The owner installed the standalone test behavior pack into the approved cloned LAB world and supplied screenshots: Creative search did not show the probe; Minecraft rejected the exact /give @s hlprobe:mr_container 2 command with an unexpected-identifier syntax error. Therefore the block was not registered/available to the player. No probe block was placed; PG-04 transfer and PG-05 restart tests could not be conducted. The screenshots alone cannot prove the exact parser error or exclude other pack-loading issues.
+
+**Official platform version gate:** Minecraft Bedrock 1.26.50 creator notes place the *container field* of minecraft:block_entity in Experimental Technical Updates, even though the base minecraft:block_entity component itself is stable. The Minecraft Beta/Preview 26.70.23 release notes dated November 3, 2026 only then announce that the container field was released from experimental and custom BlockInventoryComponent became non-experimental. The 26.70.23 change is in Preview, **not evidence of stable availability in the owner's current BDS 1.26.63.1.**
+
+Sources:
+- https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50?view=minecraft-bedrock-stable
+- https://feedback.minecraft.net/hc/en-us/articles/50103892132365-Minecraft-Beta-Preview-26-70-23
+
+**Decision:** PG-03 = NO-GO for the current 1.26.63.1/26.63 **no-experiments** configuration. PG-04 and PG-05 = BLOCKED / NOT EXECUTED, not failed MR transfers. Do not require the owner to keep trying identifiers, enable cheats or Upcoming Creator Features, build the four-block rig, upgrade server/client version without separate approval, or implement custom native MR slots on this target. Preserve original Hart Logistics 1.4.1 native ItemStack/direct MR fallback and Q4 custody. Investigate a separately approved supported lossless approach or an owner-approved future stable runtime version; experimental behavior cannot be silently introduced.
+
+**Cleanup dependency:** The owner's last transcript reported a fresh -Mode Install -Apply, and there was no subsequent successful Cleanup. Assume the disposable test BP and deployment lease are STILL installed. Because no probe block was obtained in the observed session, it can be unregistered after stopping LAB and confirming no probe item/block was created elsewhere. Use the existing verified one-file PowerShell launcher: -Mode Cleanup -Apply -ConfirmProbeCleared. Preserve source and temporary instrumentation in Git **until the owner confirms LAB cleanup**, since removing the Git installer prematurely would prevent safe source-backed cleanup. Upon confirmation, promptly delete the temporary probe source, launchers, mocks, tests, CI steps, and blueprint temporary_instrumentation registrations, retaining this failure evidence. Never touch the protected production server or discard the cloned LAB world.

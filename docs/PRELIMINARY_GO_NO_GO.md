@@ -1,6 +1,6 @@
 # Preliminary Go / No-Go Tests — Hart Logistics 2
 
-**Owner-approved preliminary test plan, 2026-11-06, CONDITIONAL ON THE TEMPLATE'S IMMEDIATE TEMPORARY-INSTRUMENTATION CLEANUP POLICY.** **PG-01 = GO (exact source import)** and **PG-02 = GO (offline/synthetic installer safeguards)**; PG-03–PG-11 remain **NOT RUN** and no manual LAB rig is READY. See [Bundle 0 results](BUNDLE0_RESULTS.md). Plan approval does not itself authorize gameplay code changes, source import, experiment toggles, LAB deployment or production operations. These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
+**Owner-approved preliminary test plan, 2026-11-06, CONDITIONAL ON THE TEMPLATE'S IMMEDIATE TEMPORARY-INSTRUMENTATION CLEANUP POLICY.** **PG-01 = GO (exact source import)** and **PG-02 = GO (offline/synthetic installer safeguards)**; **PG-03 = NO-GO** under target no-experiments 1.26.63.1; **PG-04/05 = BLOCKED** and PG-06–11 NOT RUN; no manual LAB rig built. See [Bundle 0 results](BUNDLE0_RESULTS.md). Plan approval does not itself authorize gameplay code changes, source import, experiment toggles, LAB deployment or production operations. These are early feasibility gates, **not** complete 1.4.1 regression or release acceptance.
 
 **What is being tested?** Whether we can preserve 1.4.1, use native MR inventory on server **1.26.63.1 / client v26.63**, migrate Q4 to Q5 without loss, offer menu linking, and extend routing with Bulk Storage/Transporters safely.
 
@@ -77,7 +77,7 @@
 
 For every **owner-facing manual BDS session**, first show **What is being tested / Why now / Prior evidence reused / User action / Pass condition**, then the complete results. Automated development work should report useful gate outcomes and not demand user attention after each test. Every physical rig must satisfy [Test Rig Cards and Evidence Reuse](TEST_RIG_CONTRACT.md): exact **one- versus two-Sorter** counts, XYZ, facing, Hopper output, all required rig spacing (or explicitly none), redstone, contents, steps, expected results and reset. **No physical rigs are READY yet.**
 
-**PG-01 and PG-02 are GO at their stated source/offline scope** (see [Bundle 0 results](BUNDLE0_RESULTS.md)). **PG-03–PG-11 remain NOT RUN**; no Bedrock in-game/LAB deployment test or temporary rig has run. All disposable synthetic fixtures were cleaned. Further source code and LAB execution require their own authorization. This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.
+**PG-01 and PG-02 are GO at their stated source/offline scope** (see [Bundle 0 results](BUNDLE0_RESULTS.md)). **PG-03 = NO-GO under owner LAB settings; PG-04/05 BLOCKED; PG-06–11 NOT RUN.** No physical rig was built. All disposable synthetic fixtures were cleaned. Further source code and LAB execution require their own authorization. This plan does not authorize source import, test addon deployment, experiments, or gameplay implementation. Production remains untouched until candidate nomination and subsequent separate approval.
 
 ## Owner source-delivery correction (2026-11-07)
 
@@ -94,3 +94,18 @@ At Git SHA `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`, owner console reports Pla
 ## PG-03–PG-05 existing LAB-world rig clarification
 
 The owner's LAB world is already established as a **previous-production-world clone** at \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\`. Do not ask whether it is disposable or assume an empty freshly created world. Use a carefully checked unoccupied Overworld XYZ for the two-probe/two-chest test; verify inventory custody before removing any test block, and **preserve the LAB clone** rather than resetting it as default. Exact rig XYZ/clearance remains NOT READY. The prior successful PowerShell Install/Cleanup smoke test did **not** run BDS.
+
+
+## PG-03 target-runtime NO-GO, 2026-11-07
+
+The owner installed the standalone test behavior pack into the approved cloned LAB world and supplied screenshots: Creative search did not show the probe; Minecraft rejected the exact /give @s hlprobe:mr_container 2 command with an unexpected-identifier syntax error. Therefore the block was not registered/available to the player. No probe block was placed; PG-04 transfer and PG-05 restart tests could not be conducted. The screenshots alone cannot prove the exact parser error or exclude other pack-loading issues.
+
+**Official platform version gate:** Minecraft Bedrock 1.26.50 creator notes place the *container field* of minecraft:block_entity in Experimental Technical Updates, even though the base minecraft:block_entity component itself is stable. The Minecraft Beta/Preview 26.70.23 release notes dated November 3, 2026 only then announce that the container field was released from experimental and custom BlockInventoryComponent became non-experimental. The 26.70.23 change is in Preview, **not evidence of stable availability in the owner's current BDS 1.26.63.1.**
+
+Sources:
+- https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50?view=minecraft-bedrock-stable
+- https://feedback.minecraft.net/hc/en-us/articles/50103892132365-Minecraft-Beta-Preview-26-70-23
+
+**Decision:** PG-03 = NO-GO for the current 1.26.63.1/26.63 **no-experiments** configuration. PG-04 and PG-05 = BLOCKED / NOT EXECUTED, not failed MR transfers. Do not require the owner to keep trying identifiers, enable cheats or Upcoming Creator Features, build the four-block rig, upgrade server/client version without separate approval, or implement custom native MR slots on this target. Preserve original Hart Logistics 1.4.1 native ItemStack/direct MR fallback and Q4 custody. Investigate a separately approved supported lossless approach or an owner-approved future stable runtime version; experimental behavior cannot be silently introduced.
+
+**Cleanup dependency:** The owner's last transcript reported a fresh -Mode Install -Apply, and there was no subsequent successful Cleanup. Assume the disposable test BP and deployment lease are STILL installed. Because no probe block was obtained in the observed session, it can be unregistered after stopping LAB and confirming no probe item/block was created elsewhere. Use the existing verified one-file PowerShell launcher: -Mode Cleanup -Apply -ConfirmProbeCleared. Preserve source and temporary instrumentation in Git **until the owner confirms LAB cleanup**, since removing the Git installer prematurely would prevent safe source-backed cleanup. Upon confirmation, promptly delete the temporary probe source, launchers, mocks, tests, CI steps, and blueprint temporary_instrumentation registrations, retaining this failure evidence. Never touch the protected production server or discard the cloned LAB world.
