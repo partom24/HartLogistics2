@@ -331,6 +331,16 @@ test("unknown interruption phase or malformed observation refuses",()=>{
     zeroRights(r);
   }
 });
+test("null or foreign input to every public diagnostic never throws or grants access",()=>{
+  for(const v of [null,undefined,false,42,"garbage",[]]){
+    zeroRights(auditObservedConcurrency(v));
+    zeroRights(reviewRouteDesign(v));
+    zeroRights(inspectInterruptedPath(v));
+    assert.equal(auditObservedConcurrency(v).status,"HOLD");
+    assert.equal(reviewRouteDesign(v).status,"HOLD");
+    assert.equal(inspectInterruptedPath(v).status,"HOLD");
+  }
+});
 test("no caller override can change the permission contract",()=>{
   for(const r of [
     auditObservedConcurrency({legs:[],pendingMarkers:[],scanComplete:true,
