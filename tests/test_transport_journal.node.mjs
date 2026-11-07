@@ -300,3 +300,27 @@ test("long deterministic crash-free journal replay preserves one receipt per tx"
   assert.equal(Object.values(state.recovery).every((r) =>
     r === "JOURNAL_SETTLED_NO_REPLAY"), true);
 }));
+
+test("prototype-like transaction/receipt keys retain real identity and capacity", () => fixture((file) => {
+  write(file, "RESERVE", plan("__proto__", BANK_CAPACITY));
+  assert.equal(Object.hasOwn(replayJournal(file).transactions, "__proto__"), true);
+  assert.throws(() => write(file, "RESERVE", plan("other", 1)), /bank_overbooked/);
+  write(file, "HANDOFF_INTENT", intent("__proto__"));
+  write(file, "SETTLE", ack("__proto__", BANK_CAPACITY,
+    { receiptId: "__proto__" }));
+  const recovered = replayJournal(file);
+  assert.equal(Object.hasOwn(recovered.receipts, "__proto__"), true);
+  assert.equal(recovered.recovery["__proto__"], "JOURNAL_SETTLED_NO_REPLAY");
+  assert.equal(write(file, "SETTLE", ack("__proto__", BANK_CAPACITY,
+    { receiptId: "__proto__" })).duplicate, true);
+}));
+
+test("malformed action type fails closed before touching the journal or lock", () => fixture((file) => {
+  const before = readFileSync(file, "utf8");
+  for (const action of [undefined, null, {}, 12, []]) {
+    assert.throws(() => appendEvent(file, action, { txId: "tx-one" },
+      { expectedHead: replayJournal(file).head }), /bad_append_request/);
+  }
+  assert.equal(readFileSync(file, "utf8"), before);
+  assert.equal(existsSync(file + ".lock"), false);
+}));
