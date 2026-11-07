@@ -47,6 +47,37 @@ jobs:
           node --check --input-type=module < build/pg08-lab/behavior_pack/scripts/main.js
 
 
+  pg08-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+      - name: Set up LAB-host-compatible Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Exercise real PG08 Plan launcher with Python 3.12 in disposable Git fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Entire checkout and script run are under a disposable GitHub runner,
+          # never a real Minecraft server. Plan mode does not inspect LAB.
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'pg08-launcher-fixture'
+          [void](New-Item -ItemType Directory -Path $env:LOCALAPPDATA -Force)
+          $workspace = Join-Path $env:LOCALAPPDATA 'HartLogistics2-PG08-LAB'
+          & git.exe clone --quiet . $workspace
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture clone failed' }
+          & git.exe -C $workspace checkout -B main
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture main checkout failed' }
+          & git.exe -C $workspace remote set-url origin https://github.com/partom24/HartLogistics2.git
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture origin setup failed' }
+          $output = & '.\\candidates\\pg08\\Start-HartLogistics-PG08Lab.ps1' -Mode Plan | Out-String
+          if ($output -notmatch 'Using Python 3\\.12') { throw 'Launcher did not select existing Python 3.12' }
+          if ($output -notmatch 'PG08 SOURCE PASS') { throw 'Source-only Plan failed' }
+          if ($output -notmatch 'No LAB/PROD files accessed') { throw 'Missing no-server-access evidence' }
+          Write-Host $output
+          Write-Host 'PG08 Python 3.12 launcher PLAN PASS on Windows ephemeral runner'
+
   bundle2-readonly-preflight-windows:
     runs-on: windows-latest
     steps:
