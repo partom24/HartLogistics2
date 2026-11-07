@@ -138,3 +138,15 @@
 
 The user's prior native container-to-container MR testing is **owner-reported evidence**, not a Git-committed test fixture or proof that custom block-entity containers are stable in this runtime. Import or link the original test evidence before claiming that specific new integration is proven.
 
+
+## Native MR gate outcome, 2026-11-07
+
+PG-03 = NO-GO for 1.26.63.1 without experiments; native custom block inventory container field is experimental until a newer 26.70.23 Preview. Owner LAB /give command rejected custom item, though the deployment installer succeeded. PG-04/05 BLOCKED, so do not implement custom native slots for existing Collector/Receiver or begin lossless Q5 migration based on unsupported endpoint. Preserve the original direct MR fallback, metadata and ordinary q4 custody. A safe stable runtime alternative or an owner-approved future stable version is required. See docs/BUNDLE1_PREPARATION_RESULTS.md.
+
+## Post-PG03 decision memo (2026-11-07)
+
+The owner confirmed final cleanup of the unsupported temporary pack. The disposable native-container probe and its code/CI wiring have been removed. [Candidate native MR custody alternatives on 1.26.63.1](MR_CUSTODY_ALTERNATIVES_12663.md) compare legacy direct-only custody, vanilla backing inventories, entity-native inventories and a future stable engine. **No alternative is approved or runtime-tested**. Keep the original 1.4.1 MR direct-path behavior as safety baseline; do not modify Collector/Receiver MR holding, Q5 migration, old placed blocks, pack UUIDs or player worlds to implement an unproven alternative.
+
+## Bundle 2 shadow-migration offline model evidence (2026-11-07)
+
+[Bundle 2 offline models](../tests/test_bundle2_offline_safety.py) test a **purely conceptual** q4→shadow-q5 migration with explicit persisted maintenance prerequisite, immutable original q4 snapshot, single modeled authority marker, fail-closed unresolved journal/vanilla-Hopper-isolation guard, and crash points before snapshot/after snapshot/after staging/after authority marker. Unloaded blocks remain PENDING until loaded, and global resume is blocked without a proven later-load protocol. Model-driven success **does not prove** multi-dynamic-property Bedrock writes are atomic, that native MR containers work, or that script freezes stop vanilla Hoppers. PG-07 cutover BDS is **NOT RUN**; current native MR dependency is blocked by PG-03, so Q5 is not implemented or enabled. [Full report](BUNDLE2_PREPARATION_RESULTS.md).

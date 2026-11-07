@@ -14,7 +14,7 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Now
 
-- **HL-PLAN-001 — Planning ledger milestone.** The owner now reports **Bundle 2 already under development**; this documentation correction does not restart that work, promote undocumented tests, or authorize additional scope. MR-dependent Bundle 2 work must respect the PG-03 compatibility blocker. See [current state](CURRENT_DEVELOPMENT_STATE.md).
+- **HL-PLAN-001 — Owner-authorized requirements and architecture planning (active).** Record the two new blocks, multi-controller/closed-loop topology, Q5 migration and MR lane; separate accepted requirements from candidates; identify decisions and compatibility tests needed before an implementation authorization. **This milestone does not authorize code changes.**
 - Exit when the owner has reviewed the open implementation gates and approved a design direction. A planning document or PR merge alone is not owner acceptance.
 
 ## Next
@@ -31,12 +31,28 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Preliminary subsystem stop/go gates
 
-See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-performed BDS sessions to 2–3 related checks per complete reusable rig**; run as many automated/offline/CI tests as useful, or authorized automated LAB tests, without artificial 2–3-test pauses, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. PG-01/02 passed at their offline scope; **PG-03 NO-GO** for the owner-reported nonexperimental BDS 1.26.63.1 target; **PG-04/05 BLOCKED / NOT RUN**; PG-06–PG-11 have no accepted BDS verdict recorded. Owner reports Bundle 2 underway. Plan approval alone does not authorize gameplay code, experiments or LAB deployment.
+See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-performed BDS sessions to 2–3 related checks per complete reusable rig**; run as many automated/offline/CI tests as useful, or authorized automated LAB tests, without artificial 2–3-test pauses, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. PG-01/02 GO at documented scope; PG-03 NO-GO; PG-04/05 BLOCKED; PG-06–11 NOT RUN. Plan approval alone does not authorize gameplay code, experiments or LAB deployment.
 
 ## Decisions and blockers
 
 - **Hard gate:** zero 1.4.1 capability loss; the supplied archive remains the comparison baseline, not an accepted Git frozen reference.
-- **Hard gate / Bundle 1 result:** custom native MR container probe not obtainable on the approved no-experiments BDS 1.26.63.1 configuration; **PG-03 NO-GO** and dependent PG-04/05 not run. Do not enable experiments or drop legacy MR capability; evaluate a supported alternative/version only after evidence and owner decision. See [Bundle 1 results](BUNDLE1_PREPARATION_RESULTS.md).
+- **Hard gate:** native custom block container functionality in 1.26.50 may require the Upcoming Creator Features experiment; verify stable API/target-version compatibility before requiring it. See [Q5 design](Q5_MIGRATION_DESIGN.md).
 - **Open:** controller boundary/discovery/failover, pipe extraction control, routing at junctions, wildcard behavior with unavailable banks and MR items, capacity accounting, MR prioritization/fairness, save transaction protocol and legacy upgrade path. See [inbox](IDEA_INBOX.md).
-- **Bundle 0 source import and offline LAB updater safeguards were completed.** Bundle 1 yielded a bounded LAB NO-GO and owner-reported LAB cleanup, while **Git-side disposable probe cleanup remains open**. These results do not authorize experiments, production operations or release. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
+- **Bundle 0 source import and offline LAB updater preparation were specifically authorized and completed**. This does not authorize Q5, new blocks, in-game probes, any server changes or release. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
 
+
+## Bundle 1 closed, 2026-11-07
+
+The Windows Git-to-LAB PowerShell probe passed synthetic tests and owner-observed install/cleanup, but the custom native block identifier was unavailable on the non-experimental 1.26.63.1 BDS target. **PG-03 NO-GO, PG-04/05 BLOCKED**. Owner subsequently confirmed final LAB cleanup; every disposable probe/launcher and CI wiring has been removed. Only evidence and original 1.4.1 source remain. Next step: evaluate the [lossless MR storage alternatives](MR_CUSTODY_ALTERNATIVES_12663.md) and obtain owner direction before a new runtime spike; no gameplay implementation is approved.
+
+## Proposed next independent slice (2026-11-07)
+
+[Safe execution plan](NEXT_SAFE_EXECUTION_SLICE_12663.md) proposes preserving existing native MR bypass while first proving ordinary Transporter topology and Bulk overflow model offline. All tests are independent of the experimental custom inventory feature; actual new block/gameplay implementation remains a separate authorization gate. No BDS manual rig requested.
+
+## Bundle 2 initiated — offline-only (2026-11-07)
+
+After explicit owner authorization, source-derived PG-06 legacy identity/link/queue checks, PG-07 **abstract** crash/restart and frozen shadow-Q5 model, and PG-08 standalone link/confirmation/revision menu policy checks passed offline (25/25; [results](BUNDLE2_PREPARATION_RESULTS.md)). Actual PG-06/07/08 BDS gates **NOT RUN**, PG-03 native MR blocker persists. No original addon behavior, Q5 state, UI component, server flags or worlds changed. Menu UI is the next independently feasible candidate, **not** automatic approval for rollout.
+
+## PG-08 candidate implementation (2026-11-07)
+
+A first *isolated, uninstalled* Collector/Receiver menu candidate now exists under `candidates/pg08` with a source-hash-verified offline derived-pack build and targeted JS/Python mock test suites. It is **not implemented in the active 1.4.1 `addon/`**, has not passed verified CI or any BDS check, and cannot be treated as accepted runtime UI. Prior PG-08 abstract model test status remains separate. Candidate iteration must prove source/build checks first; a narrowly approved LAB install then tests cancel/relink/unchanged sneak behavior only after the failed 1.5.0 registered pack/world state is assessed. Q5 and native MR custody stay blocked.

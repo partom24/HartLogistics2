@@ -6,7 +6,7 @@
 
 ## Preliminary feasibility batches
 
-[Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md) defines **PG-01–PG-11** in four organizational groups (2 offline baseline/updater gates; 3 native MR feasibility; 3 existing-world migration/menu; 3 network feasibility). **PG-01/02 = GO at their documented offline scope; PG-03–PG-11 NOT RUN; no BDS rig READY.** These are targeted stop/go decisions, **not complete release regression**. **No fixed limit applies to autonomous offline, CI or authorized automated LAB tests**; only owner-performed BDS sessions should group 2–3 checks per reusable setup. Do not require later network feasibility tests before beginning authorized baseline preparation.
+[Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md) defines **PG-01–PG-11** in four organizational groups (2 offline baseline/updater gates; 3 native MR feasibility; 3 existing-world migration/menu; 3 network feasibility). **PG-01/02 = GO at their documented offline scope; PG-03 NO-GO in owner LAB; PG-04/05 BLOCKED; PG-06–PG-11 NOT RUN; no BDS rig built.** These are targeted stop/go decisions, **not complete release regression**. **No fixed limit applies to autonomous offline, CI or authorized automated LAB tests**; only owner-performed BDS sessions should group 2–3 checks per reusable setup. Do not require later network feasibility tests before beginning authorized baseline preparation.
 
 ## Test selection and physical-rig contract
 
@@ -100,3 +100,15 @@ Record source commit, original archive SHA-256, pack manifest versions and UUIDs
 ## Menu-based link workflow regression
 
 **What is being tested:** A player can open a Collector menu, choose **Link / Relink Receiver**, select and confirm the intended Receiver, and preserve existing links when canceled. Reuse already accepted item transport/metadata evidence; **do not** repeat unrelated sorting tests. Focus on new UI behavior: opening the menu, no implicit link on placement, saved 1.4.1 link preservation, relink/cancel/unlink confirmation, stale destination, two-player isolation, sneaking to place adjacent blocks, Receiver linked-Collector status, redstone unaffected and interaction with new native MR container inventory. Any manual test requires a [READY rig](TEST_RIG_CONTRACT.md) on LAB only. See [UI design](UI_LINKING_DESIGN.md).
+
+## Owner cleanup and MR alternatives, 2026-11-07
+
+Owner successfully unregistered the temporary probe in LAB with original registry restoration. The disposable test code and all temporary instrument entries are removed from Git. PG-03 NO-GO on target 1.26.63.1/no-experiments; PG-04/05 BLOCKED. See [evidence](BUNDLE1_PREPARATION_RESULTS.md) and [native custody candidate comparison](MR_CUSTODY_ALTERNATIVES_12663.md). No next BDS rig is authorized until a new design and test scope are approved.
+
+## Bundle 2 offline model progress — 2026-11-07
+
+[Bundle 2 preparation evidence](BUNDLE2_PREPARATION_RESULTS.md) records 25/25 new pure-Python source, Q4→shadow-Q5 recovery and menu-policy checks PASS. This is independent offline preparation, **not** PG-06/PG-07/PG-08 BDS acceptance. PG-03 native MR inventory remains NO-GO on the required no-experiment 1.26.63.1 target. No menu, Q5 storage or legacy placed-block upgrade has been installed into the owner's cloned LAB world. Optional pack-scoped ticking-area migration accelerator remains untested pending a proven safe cutover path.
+
+## Corrected owner LAB installed and registered pack baseline — 2026-11-07
+
+Actual owner-supplied `ThomasServer` JSONC lists registered Hart Logistics BP and RP **1.5.0** using original Hart UUIDs, matching installed top-level 1.5.0 pack manifests. The initial read-only diagnostic's 'not registered' report was incorrect due to JSON array handling. Owner confirms failed 1.5.0 is disposable and an existing backup is available; no need to preserve 1.5.0 itself. Preserve cloned world and other add-ons; safe Hart-only replacement planning is allowed, but no pack updater apply or Q5 cutover has yet been run. [Corrected baseline](BUNDLE2_LAB_PREFLIGHT_RESULTS.md).

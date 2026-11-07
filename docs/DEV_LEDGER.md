@@ -124,10 +124,104 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Removed the temporary .mcpack packager and GitHub Actions upload/build steps; the original temporary BP source remains Git-tracked under tests/bundle1_probe/behavior_pack.
 - Bundle 0's installer was Python, not PowerShell, and does not install this isolated test BP. PowerShell source installer remains to be built and Windows synthetic-tested; do not report LAB readiness until then. No servers were accessed.
 
-## 2026-11-07 — Bundle 1 LAB NO-GO; MR custody remains gated
+## 2026-11-07 — Delivered PowerShell Git-to-LAB updater for Bundle 1
 
-- The owner installed the disposable PG-03 probe via guarded PowerShell on LAB BDS **1.26.63.1** without enabling experiments. Creative search did not expose `hlprobe:mr_container`, and `/give @s hlprobe:mr_container 2` was rejected. **PG-03 NO-GO** for this configuration: the required custom block endpoint was not reachable. Do not misclassify this as an MR data-loss or transfer test.
-- **PG-04 and PG-05 BLOCKED / NOT RUN.** The 12 temporary Python static tests and 11 Node mocked scenarios remain OFFLINE PASS only; neither BDS MR transfer fidelity nor restart/menu behavior was measured. The version/experiment explanation is supported by published API documentation but is not a separately isolated crash or engine-internals diagnosis.
-- Owner reported running `Start-HartLogistics-Bundle1Lab.ps1 -Mode Cleanup -Apply -ConfirmProbeCleared`; PowerShell returned `CLEANED: original world registration restored; only owned temporary probe removed.` This confirms the reported LAB restoration only; no independent world-data audit is claimed.
-- Temporary probe assets/tests and `project-blueprint.json.temporary_instrumentation` **remain in Git at this documentation checkpoint and require cleanup** before Bundle 1 source closeout. Preserve the original 1.4.1 addon source and verified offline results in permanent records.
-- The owner reports **Bundle 2 already under development**. Do not restart it or call PG-06/07/08 failed without evidence; any new MR slot dependency must be separately resolved. The previously selected persistent MR custody *outcome* remains required, but the experimental custom-block container *mechanism* is unavailable on this target under permitted settings. Vanilla-container-backed or newer-version designs are unapproved feasibility candidates only. Protect lossless metadata, native ItemStack behavior, backpressure, 1.4.1 ingress/egress and existing-world compatibility.
+- Implemented `tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1` with **source-only Plan**, clean Git-only **Sync**, read-only exact-LAB **CheckLab**, staged/hash-verified **Install**, owned-lease/hash-preserving **Cleanup**. Hardcoded LAB root, pinned Git source, specific test pack UUID, no experiment/cheat changes, no original addon changes.
+- Created Windows native `Test-PowerShellUpdater.ps1` temporary synthetic suite, executed **46 assertions in Windows PowerShell 5.1 and 46 in PowerShell 7** (CI run 42377591621), plus Linux structural checks. It tests JSONC preservation, ownership, exact registry restoration and fail closed on unrelated changes. Future commits may rerun additional tests.
+- Added operator guide for Git clone/fast-forward, Plan/CheckLab, explicit Install/cleanup. **Actual LAB BDS, PG03/04/05 tests remain NOT RUN**. Installer/CI probes tracked as temporary; delete on task acceptance.
+
+## 2026-11-07 — Downloadable, Git-backed one-file PowerShell LAB launcher
+
+- Prepared verified standalone `Start-HartLogistics-Bundle1Lab.ps1` (SHA-256 `7590f4901bf526f14602641b06ca95e5540a5783492998e561ab0bd94c9684ed`), byte-for-byte matching Git blob `abe4dec65eeabcff911ca7833ad126716a02fcb2` in `tests/bundle1_probe/`.
+- Launcher clones/fast-forwards only authorized Git source to a local user workspace, prints source plan by default, checks LAB read-only when selected, and installs/cleans the temporary pack only on explicit `-Apply` via the guarded core updater. `Cleanup` also needs explicit inventory-cleared confirmation.
+- Source parser and refusal-without-Apply checked on Windows; both 48-assertion synthetic PowerShell 5.1/7 suites and blueprint CI passed in run 42377972891. No server accessed; BDS PG03-05 **NOT RUN**.
+- Launcher and its `TEMP_TEST:PG03-05-LAUNCH` registry entry are temporary; delete as soon as test work completes, along with temporary probe/CI wiring.
+
+## 2026-11-07 — Owner ran real Windows LAB updater normal cycle
+
+- Owner reported one successful full launcher cycle at `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`: Plan (source only), CheckLab (read only, `worlds\ThomasServer` in exact LAB-copy path), Install -Apply (owned source BP + lease), Cleanup -Apply -ConfirmProbeCleared (restored world registry, removed owned probe).
+- **GO at updater normal-install/cleanup observation scope**, not a claim that files were independently inspected afterward, nor that BDS runtime tested native containers. PG-03–PG-05 remain **NOT RUN**. Temporary LAB installation has been removed; Git temporary probe/instrumentation stays ACTIVE only for pending in-world checks. Need verify disposable world before any physical rig instructions.
+
+## 2026-11-07 — Correct redundant LAB-world clarification
+
+- Owner reminded us that LAB \`C:\Servers\Thomas_MCBedrock - Copy (2)\` is **a clone of the previous production world**, already disclosed and documented. User should **not** be asked whether \`ThomasServer\` is a disposable world again.
+- Corrected PG-03–PG-05 rig/PowerShell handoff: use an isolated four-block region in the **existing copied world**, do not create a new disposable world, and **never reset/delete the clone for routine cleanup**. Verify inventories are empty, remove owned blocks only, then uninstall the temporary pack safely while BDS is stopped. If any MR item remains, preserve and investigate.
+- No gameplay code, pack registration, world or server changed by this documentation correction. Runtime gates remain NOT RUN.
+
+
+## PG-03 target-runtime NO-GO, 2026-11-07
+
+The owner installed the standalone test behavior pack into the approved cloned LAB world and supplied screenshots: Creative search did not show the probe; Minecraft rejected the exact /give @s hlprobe:mr_container 2 command with an unexpected-identifier syntax error. Therefore the block was not registered/available to the player. No probe block was placed; PG-04 transfer and PG-05 restart tests could not be conducted. The screenshots alone cannot prove the exact parser error or exclude other pack-loading issues.
+
+**Official platform version gate:** Minecraft Bedrock 1.26.50 creator notes place the *container field* of minecraft:block_entity in Experimental Technical Updates, even though the base minecraft:block_entity component itself is stable. The Minecraft Beta/Preview 26.70.23 release notes dated November 3, 2026 only then announce that the container field was released from experimental and custom BlockInventoryComponent became non-experimental. The 26.70.23 change is in Preview, **not evidence of stable availability in the owner's current BDS 1.26.63.1.**
+
+Sources:
+- https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50?view=minecraft-bedrock-stable
+- https://feedback.minecraft.net/hc/en-us/articles/50103892132365-Minecraft-Beta-Preview-26-70-23
+
+**Decision:** PG-03 = NO-GO for the current 1.26.63.1/26.63 **no-experiments** configuration. PG-04 and PG-05 = BLOCKED / NOT EXECUTED, not failed MR transfers. Do not require the owner to keep trying identifiers, enable cheats or Upcoming Creator Features, build the four-block rig, upgrade server/client version without separate approval, or implement custom native MR slots on this target. Preserve original Hart Logistics 1.4.1 native ItemStack/direct MR fallback and Q4 custody. Investigate a separately approved supported lossless approach or an owner-approved future stable runtime version; experimental behavior cannot be silently introduced.
+
+**Cleanup dependency:** The owner's last transcript reported a fresh -Mode Install -Apply, and there was no subsequent successful Cleanup. Assume the disposable test BP and deployment lease are STILL installed. Because no probe block was obtained in the observed session, it can be unregistered after stopping LAB and confirming no probe item/block was created elsewhere. Use the existing verified one-file PowerShell launcher: -Mode Cleanup -Apply -ConfirmProbeCleared. Preserve source and temporary instrumentation in Git **until the owner confirms LAB cleanup**, since removing the Git installer prematurely would prevent safe source-backed cleanup. Upon confirmation, promptly delete the temporary probe source, launchers, mocks, tests, CI steps, and blueprint temporary_instrumentation registrations, retaining this failure evidence. Never touch the protected production server or discard the cloned LAB world.
+
+## 2026-11-07 — Final owner-confirmed LAB cleanup, Git probe deletion, MR design evaluation
+
+- Owner ran the downloaded launcher from PowerShell at Git SHA `e5a1ff6809758a45f330f2398691e8f76b4698b6` with `-Mode Cleanup -Apply -ConfirmProbeCleared`, reporting `CLEANED: original world registration restored; only owned temporary probe removed.` The LAB world remains the owner's production-derived clone. No production target touched.
+- **PG-03 NO-GO** due to unregistered custom item under current no-experiment 1.26.63.1; PG-04/05 BLOCKED. In the Git development branch removed all `tests/bundle1_probe/` files, `tests/test_bundle1_probe.py`, the retired launcher/operator guide, all temporary CI steps and three blueprint temp registrations. Structural CI passed following deletion; source `addon/` and the permanent Bundle 0 Python updater are unchanged.
+- Compared three non-lossy candidates and a future stable-version gate in [MR alternatives memo](MR_CUSTODY_ALTERNATIVES_12663.md). No new runtime candidate approved. Original MR direct-only fallback preserved until an owner-approved, proven storage path exists.
+
+## 2026-11-07 — Post-Bundle 1 independent offline invariants
+
+- Added permanently useful offline-only tests for original 1.4.1 metadata-rich ItemStack direct bypass, and conservative conceptual ordinary Bulk/filter/wildcard choices. Exhaustively checked 256 direct-gate combinations and 125 three-bank capacity-state combinations, mocked pre/post-move restart, without accessing BDS or modifying addon.
+- Model explicitly ASSUMES atomic native transfer. It is **not** proof of Bedrock persistence, crash atomicity, custom native inventories, or future network implementation. No test-only runtime code was added; temporary instrumentation remains empty.
+
+## 2026-11-07 — Follow-on offline Transporter graph and MR-safe milestone
+
+- User requested move forward after PG-03 closeout. Proposed an **ordinary-network-first** development order so MR direct-only 1.4.1 path stays safe until a native custodian is proven. Added offline-only deterministic 6-neighbor pipe topology tests, loop and split/merge scenarios (720 node insertion orders), plus [safe execution note](NEXT_SAFE_EXECUTION_SLICE_12663.md).
+- No live Transporter/Bulk code was implemented, no original `addon/` files changed, and no server accessed. Controller election and unloaded topology remain future gates, not accepted algorithms.
+
+## 2026-11-07 — Owner authorized Bundle 2; non-runtime safety tests first
+
+- Began Bundle 2 PG-06–PG-08 using no-world-write offline checks: legacy placed-block identity/link/queue compatibility, modeled durable maintenance/Q4→Q5 authority under interruption, and modeled Collector/Receiver menu link/relink/unlink confirmation and multi-player safety.
+- PG-03 native MR endpoint remains NO-GO, so no staged native ItemStack custody, Q5 cutover, block conversion, server deployment or real menu UI implementation was performed. **PG-06/07/08 actual BDS = NOT RUN**.
+- These are permanent conceptual and source-preservation tests, not temporary gameplay instrumentation. No change to test rig/world/cheats/protected production.
+
+## 2026-11-07 — Bundle 2 offline preparation PASS (not BDS gates)
+
+- New pure Python `tests/test_bundle2_offline_safety.py`: **25/25 methods PASS** (5 legacy source contracts, 8 shadow migration and crash gate model, 12 menu/workflow policy checks). [Successful CI 42384039945](https://github.com/partom24/HartLogistics2/actions/runs/42384039945), 90 methods total including earlier suites.
+- [Report](BUNDLE2_PREPARATION_RESULTS.md) explicitly separates tested abstractions from untested Bedrock behavior; main 1.4.1 BP/RP unchanged, no server touched, no temp instrument created. PG-06/PG-07/PG-08 real BDS remain NOT RUN and native MR aspects blocked by PG-03 NO-GO. Future PG-08 gameplay prototype requires controlled new candidate and installer, not shortcutting Q5 or saved-link safety.
+
+## 2026-11-07 — Read-only owner handoff for Bundle 2
+
+Prepared fixed-path, non-mutating PowerShell preflight `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1`. It reads only the approved cloned LAB server properties, original BP/RP registrations and manifests, and retired PG03 probe leftovers. It does not read world LevelDB, access PROD, or edit any files. CI uses disposable synthetic runner fixture and confirms hashes unchanged after run. No future LAB GUI, Q5 cutover or gameplay upgrade is implied.
+
+## 2026-11-07 — Owner read-only LAB pack-preflight evidence (version and registration mismatch)
+
+Owner executed `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` from their Windows LAB copy. Reported:
+- LAB: `C:\Servers\Thomas_MCBedrock - Copy (2)`; selected world: `ThomasServer`.
+- LAB `bedrock_server.exe` file version **1.26.63.1**, not independently observed running process.
+- Top-level installed pack directories `HartMods_HartLogistics_BP` and `HartMods_HartLogistics_RP` have manifests matching the 1.4.1 original **header UUIDs**, but the manifests declare **version 1.5.0**.
+- The tested world registry `world_behavior_packs.json` and `world_resource_packs.json` contain **no entries matching the known Hart UUIDs**. Diagnostic output reads `Hart BP registry: not registered` and `Hart RP registry: not registered`, not missing file.
+- Disposable Bundle 1 PG-03 pack UUID unregistered, test pack folder absent, owned lease absent.
+- The diagnostic is **read-only** and did not inspect alternate per-world pack folders, `level.dat`, LevelDB, saved Collector/Receiver links, q4 queue data, BDS running logs, or the origin/source of the installed 1.5.0 files. Do not claim 1.5.0 is actively loaded; do not claim which add-on code actually runs. This is a **registration/version provenance discrepancy**, not PG-06/07/08 pass/fail.
+
+**HOLD** every attempted existing-world upgrade, 1.4.1 → 1.5.0/2.0 replacement, Q5 cutover, pack updater apply, manual world registry changes, and new runtime UI until the installed-versus-registered state is reconciled and 1.5.0 provenance preserved. Original 1.4.1 source import and saved-world baseline are separate from the discovered 1.5.0 LAB folders. Do not overwrite or delete the 1.5.0 files. User can run a further **read-only** check of the two registry-file contents and any world-local pack manifests if needed, without reconfiguring server settings.
+
+## 2026-11-07 — Owner corrected Hart 1.5.0 registration and retention policy
+
+- Owner pasted full `world_behavior_packs.json` and `world_resource_packs.json`: both **DO register** Hart 1.5.0 by original Hart UUID. Earlier diagnostic said otherwise due to array-enumeration bug. User also reported no per-world pack folders, only top-level pack folders. Corrected report, current state and diagnostic parser/Windows synthetic multi-entry fixture.
+- Owner confirms an existing backup and states the **failed 1.5.0 update is disposable**. Do not spend additional time preserving it; the existing cloned LAB world's inventory/links and unrelated add-on registrations remain protected. No auto deletion, 1.4.1 reinstall or server access in this change; BDS Bundle 2 tests remain NOT RUN.
+
+## 2026-11-07 — Maintenance-pause unlink guard source fix (new development chat)
+
+- Source audit found a gap in **Bundle 2's offline PG-08 policy model**: relink confirmation rejected transactions during a Q5 maintenance pause, but unlink confirmation did not check that pause. A menu built from this model could otherwise change a saved Collector link during a supposed read-only migration window.
+- Patched `tests/test_bundle2_offline_safety.py` to gate unlink confirmation on `paused` and added two focused offline regression methods: maintenance-blocked unlink retains the persisted link, and a stale unlink cannot erase a later confirmed relink. New suite count is **27 test methods** (previous last accepted run had 25; 90 methods total across older suites). **The new methods have not been executed in CI/BDS as of this commit; do not claim 27/27 PASS or 92 total PASS.**
+- This is not a gameplay implementation. Original 72 BP/RP baseline files, pack identities, Q4 world data, updater scripts, and both LAB/PROD environments remain untouched. PG-06/07/08 actual BDS gates remain NOT RUN. Keep Q5/MR custody blocked as recorded.
+- Time-protection rule: spend next implementation effort on the narrow independent menu source seam, and require a working, version-compatible `@minecraft/server-ui` + safe link persistence demonstration before extending to native MR, Q5, Transporter, Bulk, or owner-run physical rigs. Stop any new task whose prerequisite is still PG-03 NO-GO rather than creating speculative downstream tests.
+
+## 2026-11-07 — PG-08 isolated executable menu candidate, source only
+
+- At the owner's instruction to continue carefully, developed a **separate candidate**, not a mutation of the immutable original `addon/` source, in `candidates/pg08/menu_overlay.js`. It replaces only the original standing Collector/Receiver link gesture in a derived source build, keeps the original event dispatch and sneak-interact passthrough, and uses stable `@minecraft/server-ui` 2.2.0 `ActionFormData`/`MessageFormData`. The native MR inventory dependency and Q5 migration remain out of scope.
+- The derived candidate implements Collector status, explicit Link/Relink selection and Receiver confirmation, Unlink confirmation, no implicit placement selection, per-player expiring selection, stale original-link and loaded-block validation, and one-property link write/readback with attempted rollback. If rollback cannot be confirmed, further link changes are held **for that running script session**; crash-durable hold has NOT been proven. Q5 status explicitly reads `not installed`, not `complete`.
+- `candidates/pg08/prepare_candidate.py` verifies **all 72 baseline SHA-256 hashes** and unique source anchors before copying to a fixed local `build/pg08-lab` output. Build is OFFLINE ONLY, refuses overwrite and redirected build folders, does not package or deploy automatically. Candidate manifests use the original pack UUIDs and placeholder version 1.5.1 with an explicit install prohibition; original BP/RP stay byte-for-byte unchanged. **Do not install this candidate onto the existing 1.5.0-registered cloned LAB world until compatibility and owner-approved deployment safety are established.**
+- Added actual-candidate JS form/storage mocks (`tests/test_pg08_menu_mock.cjs`, nine scenarios) and Python candidate build tests (`tests/test_pg08_candidate_build.py`, six methods), wired into CI along with compiled ESM syntax check. Source-anchor presence was independently checked in the connector (**all five unique**), but repository checkout/network and GitHub PR CI have not provided an executable test result for these latest commits. **Tests NOT VERIFIED PASS; BDS NOT RUN**. Do not add these to accepted offline totals.
+- Next evidence gate is successful Node + Python offline execution, then explicit review of old 1.5.0 saved-world compatibility and candidate write/rollback semantics, then a separately authorized LAB-only install with 2–3 user-performed checks. Preserve all 1.4.1 capability, original item metadata and the existing LAB clone. No production, experiment, HartBots or real world operations authorized/performed.
