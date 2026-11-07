@@ -108,7 +108,7 @@ class SyntheticPG14LAB(unittest.TestCase):
 
     def test_old_150_or_unknown_version_refused(self):
         reg = self.lab / "worlds/ThomasServer/world_resource_packs.json"
-        reg.write_text(reg.read_text().replace("[1,5,1]", "[1,5,0]"))
+        reg.write_text(reg.read_text().replace("[1,5,2]", "[1,5,0]"))
         with self.assertRaises(lab.UnsafeLab):
             pg.create_plan(self.lab, self.current, self.previous)
 
