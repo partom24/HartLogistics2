@@ -64,5 +64,12 @@
 **Rationale:** The owner should not build a rig and then be told it was too close to another, too far away, or used an undocumented number of Sorters; nor repeat safe prior experiments needlessly.  
 **Consequences:** Unknown topology/spacing requirements make the card NOT READY; if discovered afterward, correct the instructions rather than attributing error to the user. Old evidence is reused only for its actual scope; new risks get narrow differential tests. See [test policy](TEST_RIG_CONTRACT.md).
 
+## HL-ADR-012 — New blocks get original distinct resource assets
+
+**Status:** Owner-confirmed requirement, 2026-11-06.  
+**Decision:** New Hart Bulk Storage and Hart Transporter must have original independent geometry, textures, icons and block-specific visual assets; no copying, aliasing or recoloring existing 1.4.1 Sorter/Collector/Receiver resources. Bulk Storage must not look like Collector or Receiver; old assets stay unchanged.  
+**Reason:** Immediately identifiable function and resource-pack regression avoidance.  
+**Consequences:** Distinct namespaced resource definitions, side-by-side visual acceptance and no new resource references to old block assets. Exact art direction remains open. “Bulk sorter” provisionally refers to planned Bulk Storage, not a third new block. See [asset contract](RESOURCE_ASSET_POLICY.md).
+
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 

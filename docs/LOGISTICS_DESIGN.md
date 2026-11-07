@@ -16,6 +16,10 @@ The owner's diagram includes several **transport banks** joined by Collector→R
 
 A controller is responsible for a *routing region*, not necessarily one bank; physical bank count does not determine controller count. The first Bulk Storage block placed **between a Receiver and Collector** in the relevant region is intended to become the controller; it is **not** a replacement for the Collector. Precise region election/membership rules are unresolved. No cross-repository access is implied.
 
+## New-block asset rule
+
+Both new blocks must use **new, distinct model/texture/icon assets** — not reuse or reskin any 1.4.1 Sorter/Collector/Receiver resource artwork. **Bulk Storage must never look like a Collector or Receiver.** Transporter remains its own distinct 4×4 plumbing form. Preserve original resources unchanged. See [asset contract](RESOURCE_ASSET_POLICY.md).
+
 ## New block 1: Hart Bulk Storage
 
 **Owner requirements**

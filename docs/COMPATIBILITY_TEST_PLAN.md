@@ -40,6 +40,10 @@ The source-traced [1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.m
 | Saved worlds | Existing placed blocks, block states, UUIDs, links, configuration, dynamic properties and item state survive upgrade |
 | Standalone | Existing 1.4.1-style networks without either new block behave as before |
 
+## Unique block resource acceptance
+
+Before acceptance, compare Bulk Storage and Transporter geometry, textures, icons and placed-world appearance **side by side with 1.4.1 Sorter, Collector and Receiver**. Fail if any original block-specific asset is reused, copied or aliased, if Bulk Storage resembles Collector/Receiver, or if existing block appearances change. Also validate six-direction Transporter visual states. See [asset contract](RESOURCE_ASSET_POLICY.md); when a LAB rig is required, supply a complete [READY rig card](TEST_RIG_CONTRACT.md) first.
+
 ## New design: validate before accepting
 
 | Area | Required test |

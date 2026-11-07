@@ -26,6 +26,8 @@
 | HL-Q-019 | Medium | What LAB updater invocation and backup/rebuild workflow should be used: manual dry-run/`-Apply` with backup, or separately approved full lab restore from the owner's ZIP? | Lab may be disposable but routine updates still need audited, deterministic behavior. | Owner preference before tool implementation |
 | HL-Q-020 | High | How is a release candidate formally nominated and what separate approval permits any production updater execution/production apply? | Production path must stay untouchable during development; importing script is explicitly allowed without running. | Release-governance definition needed |
 
+| HL-Q-021 | Medium | Which original silhouette, texture palette and icon should Bulk Storage use, and should its controller status be visible? | Distinction from existing blocks is mandatory; precise art direction is not decided. | Decide at asset design review; [asset policy](RESOURCE_ASSET_POLICY.md) |
+
 ## Decisions already confirmed
 
 - **BL-001:** 1.4.1 is inviolable baseline; no current capability loss acceptable.
@@ -38,6 +40,7 @@
 - **D-006:** Current phase is **documentation/planning only**, no gameplay implementation.
 - **D-008:** LAB `C:\Servers\Thomas_MCBedrock - Copy (2)` is the only server release-testing location and is disposable. PRODUCTION `C:\Servers\Thomas_MCBedrock` is protected until release candidate nomination.
 - **D-009:** HartBots production updater script is **approved for import into HartLogistics2** but **may not be executed before a nominated release candidate**. Separate explicit production authorization still required for any production modification.
+- **D-012 (owner asset policy, 2026-11-06):** Both Bulk Storage and Transporter get entirely new block-specific geometry, textures and icons. No existing 1.4.1 block asset reuse; Bulk Storage must be unlike Collector or Receiver. See [asset policy](RESOURCE_ASSET_POLICY.md).
 - **D-011 (owner testing policy, 2026-11-06):** Before any LAB rig request, provide an up-front **what is being tested** summary and a fully specified **READY** rig including exact sorter columns, block placement, connections, spacing/isolation, steps and results. Unknown constraints mean NOT READY. Previously accepted/unaffected results should be reused, with evidence boundaries, rather than retesting prior safe behavior. See [test rig/evidence policy](TEST_RIG_CONTRACT.md).
 - **D-010 (owner testing policy, 2026-11-06):** Test by **behavioral equivalence classes**, not arbitrary item types. Cobblestone, glass and sand do not each need separate ordinary-movement tests absent a relevant mechanical difference. Test actual differences (MR fidelity, distinct bucket identity, stack limits, special mechanics, proven item-specific bugs) with representative cases; see [test plan](COMPATIBILITY_TEST_PLAN.md).
 
