@@ -283,7 +283,7 @@ function copyState(ledger) {
  */
 export function reserveOrdinary(ledger, { txId, item, count,
                                         expectedRevision, expectedEpoch,
-                                        routePermit } = {}) {
+                                        routeSnapshot, source, target } = {}) {
   if (!ordinaryItemVerified(item)) return fail("unverified_or_metadata_rich_item");
   if (!nonempty(txId) || !positiveInt(count)) return fail("invalid_quantity_or_txid");
   const report = inspectLedger(ledger);
@@ -299,11 +299,13 @@ export function reserveOrdinary(ledger, { txId, item, count,
              reason: "existing_transaction_no_replay", state: ledger };
   }
   if (expectedRevision !== ledger.revision) return fail("revision_conflict");
-  if (!routePermit || routePermit.ok !== true ||
-      routePermit.networkId !== ledger.networkId ||
-      routePermit.epoch !== ledger.epoch ||
-      !Array.isArray(routePermit.path) || !routePermit.path.length ||
-      !nonempty(routePermit.controllerId)) return fail("route_authority_missing");
+  // Re-verify the supplied topology and live claim at the reservation boundary.
+  // Never accept an arbitrary caller-made {ok:true} 'permit' as authority.
+  const route = verifyLocalRoute(routeSnapshot, source, target);
+  if (!route.ok || route.networkId !== ledger.networkId ||
+      route.epoch !== ledger.epoch || !nonempty(route.controllerId)) {
+    return fail("route_authority_missing");
+  }
   if (count > report.totalFree) return fail("insufficient_verified_capacity");
   let left = count;
   const allocations = [];
