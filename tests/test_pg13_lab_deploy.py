@@ -62,7 +62,7 @@ class SyntheticPG13LAB(unittest.TestCase):
         p = pg.create_plan(self.lab, self.current, self.previous)
         self.assertEqual(len(p), 2)
         for item in p:
-            self.assertIn("HartLogistics", item["new_registry"])
+            self.assertIn("Hart Logistics old", item["new_registry"])
             self.assertIn("keep owner multippack comments", item["new_registry"])
             self.assertIn('"version":[1,5,2]', item["new_registry"])
         self.unchanged()
