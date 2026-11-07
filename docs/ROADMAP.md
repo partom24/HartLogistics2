@@ -125,7 +125,7 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 
 ## PG-17 original cross-lane safety model after reference-only concept review (2026-11-07)
 
-- Conceptually reviewed three owner-uploaded standalone files about a single writer, metadata-rich native direct moves, and Q5 physical output. Source files **reference only**, never imported/copied. Independent [PG17 design](PG17_REFERENCE_CONCEPTS.md) and [cross-lane model](../candidates/transport/cross_lane_hazard_audit.mjs) with 38 Node cases + 36 ordered route-pair conflicts (HL-E-043) define what eventual integration must not conflate.
+- Conceptually reviewed three owner-uploaded standalone files about a single writer, metadata-rich native direct moves, and Q5 physical output. Source files **reference only**, never imported/copied. Independent [PG17 design](PG17_REFERENCE_CONCEPTS.md) and [cross-lane model](../candidates/transport/cross_lane_hazard_audit.mjs) with 39 Node cases + 36 ordered route-pair conflicts (HL-E-043) define what eventual integration must not conflate.
 - A cooperative writer arbitration can detect multi-lane races across Q4/native/Q5/Bulk, but not block foreign player/addon changes to vanilla chests; readback receipt and native ItemStack clone/slot writes do not establish a crash-atomic journal+inventory commit. Whole-stack native move into known empty slot is a **design direction only**. Partial multi-write merges and spendable Bulk ledger updates remain blocked.
 - No new pack or user test required. Next engineering work should make a separately testable native metadata-preservation plan under explicit fail-closed custody limitations, and investigate a credible engine-enforced physical custody boundary before any Q5/Bulk runtime service.
 

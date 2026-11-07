@@ -5,7 +5,7 @@
 - `native_direct_lane.mjs` (native whole-ItemStack movement vs. partial merges)
 - `q5_output_executor.mjs` (Q5 logical debit, physical credit and persistent receipts)
 
-The source uploads remain **outside this repository**, are not dependencies, and are not a replacement for the immutable 1.4.1 `addon/` baseline. [Independent PG-17 implementation](../candidates/transport/cross_lane_hazard_audit.mjs) and [38 Node tests](../tests/test_transport_cross_lane_hazard_audit.mjs) only model hazards; they do not enable transport.
+The source uploads remain **outside this repository**, are not dependencies, and are not a replacement for the immutable 1.4.1 `addon/` baseline. [Independent PG-17 implementation](../candidates/transport/cross_lane_hazard_audit.mjs) and [39 Node tests](../tests/test_transport_cross_lane_hazard_audit.mjs) only model hazards; they do not enable transport.
 
 ## Concepts retained, independently specified
 
