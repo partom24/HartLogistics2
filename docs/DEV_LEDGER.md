@@ -79,3 +79,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Re-read original 1.4.1 locally uploaded `main.js`: Sorter registry and Collector/Receiver logistics entries persist dimension/XYZ coordinates, permitting a candidate targeted chunk worklist (subject to completeness verification).
 - Documented **optional**, one-area-at-a-time, named/owned/leased migration accelerator under the existing global routing freeze, with vanilla Hopper safety, crash/restart lease reconciliation, **immediate removal of only Hart-owned areas**, and on-load fallback when unavailable.
 - Incorporated the optional test in **PG-07**, no new bundle. No ticking area was created; no server or gameplay source was changed.
+
+## 2026-11-07 — Corrected pack metadata and stable ticking-area API guidance
+
+- Microsoft manifest docs define `metadata.product_type=addon` as pack classification, **not** a cheat-setting bypass. Achievement eligibility is a separate concern.
+- Bedrock **1.26.10** released `TickingAreaManager` into **stable `@minecraft/server` 2.6.0**. Original 1.4.1 uses 2.7.0. Pack-scoped `world.tickingAreaManager` has its own ticking-chunk capacity and cannot manage other packs'/commands' areas, unlike cheat-restricted manual `/tickingarea`.
+- Corrected Q5 migration and PG-07 to prioritize this stable manager without enabling cheats or experiments, and retain the ordinary-on-load fallback if 26.63 LAB proof fails. Immediate removal/lease recovery and vanilla Hopper safety remain mandatory. No code or server files changed.

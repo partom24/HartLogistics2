@@ -41,7 +41,7 @@ Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before und
 
 ## Optional ticking-area migration proposal (not yet approved)
 
-Q5 migration may **investigate** temporary named ticking areas to load recorded legacy-block chunks under the existing global routing freeze. The [Q5 candidate design](docs/Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07) requires exact ownership, one small area at a time, no unapproved cheat changes, safe vanilla Hopper handling, durable recovery and **immediate deletion of only Hart-owned areas**. No `tickingarea remove_all`; preserve on-load migration fallback. This is a proposed PG-07 subcheck, not authorization for command execution or deployment.
+Q5 migration may **investigate the stable `world.tickingAreaManager` Script API** (released in Bedrock 1.26.10 / server API 2.6.0) to load recorded legacy chunks under the global routing freeze. It is **not** the cheat-restricted manual `/tickingarea` command; `metadata.product_type="addon"` does not toggle cheats. The [Q5 candidate design](docs/Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07) requires exact ownership, one small area at a time, no unapproved cheat changes, safe vanilla Hopper handling, durable recovery and **immediate deletion of only Hart-owned areas**. Use only named pack-owned `removeTickingArea`; preserve on-load migration fallback and never toggle world cheats/experiments. This is a proposed PG-07 subcheck, not authorization for command execution or deployment.
 
 ## Current allowed work
 

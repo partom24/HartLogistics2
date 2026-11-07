@@ -31,7 +31,7 @@ The owner **approved the [PG-01–PG-11 preliminary test plan](PRELIMINARY_GO_NO
 
 ## Optional ticking-area migration accelerator — under review
 
-Owner proposed temporary ticking areas to proactively load known legacy blocks during Q4→Q5. Official Bedrock docs support named areas but impose world quota/permissions; they keep vanilla mechanics ticking. Added [optional Q5 design](Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07) and one **optional PG-07 subcheck** requiring clean area removal/recovery and no unapproved cheat toggle. This is **NOT RUN / NOT APPROVED** as executable migration code. Automatic on-normal-chunk-load migration remains the safe fallback.
+Owner proposed temporary ticking areas to proactively load known legacy blocks during Q4→Q5. Corrected Microsoft API review: `world.tickingAreaManager` was stable in 1.26.10 (`@minecraft/server` 2.6.0) and provides **per-pack areas independent of the cheat-restricted `/tickingarea` command**. Hart Logistics 1.4.1 declares 2.7.0, but actual 26.63 use is untested. `metadata.product_type="addon"` is a classification, not a cheat-toggle safeguard. Ticking areas still keep vanilla mechanisms active. Added [optional Q5 design](Q5_MIGRATION_DESIGN.md#optional-temporary-ticking-area-assisted-migration--feasibility-candidate-2026-11-07) and one **optional PG-07 subcheck** requiring clean named area removal/recovery with **no cheat or experiment toggles**. This is **NOT RUN / NOT APPROVED** as executable migration code. Automatic on-normal-chunk-load migration remains the safe fallback.
 
 ## Next bounded action
 

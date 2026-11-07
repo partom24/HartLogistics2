@@ -32,7 +32,7 @@
 
 
 
-| HL-Q-024 | High | Can **temporary named ticking areas** safely accelerate migration of recorded-but-unloaded Sorters/Collectors/Receivers on 26.63, and should the release use them if the permission/cheat requirements and vanilla Hopper isolation are acceptable? | Owner asked about feasibility. Up to ten areas/world; script command rights and cheat setting not yet proven. All Hart-owned areas/leases must be removed promptly, with crash recovery; no `remove_all`. On-load fallback stays. | **Optional candidate; PG-07 research + LAB proof needed; not yet approved implementation** |
+| HL-Q-024 | High | Does stable `world.tickingAreaManager` reliably and safely load registered legacy chunks on dedicated 26.63, with cleanup and vanilla-Hopper-safe migration? | Stable since Bedrock 1.26.10 / Script API 2.6.0, has per-pack capacity distinct from the cheat-restricted manual `/tickingarea` command. Use no cheat/experiment toggles. | **Optional PG-07 proof remains NOT RUN** |
 
 ## Decisions already confirmed
 
