@@ -93,3 +93,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - Offline gate: **24 Node VM physical custody/error scenarios**, six source-hash/compiler invariants, 13 synthetic LAB deploy/rollback tests. Windows and Linux CI must pass before any install. Existing 1.5.2 installed pack hash must match exact PG-13 compiler output or installer refuses.
 - **Pending actual BDS proof:** normal restart source/destination slot and durable SETTLED marker visibility. Still **not** crash-atomic, no actual Bulk/Transporter routing and no native MR/Q5 acceptance; all other mods and production remain untouched.
 
+## PG-14 LAB physical one-item custody gate passed — still not crash atomic (2026-11-07)
+
+- **Owner-observed clean-restart PASS** for one test-owned plain cobblestone from isolated vanilla single chest A `(-955,69,-804)` to B `(-951,69,-804)`: exact precondition `INSPECT PASS`, one-shot native transfer `TRANSFER READBACK PASS` with journal `SETTLED`, then after normal LAB restart `RESTART CUSTODY READBACK PASS`, A empty, B exactly one cobblestone; B UI corroborated one cobble. Earlier Large Chest/54-slot refusal proves no transfer in unsafe geometry, not a transfer bug. See HL-E-037.
+- **Remaining:** PG14 test-only `custodyclear` not independently verified; no forced-crash or power-loss tests, no atomic journal+inventory commit guarantee, controller/region concurrency, unloaded chunks, metadata-rich items or scalable Bulk/Transporter gameplay.
+- **Next source work:** strengthen durable reconciliation of `RESERVED`, `INTENT` and `SETTLED` against actual physical inventories using fail-closed stale-state and provenance checks, with synthetic fault cases before requesting any next LAB test. Preserve 1.4.1 and production isolation.
+
