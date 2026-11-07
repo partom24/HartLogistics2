@@ -14,7 +14,7 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Now
 
-- **HL-PLAN-001 — Owner-authorized requirements and architecture planning (active).** Record the two new blocks, multi-controller/closed-loop topology, Q5 migration and MR lane; separate accepted requirements from candidates; identify decisions and compatibility tests needed before an implementation authorization. **This milestone does not authorize code changes.**
+- **HL-PLAN-001 — Planning ledger milestone.** The owner now reports **Bundle 2 already under development**; this documentation correction does not restart that work, promote undocumented tests, or authorize additional scope. MR-dependent Bundle 2 work must respect the PG-03 compatibility blocker. See [current state](CURRENT_DEVELOPMENT_STATE.md).
 - Exit when the owner has reviewed the open implementation gates and approved a design direction. A planning document or PR merge alone is not owner acceptance.
 
 ## Next
@@ -31,12 +31,12 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Preliminary subsystem stop/go gates
 
-See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-performed BDS sessions to 2–3 related checks per complete reusable rig**; run as many automated/offline/CI tests as useful, or authorized automated LAB tests, without artificial 2–3-test pauses, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. PG-01/02 passed at their offline scope; PG-03–PG-11 remain NOT RUN. Plan approval alone does not authorize gameplay code, experiments or LAB deployment.
+See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Limit **owner-performed BDS sessions to 2–3 related checks per complete reusable rig**; run as many automated/offline/CI tests as useful, or authorized automated LAB tests, without artificial 2–3-test pauses, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. PG-01/02 passed at their offline scope; **PG-03 NO-GO** for the owner-reported nonexperimental BDS 1.26.63.1 target; **PG-04/05 BLOCKED / NOT RUN**; PG-06–PG-11 have no accepted BDS verdict recorded. Owner reports Bundle 2 underway. Plan approval alone does not authorize gameplay code, experiments or LAB deployment.
 
 ## Decisions and blockers
 
 - **Hard gate:** zero 1.4.1 capability loss; the supplied archive remains the comparison baseline, not an accepted Git frozen reference.
-- **Hard gate:** native custom block container functionality in 1.26.50 may require the Upcoming Creator Features experiment; verify stable API/target-version compatibility before requiring it. See [Q5 design](Q5_MIGRATION_DESIGN.md).
+- **Hard gate / Bundle 1 result:** custom native MR container probe not obtainable on the approved no-experiments BDS 1.26.63.1 configuration; **PG-03 NO-GO** and dependent PG-04/05 not run. Do not enable experiments or drop legacy MR capability; evaluate a supported alternative/version only after evidence and owner decision. See [Bundle 1 results](BUNDLE1_PREPARATION_RESULTS.md).
 - **Open:** controller boundary/discovery/failover, pipe extraction control, routing at junctions, wildcard behavior with unavailable banks and MR items, capacity accounting, MR prioritization/fairness, save transaction protocol and legacy upgrade path. See [inbox](IDEA_INBOX.md).
-- **Bundle 0 source import and offline LAB updater preparation were specifically authorized and completed**. This does not authorize Q5, new blocks, in-game probes, any server changes or release. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
+- **Bundle 0 source import and offline LAB updater safeguards were completed.** Bundle 1 yielded a bounded LAB NO-GO and owner-reported LAB cleanup, while **Git-side disposable probe cleanup remains open**. These results do not authorize experiments, production operations or release. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
 
