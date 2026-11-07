@@ -5,7 +5,7 @@
 ## What has been implemented
 
 - [`ordinary_journal.node.mjs`](../candidates/transport/ordinary_journal.node.mjs): an append-only **offline filesystem journal simulator**, with a monotonically numbered SHA-256 record chain, explicit network/epoch/bank identities, newline-completeness check, synchronous file writes/`fsync`, exclusive single-writer create lock and head-hash revision fence. Corrupt/torn/out-of-order logs **fail closed**; there is no automatic truncation or repair.
-- [`test_transport_journal.node.mjs`](../tests/test_transport_journal.node.mjs): **25 Node tests** on ephemeral GitHub runners covering crashes before/during/after append and fsync, restart/replay, idempotent reservation/receipt, duplicate/conflicting transaction IDs, bank capacity, stale writer, lock retention, receipt mismatch, corrupted or truncated records and repeated sequential simulated transfers.
+- [`test_transport_journal.node.mjs`](../tests/test_transport_journal.node.mjs): **27 Node tests** on ephemeral GitHub runners covering crashes before/during/after append and fsync, restart/replay, idempotent reservation/receipt, duplicate/conflicting transaction IDs, bank capacity, stale writer, lock retention, receipt mismatch, corrupted or truncated records and repeated sequential simulated transfers.
 - Each Bulk member is capped at **200,000 ordinary item counts** in a fresh, initially empty **synthetic** bank set. These balances are *only* journal-model accounting; real preexisting inventories cannot be inferred from an empty genesis file.
 
 ## Proposed append-order protocol
