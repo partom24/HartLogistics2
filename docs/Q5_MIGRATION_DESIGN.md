@@ -15,6 +15,27 @@
 - **Capacity:** preserve legacy Receiver **250,000-item** limit. Whether physical MR slots count against the cap, or add an independent constrained allowance, remains undecided.
 - **Native custom block container gate:** verify that target server 1.26.63.1 and client 26.63 offer the necessary *stable* inventory APIs without enabling experiments. If not, no silent dependence on experimental toggles; choose an explicitly approved alternative or defer that feature.
 
+## Native custom-container API proof — focused 26.63 gate
+
+**What is being tested:** Does an actual `minecraft:block_entity.container` custom block on **dedicated server 1.26.63.1 / client v26.63** expose the standard script `BlockInventoryComponent.container` / `Container` object, and do native `moveItem` / `transferItem` transfers into and out of it preserve an item's exact metadata?
+
+**Why now:** The basic native Container→Container ItemStack transfer mechanism is already **owner-reported as tested**. The new risk is specifically the **custom-block endpoint**, its availability under the owner's world settings, and whether moving into/out of those slots is safe. We must not confuse the stable `Container` methods with stable availability of the custom-block `container` feature.
+
+**Documentation assessment (SOURCE/API REVIEW, not target-runtime PASS):**
+- Official 1.26.50 creator notes added custom block containers (up to **54 slots**, world-persistent, with script access) in the **Experimental Technical Updates** section. The base `minecraft:block_entity` component itself was released from experimental; its new *container field* was not. [Release notes](https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50).
+- `BlockInventoryComponent.container` has the ordinary `Container` type. `Container` exposes `moveItem(fromSlot,toSlot,toContainer)`, `transferItem(fromSlot,toContainer)`, `getItem`, `getSlot`, `setItem`, etc. The methods work outside restricted execution and may throw on invalid containers/rules. [Inventory component API](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/blockinventorycomponent?view=minecraft-bedrock-stable) / [Container API](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/container?view=minecraft-bedrock-stable).
+- **Inference, not direct 26.63 observation:** when a custom block exposes this `Container` correctly, it is intended to participate in the same native operations. We have **not** yet established that server 1.26.63.1 exposes it in a non-experimental world or that this particular build has no implementation bug.
+
+**Minimum new acceptance proof (LAB only; no current READY rig):**
+1. Verify configured experiment flags and whether the custom block with `minecraft:block_entity.container` loads and exposes `minecraft:inventory`, and that its `container` is valid and has the configured slots. **Do not enable experiments without owner approval.**
+2. Use the standard native API for **one source ordinary inventory → custom-block inventory → destination ordinary inventory** transfer, then **custom-block inventory A → custom-block inventory B** for Collector→Receiver semantics. No conversion through JSON/string definitions.
+3. Verify an owner-chosen **representative MR metadata mechanism** (not every potion/disc/enchanted item again) matches before/after native moves. Where the item has nested inventory/custom components, use a separate targeted case only if these semantics genuinely differ.
+4. Verify source and destination exact ownership/counts under full/blocked destination; reload and restart persistence of the new custom-block inventory. This is a new endpoint/persistence check, **not a retest of general native ItemStack methods**.
+5. Verify existing placed Collector/Receiver upgrade strategy separately; a successful brand-new probe block does not prove an older block gains persistent slots, nor that the scripted Link menu coexists with the native container interface.
+6. If any custom-inventory feature is absent or experimental-only under prohibited settings, **stop this design branch safely**, keep legacy item custody and seek an approved supported alternative/version policy; never switch to lossy metadata serialization.
+
+**Execution:** do not ask the owner to build anything until a complete [READY rig card](TEST_RIG_CONTRACT.md) provides exact block counts, XYZ/face layout, spacing/isolation, scripts, world settings, expected counts and metadata checks. No production server access. No gameplay code or LAB test is authorized or performed by this planning record.
+
 ## Explicit MR pathway replacement decision — owner selected native containers
 
 **Decision (2026-11-06):** Retire the **restricted direct-only Q4 MR fallback as the final design**, replacing it with native custom-block ItemStack custody in **both Collectors and Receivers**, provided platform compatibility and data-safety acceptance gates pass.

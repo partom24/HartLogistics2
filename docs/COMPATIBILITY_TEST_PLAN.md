@@ -59,6 +59,10 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 | Versioning | 1.26.63.1 server + 26.63 client; stable/experimental API flags; separately test minimum-version support if still promised |
 | HartBots | Later: coexistence without cross-pack data access; depot output via native inventory fallback; direct interface only after separate authorization |
 
+## Focused native custom-container compatibility proof
+
+**What is being tested:** Standard `Container.moveItem` / `transferItem` into and out of a new native **custom-block** container on 26.63; exact ItemStack metadata and persisted slots after reload. **Not being retested:** previously established vanilla container-to-container ItemStack transfer behavior. The test includes one ordinary inventory→custom→ordinary transfer, one custom→custom transfer, blocked/full acceptance and a targeted MR fidelity check. Verify native `minecraft:inventory` availability and world experiment settings before moving an item. No setup request until a complete [READY LAB rig](TEST_RIG_CONTRACT.md) is prepared. See [Q5 custom-container gate](Q5_MIGRATION_DESIGN.md#native-custom-container-api-proof--focused-2663-gate).
+
 ## MR fallback replacement acceptance gate
 
 - On **pre-upgrade 1.4.1 worlds**, first verify the original E07/R06 direct-only Hopper path. Then confirm that, under Q5, the same directed Hopper source can retain an MR stack in a Collector's native inventory while the Receiver is unloaded and in the Receiver while downstream Hopper is blocked, without changing item identity or required redstone semantics.
