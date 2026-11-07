@@ -380,6 +380,9 @@ function CleanupCore($Lab) {
 # When dot-sourced by tests, functions are defined but no server is inspected.
 if($MyInvocation.InvocationName -eq '.'){return}
 if($Apply -and $Mode -notin @('Install','Cleanup')){Deny '-Apply permitted only with Install or Cleanup'}
+if($Mode -in @('Install','Cleanup') -and -not $Apply){
+    Deny 'Install/Cleanup require explicit -Apply before any LAB path is accessed'
+}
 $snapshot=GitSource ($Mode -in @('Install','Cleanup'))
 if($Mode -eq 'Sync'){
     $current=Invoke-CheckedGit -Words @('branch','--show-current')

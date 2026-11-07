@@ -72,6 +72,9 @@ try {
 
     # Real source, clean Git, exact file inventory are verified without a server.
     $snapshot=GitSource $false
+    $planOutput=@(& $runner -Mode Plan)
+    Assert (($planOutput -join ' ').Contains('SOURCE PLAN:')) 'Public Plan mode succeeds offline'
+    ExpectDeny {& $runner -Mode Install -Commit $snapshot.Commit} 'Install missing Apply refused before LAB access'
     Assert ($snapshot.Files.Count -eq 4) 'Only four source files'
     Assert ($snapshot.Commit -match '^[0-9a-f]{40}$') 'Pinned source fingerprint'
     ExpectDeny { NoLinks (Join-Path ([IO.Path]::GetTempPath()) ('missing_'+[guid]::NewGuid().ToString('N'))) } 'missing path rejected'
