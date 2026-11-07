@@ -41,18 +41,96 @@ if ($Mode -ne 'Rollback' -and $BackupTag) { Refuse '-BackupTag is only for Rollb
 if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
     Refuse 'Git for Windows is required'
 }
-$python = Get-Command py.exe -ErrorAction SilentlyContinue
-$pyArgs = @('-3.11')
+# Prefer the working python.exe on the LAB host. Do not force py.exe -3.11
+# when a later compatible Python (for example 3.12.10) is already available.
+$python = Get-Command python.exe -ErrorAction SilentlyContinue
+$pyArgs = @()
 if (-not $python) {
-    $python = Get-Command python.exe -ErrorAction SilentlyContinue
-    $pyArgs = @()
+    $python = Get-Command py.exe -ErrorAction SilentlyContinue
+    $pyArgs = @('-3')
 }
-if (-not $python) { Refuse 'Python 3.11 is required; no installation attempted' }
+if (-not $python) { Refuse 'Python 3.11 or newer (3.x) is required; no installation attempted' }
 $pyName = $python.Source
 $version = (& $pyName @pyArgs -c 'import sys;print(str(sys.version_info.major)+chr(46)+str(sys.version_info.minor))')
-if ($LASTEXITCODE -ne 0 -or $version -ne '3.11') {
-    Refuse 'Python 3.11 is required; no installation attempted'
+if ($LASTEXITCODE -ne 0 -or $version -notmatch '^3\.[0-9]+
+if (-not $env:LOCALAPPDATA) { Refuse 'LOCALAPPDATA missing' }
+
+$origin = 'https://github.com/partom24/HartLogistics2.git'
+$branch = 'main'
+$checkout = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'HartLogistics2-PG08-LAB'))
+if ($checkout -match '^[A-Za-z]:\\Servers(\\|$)') {
+    Refuse 'Git source workspace may not be inside a Minecraft server'
 }
+function Assert-Unlinked([string]$Path) {
+    $current = [IO.Path]::GetFullPath($Path)
+    while ($true) {
+        if (Test-Path -LiteralPath $current) {
+            $item = Get-Item -LiteralPath $current -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                Refuse ('Junction/symlink not authorized: ' + $current)
+            }
+        }
+        $parent = [IO.Directory]::GetParent($current)
+        if ($null -eq $parent) { break }
+        $current = $parent.FullName
+    }
+}
+function GitText([string[]]$Words) {
+    $output = & git.exe -C $checkout @Words 2>&1
+    if ($LASTEXITCODE -ne 0) { Refuse ('Git failed: ' + ($Words -join ' ')) }
+    return (($output | Out-String).Trim())
+}
+
+Assert-Unlinked $checkout
+if (-not (Test-Path -LiteralPath $checkout)) {
+    if ($Mode -eq 'Rollback') {
+        Refuse 'Existing pinned Git checkout required for safe rollback'
+    }
+    $output = & git.exe clone --quiet --single-branch --branch $branch $origin $checkout 2>&1
+    if ($LASTEXITCODE -ne 0) { Refuse ('Authorized Git clone failed: ' + ($output | Out-String)) }
+}
+Assert-Unlinked $checkout
+$actualOrigin = GitText -Words @('remote','get-url','origin')
+if ($actualOrigin -notmatch '^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)partom24/HartLogistics2(?:\.git)?/?$') {
+    Refuse 'Unexpected Git origin'
+}
+if ((GitText -Words @('branch','--show-current')) -cne $branch) {
+    Refuse 'Expected main branch in the isolated PG08 workspace'
+}
+if (GitText -Words @('status','--porcelain','--untracked-files=all')) {
+    Refuse 'Git workspace contains local changes'
+}
+if ($Mode -ne 'Rollback') {
+    $output = & git.exe -C $checkout fetch --quiet --no-tags origin $branch 2>&1
+    if ($LASTEXITCODE -ne 0) { Refuse 'Git fetch failed' }
+    $output = & git.exe -C $checkout merge --quiet --ff-only FETCH_HEAD 2>&1
+    if ($LASTEXITCODE -ne 0) { Refuse 'Git fast-forward failed; no changes forced' }
+}
+$head = GitText -Words @('rev-parse','HEAD')
+if ($head -notmatch '^[0-9a-f]{40}$') { Refuse 'Unable to pin Git commit' }
+$script = Join-Path $checkout 'candidates\pg08\lab_deploy.py'
+if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { Refuse 'Missing Git-tracked PG08 LAB updater' }
+
+Write-Output ('Pinned Git source: ' + $head)
+Write-Output ('Source workspace: ' + $checkout)
+Write-Output 'AUTHORIZED LAB ONLY: C:\Servers\Thomas_MCBedrock - Copy (2)'
+$modeArgs = @($script, '--commit', $head)
+if ($Mode -in @('CheckLab','Install','Rollback')) { $modeArgs += '--check-lab' }
+if ($Mode -in @('Install','Rollback')) {
+    $modeArgs += @('--apply', '--confirm-lab-only')
+}
+if ($Mode -eq 'Rollback') { $modeArgs += @('--rollback-tag', $BackupTag) }
+
+& $pyName @pyArgs @modeArgs
+if ($LASTEXITCODE -ne 0) { Refuse ('PG08 command refused/failed (exit ' + $LASTEXITCODE + ')') }
+) {
+    Refuse 'Compatible Python 3.11+ (3.x) was not found; no installation attempted'
+}
+$parsedVersion = [version]($version + '.0')
+if ($parsedVersion -lt [version]'3.11.0') {
+    Refuse ('Python '+$version+' is too old; Python 3.11+ (3.x) is required')
+}
+Write-Output ('Using Python '+$version+' at '+$pyName)
 if (-not $env:LOCALAPPDATA) { Refuse 'LOCALAPPDATA missing' }
 
 $origin = 'https://github.com/partom24/HartLogistics2.git'
