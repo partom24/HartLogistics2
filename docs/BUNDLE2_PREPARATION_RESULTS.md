@@ -42,6 +42,6 @@
 
 **Current decision:** Bundle 2's **offline preparation is complete; real gates remain NOT RUN / dependencies BLOCKED**. Advancement to menu gameplay code and LAB execution is not implied by this report alone. Do not merge, release, update experiments or modify production.
 
-## Subsequent owner LAB preflight: deployment baseline mismatch
+## Corrected owner LAB preflight (2026-11-07)
 
-The owner ran the read-only pack diagnostic and found original-Hart-UUID top-level BP/RP folders **version 1.5.0** but no original-Hart-UUID entries in `ThomasServer`'s two pack-registration arrays. The retired Bundle 1 test pack/lease was absent. The 1.5.0 source is not in the authorized 1.4.1 import and must be preserved and reconciled before any updater apply or BDS menu test. This does **not** advance PG-06/07/08 runtime results; see [preflight report](BUNDLE2_LAB_PREFLIGHT_RESULTS.md).
+The owner supplied actual JSONC world pack registrations; Hart Logistics **1.5.0 BP and RP are registered** with original UUIDs, and the matching 1.5.0 installed shared pack directories exist. Earlier PowerShell 'not registered' was a diagnostic false negative. The owner has an existing backup and considers failed 1.5.0 disposable; no extra 1.5.0 preservation requirement remains. No gameplay code, world migration or pack replacement has occurred. See [corrected evidence](BUNDLE2_LAB_PREFLIGHT_RESULTS.md).

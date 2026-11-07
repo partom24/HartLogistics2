@@ -63,16 +63,17 @@ jobs:
             [IO.File]::WriteAllText((Join-Path $lab 'server.properties'), 'level-name=ThomasServer')
             [IO.File]::WriteAllText((Join-Path $lab 'behavior_packs\HartBP\manifest.json'), '{"header":{"uuid":"4854d263-05dd-4f79-a21c-7ba969295c2d","version":[1,4,1]}}')
             [IO.File]::WriteAllText((Join-Path $lab 'resource_packs\HartRP\manifest.json'), '{"header":{"uuid":"91316442-0f26-4fbb-88f3-2e39ea843a1a","version":[1,4,1]}}')
-            $bpJson = '[ // optional comment' + [Environment]::NewLine + '{"pack_id":"4854d263-05dd-4f79-a21c-7ba969295c2d","version":[1,4,1],},' + [Environment]::NewLine + ']'
+            # Realistic multi-entry JSONC with comments and a non-Hart pack.
+            $bpJson = '[ // HartBots / Hart Logistics example' + [Environment]::NewLine + '{"pack_id":"20dbb8a2-cce7-48d7-8263-b65d160a785f","version":[1,7,3]},' + [Environment]::NewLine + '{"pack_id":"4854d263-05dd-4f79-a21c-7ba969295c2d","version":[1,5,0],},' + [Environment]::NewLine + ']'
             [IO.File]::WriteAllText((Join-Path $lab 'worlds\ThomasServer\world_behavior_packs.json'), $bpJson)
-            [IO.File]::WriteAllText((Join-Path $lab 'worlds\ThomasServer\world_resource_packs.json'), '[{"pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a","version":[1,4,1]}]')
+            [IO.File]::WriteAllText((Join-Path $lab 'worlds\ThomasServer\world_resource_packs.json'), '[{"pack_id":"71326c42-6c3c-49e4-99e4-6f6e4d64c2f9","version":[2,0,2]}, // XP Vault' + [Environment]::NewLine + '{"pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a","version":[1,5,0]}]')
             $paths = @('server.properties','behavior_packs\HartBP\manifest.json','resource_packs\HartRP\manifest.json','worlds\ThomasServer\world_behavior_packs.json','worlds\ThomasServer\world_resource_packs.json')
             $before = @{}
             foreach ($p in $paths) { $f=Join-Path $lab $p; $before[$f]=(Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
             $result = & '.\scripts\diagnostics\Read-HartLogistics-Bundle2Lab.ps1' | Out-String
             Write-Host $result
-            if ($result -notmatch 'Hart BP registry: 1 match\(es\), versions 1\.4\.1') { throw 'BP parse failed' }
-            if ($result -notmatch 'Hart RP registry: 1 match\(es\), versions 1\.4\.1') { throw 'RP parse failed' }
+            if ($result -notmatch 'Hart BP registry: 1 match\(es\), versions 1\.5\.0') { throw 'BP multi-entry JSONC parse failed' }
+            if ($result -notmatch 'Hart RP registry: 1 match\(es\), versions 1\.5\.0') { throw 'RP multi-entry JSONC parse failed' }
             if ($result -notmatch 'Retired PG03 probe registered: False') { throw 'False-positive probe' }
             foreach ($p in $paths) { $f=Join-Path $lab $p; if ((Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash -ne $before[$f]) { throw "Diagnostic mutated fixture $p" } }
             Write-Host 'Read-only synthetic PASS'

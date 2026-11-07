@@ -1,17 +1,26 @@
-# Bundle 2 — owner-reported LAB pack preflight
+# Bundle 2 LAB pack preflight — corrected owner evidence (2026-11-07)
 
-## 2026-11-07 — Owner read-only LAB pack-preflight evidence (version and registration mismatch)
+**The earlier automated "not registered" result was incorrect.** The standalone PowerShell diagnostic mishandled JSON array envelopes in the commented, multi-pack world registrations. The owner provided the literal contents and clarified that the installed Hart Logistics **1.5.0 was a failed attempted update, is disposable, and an existing backup is already available.** No additional 1.5.0 archive/preservation request is needed.
 
-Owner executed `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` from their Windows LAB copy. Reported:
-- LAB: `C:\Servers\Thomas_MCBedrock - Copy (2)`; selected world: `ThomasServer`.
-- LAB `bedrock_server.exe` file version **1.26.63.1**, not independently observed running process.
-- Top-level installed pack directories `HartMods_HartLogistics_BP` and `HartMods_HartLogistics_RP` have manifests matching the 1.4.1 original **header UUIDs**, but the manifests declare **version 1.5.0**.
-- The tested world registry `world_behavior_packs.json` and `world_resource_packs.json` contain **no entries matching the known Hart UUIDs**. Diagnostic output reads `Hart BP registry: not registered` and `Hart RP registry: not registered`, not missing file.
-- Disposable Bundle 1 PG-03 pack UUID unregistered, test pack folder absent, owned lease absent.
-- The diagnostic is **read-only** and did not inspect alternate per-world pack folders, `level.dat`, LevelDB, saved Collector/Receiver links, q4 queue data, BDS running logs, or the origin/source of the installed 1.5.0 files. Do not claim 1.5.0 is actively loaded; do not claim which add-on code actually runs. This is a **registration/version provenance discrepancy**, not PG-06/07/08 pass/fail.
+## Confirmed from owner-supplied read-only output
 
-**HOLD** every attempted existing-world upgrade, 1.4.1 → 1.5.0/2.0 replacement, Q5 cutover, pack updater apply, manual world registry changes, and new runtime UI until the installed-versus-registered state is reconciled and 1.5.0 provenance preserved. Original 1.4.1 source import and saved-world baseline are separate from the discovered 1.5.0 LAB folders. Do not overwrite or delete the 1.5.0 files. User can run a further **read-only** check of the two registry-file contents and any world-local pack manifests if needed, without reconfiguring server settings.
+- Authorized LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`; selected world `ThomasServer`, the owner's existing production-derived clone. LAB executable file version **1.26.63.1** (file metadata; not a live process attestation).
+- Behavior-pack registration contains original Hart Logistics BP UUID `4854d263-05dd-4f79-a21c-7ba969295c2d` with **[1,5,0]**. It coexists with registrations for HartBots, XpVault and HartWaypoints. The LAB shared BP directory `HartMods_HartLogistics_BP` also declares **1.5.0**.
+- Resource-pack registration contains original Hart Logistics RP UUID `91316442-0f26-4fbb-88f3-2e39ea843a1a` with **[1,5,0]** among other packs, including HartBots, XpVault and HartWaypoints. The LAB shared RP folder `HartMods_HartLogistics_RP` declares **1.5.0**.
+- Neither `worlds\ThomasServer\behavior_packs` nor `worlds\ThomasServer\resource_packs` exists. The top-level pack folders are the observed matching installs.
+- Retired PG-03 probe registration, test BP directory and deployment lease were absent in the read-only preflight.
+- The literal JSONC comments (including `//HartLogistics`) are **not** evidence of corruption and must be preserved when editing these multi-pack registries.
 
-## Decision
+## Owner's scope clarification
 
-**No deployment action yet.** Confirm which add-on versions are enabled for the active world and whether world-local packs or alternate UUIDs explain the discrepancy. The current 1.5.0 pack folders require preservation and independent provenance; they are **not** the 1.4.1 Git baseline. The absence of known Hart UUIDs from world registration suggests the shared pack folders are not activated for this world, but it does not prove runtime load paths from this output alone. Do not write or auto-fix either registry file. The original PG-06/07/08 BDS gates remain NOT RUN.
+**The failed 1.5.0 Hart Logistics BP/RP does not need to be preserved.** Owner states a backup already exists. This overrides the prior request to archive 1.5.0 provenance. It is not permission to remove the LAB cloned world, its legacy links and queued items, HartBots/XpVault/HartWaypoints pack entries, or anything in protected production. Do not run the unrelated HartBots updater.
+
+**Recommended controlled replacement:** First verify actual source-to-world compatibility and 1.4.1 saved-world state; then in one owner-approved LAB-only, server-stopped operation replace **only Hart Logistics** 1.5.0 BP/RP with a verified candidate, update only Hart Logistics version entries and preserve every unrelated registration/comment. The original Hart UUIDs should remain continuous across the replacement. Avoid an interval with the block definitions unregistered, where saved-world behavior could be damaged. A failed 1.5.0 need not be archived, but **its possible effects on already persisted world data still require evidence before any Q5 cutover**.
+
+## Diagnostic correction
+
+Patched `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` to recursively unwrap array envelopes before matching pack IDs, and strengthened the GitHub-hosted Windows fixture to include multiple commented pack registrations and 1.5.0. **This patch is not yet a newly observed owner Windows run, and it does not install or remove any pack.** The original (false) diagnostic conclusion is superseded; do not repeat it as current status.
+
+## Bundle 2 gates
+
+PG-06, PG-07 and PG-08 **BDS NOT RUN**. PG-03 native custom MR inventory remains NO-GO on non-experimental 1.26.63.1, so full Q5 migration is blocked. A menu-only PG-08 candidate may be developed independently, but must not be installed on the cloned LAB without a safe bounded operation. No automatic 1.5.0 removal or world changes were executed.

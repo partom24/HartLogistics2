@@ -88,10 +88,27 @@ function Get-Registry([string]$Path) {
     if (-not $raw.TrimStart().StartsWith('[')) {
         throw "Registry must start with JSON array: $Path"
     }
-    # Windows PowerShell may unwrap single-element arrays across function
-    # boundaries, so explicitly collect values in an array here.
-    $entries = @(Read-Jsonc $Path)
-    return @{ exists=$true; entries=$entries }
+    # ConvertFrom-Json / function pipeline output may wrap the whole JSON
+    # array as one object (notably Windows PowerShell 5.1). Recursively unwrap
+    # only array envelopes: every actual registry entry must be a pack object.
+    $parsed = Read-Jsonc $Path
+    $pending = New-Object System.Collections.Queue
+    $pending.Enqueue($parsed)
+    $entries = New-Object 'System.Collections.Generic.List[object]'
+    while ($pending.Count -gt 0) {
+        $item = $pending.Dequeue()
+        if ($null -eq $item) { throw "Null pack entry: $Path" }
+        if ($item -is [array]) {
+            foreach ($child in $item) { $pending.Enqueue($child) }
+            continue
+        }
+        if ($null -eq $item.PSObject.Properties['pack_id'] -or
+            $null -eq $item.PSObject.Properties['version']) {
+            throw "Malformed pack entry: $Path"
+        }
+        $entries.Add($item)
+    }
+    return @{ exists=$true; entries=$entries.ToArray() }
 }
 function Get-Installed([string]$Folder, [string]$Uuid) {
     $found=@()
