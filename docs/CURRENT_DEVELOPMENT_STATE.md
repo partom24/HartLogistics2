@@ -76,3 +76,7 @@ Owner-provided terminal transcript at source commit `cc7ffed1621c927ac52cd5de1bc
 ## Clarification — known LAB world provenance, no duplicate owner question
 
 The owner reconfirmed that \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\` is **the previously established clone of their past production world**. This was documented in the earlier server-boundary design and should not have been asked again. It is the intended LAB test copy, not a fresh empty disposable world. The PG-03–PG-05 rig should occupy a safely empty isolated location in this existing clone, with no world reset/deletion as standard cleanup. Only the exact anchor/clearance remains to be selected/validated. BDS PG-03–PG-05 remain NOT RUN.
+
+## Independent offline tests after Bundle 1 (2026-11-07)
+
+Added source-derived regression contracts for existing 1.4.1 MR direct-only bypass and model-based capacity safety for potential ordinary Bulk network routing, with no gameplay edits or server operations. Future MR storage implementation remains blocked until one design receives independent native custody verification and owner approval.

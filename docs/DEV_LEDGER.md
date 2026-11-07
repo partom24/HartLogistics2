@@ -168,3 +168,8 @@ Sources:
 - Owner ran the downloaded launcher from PowerShell at Git SHA `e5a1ff6809758a45f330f2398691e8f76b4698b6` with `-Mode Cleanup -Apply -ConfirmProbeCleared`, reporting `CLEANED: original world registration restored; only owned temporary probe removed.` The LAB world remains the owner's production-derived clone. No production target touched.
 - **PG-03 NO-GO** due to unregistered custom item under current no-experiment 1.26.63.1; PG-04/05 BLOCKED. In the Git development branch removed all `tests/bundle1_probe/` files, `tests/test_bundle1_probe.py`, the retired launcher/operator guide, all temporary CI steps and three blueprint temp registrations. Structural CI passed following deletion; source `addon/` and the permanent Bundle 0 Python updater are unchanged.
 - Compared three non-lossy candidates and a future stable-version gate in [MR alternatives memo](MR_CUSTODY_ALTERNATIVES_12663.md). No new runtime candidate approved. Original MR direct-only fallback preserved until an owner-approved, proven storage path exists.
+
+## 2026-11-07 — Post-Bundle 1 independent offline invariants
+
+- Added permanently useful offline-only tests for original 1.4.1 metadata-rich ItemStack direct bypass, and conservative conceptual ordinary Bulk/filter/wildcard choices. Exhaustively checked 256 direct-gate combinations and 125 three-bank capacity-state combinations, mocked pre/post-move restart, without accessing BDS or modifying addon.
+- Model explicitly ASSUMES atomic native transfer. It is **not** proof of Bedrock persistence, crash atomicity, custom native inventories, or future network implementation. No test-only runtime code was added; temporary instrumentation remains empty.

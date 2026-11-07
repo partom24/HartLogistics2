@@ -27,3 +27,5 @@ jobs:
         run: python tests/test_validate_blueprint.py -v
       - name: Run HartLogistics LAB updater offline safety tests
         run: python -m unittest discover -s tests -p 'test_hartlogistics_lab_updater.py' -v
+      - name: Check legacy MR preservation and proposed ordinary network fail-closed invariants
+        run: python -m unittest discover -s tests -p 'test_legacy_mr_offline_invariants.py' -v
