@@ -42,7 +42,7 @@ jobs:
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
-          node --check build/pg08-lab/behavior_pack/scripts/main.js
+          node --check --input-type=module < build/pg08-lab/behavior_pack/scripts/main.js
 
 
   bundle2-readonly-preflight-windows:
