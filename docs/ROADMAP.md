@@ -87,3 +87,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - **Not yet observed:** diagnostic `shadowclear` cleanup (owner should run it if not already), crash-atomic or multi-key write guarantees, any actual physical ItemStack move, or Bulk/Transporter gameplay. Do **not** infer world consistency or item-custody release from shadow markers.
 - **Next focused implementation:** fail-closed read-only physical vanilla container snapshot/identity and a *bounded single-item, test-owned* handoff + authoritative readback design. Keep existing LAB build/backup unchanged until a separate owner-approved test, and preserve original 1.4.1 and all other mods.
 
+## PG-14 first bounded vanilla inventory custody LAB acceptance prepared (2026-11-07)
+
+- Built isolated 1.5.3-LAB-PG14 candidate from protected 1.4.1 + owner-tested PG-08/PG-13, no change to gameplay baseline. Fixed single-chest coordinates **(-955,69,-804)** and **(-951,69,-804)** in existing room and just one user-owned plain cobblestone; explicit read-only inspect, one native move with pre-/post- 27-slot snapshots and two PG14-only journal markers, read-only restart status and tightly gated cleanup. The [owner card](../candidates/pg14/TEST_SESSION.md) has the full rig, command sequence and stop conditions.
+- Offline gate: **24 Node VM physical custody/error scenarios**, six source-hash/compiler invariants, 13 synthetic LAB deploy/rollback tests. Windows and Linux CI must pass before any install. Existing 1.5.2 installed pack hash must match exact PG-13 compiler output or installer refuses.
+- **Pending actual BDS proof:** normal restart source/destination slot and durable SETTLED marker visibility. Still **not** crash-atomic, no actual Bulk/Transporter routing and no native MR/Q5 acceptance; all other mods and production remain untouched.
+
