@@ -4,8 +4,8 @@
 
 - **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.
 - Read [project-blueprint.json](project-blueprint.json), [roadmap](docs/ROADMAP.md), [current state](docs/CURRENT_DEVELOPMENT_STATE.md), [design](docs/LOGISTICS_DESIGN.md), [Q5 migration](docs/Q5_MIGRATION_DESIGN.md) and relevant source before proposing changes.
-- The owner has approved **planning/documentation only** at present, with explicit permission to **import the provided HartBots production updater as inert reference source** into this repository. Do not execute production updater scripts (even dry-run) or access/modify the live server before a nominated release candidate, and require separate explicit owner authorization for any subsequent production operation. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
-- The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline; its source is not yet committed. The addon/ directory currently contains a placeholder, not an executable pack.
+- The owner has approved **planning/documentation and completed Bundle 0 (exact unchanged source import plus offline-only LAB updater safety tooling)**. Gameplay modification and runtime testing/deployment require separate explicit authorization. Permission also exists to **import the provided HartBots production updater as inert reference source**, without running it. Do not execute production updater scripts (even dry-run) or access/modify the live server before a nominated release candidate, and require separate explicit owner authorization for any subsequent production operation. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
+- The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline. Its **72 original BP/RP source files are now committed unchanged** under `addon/` (source import `0ea3000`; [hash inventory](BASELINE_HASHES.json)). The new LAB updater has only **offline synthetic** evidence. No Q5/new-block gameplay code exists.
 
 ## Non-negotiable compatibility contract
 
@@ -45,7 +45,7 @@ Q5 migration may **investigate the stable `world.tickingAreaManager` Script API*
 
 ## Current allowed work
 
-Refine planning documents, compare agreed requirements with the 1.4.1 upload, enumerate design decisions and prepare test plans. The next boundary is an **explicit owner decision** to import source or begin implementation; do not infer it from technical discussion.
+Bundle 0 source import/PG-01 and offline PG-02 are specifically authorized and complete. Continue planning and source verification only without a fresh owner decision. **The next boundary is explicit authorization of Bundle 1 PG-03–PG-05** before creating game probes, changing runtime pack behavior, enabling experiments or accessing LAB. Do not infer this permission from Bundle 0 or structural CI.
 
 ## Approved future link interaction
 

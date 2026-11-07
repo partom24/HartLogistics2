@@ -1,6 +1,15 @@
 # Hart Logistics 2 — Updater Reference, LAB Testing and Production Exclusion
 
-**Status (2026-11-06): design and source-reference inspection only. No updater was executed and no server path was accessed.** The owner has explicitly permitted **importing the production updater script into HartLogistics2 before a release candidate exists**, but **prohibits running it, including dry-run/preflight against production, until a release candidate is nominated**. Production mutation also requires a separately authorized release/promotion operation.
+**Status (2026-11-07): owner-approved Bundle 0 prepared a new HartLogistics-specific LAB-only updater and ran nine offline synthetic safety tests. No LAB/PRODUCTION server path was accessed; no real server updater apply was run.** The owner has explicitly permitted **importing the production updater script into HartLogistics2 before a release candidate exists**, but **prohibits running it, including dry-run/preflight against production, until a release candidate is nominated**. Production mutation also requires a separately authorized release/promotion operation.
+
+## PG-02 offline candidate implemented (Bundle 0)
+
+- **Tool:** [`scripts/hartlogistics_lab_updater.py`](../scripts/hartlogistics_lab_updater.py) (Python 3 standard library, meant for controlled Windows LAB use).
+- **Default:** non-mutating preview; on non-Windows, offline source identity check only without touching Minecraft server paths. **Actual LAB `--apply` remains separately unauthorized.**
+- **Guards:** exact canonical LAB path; production and similarly named siblings rejected; only approved HartLogistics Git origin, clean fully pinned commit; stopped Bedrock server; matching BP/RP UUIDs/version/dependency and original 1.4.1 SHA-256 if unchanged; exact existing installed packs and safe world path from `server.properties`; no reparse/symlink; staged SHA-256 verification, backups, surgical world JSONC registration updates and rollback on errors.
+- **Evidence:** permanent offline synthetic tests [`test_hartlogistics_lab_updater.py`](../tests/test_hartlogistics_lab_updater.py), **9/9 PASS**, including dry-run no mutation, safe registry preservation, staging/backup and two interrupted-apply rollback cases. See [Bundle 0 results](BUNDLE0_RESULTS.md).
+- **Limitations:** not run or confirmed on an actual Windows server; requires Python installed on the future authorized LAB host, an existing uniquely registered pack pair and independently confirmed Windows/Bedrock process semantics. These are LAB-integration follow-up gates. This is **not** the imported HartBots production promotion script, which remains prohibited from execution until nominated RC.
+- **Cleanup:** synthetic test directories disposed; no temporary runtime probes/flags retained; permanent offline suite resides under `tests/`.
 
 ## Exact server boundaries
 

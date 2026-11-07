@@ -1,12 +1,14 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
-**Status: planning; no Hart Logistics gameplay source has been committed to this repository yet.**
+**Status: Bundle 0 foundation complete (original 1.4.1 source imported byte-for-byte; LAB updater passed offline safety tests). No Hart Logistics 2 gameplay features implemented, no Minecraft server accessed and no new release approved.**
 
 Hart Logistics 2 is the planned evolution of the owner-supplied **Hart Logistics 1.4.1** Bedrock add-on. The requirements are **zero loss of existing 1.4.1 capabilities**, safe upgrades of existing worlds and inventories, and explicit owner approval before implementation or release.
 
 ## Start here
 
 - [Current state](docs/CURRENT_DEVELOPMENT_STATE.md): what is actually in this repository today.
+- [Bundle 0 results](docs/BUNDLE0_RESULTS.md): exact original-source import and nine offline LAB updater safety tests.
+- [Guarded LAB updater](scripts/hartlogistics_lab_updater.py): preview-by-default, exact approved LAB target only; real apply not yet authorized.
 - [Updater and deployment boundaries](docs/UPDATER_DEPLOYMENT_DESIGN.md): lab-only testing, imported production-updater permission, and production execution hold.
 - [1.4.1 ingress/egress matrix](docs/BASELINE_INGRESS_EGRESS_MATRIX.md): source-traced supported routes and prohibited regressions.
 - [Test rig cards and evidence reuse](docs/TEST_RIG_CONTRACT.md): plain-language purpose first, complete physical instructions, and skip previously proven unaffected tests.
@@ -35,8 +37,8 @@ HartBots 1.8.2 Depot source was provided in chat for **reference only**. No Hart
 
 ## Scope and release
 
-This repository was created from an engineering blueprint template. Shared policies and the validator remain, but inherited blueprint achievements do **not** describe this add-on. The intended active root is [addon/](addon/), which currently holds only an import placeholder. There is no approved new release, no world upgrade, and no in-game validation for Hart Logistics 2.
+This repository was created from an engineering blueprint template. Shared policies and the validator remain, but inherited blueprint achievements do **not** describe this add-on. The active root [addon/](addon/) now contains **both original 1.4.1 BP/RP source trees unchanged**, pinned by an import commit and [baseline hash inventory](BASELINE_HASHES.json). There is no approved new release, no world upgrade, and no in-game validation for Hart Logistics 2.
 
-When implementation is explicitly authorized, preserve the exact original pack UUIDs, original block identifiers and persisted state; record source import and test proof before claiming compatibility.
+The original source import is complete. Future gameplay implementation still requires separate owner authorization and must preserve original pack UUIDs, identifiers, persistent state and 1.4.1 capabilities. CI/source-hash checks alone do not prove runtime compatibility.
 
 **Linking UI:** [Menu-based Collector/Receiver linking design](docs/UI_LINKING_DESIGN.md) documents the explicit link/relink button and compatibility requirements.
