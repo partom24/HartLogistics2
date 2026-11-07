@@ -41,18 +41,24 @@ if ($Mode -ne 'Rollback' -and $BackupTag) { Refuse '-BackupTag is only for Rollb
 if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
     Refuse 'Git for Windows is required'
 }
-$python = Get-Command py.exe -ErrorAction SilentlyContinue
-$pyArgs = @('-3.11')
+# Use the already-installed python.exe (including 3.12), rather than
+# requiring a missing py.exe -3.11 interpreter on the LAB host.
+$python = Get-Command python.exe -ErrorAction SilentlyContinue
+$pyArgs = @()
 if (-not $python) {
-    $python = Get-Command python.exe -ErrorAction SilentlyContinue
-    $pyArgs = @()
+    $python = Get-Command py.exe -ErrorAction SilentlyContinue
+    $pyArgs = @('-3')
 }
-if (-not $python) { Refuse 'Python 3.11 is required; no installation attempted' }
+if (-not $python) { Refuse 'Python 3.11+ (3.x) is required; no installation attempted' }
 $pyName = $python.Source
 $version = (& $pyName @pyArgs -c 'import sys;print(str(sys.version_info.major)+chr(46)+str(sys.version_info.minor))')
-if ($LASTEXITCODE -ne 0 -or $version -ne '3.11') {
-    Refuse 'Python 3.11 is required; no installation attempted'
+if ($LASTEXITCODE -ne 0 -or $version -notmatch '^3\.[0-9]+$') {
+    Refuse 'Compatible Python 3.11+ (3.x) was not found; no installation attempted'
 }
+if ([version]($version + '.0') -lt [version]'3.11.0') {
+    Refuse ('Python '+$version+' is too old; Python 3.11+ (3.x) is required')
+}
+Write-Output ('Using Python '+$version+' at '+$pyName)
 if (-not $env:LOCALAPPDATA) { Refuse 'LOCALAPPDATA missing' }
 
 $origin = 'https://github.com/partom24/HartLogistics2.git'
