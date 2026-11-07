@@ -90,3 +90,7 @@ The [Git source-to-LAB PowerShell updater](../tests/bundle1_probe/Update-HartLog
 ## Actual owner-observed Windows LAB updater smoke cycle (2026-11-07)
 
 At Git SHA `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`, owner console reports Plan/CheckLab/Install/Cleanup all succeeded on **exact LAB copy** targeting `worlds\ThomasServer`. This **confirms the normal PowerShell source-deploy/cleanup path**, distinct from synthetic CI. Because Cleanup was run, no temporary probe currently remains installed. **PG-03–PG-05 remain NOT RUN**: no in-game native inventory, metadata transfer or persistence/menu evidence yet. Verify that the LAB world is disposable and establish exact safe XYZ before owner BDS rig setup. [Observed result](BUNDLE1_PREPARATION_RESULTS.md#2026-11-07--owner-observed-actual-windows-lab-updater-cycle).
+
+## PG-03–PG-05 existing LAB-world rig clarification
+
+The owner's LAB world is already established as a **previous-production-world clone** at \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\`. Do not ask whether it is disposable or assume an empty freshly created world. Use a carefully checked unoccupied Overworld XYZ for the two-probe/two-chest test; verify inventory custody before removing any test block, and **preserve the LAB clone** rather than resetting it as default. Exact rig XYZ/clearance remains NOT READY. The prior successful PowerShell Install/Cleanup smoke test did **not** run BDS.

@@ -141,3 +141,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 
 - Owner reported one successful full launcher cycle at `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`: Plan (source only), CheckLab (read only, `worlds\ThomasServer` in exact LAB-copy path), Install -Apply (owned source BP + lease), Cleanup -Apply -ConfirmProbeCleared (restored world registry, removed owned probe).
 - **GO at updater normal-install/cleanup observation scope**, not a claim that files were independently inspected afterward, nor that BDS runtime tested native containers. PG-03–PG-05 remain **NOT RUN**. Temporary LAB installation has been removed; Git temporary probe/instrumentation stays ACTIVE only for pending in-world checks. Need verify disposable world before any physical rig instructions.
+
+## 2026-11-07 — Correct redundant LAB-world clarification
+
+- Owner reminded us that LAB \`C:\Servers\Thomas_MCBedrock - Copy (2)\` is **a clone of the previous production world**, already disclosed and documented. User should **not** be asked whether \`ThomasServer\` is a disposable world again.
+- Corrected PG-03–PG-05 rig/PowerShell handoff: use an isolated four-block region in the **existing copied world**, do not create a new disposable world, and **never reset/delete the clone for routine cleanup**. Verify inventories are empty, remove owned blocks only, then uninstall the temporary pack safely while BDS is stopped. If any MR item remains, preserve and investigate.
+- No gameplay code, pack registration, world or server changed by this documentation correction. Runtime gates remain NOT RUN.

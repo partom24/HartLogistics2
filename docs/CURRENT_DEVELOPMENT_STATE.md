@@ -68,3 +68,7 @@ The verified one-file [Git-backed PowerShell launcher](../tests/bundle1_probe/St
 ## Owner-observed real LAB PowerShell deployment cycle (2026-11-07)
 
 Owner-provided terminal transcript at source commit `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4` showed **Plan, CheckLab, Install and Cleanup successful** on the exact allowed LAB-copy path and selected world `ThomasServer`. Installer claims restored registry/removed only temporary test BP. This is **actual Windows LAB updater smoke-test success**, beyond synthetic CI; **not** evidence of any BDS run. The probe was cleaned up, so it must be reinstalled before PG-03–PG-05. Confirm disposable LAB world and rig anchor first. [Detailed transcript interpretation](BUNDLE1_PREPARATION_RESULTS.md#2026-11-07--owner-observed-actual-windows-lab-updater-cycle).
+
+## Clarification — known LAB world provenance, no duplicate owner question
+
+The owner reconfirmed that \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\` is **the previously established clone of their past production world**. This was documented in the earlier server-boundary design and should not have been asked again. It is the intended LAB test copy, not a fresh empty disposable world. The PG-03–PG-05 rig should occupy a safely empty isolated location in this existing clone, with no world reset/deletion as standard cleanup. Only the exact anchor/clearance remains to be selected/validated. BDS PG-03–PG-05 remain NOT RUN.

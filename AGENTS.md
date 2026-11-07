@@ -62,3 +62,7 @@ The previously missing [disposable PG03-05 PowerShell updater](tests/bundle1_pro
 ## PG-03–PG-05 launcher lifecycle
 
 A [standalone operator PowerShell launcher](tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1) now retrieves the test source via authorized Git and invokes the guarded LAB-only source installer. It is tracked under `TEMP_TEST:PG03-05-LAUNCH` in the blueprint and **must be removed with the probe** immediately after the specific testing task ends; do not retain as general production deployment software. It cannot enable cheats/experiments or target production. CI verified Windows PowerShell 5.1/7 synthetic update/cleanup and launcher refusal without `-Apply`; **no BDS runtime pass**.
+
+## LAB clone fact — do not re-ask (2026-11-07)
+
+Owner explicitly established: LAB \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\` is a **clone of their previous production world**, not an initially empty disposable world. This fact was already known before the owner re-confirmed it. For PG-03–PG-05, **do not ask again** whether LAB is cloned/disposable or instruct creating/deleting/resetting this world. Test only in a validated isolated area, clean up test-owned blocks after verifying inventories, then unregister the probe. LAB rebuild from a newer production-derived copy is possible **only when separately chosen/authorized**, not a test default.

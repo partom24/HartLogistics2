@@ -31,13 +31,13 @@ Run it in PowerShell from the directory where you saved it:
 
 First command clones/updates **local Git files only** and prints the plan; it **does not read or modify Minecraft server files**. Second command reads only the exact LAB world/settings/pack registry to check feasibility. **Do not change cheats or experiments.**
 
-When the disposable LAB world has been verified, stop its BDS cleanly and run:
+The LAB world is already known to be **a clone of the owner's previous production world** at \`worlds\ThomasServer\`. Do not create a fresh world or reset this clone by default. After confirming a safe isolated area for the test and stopping LAB BDS cleanly, run:
 
 ```powershell
 .\Start-HartLogistics-Bundle1Lab.ps1 -Mode Install -Apply
 ```
 
-After the test, preserve/discard the disposable test inventories as intended, stop LAB BDS and remove the temporary probe:
+After the test, **verify both probe inventories and both test chests are safely empty, remove only the four temporary blocks from the isolated rig, and preserve the existing LAB world**. Stop LAB BDS and remove only the temporary probe pack/registration:
 
 ```powershell
 .\Start-HartLogistics-Bundle1Lab.ps1 -Mode Cleanup -Apply -ConfirmProbeCleared
@@ -78,7 +78,7 @@ Sync fast-forwards the authorized Git branch only; it **does not install anythin
 
 ## Install source into LAB
 
-First confirm the selected LAB world is disposable, keep a copy/backup if you want to retain that LAB world, and **stop the LAB BDS cleanly**. The production server does not need to be stopped as long as its process path is distinguishable. Then:
+The selected LAB world \`ThomasServer\` is **already established as a previous-production-world clone**. Preserve it as a valuable copied-world test baseline; make a backup before any in-world test with material persistence risk. Do not reset or overwrite it as routine test setup. **Stop the LAB BDS cleanly** before installing test source. The production server does not need to be stopped as long as its process path is distinguishable. Then:
 
 ```powershell
 $sha = (git rev-parse HEAD).Trim()
@@ -95,7 +95,7 @@ See the [PG-03–PG-05 rig design](../tests/bundle1_probe/README.md). The script
 
 ## Cleanup immediately after the test
 
-After collecting results, confirm there is no valuable MR item still held by test blocks (or the entire **disposable LAB test world** will be discarded). Stop **LAB BDS**, then use the **same Git checkout**:
+After collecting results, first ensure that MR data is safely accounted for and **both test probes and two chests are empty, then remove only those four temporary blocks**. Do not reset, discard or replace the production-derived LAB world as a default cleanup. If the custom inventories cannot be verified empty, **do not mine those blocks or unregister the behavior pack**; preserve the state for investigation. Stop **LAB BDS**, then use the **same Git checkout**:
 
 ```powershell
 $sha = (git rev-parse HEAD).Trim()
@@ -115,3 +115,7 @@ GitHub Windows synthetic CI does not verify Microsoft Bedrock custom inventory a
 ## Owner-observed LAB Install/Cleanup smoke test — 2026-11-07
 
 The owner executed the downloaded one-file launcher in PowerShell and reported **Plan PASS, read-only CheckLab PASS, Install -Apply PASS and Cleanup -Apply -ConfirmProbeCleared PASS** against `C:\Servers\Thomas_MCBedrock - Copy (2)` (selected LAB world `worlds\ThomasServer`). Pinned source commit: `cc7ffed1621c927ac52cd5de1bc28f88298ebcc4`. This confirms a normal LAB install/cleanup path from operator output, **not** BDS runtime compatibility. **Probe is no longer installed** after Cleanup. To run PG-03–PG-05, reconfirm the LAB world is disposable and prepare a READY anchor/rig card, then reinstall with `-Mode Install -Apply` while LAB BDS is stopped. Do not enable experiments/cheats or use production. See [evidence](BUNDLE1_PREPARATION_RESULTS.md#2026-11-07--owner-observed-actual-windows-lab-updater-cycle).
+
+## Clarification: LAB is an existing clone, not a disposable empty world
+
+Owner already established that \`C:\Servers\Thomas_MCBedrock - Copy (2)\worlds\ThomasServer\` is a **clone of their previous production world**. Earlier instructions that suggested making a fresh disposable LAB world or discarding/resetting \`ThomasServer\` for PG-03–PG-05 were unnecessarily disruptive and are superseded. **Keep the clone**, use an empty/isolated location for the four-block probe, back up when needed, and clean up only owned temporary blocks and pack registration. The owner's ability to refresh the LAB from a production-derived ZIP **does not authorize a refresh for this test**. Remaining rig details: exact XYZ/clearance still need inspection in the cloned world, **not** a new world creation request.

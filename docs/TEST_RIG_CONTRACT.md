@@ -100,3 +100,7 @@ Cleanup completed (or remaining dependent test and due trigger):
 ```
 
 **No current test rig is declared READY.** Readiness is test-specific, and any required distance or component count must be determined before the first setup request.
+
+## Known world provenance — owner-confirmed, not an open question
+
+The LAB path \`C:\Servers\Thomas_MCBedrock - Copy (2)\` contains \`worlds\ThomasServer\`, a **clone of the owner's prior production world**. It is not a fresh empty test world. A rig card must reuse this known fact and specify a safely isolated exact anchor, validate no interactions with preserved storage mechanisms, and plan **surgical test-block cleanup** rather than an automatic whole-world reset. Do not ask the owner to reconfirm this provenance. World replacement/rebuild requires separate owner intent.
