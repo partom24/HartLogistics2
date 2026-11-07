@@ -40,3 +40,7 @@ Added `tests/test_transport_authority_model.py` (**13 offline unit scenarios; no
 
 **Next design choice, still open:** deterministic durable election/ownership across unloaded chunks, route/lease epochs, safe cross-controller coordination, and capacity reservations must be specified and approved before an ordinary-item LAB Transporter prototype. Maintain existing 1.4.1 Hopper and native MR fallback unchanged, and do not initiate another owner manual test while offline modeling is sufficient.
 
+## PG-13 no-item shadow state BDS gate prepared (2026-11-07)
+
+Official Bedrock stable scripting API exposes persistent `World` dynamic properties and a custom command registry with `cheatsRequired:false`. Built a derived 1.5.2 PG-13 **shadow-only** LAB candidate to test clean-restart visibility of two tiny separate properties and fail-closed ambiguous-intent reporting. This proves none of: atomic multi-key persistence, sudden crash durability, inventory custody, native MR slots or a playable Bulk/Transporter. The [operator card](../candidates/pg13/TEST_SESSION.md) requires no blocks/items; the Windows launcher strictly accepts exact PG-08 1.5.1 source hashes and preserves unrelated packs. No LAB changes occur until user chooses to run the guarded command. The next safe stage after a real PASS is physical-custody proof, not automatic item routing.
+
