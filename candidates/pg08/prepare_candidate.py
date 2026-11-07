@@ -109,6 +109,11 @@ def prepare(target: Path) -> None:
 
 
 if __name__ == "__main__":
+    # Never follow a redirected build/ folder into a server or unrelated path.
+    if (ROOT / "build").is_symlink():
+        raise ValueError("PG08 REFUSED linked build directory")
+    if OUT.resolve(strict=False) != (ROOT / "build/pg08-lab").absolute():
+        raise ValueError("PG08 REFUSED redirected candidate output")
     prepare(OUT)
     print("PG08 OFFLINE BUILD PREPARED:", OUT)
     print("No LAB, PROD or world files accessed.")
