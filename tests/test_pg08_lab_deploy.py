@@ -154,6 +154,39 @@ class SyntheticPG08Lab(unittest.TestCase):
                 lab.apply_plan(self.root, plan)
         self.preserved()
 
+    def test_roundtrip_install_and_rollback_restores_old_hart_packs_only(self):
+        # This is a synthetic fixture, never an actual BDS environment.
+        plan = pg.create_plan(self.root, self.generated)
+        install_backup = lab.apply_plan(self.root, plan)
+        rollback = pg.create_rollback_plan(self.root, self.generated, install_backup.name)
+        self.assertEqual(len(rollback), 2)
+        rollback_backup = lab.apply_plan(self.root, rollback)
+        self.assertTrue(rollback_backup.is_dir())
+        self.preserved()
+
+    def test_rollback_does_not_overwrite_unrelated_registration_changes(self):
+        plan = pg.create_plan(self.root, self.generated)
+        backup = lab.apply_plan(self.root, plan)
+        registry = self.root / "worlds/ThomasServer/world_behavior_packs.json"
+        current = registry.read_text()
+        registry.write_text(current.replace("[1,7,3]", "[1,7,4]"))
+        rollback = pg.create_rollback_plan(self.root, self.generated, backup.name)
+        self.assertIn('"version":[1,7,4]', rollback[0]["new_registry"])
+        self.assertIn("// owner comment", rollback[0]["new_registry"])
+        self.assertEqual(json.loads(lab.remove_jsonc(rollback[0]["new_registry"]))[1]["version"],
+                         [1,5,0])
+
+    def test_rollback_refuses_unknown_tag_and_changed_installed_pack(self):
+        plan = pg.create_plan(self.root, self.generated)
+        backup = lab.apply_plan(self.root, plan)
+        for bad in ("../other", "lab-zzzzzzzzzzzz", "lab-123", backup.name + "0"):
+            with self.subTest(tag=bad), self.assertRaises(lab.UnsafeLab):
+                pg.create_rollback_plan(self.root, self.generated, bad)
+        changed = plan[0]["target"] / "scripts/main.js"
+        changed.write_text(changed.read_text() + "\n// changed after install\n")
+        with self.assertRaises(lab.UnsafeLab):
+            pg.create_rollback_plan(self.root, self.generated, backup.name)
+
     def test_source_stays_at_exact_original_141_hashes(self):
         self.assertEqual(pg.candidate.check_baseline(), 72)
         hashes = pg.check_candidate(self.generated)
