@@ -1,0 +1,799 @@
+{
+  "format_version": "1.26.30",
+  "minecraft:block": {
+    "description": {
+      "identifier": "hartsorter:sorter",
+      "menu_category": {
+        "category": "items"
+      },
+      "traits": {
+        "minecraft:placement_direction": {
+          "enabled_states": [
+            "minecraft:cardinal_direction"
+          ]
+        }
+      },
+      "states": {
+        "hartlogistics:mode": [
+          "wildcard",
+          "filter",
+          "auto",
+          "bypass"
+        ]
+      }
+    },
+    "components": {
+      "minecraft:display_name": "tile.hartsorter:sorter.name",
+      "minecraft:geometry": "geometry.hartlogistics.sorter_mask_north",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "hartsorter_side",
+          "render_method": "opaque"
+        },
+        "up": {
+          "texture": "hartsorter_top_north",
+          "render_method": "opaque"
+        },
+        "down": {
+          "texture": "hartsorter_bottom",
+          "render_method": "opaque"
+        },
+        "north": {
+          "texture": "hartsorter_output",
+          "render_method": "opaque"
+        },
+        "south": {
+          "texture": "hartsorter_filter_mode_wildcard",
+          "render_method": "opaque"
+        },
+        "mount_face": {
+          "texture": "hartsorter_mount_mode_wildcard",
+          "render_method": "opaque",
+          "face_dimming": false
+        },
+        "mount_edge": {
+          "texture": "hartsorter_mount_chassis",
+          "render_method": "opaque",
+          "face_dimming": false
+        },
+        "mount_led": {
+          "texture": "hartsorter_mount_chassis",
+          "render_method": "opaque",
+          "face_dimming": false
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 1.5
+      },
+      "minecraft:map_color": "#56616B",
+      "minecraft:loot": "loot_tables/blocks/sorter.json",
+      "minecraft:movable": {
+        "movement_type": "immovable",
+        "sticky": "none"
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 6.0
+      },
+      "minecraft:item_visual": {
+        "geometry": "minecraft:geometry.full_block",
+        "material_instances": {
+          "*": {
+            "texture": "hartsorter_side",
+            "render_method": "opaque"
+          },
+          "north": {
+            "texture": "hartsorter_output",
+            "render_method": "opaque"
+          },
+          "south": {
+            "texture": "hartsorter_filter_mode_wildcard",
+            "render_method": "opaque"
+          },
+          "up": {
+            "texture": "hartsorter_top_north",
+            "render_method": "opaque"
+          },
+          "down": {
+            "texture": "hartsorter_bottom",
+            "render_method": "opaque"
+          }
+        }
+      },
+      "minecraft:redstone_consumer": {
+        "min_power": 0,
+        "propagates_power": false
+      },
+      "hartlogistics:redstone_input": {}
+    },
+    "permutations": [
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'north' && query.block_state('hartlogistics:mode') == 'wildcard'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_north",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_filter_mode_wildcard",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_wildcard",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_north"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'north' && query.block_state('hartlogistics:mode') == 'filter'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_north",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_filter_mode_filter",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_filter",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_north"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'north' && query.block_state('hartlogistics:mode') == 'auto'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_north",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_filter_mode_auto",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_auto",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_north"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'north' && query.block_state('hartlogistics:mode') == 'bypass'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_north",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_filter_mode_bypass",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_bypass",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_north"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'south' && query.block_state('hartlogistics:mode') == 'wildcard'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_south",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_filter_mode_wildcard",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_wildcard",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_south"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'south' && query.block_state('hartlogistics:mode') == 'filter'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_south",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_filter_mode_filter",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_filter",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_south"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'south' && query.block_state('hartlogistics:mode') == 'auto'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_south",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_filter_mode_auto",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_auto",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_south"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'south' && query.block_state('hartlogistics:mode') == 'bypass'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_south",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "south": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "north": {
+              "texture": "hartsorter_filter_mode_bypass",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_bypass",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_south"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'east' && query.block_state('hartlogistics:mode') == 'wildcard'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_east",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_filter_mode_wildcard",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_wildcard",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_east"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'east' && query.block_state('hartlogistics:mode') == 'filter'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_east",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_filter_mode_filter",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_filter",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_east"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'east' && query.block_state('hartlogistics:mode') == 'auto'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_east",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_filter_mode_auto",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_auto",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_east"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'east' && query.block_state('hartlogistics:mode') == 'bypass'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_east",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_filter_mode_bypass",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_bypass",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_east"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'west' && query.block_state('hartlogistics:mode') == 'wildcard'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_west",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_filter_mode_wildcard",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_wildcard",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_west"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'west' && query.block_state('hartlogistics:mode') == 'filter'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_west",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_filter_mode_filter",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_filter",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_west"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'west' && query.block_state('hartlogistics:mode') == 'auto'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_west",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_filter_mode_auto",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_auto",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_west"
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'west' && query.block_state('hartlogistics:mode') == 'bypass'",
+        "components": {
+          "minecraft:material_instances": {
+            "*": {
+              "texture": "hartsorter_side",
+              "render_method": "opaque"
+            },
+            "up": {
+              "texture": "hartsorter_top_west",
+              "render_method": "opaque"
+            },
+            "down": {
+              "texture": "hartsorter_bottom",
+              "render_method": "opaque"
+            },
+            "west": {
+              "texture": "hartsorter_output",
+              "render_method": "opaque"
+            },
+            "east": {
+              "texture": "hartsorter_filter_mode_bypass",
+              "render_method": "opaque"
+            },
+            "mount_face": {
+              "texture": "hartsorter_mount_mode_bypass",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_edge": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            },
+            "mount_led": {
+              "texture": "hartsorter_mount_chassis",
+              "render_method": "opaque",
+              "face_dimming": false
+            }
+          },
+          "minecraft:geometry": "geometry.hartlogistics.sorter_mask_west"
+        }
+      }
+    ]
+  }
+}

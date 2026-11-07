@@ -1,0 +1,27 @@
+{
+  "format_version": "1.26.50",
+  "minecraft:block": {
+    "description": {
+      "identifier": "hlprobe:mr_container",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": "TEMP Hart MR Container Probe",
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "stone",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:map_color": "#7650AB",
+      "minecraft:block_entity": {
+        "container": {
+          "slot_count": 9
+        }
+      }
+    }
+  }
+}

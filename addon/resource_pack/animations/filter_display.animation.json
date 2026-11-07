@@ -1,0 +1,27 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.hartsorter.filter_display.pose": {
+      "loop": true,
+      "bones": {
+        "rightItem": {
+          "scale": [
+            0.48,
+            0.48,
+            0.48
+          ],
+          "rotation": [
+            -90.0,
+            0.0,
+            0.0
+          ],
+          "position": [
+            0.0,
+            -3.0,
+            0.0
+          ]
+        }
+      }
+    }
+  }
+}

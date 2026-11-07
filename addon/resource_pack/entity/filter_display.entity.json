@@ -1,0 +1,31 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "hartsorter:filter_display",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/hartsorter_filter_display"
+      },
+      "geometry": {
+        "default": "geometry.hartsorter.filter_display"
+      },
+      "animations": {
+        "pose": "animation.hartsorter.filter_display.pose"
+      },
+      "scripts": {
+        "animate": [
+          "pose"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.hartsorter.filter_display"
+      ],
+      "enable_attachables": true,
+      "held_item_ignores_lighting": false,
+      "hide_armor": true
+    }
+  }
+}

@@ -2,20 +2,22 @@
   "schema_version": 1,
   "standard_version": "1.3.1",
   "project": {
-    "name": "Project-Engineering-Blueprint",
-    "kind": "blueprint",
+    "name": "HartLogistics2",
+    "kind": "minecraft-bedrock-addon",
     "platform_profiles": [
-      "generic"
+      "minecraft-bedrock"
     ]
   },
   "source": {
-    "active": "scripts",
-    "test_roots": ["tests"],
+    "active": "addon",
+    "test_roots": [
+      "tests"
+    ],
     "frozen_references": [],
     "archives": []
   },
   "state": {
-    "lifecycle": "active-development",
+    "lifecycle": "planning",
     "current_state": "docs/CURRENT_DEVELOPMENT_STATE.md",
     "evidence": "docs/ENGINEERING_EVIDENCE_REGISTER.md"
   },
@@ -26,10 +28,18 @@
     "approval_reference": null,
     "evidence_reference": null
   },
-  "temporary_instrumentation": [],
+  "temporary_instrumentation": [
+    {
+      "id": "PG03-05",
+      "kind": "test",
+      "task": "Temporary standalone BDS native custom-container feasibility probe; remove on PG03-05 closure",
+      "path": "tests/bundle1_probe/behavior_pack/scripts/main.js",
+      "status": "active"
+    }
+  ],
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",
-    "current_milestone": "BP-007"
+    "current_milestone": "HL-PLAN-001"
   }
 }
