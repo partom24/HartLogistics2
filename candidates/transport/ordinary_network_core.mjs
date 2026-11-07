@@ -19,6 +19,8 @@ const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const positiveInt = (n) => Number.isSafeInteger(n) && n > 0;
 const nonnegativeInt = (n) => Number.isSafeInteger(n) && n >= 0;
 const nonempty = (s) => typeof s === "string" && s.length > 0;
+const itemTypeId = (s) => typeof s === "string" &&
+  /^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(s);
 
 export function pointKey(x, y, z) {
   if (![x, y, z].every(Number.isSafeInteger)) return null;
@@ -160,7 +162,7 @@ export function freshLedger(networkId, epoch, bankIds) {
     });
   }
   return { networkId, epoch, revision: 0,
-           expectedBankIds: [...bankIds], banks, transactions: {} };
+           expectedBankIds: [...bankIds], banks, transactions: Object.create(null) };
 }
 
 function inspectLedger(ledger) {
@@ -181,7 +183,7 @@ function inspectLedger(ledger) {
   for (const id of ids) reserved[id] = 0;
   for (const [txId, tx] of Object.entries(ledger.transactions)) {
     if (!nonempty(txId) || !tx || tx.networkId !== ledger.networkId ||
-        !positiveInt(tx.epoch) || !nonempty(tx.itemId) ||
+        !positiveInt(tx.epoch) || !itemTypeId(tx.itemId) ||
         !positiveInt(tx.count) ||
         !["reserved", "committed", "canceled"].includes(tx.status) ||
         !Array.isArray(tx.allocations) || !tx.allocations.length) {
@@ -214,7 +216,7 @@ function inspectLedger(ledger) {
     }
     let occupied = 0;
     for (const [itemId, n] of Object.entries(bank.counts)) {
-      if (!nonempty(itemId) || !nonnegativeInt(n)) {
+      if (!itemTypeId(itemId) || !nonnegativeInt(n)) {
         return fail("invalid_bulk_count");
       }
       occupied += n;
@@ -257,7 +259,7 @@ export function chooseOrdinaryDestination(
 }
 
 function ordinaryItemVerified(item) {
-  return item && nonempty(item.id) &&
+  return item && itemTypeId(item.id) &&
     item.classification === "ordinary" && item.losslessIdentity === true &&
     item.metadataFree === true;
 }
@@ -267,10 +269,11 @@ function copyState(ledger) {
   for (const [id, bank] of Object.entries(ledger.banks)) {
     Object.defineProperty(banks, id, {
       configurable: true, enumerable: true, writable: true,
-      value: { ...bank, counts: { ...bank.counts } }
+      value: { ...bank, counts: Object.assign(Object.create(null), bank.counts) }
     });
   }
-  return { ...ledger, banks, transactions: { ...ledger.transactions } };
+  return { ...ledger, banks,
+           transactions: Object.assign(Object.create(null), ledger.transactions) };
 }
 
 /**
@@ -286,7 +289,7 @@ export function reserveOrdinary(ledger, { txId, item, count,
   const report = inspectLedger(ledger);
   if (!report.ok) return report;
   if (expectedEpoch !== ledger.epoch) return fail("stale_epoch");
-  const previous = ledger.transactions[txId];
+  const previous = own(ledger.transactions, txId) ? ledger.transactions[txId] : null;
   if (previous) {
     if (previous.itemId !== item.id || previous.count !== count ||
         previous.epoch !== ledger.epoch) {
@@ -328,7 +331,7 @@ export function reserveOrdinary(ledger, { txId, item, count,
 export function commitVerifiedReceipt(ledger, txId, receipt, expectedRevision) {
   const report = inspectLedger(ledger);
   if (!report.ok) return report;
-  const tx = ledger.transactions[txId];
+  const tx = own(ledger.transactions, txId) ? ledger.transactions[txId] : null;
   if (!tx) return fail("unknown_transaction");
   if (!receipt || receipt.txId !== txId ||
       receipt.networkId !== ledger.networkId || receipt.epoch !== ledger.epoch ||
@@ -353,7 +356,7 @@ export function commitVerifiedReceipt(ledger, txId, receipt, expectedRevision) {
 export function cancelStillAtSource(ledger, txId, proof, expectedRevision) {
   const report = inspectLedger(ledger);
   if (!report.ok) return report;
-  const tx = ledger.transactions[txId];
+  const tx = own(ledger.transactions, txId) ? ledger.transactions[txId] : null;
   if (!tx) return fail("unknown_transaction");
   if (tx.status === "canceled") {
     return { ok: true, duplicate: true, changed: false, state: ledger };
