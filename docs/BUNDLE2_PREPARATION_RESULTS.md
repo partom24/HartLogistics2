@@ -41,3 +41,7 @@
 **Keep PG-06/07 held** for native MR storage and Hopper ownership, rather than weakening requirements to force Bundle 2 GO. The optional pack-scoped ticking-area accelerator is only relevant when a safe migration engine exists; do not call or test it as a way around native-slot capacity.
 
 **Current decision:** Bundle 2's **offline preparation is complete; real gates remain NOT RUN / dependencies BLOCKED**. Advancement to menu gameplay code and LAB execution is not implied by this report alone. Do not merge, release, update experiments or modify production.
+
+## Subsequent owner LAB preflight: deployment baseline mismatch
+
+The owner ran the read-only pack diagnostic and found original-Hart-UUID top-level BP/RP folders **version 1.5.0** but no original-Hart-UUID entries in `ThomasServer`'s two pack-registration arrays. The retired Bundle 1 test pack/lease was absent. The 1.5.0 source is not in the authorized 1.4.1 import and must be preserved and reconciled before any updater apply or BDS menu test. This does **not** advance PG-06/07/08 runtime results; see [preflight report](BUNDLE2_LAB_PREFLIGHT_RESULTS.md).

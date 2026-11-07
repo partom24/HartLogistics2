@@ -108,3 +108,7 @@ Owner successfully unregistered the temporary probe in LAB with original registr
 ## Bundle 2 offline model progress — 2026-11-07
 
 [Bundle 2 preparation evidence](BUNDLE2_PREPARATION_RESULTS.md) records 25/25 new pure-Python source, Q4→shadow-Q5 recovery and menu-policy checks PASS. This is independent offline preparation, **not** PG-06/PG-07/PG-08 BDS acceptance. PG-03 native MR inventory remains NO-GO on the required no-experiment 1.26.63.1 target. No menu, Q5 storage or legacy placed-block upgrade has been installed into the owner's cloned LAB world. Optional pack-scoped ticking-area migration accelerator remains untested pending a proven safe cutover path.
+
+## Unexpected installed LAB version vs world registrations — 2026-11-07
+
+Owner's read-only preflight observed LAB shared folders with Hart BP/RP pack manifests **1.5.0** (original Hart UUIDs), while the `ThomasServer` registry arrays showed **no** matching entries for either Hart UUID. Production and in-world data were not inspected; current script **does not** establish running pack versions or saved q4 custody. **Stop deployment/migration attempts** until active pack registration, world-local folders and 1.5.0 provenance are established without writes. Do not replace installed 1.5.0 with Git-imported 1.4.1. Evidence: [LAB preflight](BUNDLE2_LAB_PREFLIGHT_RESULTS.md).
