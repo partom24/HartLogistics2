@@ -23,6 +23,6 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 ## 2026-11-06 — Updater boundaries and import permission
 
 - Reviewed uploaded HartBots `scripts.zip` **statically only**. Reusable patterns include manual lab `-Apply`, pinned Git source, registration preservation, backup/staging, hash verification and rollback; original scripts are hardcoded to HartBots.
-- Owner states sole server release-testing target is disposable lab `C:\\Servers\\Thomas_MCBedrock - Copy (2)`, which may be reset from latest production-derived ZIP; production `C:\\Servers\\Thomas_MCBedrock` is off-limits before release candidate nomination.
+- Owner states sole server release-testing target is disposable lab `C:\Servers\Thomas_MCBedrock - Copy (2)`, which may be reset from latest production-derived ZIP; production `C:\Servers\Thomas_MCBedrock` is off-limits before release candidate nomination.
 - Owner **explicitly permits importing the production updater script into HartLogistics2** but **forbids its execution until a candidate is nominated**. Nomination is not an automatic deployment approval. No script was run, and no server was modified.
 - Added [deployment design](UPDATER_DEPLOYMENT_DESIGN.md). Further source import and updater implementation are not authorized by this planning record alone.

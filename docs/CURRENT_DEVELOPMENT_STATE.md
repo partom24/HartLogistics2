@@ -6,7 +6,7 @@
 ## Active source and project reality
 
 - Repository: **partom24/HartLogistics2** only.
-- **Only authorized server testing target:** disposable lab `C:\\Servers\\Thomas_MCBedrock - Copy (2)`. **Protected production:** `C:\\Servers\\Thomas_MCBedrock` — no edits until a release candidate is nominated; no execution of production updater before nomination; further owner approval required before production apply. [Deployment design](UPDATER_DEPLOYMENT_DESIGN.md).
+- **Only authorized server testing target:** disposable lab `C:\Servers\Thomas_MCBedrock - Copy (2)`. **Protected production:** `C:\Servers\Thomas_MCBedrock` — no edits until a release candidate is nominated; no execution of production updater before nomination; further owner approval required before production apply. [Deployment design](UPDATER_DEPLOYMENT_DESIGN.md).
 - Declared intended implementation root: **addon/**, currently a README placeholder. **The real 1.4.1 behavior/resource source is not yet committed.**
 - Supplied reference: owner-uploaded Hart Logistics 1.4.1 mcaddon (see [baseline registry](BASELINE_REGISTRY.md)). HartBots 1.8.2 mcaddon was supplied for Depot comparison only; no HartBots repository access.
 - The repo retains template engineering policies, structural validator in scripts/ and its tests in tests/. Template example achievements have been replaced in the project-specific handoff, roadmap, evidence and decision documents.

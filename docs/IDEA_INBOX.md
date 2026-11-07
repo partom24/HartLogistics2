@@ -36,6 +36,6 @@
 - **D-007 (owner choice, 2026-11-06):** The restricted Q4 direct-only MR Hopper fallback is **to be migrated/replaced by native custom-container MR custody** in Collectors and Receivers. Preserve its successful transport behavior throughout the transition, **not** its algorithm forever. Native inventory stability, placement upgrades, capacity and crash safety remain gated; see [Q5 design](Q5_MIGRATION_DESIGN.md).
 - **D-005:** HartBots Depot is a reference; future native integration is deferred. No HartBots repo access.
 - **D-006:** Current phase is **documentation/planning only**, no gameplay implementation.
-- **D-008:** LAB `C:\\Servers\\Thomas_MCBedrock - Copy (2)` is the only server release-testing location and is disposable. PRODUCTION `C:\\Servers\\Thomas_MCBedrock` is protected until release candidate nomination.
+- **D-008:** LAB `C:\Servers\Thomas_MCBedrock - Copy (2)` is the only server release-testing location and is disposable. PRODUCTION `C:\Servers\Thomas_MCBedrock` is protected until release candidate nomination.
 - **D-009:** HartBots production updater script is **approved for import into HartLogistics2** but **may not be executed before a nominated release candidate**. Separate explicit production authorization still required for any production modification.
 
