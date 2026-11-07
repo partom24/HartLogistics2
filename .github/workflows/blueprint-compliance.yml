@@ -32,3 +32,14 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_bundle1_probe.py' -v
       - name: Bundle 1 temporary JavaScript syntax
         run: node --check tests/bundle1_probe/behavior_pack/scripts/main.js
+
+      - name: Bundle 1 native-transfer mock simulations (offline only)
+        run: node tests/bundle1_probe/offline_sim.cjs
+      - name: Package disposable LAB probe (not a release)
+        run: python tests/bundle1_probe/build_probe.py
+      - name: Attach disposable LAB probe to CI run
+        uses: actions/upload-artifact@v4
+        with:
+          name: TEMP-HartLogistics-PG03-05-LAB-ONLY
+          path: artifacts/HartLogistics_PG03-05_DISPOSABLE_LAB_ONLY.mcpack
+          retention-days: 7

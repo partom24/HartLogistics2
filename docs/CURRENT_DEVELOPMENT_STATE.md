@@ -47,3 +47,5 @@ Bundle 0 is complete at the scoped offline level. Owner decision is required bef
 ## Bundle 1 disposable probe preparation (2026-11-07)
 
 Prepared a **test-only** `tests/bundle1_probe/behavior_pack` for PG-03–PG-05; it cannot run unless explicitly installed in a fresh disposable LAB world. The native slot check, move/restart test menu and static guard tests do **not** alter the actual `addon/` baseline. The temporary script is tagged/registered and must be removed with the entire probe pack and its registry entry promptly upon completion. **PG-03–PG-05 BDS results: NOT RUN.**
+
+- Bundle 1 temporary probe additionally has mock-only offline Node simulations and a deterministic test-only packager. The generated `.mcpack` is **not a Hart Logistics release**. GitHub Actions artifact is temporary. All PG-03–PG-05 runtime gates remain NOT RUN until evidence from BDS.

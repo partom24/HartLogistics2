@@ -1,4 +1,5 @@
-"""Permanent offline checks for the temporary PG-03..PG-05 pack.
+# TEMP_TEST:PG03-05
+"""Temporary offline checks for the temporary PG-03..PG-05 pack.
 This cannot prove actual BDS availability, persistence, or native ItemStack behavior.
 """
 import json

@@ -105,3 +105,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - After owner instruction to continue, prepared an isolated temporary custom-container BDS test BP and offline contract tests under `tests/` without changing any original 1.4.1 addon file.
 - Probe checks native 9-slot custom-block inventory, `Container.moveItem`/`transferItem` and exact one-class MR name+lore metadata, full destination backpressure, restart persistence and script menu coexistence.
 - `TEMP_TEST:PG03-05` registered as active in project blueprint; must delete temporary probe/wiring/registry after task. Actual BDS test not run, no server accessed or settings changed.
+
+## 2026-11-07 — Bundle 1 supplemental offline simulations and disposable pack artifact
+
+- Added a test-only Node VM simulation for native Container handoffs, blocked-target return/throw variants, exact metadata checks, menu callback and restart marker behavior; these are **mock-only**, NOT BDS acceptance.
+- Added deterministic temporary `.mcpack` packager and CI artifact (7-day expiry) so the single test BP can be installed in a future authorized disposable LAB world without changing `addon/`.
+- Important hygiene: the static Python probe checks, Node simulator, packager, CI steps and disposable test pack are **all temporary** and must be deleted with the `temporary_instrumentation` entry on task closure; retaining CI tests that depend on deleted probe assets would be a test-spec defect.
