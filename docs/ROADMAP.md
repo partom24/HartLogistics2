@@ -105,3 +105,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - Still cannot establish unique identity of an ordinary cobble, exclusive controller lock, snapshot atomicity or world-save crash atomicity. The LAB remains at owner-tested 1.5.3; no new install, chest or further physical move is authorized by this code.
 - **Next:** fail-closed manual reconciliation/isolated failure-injection design for one disposable test item, including proof that no recovery path moves an item a second time; do not integrate Bulk/Transporter virtual storage or PG-06/07 Q5 until explicit custody safety is established.
 
+## PG-15 deterministic interrupted handoff LAB gate prepared (2026-11-07)
+
+- In source only, derived [1.5.4-LAB-PG15](../candidates/pg15/TEST_SESSION.md) from hash-gated 1.5.3-LAB-PG14. No new blocks, experiments, automatic game/item operations or changes to `addon/`. Owner test only after stopped-LAB guarded install. Two controlled CUT commands isolate an intent written **before** a deliberately skipped physical move and an intent written **before** one physical move but with settlement deliberately skipped. Both must be read after normal BDS restarts and must stay **HOLD/no replay**.
+- Offline gate: **27 JavaScript VM fault and restart scenarios**, 6 candidate identity tests, 13 synthetic upgrade/rollback checks and cross-platform CI. Manual read-only audit + owner-empty chests required for scoped test-marker cleanup. PG14 physical clean restart and marker cleanup were already accepted and do not need rerun.
+- **Still blocked:** sudden BDS termination / power-loss guarantee, native inventory+world dynamic-property atomicity, exclusive controller authority under concurrent players/automation, unique provenance of ordinary item counts, metadata-rich Q5 and Bulk Storage. Deliberate clean-restart cutpoint PASS is useful application fail-closed evidence, not a release gate.
+
