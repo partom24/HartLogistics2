@@ -63,6 +63,18 @@ jobs:
         run: |
           python candidates/pg13/prepare_candidate.py
           node --check --input-type=module < build/pg13-lab/behavior_pack/scripts/main.js
+      - name: Verify PG14 exact source and 1.5.3 derived build
+        run: python -m unittest discover -s tests -p 'test_pg14_candidate_build.py' -v
+      - name: Verify PG14 guarded LAB 1.5.2 -> 1.5.3 synthetic rollback
+        run: python -m unittest discover -s tests -p 'test_pg14_lab_deploy.py' -v
+      - name: Fault-inject actual PG14 single-cobble custody JavaScript
+        run: |
+          node --check candidates/pg14/custody_overlay.js
+          node --test tests/test_pg14_custody_mock.cjs
+      - name: Compile isolated PG14 full derived JavaScript
+        run: |
+          python candidates/pg14/prepare_candidate.py
+          node --check --input-type=module < build/pg14-lab/behavior_pack/scripts/main.js
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
@@ -132,6 +144,36 @@ jobs:
           if ($output -notmatch 'No LAB/PROD/world files accessed') { throw 'Server access safety evidence missing' }
           Write-Host 'PG13 real Windows launcher source-only Plan PASS'
 
+  pg14-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out complete source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify PG14 launcher source-only Plan on disposable Windows fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'pg14-launcher-fixture'
+          [void](New-Item -ItemType Directory -Path $env:LOCALAPPDATA -Force)
+          $workspace = Join-Path $env:LOCALAPPDATA 'HartLogistics2-PG14-LAB'
+          & git.exe clone --quiet . $workspace
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture clone failed' }
+          & git.exe -C $workspace checkout -B main
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture main branch failed' }
+          & git.exe -C $workspace remote set-url origin https://github.com/partom24/HartLogistics2.git
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture origin failed' }
+          $output = & '.\candidates\pg14\Start-HartLogistics-PG14Lab.ps1' -Mode Plan | Out-String
+          if (-not $output.Contains('Using Python 3.12')) { throw 'Wrong Python runtime chosen' }
+          if ($output -notmatch 'PG14 SOURCE PASS') { throw 'Source-only Plan failed' }
+          if ($output -notmatch 'No LAB/PROD/world files accessed') { throw 'Server access safety evidence missing' }
+          Write-Host 'PG14 real Windows launcher source-only Plan PASS'
+
   bundle2-readonly-preflight-windows:
     runs-on: windows-latest
     steps:
@@ -145,6 +187,27 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_pg08_lab_deploy.py' -v
       - name: Verify PG13 guarded replacement on Windows synthetic fixture
         run: python -m unittest discover -s tests -p 'test_pg13_lab_deploy.py' -v
+      - name: Verify PG14 guarded replacement on Windows synthetic fixture
+        run: python -m unittest discover -s tests -p 'test_pg14_lab_deploy.py' -v
+      - name: PG14 PowerShell launcher parses and refuses unsafe modes
+        shell: powershell
+        run: |
+          $launcher = '.\candidates\pg14\Start-HartLogistics-PG14Lab.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $launcher).Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw ('PG14 PowerShell syntax errors: ' + ($errors | Out-String)) }
+          foreach ($argsSet in @(
+            @('-Mode','Install'),
+            @('-Mode','Rollback','-Apply'),
+            @('-Mode','CheckLab','-Apply'),
+            @('-Mode','Plan','-Apply')
+          )) {
+            $rejected = $false
+            try { & $launcher @argsSet | Out-Null } catch { $rejected = $true }
+            if (-not $rejected) { throw ('PG14 did not refuse: ' + ($argsSet -join ' ')) }
+          }
+          Write-Host 'PG14 launcher syntax and fail-closed CLI PASS'
       - name: PG13 PowerShell launcher parses and refuses unsafe modes
         shell: powershell
         run: |

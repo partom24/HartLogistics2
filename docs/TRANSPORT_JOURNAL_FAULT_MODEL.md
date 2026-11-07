@@ -38,3 +38,8 @@ The Node modules `node:fs`/`node:crypto` **are not available in the Minecraft Sc
 5. Only then review original dedicated Transporter/Bulk block art and adapter design, run offline tests, and ask for separate **LAB-only** install authorization. The old Hopper, Sorter, Collector, Receiver and safe direct MR route must remain intact.
 
 **This milestone needs no new owner action, PG-08 rerun, additional server startup or experiment toggle.** The owner-confirmed PG-08 UI LAB GO and rollback `lab-5af88e18cff3` remain separate.
+
+## PG-14 next constrained physical custody probe (still no general commit safety)
+
+PG-13 owner BDS clean-restart evidence HL-E-035 proves only tiny shadow dynamic-property persistence across a normal shutdown. The next [PG-14 candidate](../candidates/pg14/TEST_SESSION.md) adds an **explicit single real ordinary cobblestone native Container.moveItem between two isolated owner-owned vanilla single chests**, after reservation/intent world-property readback and before matched full-slot physical receipt. **24 Node VM fault tests** show the actual candidate's control flow can HOLD post-intent exceptions, corrupt records, unexpected items and loading failures without a second move. **No actual PG-14 server installation or transfer has yet run.** These offline tests cannot prove atomic world saves, nor that the built-in vanilla move survives a hard crash without loss; an actual normal-restart result will only establish matching persisted chest contents and receipt.
+
