@@ -96,7 +96,7 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 ## PG-14 LAB physical one-item custody gate passed — still not crash atomic (2026-11-07)
 
 - **Owner-observed clean-restart PASS** for one test-owned plain cobblestone from isolated vanilla single chest A `(-955,69,-804)` to B `(-951,69,-804)`: exact precondition `INSPECT PASS`, one-shot native transfer `TRANSFER READBACK PASS` with journal `SETTLED`, then after normal LAB restart `RESTART CUSTODY READBACK PASS`, A empty, B exactly one cobblestone; B UI corroborated one cobble. Earlier Large Chest/54-slot refusal proves no transfer in unsafe geometry, not a transfer bug. See HL-E-037.
-- **Remaining:** PG14 test-only `custodyclear` not independently verified; no forced-crash or power-loss tests, no atomic journal+inventory commit guarantee, controller/region concurrency, unloaded chunks, metadata-rich items or scalable Bulk/Transporter gameplay.
+- **Cleanup: owner-observed PASS (HL-E-039).** Earlier screenshot shows `CLEAN PASS` for two PG14 test keys with both chests empty; later duplicate clear correctly refuses with `HOLD` because no SETTLED transaction remains. **Remaining:** no forced-crash or power-loss tests, no atomic journal+inventory commit guarantee, controller/region concurrency, unloaded chunks, metadata-rich items or scalable Bulk/Transporter gameplay.
 - **Next source work:** strengthen durable reconciliation of `RESERVED`, `INTENT` and `SETTLED` against actual physical inventories using fail-closed stale-state and provenance checks, with synthetic fault cases before requesting any next LAB test. Preserve 1.4.1 and production isolation.
 
 ## After PG-14: offline read-only physical/journal reconciliation model (2026-11-07)
