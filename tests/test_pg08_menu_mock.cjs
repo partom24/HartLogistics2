@@ -14,6 +14,7 @@ function fixture() {
     };
     let saved = JSON.stringify(state);
     let failedWrites = 0;
+    let onLeave;
     const logs = [];
     const block = (x) => ({dimension:{id:"d"},location:{x,y:2,z:3}});
     class Form {
@@ -26,7 +27,7 @@ function fixture() {
     }
     const sandbox = {
         ActionFormData: Form, MessageFormData: Form,
-        world:{getDynamicProperty:key => {
+        world:{afterEvents:{playerLeave:{subscribe:fn=>{onLeave=fn}}},getDynamicProperty:key => {
             assert.equal(key,"hartsorter:logistics_v2"); return saved;
         }},
         system:{currentTick:100},
@@ -59,7 +60,14 @@ function fixture() {
     };
     return {sandbox,state,collector:block(1),oldReceiver:block(9),newReceiver:block(8),
             player,flush,logs,get saved(){return JSON.parse(saved)},
-            fail(n=1){failedWrites=n}};
+            fail(n=1){failedWrites=n},
+            leave(id){assert.ok(onLeave);onLeave({playerId:id})}};
+}
+
+function deferred() {
+    let resolve;
+    const promise = new Promise(r => {resolve = r});
+    return {promise,resolve};
 }
 
 async function run() {
@@ -135,6 +143,39 @@ async function run() {
         f.sandbox.selectCollector(p,f.collector);await f.flush();
         f.state.receivers[1].present=false;
         f.sandbox.useReceiver(p,f.newReceiver);await f.flush();
+        assert.equal(f.saved.collectors[0].link,"d|9|2|3");
+        n++;
+    }
+    {
+        // Even if another player changes a link away and back again, the earlier
+        // pending confirmation must be rejected (the ABA stale-session case).
+        const f=fixture(),p=f.player("p",{selection:0},{selection:1});
+        f.sandbox.selectCollector(p,f.collector);await f.flush();
+        const id="d|1|2|3", old="d|9|2|3";
+        assert.equal(f.sandbox.pg08CommitLink(id,old,null),true);
+        assert.equal(f.sandbox.pg08CommitLink(id,null,old),true);
+        f.sandbox.useReceiver(p,f.newReceiver);await f.flush();
+        assert.equal(f.saved.collectors[0].link,old);
+        n++;
+    }
+    {
+        // A player disconnecting while a confirmation dialog is unresolved
+        // cannot commit the change when its stale promise resolves later.
+        const f=fixture(),hold=deferred(),p=f.player("p",{selection:0},hold.promise);
+        f.sandbox.selectCollector(p,f.collector);await f.flush();
+        f.sandbox.useReceiver(p,f.newReceiver);await f.flush();
+        f.leave("p");
+        hold.resolve({selection:1});await f.flush();
+        assert.equal(f.saved.collectors[0].link,"d|9|2|3");
+        assert.equal(f.sandbox.pendingCollectorByPlayer.size,0);
+        n++;
+    }
+    {
+        // An unlink confirmation unresolved at disconnect is also invalidated.
+        const f=fixture(),hold=deferred(),p=f.player("p",{selection:1},hold.promise);
+        f.sandbox.selectCollector(p,f.collector);await f.flush();
+        f.leave("p");
+        hold.resolve({selection:1});await f.flush();
         assert.equal(f.saved.collectors[0].link,"d|9|2|3");
         n++;
     }

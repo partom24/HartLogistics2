@@ -1,0 +1,5 @@
+# Hart Logistics 1.4.1 import is a byte-exact frozen baseline.
+# Disable Git checkout EOL conversion even when Git for Windows uses core.autocrlf=true.
+# This is essential for the 72-file SHA-256 provenance gate; do not renormalize.
+addon/behavior_pack/** -text
+addon/resource_pack/** -text
