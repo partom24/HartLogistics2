@@ -44,7 +44,7 @@ jobs:
       - name: Parse Windows PowerShell updater and synthetic tests
         shell: powershell
         run: |
-          $paths = @('tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1', 'tests/bundle1_probe/Test-PowerShellUpdater.ps1')
+          $paths = @('tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1', 'tests/bundle1_probe/Test-PowerShellUpdater.ps1', 'tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1')
           foreach ($path in $paths) {
             $tokens = $null
             $errors = $null
@@ -59,3 +59,16 @@ jobs:
         shell: pwsh
         run: |
           .\tests\bundle1_probe\Test-PowerShellUpdater.ps1
+
+      - name: Check standalone PowerShell launcher refuses unapproved Apply
+        shell: powershell
+        run: |
+          $script = '.\tests\bundle1_probe\Start-HartLogistics-Bundle1Lab.ps1'
+          $refused = $false
+          try { & $script -Mode Install | Out-Null }
+          catch {
+            if ($_.Exception.Message -match 'require explicit -Apply') { $refused = $true }
+            else { throw }
+          }
+          if (-not $refused) { throw 'Launcher did not refuse Install without -Apply' }
+          Write-Host 'Launcher fail-closed guard PASS (no network or LAB accessed)'

@@ -42,6 +42,13 @@
       "task": "Temporary Git-sourced PowerShell LAB-only source updater for PG03-05; delete on task close",
       "path": "tests/bundle1_probe/Update-HartLogistics-Bundle1Lab.ps1",
       "status": "active"
+    },
+    {
+      "id": "PG03-05-LAUNCH",
+      "kind": "test",
+      "task": "Disposable PowerShell Git bootstrap for PG03-05; remove immediately on test completion",
+      "path": "tests/bundle1_probe/Start-HartLogistics-Bundle1Lab.ps1",
+      "status": "active"
     }
   ],
   "planning": {
