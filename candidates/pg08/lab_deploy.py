@@ -14,6 +14,7 @@ import importlib.util
 import json
 import ntpath
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -106,6 +107,58 @@ def create_plan(root: Path, generated: Path):
     return updated
 
 
+def create_rollback_plan(root: Path, generated: Path, tag: str):
+    """Return an exact-identity LAB rollback plan; preserve unrelated live registry edits."""
+    if not re.fullmatch(r"lab-[0-9a-f]{12}", tag):
+        raise lab.UnsafeLab("Invalid or ambiguous LAB backup tag")
+    backup = root / "_HartLogisticsDeployBackups" / tag
+    if not backup.is_dir():
+        raise lab.UnsafeLab("Selected LAB backup is missing")
+    lab.assert_no_link(backup)
+    expected_candidate = check_candidate(generated)
+    current = lab.discover_plan(ROOT, root)
+    if len(current) != 2 or any(
+        item["registry"].parent.name != WORLD_NAME for item in current
+    ):
+        raise lab.UnsafeLab("LAB world identity changed")
+    records = []
+    original_versions = []
+    for i, item in enumerate(current):
+        kind, pack_folder, pack_id, _ = lab.PACKS[i]
+        if item["target"].name != EXPECTED_DIRS[i] or item["target"].parent.name != pack_folder:
+            raise lab.UnsafeLab("LAB Hart Logistics pack location changed")
+        # Never restore over an unknown or modified current installed candidate.
+        if lab.hashes(item["target"]) != expected_candidate[kind]:
+            raise lab.UnsafeLab("Installed PG08 pack has changed; manual review required")
+        if version_in_registry(item["old_bytes"], pack_id) != CANDIDATE_VERSION:
+            raise lab.UnsafeLab("LAB is no longer registered with the PG08 candidate")
+        original_pack = backup / f"pack-{i}"
+        original_registry = backup / f"registry-{i}.bin"
+        if not original_pack.is_dir() or not original_registry.is_file():
+            raise lab.UnsafeLab("Incomplete deployment backup")
+        lab.assert_no_link(original_pack)
+        lab.assert_no_link(original_registry)
+        manifest = json.loads((original_pack / "manifest.json").read_text(encoding="utf-8"))
+        if manifest["header"]["uuid"] != pack_id:
+            raise lab.UnsafeLab("Backup pack UUID mismatch")
+        version = lab.v3(manifest["header"]["version"])
+        if version != version_in_registry(original_registry.read_bytes(), pack_id):
+            raise lab.UnsafeLab("Backup manifest and registration disagree")
+        original_versions.append(version)
+        records.append({
+            **item,
+            "source": original_pack,
+            "files": lab.hashes(original_pack),
+            # Patch the CURRENT registration, never copy an old registry over other mods.
+            "new_registry": lab.patch_registration(
+                item["old_bytes"].decode("utf-8-sig"), pack_id, version),
+            "old_hashes": expected_candidate[kind],
+        })
+    if len(set(original_versions)) != 1 or original_versions[0] not in KNOWN_INSTALLED_VERSIONS:
+        raise lab.UnsafeLab("Unknown original LAB pack version in backup")
+    return records
+
+
 def assert_lab_process_stopped():
     """Do not force the separately running production BDS process to stop."""
     if os.name != "nt":
@@ -147,6 +200,7 @@ def main(argv=None):
     parser.add_argument("--commit", help="exact full Git HEAD to pin an authorized checkout")
     parser.add_argument("--check-lab", action="store_true", help="read-only installed LAB preflight")
     parser.add_argument("--apply", action="store_true", help="explicit LAB pack/registration replacement")
+    parser.add_argument("--rollback-tag", help="exact lab-<12 hex> backup tag from earlier install")
     parser.add_argument("--confirm-lab-only", action="store_true",
                         help="confirm only the existing LAB world and packs may be updated")
     args = parser.parse_args(argv)
@@ -170,9 +224,11 @@ def main(argv=None):
                 print("No LAB/PROD files accessed.")
                 return 0
             root = check_real_root()
-            plan = create_plan(root, generated)
+            plan = (create_rollback_plan(root, generated, args.rollback_tag)
+                    if args.rollback_tag else create_plan(root, generated))
             for item in plan:
-                print("Hart Logistics LAB only:", item["target"], "->", CANDIDATE_VERSION)
+                print("Hart Logistics LAB only:", item["target"],
+                      "mode:", "ROLLBACK" if args.rollback_tag else "PG08 INSTALL")
             if not args.apply:
                 print("LAB PREFLIGHT PASS: READ-ONLY. Nothing installed.")
                 return 0
@@ -180,7 +236,8 @@ def main(argv=None):
             assert_lab_process_stopped()
             plan_is_unchanged(plan)
             backup = lab.apply_plan(root, plan)
-            print("PG08 LAB INSTALL COMPLETE. Original Hart Logistics packs/registries backed up:", backup)
+            print("PG08 LAB", "ROLLBACK" if args.rollback_tag else "INSTALL",
+                  "COMPLETE. Reversible backup of prior packs/registries:", backup)
             print("NO BDS RUNTIME PASS IMPLIED; do not delete backup or reset cloned world.")
             return 0
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError,
