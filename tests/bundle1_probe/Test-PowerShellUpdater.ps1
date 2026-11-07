@@ -46,7 +46,7 @@ try {
         '[{"pack_id":"'+$otherId+'","version":[1,4,1],"label":"https://example.test/a//b"}]'
     )) {
         $caseNumber++
-        Write-Output ('Registry test shape '+$caseNumber)
+        Write-Output ('Registry test shape '+$caseNumber+': '+$raw)
         $old=Registry $raw
         Write-Output ('  parsed original shape '+$caseNumber)
         $updated=AddRegistration $raw
