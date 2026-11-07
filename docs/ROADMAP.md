@@ -81,3 +81,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - Offline checks (15 live-JS callback mocks, six source/build invariants, 13 synthetic updater/rollback checks) and four cross-platform CI jobs passed. **PG-13 actual BDS manual test pending**. It tests only whether the stable world property store preserves a pair of checksummed markers after a **normal** LAB restart and the script correctly holds ambiguous transactions. This is not crash-atomic ItemStack custody acceptance.
 - If successful, next must establish trustworthy actual source/destination physical receipt, controller epoch, loaded-chunk and durable handoff/reconciliation before any ordinary Bulk/Transporter item routing. PG-03/06/07 native MR blocker remains; no deployment to production implied.
 
+## PG-13 LAB normal restart observed — supporting persistence gate PASS (2026-11-07)
+
+- **Owner-observed PASS:** `BEGIN PASS`/ `INTENT PASS` screens, then after clean LAB BDS 1.26.63.1 stop (exit 0)/start, `RESTART READBACK PASS` and `HOLD_AMBIGUOUS_HANDOFF`; runtime pack identified as 1.5.2-LAB-PG13. This proves synthetic dynamic-property state survived an ordinary clean restart **only**. Source-held nonstackable enchanted-book/saddle q4 warnings are not a PG13 defect. See evidence HL-E-035.
+- **Not yet observed:** diagnostic `shadowclear` cleanup (owner should run it if not already), crash-atomic or multi-key write guarantees, any actual physical ItemStack move, or Bulk/Transporter gameplay. Do **not** infer world consistency or item-custody release from shadow markers.
+- **Next focused implementation:** fail-closed read-only physical vanilla container snapshot/identity and a *bounded single-item, test-owned* handoff + authoritative readback design. Keep existing LAB build/backup unchanged until a separate owner-approved test, and preserve original 1.4.1 and all other mods.
+
