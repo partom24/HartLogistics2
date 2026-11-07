@@ -52,6 +52,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Set up LAB-host-compatible Python 3.12
         uses: actions/setup-python@v6
         with:
@@ -72,7 +74,7 @@ jobs:
           & git.exe -C $workspace remote set-url origin https://github.com/partom24/HartLogistics2.git
           if ($LASTEXITCODE -ne 0) { throw 'Local fixture origin setup failed' }
           $output = & '.\\candidates\\pg08\\Start-HartLogistics-PG08Lab.ps1' -Mode Plan | Out-String
-          if ($output -notmatch 'Using Python 3\\.12') { throw 'Launcher did not select existing Python 3.12' }
+          if (-not $output.Contains('Using Python 3.12')) { throw 'Launcher did not select existing Python 3.12' }
           if ($output -notmatch 'PG08 SOURCE PASS') { throw 'Source-only Plan failed' }
           if ($output -notmatch 'No LAB/PROD files accessed') { throw 'Missing no-server-access evidence' }
           Write-Host $output
