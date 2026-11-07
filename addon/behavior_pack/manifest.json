@@ -1,0 +1,61 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "HartMods - Hart Logistics BP",
+    "description": "Hart Logistics 1.4.1: native Item Frame Sorters and persistent logistics",
+    "uuid": "4854d263-05dd-4f79-a21c-7ba969295c2d",
+    "version": [
+      1,
+      4,
+      1
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      50
+    ]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "4e99ff5f-d76c-448e-87f4-540e213bb5e1",
+      "version": [
+        1,
+        4,
+        1
+      ]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "75904670-3fd4-44e4-99bd-23d554b79a83",
+      "version": [
+        1,
+        4,
+        1
+      ],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.7.0"
+    },
+    {
+      "uuid": "91316442-0f26-4fbb-88f3-2e39ea843a1a",
+      "version": [
+        1,
+        4,
+        1
+      ]
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "HartMods"
+    ],
+    "license": "MPL-2.0",
+    "product_type": "addon"
+  }
+}

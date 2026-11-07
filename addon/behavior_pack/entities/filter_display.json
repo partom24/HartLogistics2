@@ -1,0 +1,53 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "hartsorter:filter_display",
+      "runtime_identifier": "minecraft:armor_stand",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false,
+      "spawn_category": "misc"
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "hartsorter_filter_display",
+          "inanimate"
+        ]
+      },
+      "minecraft:collision_box": {
+        "width": 0.01,
+        "height": 0.01
+      },
+      "minecraft:health": {
+        "value": 1,
+        "max": 1
+      },
+      "minecraft:knockback_resistance": {
+        "value": 1.0
+      },
+      "minecraft:loot": {
+        "table": "loot_tables/hartsorter/empty_equipment.json"
+      },
+      "minecraft:persistent": {},
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": false
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:fire_immune": {},
+      "minecraft:damage_sensor": {
+        "triggers": {
+          "cause": "all",
+          "deals_damage": "no"
+        }
+      },
+      "minecraft:conditional_bandwidth_optimization": {}
+    },
+    "events": {}
+  }
+}
