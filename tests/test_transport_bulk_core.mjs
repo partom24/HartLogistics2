@@ -29,14 +29,13 @@ function topology(override = {}) {
     ...override
   };
 }
-const permit = () => verifyLocalRoute(topology(), A, C);
 const ledger = (banks = ["bulk-1"], epoch = 7) =>
   freshLedger("network-alpha", epoch, banks);
 const reserve = (state, txId, count, overrides = {}) =>
   reserveOrdinary(state, {
     txId, item: ordinary, count,
     expectedRevision: state.revision, expectedEpoch: state.epoch,
-    routePermit: permit(), ...overrides
+    routeSnapshot: topology(), source: A, target: C, ...overrides
   });
 function fullBank(state, bankId, amount = BULK_MEMBER_CAPACITY) {
   const result = structuredClone(state);
@@ -238,17 +237,21 @@ test("negative, fractional, non-integer or unsafe quantities are refused", () =>
   }
 });
 
-test("reject a forged or stale topology route permit", () => {
+test("reservation rechecks full topology, never trusts a caller-made permit", () => {
   const s = ledger();
-  const proof = permit();
-  for (const routePermit of [
-    null, { ok: true }, { ...proof, epoch: 6 },
-    { ...proof, networkId: "foreign" }, { ...proof, path: [] },
-    { ...proof, controllerId: "" }
+  const base = topology();
+  for (const routeSnapshot of [
+    null, { ok: true }, { ...base, epoch: 6 },
+    { ...base, networkId: "foreign" },
+    { ...base, unknownBoundary: true },
+    { ...base, loadedNodes: [A, C] },
+    { ...base, liveControllers: [] }
   ]) {
-    assert.equal(reserve(s, "r", 1, { routePermit }).reason,
+    assert.equal(reserve(s, "r", 1, { routeSnapshot }).reason,
                  "route_authority_missing");
   }
+  assert.equal(reserve(s, "r", 1, { source: "not-a-coordinate" }).reason,
+               "route_authority_missing");
 });
 
 test("two simultaneous proposals from same revision cannot both commit without CAS", () => {
