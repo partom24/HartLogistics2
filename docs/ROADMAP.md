@@ -99,3 +99,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - **Remaining:** PG14 test-only `custodyclear` not independently verified; no forced-crash or power-loss tests, no atomic journal+inventory commit guarantee, controller/region concurrency, unloaded chunks, metadata-rich items or scalable Bulk/Transporter gameplay.
 - **Next source work:** strengthen durable reconciliation of `RESERVED`, `INTENT` and `SETTLED` against actual physical inventories using fail-closed stale-state and provenance checks, with synthetic fault cases before requesting any next LAB test. Preserve 1.4.1 and production isolation.
 
+## After PG-14: offline read-only physical/journal reconciliation model (2026-11-07)
+
+- Built [pure JavaScript physical reconciliation core](../candidates/transport/physical_reconciliation_core.mjs) with **26 modeled fail-closed snapshot/receipt tests**. It never repeats or settles a journal `HANDOFF_INTENT` automatically, even when one cobblestone appears to be present in Chest B. It verifies fully known single-chest snapshots and expected receipt before classifying already-SETTLED state as observed, read-only. See [matrix](TRANSPORT_PHYSICAL_RECONCILIATION.md), HL-E-038.
+- Still cannot establish unique identity of an ordinary cobble, exclusive controller lock, snapshot atomicity or world-save crash atomicity. The LAB remains at owner-tested 1.5.3; no new install, chest or further physical move is authorized by this code.
+- **Next:** fail-closed manual reconciliation/isolated failure-injection design for one disposable test item, including proof that no recovery path moves an item a second time; do not integrate Bulk/Transporter virtual storage or PG-06/07 Q5 until explicit custody safety is established.
+
