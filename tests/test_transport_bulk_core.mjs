@@ -378,3 +378,29 @@ test("many deterministic valid ACKs conserve planned totals and obey capacity", 
   }
   assert.equal(s.revision, 240);
 });
+
+
+test("special JS property names cannot bypass idempotency or bank capacity", () => {
+  const s = freshLedger("network-alpha", 7, ["__proto__"]);
+  const item = { ...ordinary, id: "mod:__proto__" };
+  const first = reserve(s, "__proto__", 42, { item });
+  assert.equal(first.ok, true);
+  assert.equal(Object.getPrototypeOf(first.state.transactions), null);
+  const replay = reserve(first.state, "__proto__", 42, { item });
+  assert.equal(replay.duplicate, true);
+  assert.equal(replay.executable, false);
+  const confirmed = commitVerifiedReceipt(first.state, "__proto__", {
+    ...receipt("__proto__", 42), itemId: "mod:__proto__"
+  }, first.state.revision);
+  assert.equal(confirmed.ok, true);
+  assert.equal(confirmed.state.banks["__proto__"].counts["mod:__proto__"], 42);
+  assert.equal(bulkCapacityStatus(confirmed.state).free, BULK_MEMBER_CAPACITY - 42);
+});
+
+test("unqualified and JavaScript-native item keys are not ordinary bucket IDs", () => {
+  for (const id of ["__proto__", "constructor", "minecraft:", "minecraft:bad space",
+                    "minecraft:DIRT", ":stone", "minecraft:stone#tag"]) {
+    assert.equal(reserve(ledger(), "bad-item", 1,
+      { item: { ...ordinary, id } }).reason, "unverified_or_metadata_rich_item");
+  }
+});
