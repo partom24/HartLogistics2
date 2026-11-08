@@ -84,7 +84,6 @@ MANDATORY_REGISTRATIONS = (
     "world.beforeEvents.playerInteractWithBlock.subscribe(",
     "world.afterEvents.playerPlaceBlock.subscribe(",
     "world.afterEvents.playerBreakBlock.subscribe(",
-    "event.blockComponentRegistry.registerCustomComponent("
 )
 
 class Q5CoverageRefused(ValueError):
@@ -184,6 +183,9 @@ def source_guard_census(source: str) -> dict:
     for marker in MANDATORY_REGISTRATIONS:
         if masked.count(marker) != 1:
             raise Q5CoverageRefused("callback_registration_changed:" + marker)
+    # Both the native redstone and PG26 pipe block components are registered.
+    if masked.count("event.blockComponentRegistry.registerCustomComponent(") != 2:
+        raise Q5CoverageRefused("callback_registration_changed:blockComponentRegistry")
     # Three delayed retries plus the entitySpawn initial callback: all matter.
     retry_marker = "system.runTimeout(() => processEjectedItemEntity("
     if masked.count(retry_marker) != 4:
