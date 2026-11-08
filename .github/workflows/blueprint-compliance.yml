@@ -125,6 +125,14 @@ jobs:
           node --check --input-type=module < build/pg20-lab/behavior_pack/scripts/main.js
           node --check tests/test_pg20_native_recovery_mock.mjs
           node --test tests/test_pg20_native_recovery_mock.mjs
+      - name: Verify immutable baseline and bounded PG23 native compaction source
+        run: python -m unittest discover -s tests -p 'test_pg23_candidate_build.py' -v
+      - name: Compile PG23 and source-execute same-Hopper metadata and crash-fault cases
+        run: |
+          python candidates/pg23/prepare_candidate.py
+          node --check --input-type=module < build/pg23-lab/behavior_pack/scripts/main.js
+          node --check tests/test_pg23_native_compaction_mock.mjs
+          node --test tests/test_pg23_native_compaction_mock.mjs
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
