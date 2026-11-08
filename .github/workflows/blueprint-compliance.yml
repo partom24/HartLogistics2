@@ -79,6 +79,11 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_q5_pg27_guard_audit.py' -v
           python candidates/transport/q5_pg27_guard_audit.py
+      - name: Q5 dual-record world maintenance control reader and torn-write refusals (offline)
+        run: |
+          node --check candidates/transport/q5_world_guard_read.mjs
+          node --check tests/test_q5_world_guard_read.mjs
+          node --test tests/test_q5_world_guard_read.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
