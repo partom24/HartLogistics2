@@ -20,20 +20,24 @@ The owner renewed access to three standalone source files and specifically ident
 
 [PG-17](PG17_REFERENCE_CONCEPTS.md) already modeled cross-lane overlap of six conceptual routes; **PG-22 does not duplicate or replace PG-17**. [PG-21](PG21_POSTCRASH_CUSTODY_HARDENING.md) accounts for actual player/chest/input-Hopper/output-Hopper/Receiver Q4 persistence differences. PG-22 now addresses a missing **adoption gate**: an eventual coordinator is meaningless if even one old 1.4.1/PG20 entry point continues to debit/credit independently.
 
-[Independent PG22 offline adoption audit](../candidates/transport/unified_writer_adoption_audit.mjs) lists **six already-existing Hart entry-point categories** that would have to be captured by a single scheduler:
+[Independent PG22 offline adoption audit](../candidates/transport/unified_writer_adoption_audit.mjs), expanded after **PG23's exact-source audit**, now lists **eight existing Hart entry-point categories** that would have to be captured by a single scheduler:
 
-1. Sorter physical source → storage moves.
-2. Collector ordinary → Q4 ingress.
-3. Receiver Q4 → ordinary output.
-4. PG20 direct-only MR whole-native bypass.
-5. Physical journal recovery.
-6. Q4 queue journal recovery.
+1. **Sorter internal vanilla Hopper slot compaction** (PG23 identified a separate two-write physical hazard).
+2. Sorter physical source → adjacent storage moves.
+3. Collector / Sorter ordinary → Q4 ingress.
+4. **Dropper/Dispenser ejected-item entity removal after Q4 ingress** (a separate physical writer).
+5. Receiver Q4 → ordinary output.
+6. PG20 direct-only MR whole-native bypass.
+7. Physical journal recovery.
+8. Q4 queue journal recovery.
+
+The initial PG22 evidence HL-E-060 documented six categories before source review discovered the two separate write sites. This revision corrects the **coverage census**, not the historical evidence or a claim of runtime integration.
 
 It also accounts separately for **five future paths**, which must remain **NOT_IMPLEMENTED** until admitted (Q5 output, Bulk receive/send/internal and world migration).
 
 The model refuses an incomplete/duplicated entry-point census, a single legacy route bypass, an unknown future handler, stale controller epoch, absent global migration freeze, incomplete restart journal scan, any old pending or ostensibly COMMITTED journal that has not been independently audited, duplicate operation IDs and attempts to reactivate an already retired ID after restart. A clean reported census yields only **`MODEL_IDLE_ONLY`**, never permission to mutate, settle, clear or promote. The model cannot attest that a claimant truly integrated all handlers, that `Set` history survived a crash, or that its synthetic epoch is a crash-safe CAS token.
 
-Its [24 Node tests](../tests/test_unified_writer_adoption_audit.mjs) specifically cover all six individually uncoordinated current paths, the five planned routes, partial scans, pending journal phases, stale epochs, repeated IDs and falsely asserted physical-writer exclusion. All reported capabilities remain **false**, including for an apparently clean startup.
+Its [24 Node tests](../tests/test_unified_writer_adoption_audit.mjs) specifically cover all eight individually uncoordinated current paths, the five planned routes, partial scans, pending journal phases, stale epochs, repeated IDs and falsely asserted physical-writer exclusion. All reported capabilities remain **false**, including for an apparently clean startup.
 
 ## Proposed architecture for an actual future runtime candidate
 
