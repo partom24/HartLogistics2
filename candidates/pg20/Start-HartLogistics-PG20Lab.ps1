@@ -5,7 +5,9 @@
   Plan: checks Git source only (no server access). CheckLab: server-stopped
   read-only preflight. Install/Rollback: require -Apply, exact LAB-only guards,
   pinned Git source, and the existing Python transaction/backup utility.
-  No production operations, experiments, world resets or auto-restarts.\n  Prior PG13/14/15 temporary command overlays are excluded from PG20 pack;\n  owner must confirm their test markers are cleaned before any installation.
+  No production operations, experiments, world resets or auto-restarts.
+  Prior PG13/14/15 temporary command overlays are excluded from PG20 pack;
+  owner must confirm their test markers are cleaned before any installation.
   Only exact existing PG15 1.5.4 can be upgraded; unrelated mods and world registry preserved.
 .EXAMPLE
   .\Start-HartLogistics-PG20Lab.ps1
