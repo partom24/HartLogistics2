@@ -84,6 +84,18 @@ def compile_patch(source: str, overlay: str) -> str:
     if (!pg23TransportMayRun()) return 0;""",
         "physical source admission")
 
+    # Both recovery directions respect the other journal, including the legacy
+    # branches capable of physical mutations/marker cleanup. If BOTH markers
+    # are present an operator must inspect: neither engine may clear its own
+    # marker while the other remains unresolved.
+    s = once(s,
+        "function recoverJournal() {",
+        """function recoverJournal() {
+    if (world.getDynamicProperty(QUEUE_JOURNAL_KEY) !== undefined) {
+        pg20ReportHold("PG23 physical recovery paused by unresolved Q4 intent");
+        return;
+    }""", "queue-vs-physical recovery ordering")
+
     # Queue recovery can mutate Q4 + inventories. A pending physical intent
     # must not be bypassed by an independent recovery writer.
     s = once(s, "function recoverQueueJournal() {",
