@@ -143,7 +143,7 @@ def weave_offline_callback_preview(source: str) -> dict:
             site = "callback:" + key + ":" + str(index)
             guarded.append(site)
             merged.extend([anchor,
-                "\\n    q5SourcePreviewHold('" + site + "'); // CALLBACK OFFLINE TEST ONLY\\n",
+                "\n    q5SourcePreviewHold('" + site + "'); // CALLBACK OFFLINE TEST ONLY\n",
                 remainder])
         current = "".join(merged)
     return {
