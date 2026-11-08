@@ -1,7 +1,7 @@
-"""Guarded PG20 LAB-only 1.5.2 -> 1.5.3 pack upgrade and rollback.
+"""Guarded PG20 LAB-only 1.5.4 -> 1.5.5 pack upgrade and rollback.
 
 NO server/world access in default source-only mode; explicit owner approval
-required before any real LAB apply. Existing PG20 must match exact compiled
+required before any real LAB apply. Existing PG15 must match exact compiled
 1.5.4 pack hashes. Other mods, world files, and production are untouched.
 """
 from __future__ import annotations
@@ -72,7 +72,7 @@ def check_candidate(generated):
 
 
 def create_plan(root, generated, previous):
-    """Requires installed source to match accepted PG20 1.5.4 byte hashes."""
+    """Requires installed source to match accepted PG15 1.5.4 byte hashes."""
     expected = check_candidate(generated)
     old_hashes = pg15_deploy.check_candidate(previous)
     plan = lab.discover_plan(ROOT, root)
@@ -89,7 +89,7 @@ def create_plan(root, generated, previous):
         actual_version = lab.v3(manifest["header"]["version"])
         registered = pg08.version_in_registry(item["old_bytes"], pack_id)
         if actual_version != OLD_VERSION or registered != OLD_VERSION:
-            raise lab.UnsafeLab("Installed PG20 1.5.4 missing or mismatched")
+            raise lab.UnsafeLab("Installed PG15 1.5.4 missing or mismatched")
         if lab.hashes(item["target"]) != old_hashes[kind]:
             raise lab.UnsafeLab("Installed PG20 pack hash differs from exact known 1.5.4 build")
         out.append({
