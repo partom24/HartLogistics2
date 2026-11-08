@@ -32,10 +32,10 @@ class PG23BuildInvariants(unittest.TestCase):
     def test_original_72_file_source_immutable(self):
         self.assertEqual(pg.pg20.pg08.check_baseline(), 72)
         self.assertEqual(
-            len(list((ROOT / "addon/behavior_pack").rglob("*.*"))), 16
+            len([x for x in (ROOT / "addon/behavior_pack").rglob("*") if x.is_file()]), 16
         )
         self.assertEqual(
-            len(list((ROOT / "addon/resource_pack").rglob("*.*"))), 56
+            len([x for x in (ROOT / "addon/resource_pack").rglob("*") if x.is_file()]), 56
         )
 
     def test_exact_version_uuid_dependencies_and_footprint(self):
@@ -85,7 +85,7 @@ class PG23BuildInvariants(unittest.TestCase):
         overlay = pg.OVERLAY.read_text()
         with self.assertRaisesRegex(ValueError, "source anchor"):
             pg.compile_patch(s.replace('1.5.5-LAB-PG20','bad-version'),overlay)
-        with self.assertRaisesRegex(ValueError, "compaction"):
+        with self.assertRaisesRegex(ValueError, "two-write"):
             pg.compile_patch(s.replace("container.setItem(write, item)",
                                        "unrecognizedMove(write,item)"),overlay)
         with self.assertRaisesRegex(ValueError, "missing overlay marker"):
