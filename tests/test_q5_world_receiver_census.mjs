@@ -69,7 +69,11 @@ test('a missing one of 35 Q4 pages or metadata records holds all Receivers',()=>
     const f=fixture();f.records.delete(key);
     const r=run(f);
     hold(r);
-    assert.match(r.reason,/receiver_q4_refused/);
+    if (key.startsWith('hartsorter:q4m_')) {
+      assert.equal(r.reason,'missing_registered_q4_metadata');
+    } else {
+      assert.match(r.reason,/receiver_q4_refused/);
+    }
   }
 });
 test('any pending queue or physical journal refuses all-Receiver read',()=>{
