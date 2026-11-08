@@ -116,6 +116,11 @@ jobs:
           node --check candidates/transport/q5_world_ordinary_preview.mjs
           node --check tests/test_q5_world_ordinary_preview.mjs
           node --test tests/test_q5_world_ordinary_preview.mjs
+      - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
+        run: |
+          node --check candidates/transport/q5_history_first_transition.mjs
+          node --check tests/test_q5_history_first_transition.mjs
+          node --test tests/test_q5_history_first_transition.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
