@@ -104,3 +104,55 @@ def derive_and_weave_pg27() -> dict:
         if 'const VERSION = "1.5.10-LAB-PG27";' not in source:
             raise UninstallablePreviewError("wrong_pg27_source")
         return weave_offline_preview(source)
+
+
+# These effects are *not* owned by named functions. A later Bedrock gate must
+# preserve event cancellation and physical-item semantics while checking epoch
+# again inside each deferred closure. This is throw-only offline instrumentation.
+CALLBACK_ANCHORS = {
+    "entity_spawn": ("world.afterEvents.entitySpawn.subscribe(ev => {", 1),
+    "item_use": ("world.beforeEvents.itemUse.subscribe(ev => {", 1),
+    "entity_interact": ("world.beforeEvents.playerInteractWithEntity.subscribe(ev => {", 1),
+    "block_interact": ("world.beforeEvents.playerInteractWithBlock.subscribe(ev => {", 1),
+    "block_place": ("world.afterEvents.playerPlaceBlock.subscribe(ev => {", 1),
+    "block_break_before": ("world.beforeEvents.playerBreakBlock.subscribe(ev => {", 1),
+    "frame_hit": ("world.afterEvents.entityHitBlock.subscribe(ev=>{", 1),
+    "block_break_after": ("world.afterEvents.playerBreakBlock.subscribe(ev => {", 1),
+    "deferred_system_run_spaced": ("system.run(() => {", 3),
+    "deferred_system_run_tight": ("system.run(()=>{", 2),
+}
+
+def weave_offline_callback_preview(source: str) -> dict:
+    """Refuse every known anonymous gameplay/event/deferred callback at entry.
+
+    NOT A RUNTIME FREEZE; the guard always throws and does not respect event
+    cancellation, callback captured epochs, world tick ordering, or recovery.
+    Installed pack capability remains absolutely false.
+    """
+    from_preview = weave_offline_preview(source)
+    current = from_preview["source"]
+    guarded = []
+    for key, (anchor, expected) in CALLBACK_ANCHORS.items():
+        if current.count(anchor) != expected:
+            raise UninstallablePreviewError(
+                f"callback_anchor_changed:{key}:{current.count(anchor)}!={expected}"
+            )
+        parts = current.split(anchor)
+        merged = [parts[0]]
+        for index, remainder in enumerate(parts[1:], 1):
+            site = "callback:" + key + ":" + str(index)
+            guarded.append(site)
+            merged.extend([anchor,
+                "\\n    q5SourcePreviewHold('" + site + "'); // CALLBACK OFFLINE TEST ONLY\\n",
+                remainder])
+        current = "".join(merged)
+    return {
+        **from_preview, "source": current,
+        "status": "NONDEPLOYABLE_NAMED_AND_CALLBACK_PREVIEW",
+        "guarded_callback_count": len(guarded),
+        "guarded_callback_names": guarded,
+        # Every callback preview is unconditional denial. No Bedrock
+        # snapshot, journal writer, vanilla ingress, restart or event semantics.
+        "canInstall": False, "canFreezeWorld": False, "canRoute": False,
+        "canMigrate": False, "canActivateQ5": False, "canWriteWorld": False,
+    }
