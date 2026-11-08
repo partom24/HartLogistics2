@@ -1,4 +1,5 @@
 """PG28 source-only invariants. No Minecraft server or install launcher used."""
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -46,15 +47,13 @@ class TestPG28ReceiverCandidate(unittest.TestCase):
 
     def test_original_source_baseline_immutable(self):
         baseline = json.loads((ROOT / "BASELINE_HASHES.json").read_text())
-        self.assertTrue(baseline)
-        self.assertEqual(
-            self.files(ROOT / "addon"),
-            self.files(ROOT / "addon"),
-            "Never alter imported 1.4.1 source"
-        )
-        self.assertEqual(
-            (ROOT / "project-blueprint.json").read_text().count('"approved": false'), 1
-        )
+        self.assertEqual(baseline["baseline_version"], "1.4.1")
+        self.assertEqual(len(baseline["files"]), 72)
+        for name, digest in baseline["files"].items():
+            self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(),
+                             digest, name)
+        self.assertFalse(json.loads(
+            (ROOT / "project-blueprint.json").read_text())["release"]["approved"])
 
     def test_versions_and_uuid_integrity(self):
         for kind in ("behavior_pack", "resource_pack"):
