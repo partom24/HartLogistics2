@@ -71,7 +71,7 @@ class PG27SourceSeams(unittest.TestCase):
         self.assertEqual(
             report["registrations"]["system.beforeEvents.startup.subscribe("], 2
         )
-        self.assertIsInstance(report["top_level_callback_effect_lines"], list)
+        self.assertIsInstance(report["top_level_callback_effect_calls"], list)
 
     def test_uncatalogued_new_direct_item_writer_refuses(self):
         changed = self.source + (
