@@ -83,6 +83,25 @@ def compile_patch(pg08_main: str, overlay: str) -> str:
         }''',
         "legacy destination reconstruction")
 
+    # The legacy item-from-filter reconstruction helper has no remaining
+    # authorized callers. Remove it from the derived build, not addon/1.4.1.
+    updated = once(updated,
+        '''function rebuildTransportItem(data, amount) {
+    const one = rebuildItem(data);
+    if (!one) return undefined;
+    one.amount = amount;
+    return one;
+}
+
+''', "", "obsolete partial item reconstructor")
+
+    updated = once(updated,
+        '''        // If destination clearly has the credit but source still shows the pre-transfer amount,
+        // complete the debit. This is the only safe remaining deterministic state.''',
+        '''        // A partial signature cannot authenticate an external writer or
+        // justify deleting the source item after destination credit.''',
+        "recovery reverse-debit comment")
+
     # The reverse partial case is equally untrusted: never debit based only
     # on type/name/lore signature, which omits dynamic and Adventure flags.
     updated = between(updated,
