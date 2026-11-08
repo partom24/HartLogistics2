@@ -55,6 +55,11 @@ jobs:
           node --check candidates/transport/q5_shadow_staging.mjs
           node --check tests/test_q5_shadow_staging.mjs
           node --test tests/test_q5_shadow_staging.mjs
+      - name: Q5 offline read-only decoder of actual Q4 page/definition schema
+        run: |
+          node --check candidates/transport/q5_q4_readonly_snapshot.mjs
+          node --check tests/test_q5_q4_readonly_snapshot.mjs
+          node --test tests/test_q5_q4_readonly_snapshot.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
