@@ -33,3 +33,10 @@ The PG26 builder/resources are unchanged because the installed predecessor's exa
 ## Next owner checkpoint
 
 Use the [two-check existing-rack card](../candidates/pg27/TEST_SESSION.md): update through the versioned guarded launcher, verify name/seams, then east/west removal/replacement. No new construction or repeated PG25 transfer. PG26 ordinary/redstone routing remains pending and separate. New-route inputs stay empty while visual acceptance is outstanding; existing Receiver queues need no draining. No production operation or environment publication.
+
+
+## Owner closeout — HL-E-074
+
+**Scoped visual success, 2026-11-08:** owner confirms east/west corrected and connections to chests, barrels and double chests pass; screenshots show those connections. Running PG27 and both clear journals are screenshot-observed. Delivered source e6442137f238ee55201dafa05068fe1047ea2f43; [final main CI 12/12 PASS](https://github.com/partom24/HartLogistics2/actions/runs/42499886661). These results supersede the pending visual instructions above. Do not repeat these checks.
+
+No item transfer, name-feedback or explicit neighbor remove/replace result is separately established. Ordinary route/redstone remains pending. Receiver extraction is unimplemented; double-chest extraction remains guarded out. Next steps and acceptance boundaries are in the [current handoff](CURRENT_DEVELOPMENT_STATE.md). No temporary runtime instrumentation to remove; keep the owner's reusable rigs and backups.
