@@ -230,7 +230,8 @@ test("reboot with PREPARED intent refuses new compaction; no automatic replay",(
 });
 test("uninspectable metadata refuses compaction before any physical intent",()=>{
   const h=harness([undefined,new Stack()]);
-  h.hopper.items[1].getCanDestroy=()=>{throw Error("unavailable");};
+  // Container.getItem returns a clone; corrupt a cloned-data field, not a method.
+  h.hopper.items[1].destroy=null;
   assert.equal(h.run(),false);assert.equal(h.journal.size,0);
   assert.equal(h.hopper.moves,0);
 });
