@@ -1,6 +1,6 @@
 # PG-20 owner-reported emergency BDS kill: preserve-first forensic card
 
-**State: ABRUPT TERMINATION REPORTED; OUTCOME NOT YET OBSERVED. No repeat kill authorized or required.**
+**State: ABRUPT TERMINATION REPORTED; test items reported back in player inventory after restart, consistent with earlier-save rollback. Actual interrupted transaction atomicity NOT established. No repeat kill required.**
 
 ## Latest owner recovery observation — returned to player inventory (HL-E-057; 2026-11-07)
 
@@ -15,7 +15,7 @@ Following the initially duplicated prekill Hopper image (HL-E-056), the owner su
 
 Following the previously accepted PG20 1.5.5-LAB-PG20 single-book *normal*-restart test (HL-E-052) and a supplementary dual-routing observation (HL-E-053), the owner reports placing **four stacks of cobblestone (4 × 64 = 256 ordinary items) plus one enchanted book** into **a chest feeding the input Hopper** and performing an **emergency server kill**. The report does not specify the exact terminate method, process path, timing of the kill relative to the transfer, whether the same Protection I test book was reused, or the saved/loaded physical and journal state. Interpret the named server as *in the ongoing LAB context*, but **verify LAB-only scope** before directing any restart, recovery or mutation. No evidence of disappearance, duplication, crash atomicity, physical transfer outcome or hardware power-loss is yet supplied.
 
-This is **HL-E-054: OWNER-REPORTED ABRUPT PROCESS TERMINATION; FORENSIC RESULT PENDING**, not a PASS or FAIL. It is not equivalent to the earlier controlled PG15 PRE/POST source-level interruption markers or clean restart. **Do not run a second crash experiment.**
+**HL-E-054** records the abrupt process termination. **HL-E-057** adds the later reported return of all items to player inventory; earlier-save rollback is plausible but not proven to be an in-flight transfer recovery. Neither is a crash-atomic PASS or FAIL. It is not equivalent to the earlier controlled PG15 PRE/POST source-level interruption markers or clean restart. **Do not run a second crash experiment.**
 
 ## What may have been in flight
 
