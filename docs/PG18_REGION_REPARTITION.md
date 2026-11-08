@@ -44,4 +44,4 @@ All observations here are synthetic inputs, not verified from a running BDS proc
 
 ## Evidence classification
 
-**HL-E-045: OFFLINE PURE JS MODEL + CI CASES**, once the exact GitHub CI run succeeds. This evidence can validate the source candidate's deterministic behavior and refusal cases. It cannot validate the completeness of a real world scan, persistence or exclusion of foreign writers; the inputs are modeled claims only.
+**HL-E-045: OFFLINE PURE JS MODEL + 49 NODE TEST CASES PASS** (structural GitHub Actions step on [run 42429436690](https://github.com/partom24/HartLogistics2/actions/runs/42429436690)). This evidence can validate the source candidate's deterministic behavior and refusal cases. It cannot validate the completeness of a real world scan, persistence or exclusion of foreign writers; the inputs are modeled claims only.
