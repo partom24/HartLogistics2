@@ -80,7 +80,7 @@ export function inspectQ5MaintenanceMarker({world, worldId}={}) {
       !PHASES.has(marker.phase) ||
       marker.authority !== 'Q4_ONLY' ||
       typeof history.everEntered !== 'boolean' ||
-      history.revision > marker.revision ||
+      history.revision !== marker.revision ||
       history.highestEpoch < marker.epoch) {
     return deny('inconsistent_maintenance_marker');
   }
@@ -96,6 +96,9 @@ export function inspectQ5MaintenanceMarker({world, worldId}={}) {
       canDebitQ4:false,canWriteQ5:false,canWriteWorld:false,
       canClearJournal:false
     };
+  }
+  if (history.highestEpoch !== marker.epoch) {
+    return deny('stale_marker_vs_history');
   }
   if (marker.epoch === 0 || history.everEntered !== true) {
     return deny('missing_maintenance_history');
