@@ -29,15 +29,15 @@ class Q5CallbackGuardPreview(unittest.TestCase):
             self.assertEqual(result["source"].count(anchor),expected)
             for index in range(1,expected+1):
                 marker=(
-                    "\\n    q5SourcePreviewHold('callback:"+name+":"+str(index)+
-                    "'); // CALLBACK OFFLINE TEST ONLY\\n"
+                    "\n    q5SourcePreviewHold('callback:"+name+":"+str(index)+
+                    "'); // CALLBACK OFFLINE TEST ONLY\n"
                 )
                 self.assertEqual(result["source"].count(marker),1,(name,index))
 
     def test_original_named_only_preview_reconstructed_exactly(self):
         text=self.preview["source"]
         for name in self.preview["guarded_callback_names"]:
-            marker="\\n    q5SourcePreviewHold('"+name+"'); // CALLBACK OFFLINE TEST ONLY\\n"
+            marker="\n    q5SourcePreviewHold('"+name+"'); // CALLBACK OFFLINE TEST ONLY\n"
             self.assertEqual(text.count(marker),1,name)
             text=text.replace(marker,"",1)
         self.assertEqual(text,self.base["source"])
@@ -58,7 +58,7 @@ class Q5CallbackGuardPreview(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr[:1500])
 
     def test_unexpected_new_event_refuses_instead_of_becoming_unprotected(self):
-        mutated=self.source+"\\nworld.afterEvents.entitySpawn.subscribe(ev => {});"
+        mutated=self.source+"\nworld.afterEvents.entitySpawn.subscribe(ev => {});"
         with self.assertRaises(mod.audit.Q5CoverageRefused):
             mod.weave_offline_callback_preview(mutated)
 
