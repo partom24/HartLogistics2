@@ -12,18 +12,19 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 - **HL-IMPORT-001 — Completed at exact source/hash scope (Bundle 0, 2026-11-07):** imported unmodified 1.4.1 BP/RP source, pinned original Git import commit `0ea3000` and 72 original file hashes. No gameplay implementation or world test.
 - **PG-02 — Offline GO (Bundle 0):** guarded HartLogistics LAB updater candidate and 9/9 synthetic safety/rollback tests; actual Windows LAB install remains untested and requires separate permission. See [Bundle 0 results](BUNDLE0_RESULTS.md).
 
+- **HL-Q4-RECOVERY-001 — Scoped maintenance complete:** PG25 source/CI and bounded owner LAB normal startup/eight-item route accepted (HL-E-069/070); broader disk-atomic custody is not established.
+
 ## Now
 
-- **HL-Q4-RECOVERY-001 — Q4 recovery hardening; bounded LAB checks accepted, custody limitations remain.** Derive PG25 1.5.8 from accepted PG24 1.5.7. Preserve unresolved raw Q4 receipts before queue migration, metadata repair, inventory mutation or inferred settlement; retain normal clear-journal routing. [Candidate and two-check LAB card](../candidates/pg25/TEST_SESSION.md).
-- Owner authorized continuing development and GitHub work, involving them for issues or BDS testing. Earlier planning-only permission language is historical for this scope; compatibility, no-experiments, LAB-only and release gates remain.
-- Source/build/CI and bounded normal-start/eight-item LAB checks are accepted (HL-E-069/070). No more PG25 owner testing is needed. Next engineering work is the unresolved durable-custody/independent-audit boundary; full custody, Q5/Bulk and network milestones are not completed by this fix.
+- **HL-TRANSPORT-001 — Ordinary Transporter prototype (active, owner-authorized ongoing development).** PG26 1.5.9 adds the new dedicated pipe resource/connection states and a bounded one-source/one-Sorter-column ordinary native input. No new inventory bank, virtual balance, controller authority or automatic recovery. [Scope and limits](PG26_ORDINARY_TRANSPORTER_INPUT.md), [two-check LAB card](../candidates/pg26/TEST_SESSION.md).
+- Preserve old Hopper columns, Sorter semantics, original assets/state and accepted PG25 HOLD gates. Offline/CI must pass before owner tests new block rendering and a native ordinary/redstone route. This is a partial PG09 input milestone; full PG09–11, MR/Q5/Bulk and production gates are not passed by inference.
 
 ## Next
 
 - **HL-TEST-001 (candidate, not approved):** Build preservation tests for 1.4.1: redstone, all Sorter modes, item frames, vanilla hopper and dispenser/dropper routes, linking, q2/q3/q4 data, journal/crash recovery, exact item counts, metadata and unload/reload. All in-game testing is restricted to the disposable LAB server.
 - **HL-UPDATER-001 (partially complete, offline only):** HartLogistics-specific LAB-only Python updater and permanent nine-test safety suite exist and pass synthetic checks. **Actual Windows LAB installation remains untested and unapproved.** The HartBots production updater remains inert reference only and **must not be run before nominated RC**. See [Bundle 0 results](BUNDLE0_RESULTS.md) and [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 - **HL-Q5-001 (candidate, not approved):** Implement and test staged Q4→Q5 migration and a metadata-preserving native lane, conditional on platform support and acceptance.
-- **HL-TRANSPORT-001 and HL-BULK-001 (candidates, not approved):** Implement Transporter and Bulk Storage with bounded transfer budgets, network-aware routing and failure recovery.
+- **HL-BULK-001:** native/virtual custody, durable capacity and distributed authority remain prerequisites before enabling a spendable Bulk bank; the Transporter input prototype does not waive them.
 
 ## Later
 
@@ -210,3 +211,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 
 - PG25 **1.5.8** is installed/running from exact `e43ad176c1762d0a354893638bac44c9d13fce8d`, with owner Install COMPLETE and backup `lab-36ead7340407`. Status screenshot confirms unchanged 664/56/34 topology, Q4 34/34 and clear physical/Q4 journals. Output Hopper photo shows eight cobblestone; owner explicitly confirms input empty. Normal startup and the bounded ordinary route are **accepted**; owner testing closed.
 - No extra transfer/restart/reinstall or induced live failure is required. Output/status are screenshot-observed; input vacancy is owner-reported. Offline recovery fault tests remain separate; disk atomicity, noncooperating writers, new Q5/Bulk and production remain unresolved. Continue independent custody engineering using existing evidence, not another equivalent BDS rig.
+
+## PG26 — first ordinary Transporter input candidate (2026-11-08; HL-E-071)
+
+- Implements actual new pipe assets/connection states and a one-source/single-column native inventory feeder using unchanged Sorter decisions and the existing native writer. Maximum 16 pipes; ordinary whole stacks into empty slots only. Unloaded/ambiguous sources, multiple columns, virtual C/R ports, MR and double chests refuse. New pipe columns use 64-item batches; existing Hopper 16-item behavior remains.
+- Local 41 Node source cases, 9 builder/resource checks, 13 synthetic install/rollback checks PASS; complete suites 279 Python / 465 Node PASS. All original 72 source files, pack IDs, APIs and unrelated resources remain intact. [11/11 GitHub CI jobs PASS](https://github.com/partom24/HartLogistics2/actions/runs/42495908522) at implementation `9b6d600f`; BDS NOT RUN. [Design](PG26_ORDINARY_TRANSPORTER_INPUT.md).
+- Next owner checks after final green CI: new geometry/connection registration plus ordinary native input with redstone pause/resume in the exact new layout. This changes the input endpoint and art, so the accepted PG25 C/R route is reused, not repeated. No forced kill, MR book, Q5/Bulk activation, world reset or production operation.
