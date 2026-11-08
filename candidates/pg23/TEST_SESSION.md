@@ -25,12 +25,22 @@
 $pg23 = Join-Path $env:USERPROFILE 'Downloads\Start-HartLogistics-PG23Lab.ps1'
 Invoke-WebRequest 'https://raw.githubusercontent.com/partom24/HartLogistics2/main/candidates/pg23/Start-HartLogistics-PG23Lab.ps1' -OutFile $pg23
 Unblock-File -LiteralPath $pg23
-Test-Path -LiteralPath $pg23
-$pg23Plan = & $pg23 -Mode Plan
+if (-not (Test-Path -LiteralPath $pg23)) {
+    throw 'PG23 launcher download missing'
+}
+$pg23Plan = @(& $pg23 -Mode Plan)
 $pg23Plan
 $pg23Pin = $null
 foreach ($line in $pg23Plan) {
-    if ($line -match '^Pinned Git source: ([0-9a-f]{40})
+    if ($line -match '^Pinned Git source: ([0-9a-f]{40})$') {
+        $pg23Pin = $Matches[1]
+    }
+}
+if (-not $pg23Pin) {
+    throw 'PG23 Plan did not provide an exact source SHA'
+}
+& $pg23 -Mode CheckLab -ExpectedCommit $pg23Pin
+```
 
   The `Test-Path` result must be `True`. The launcher downloads/fast-forwards the authorized clean Git source into its isolated `%LOCALAPPDATA%\HartLogistics2-PG23-LAB` checkout; `Plan` touches no LAB. `CheckLab` is read-only. If either refuses, **STOP and report**, not install. The PowerShell commands capture the full pinned Git SHA automatically; `CheckLab` refuses any different source revision. Only after `PG23 READ-ONLY PREFLIGHT PASS`, deliberately execute:
 
