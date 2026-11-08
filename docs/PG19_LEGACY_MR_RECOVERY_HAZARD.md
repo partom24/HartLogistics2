@@ -41,4 +41,4 @@ This is a **real source-level engineering issue**, not just a speculative future
 
 The owner does **not** need to perform a new physical test for this offline finding. **Stop at the issue/authorization boundary** rather than inventing a gameplay fix, modifying production, or setting experiments without approval.
 
-**Evidence:** HL-E-046 — original source execution with modeled slot/property failures, exact Node assertion count and CI result to be recorded on the matching GitHub run.
+**Evidence: HL-E-046 — 8/8 Node test cases passed** on [GitHub Actions run 42430053766](https://github.com/partom24/HartLogistics2/actions/runs/42430053766), exercising exact original function bodies with injected mock slot/property failures. CI verifies the behavior of this offline fixture, not an observed BDS hard crash.
