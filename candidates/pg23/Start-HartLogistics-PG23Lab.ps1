@@ -13,7 +13,7 @@
 .EXAMPLE
   .\Start-HartLogistics-PG23Lab.ps1 -Mode CheckLab
 .EXAMPLE
-  .\Start-HartLogistics-PG23Lab.ps1 -Mode Install -Apply
+  .\Start-HartLogistics-PG23Lab.ps1 -Mode Install -Apply -ExpectedCommit <full-checklab-sha>
 .EXAMPLE
   .\Start-HartLogistics-PG23Lab.ps1 -Mode Rollback -BackupTag lab-1234567890ab -Apply
 #>
@@ -22,7 +22,8 @@ param(
     [ValidateSet('Plan','CheckLab','Install','Rollback')]
     [string]$Mode = 'Plan',
     [switch]$Apply,
-    [string]$BackupTag = ''
+    [string]$BackupTag = '',
+    [string]$ExpectedCommit = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -39,6 +40,12 @@ if ($Mode -eq 'Rollback' -and $BackupTag -cnotmatch '^lab-[0-9a-f]{12}$') {
     Refuse 'Rollback needs the exact prior lab-<12 lowercase hex> backup tag'
 }
 if ($Mode -ne 'Rollback' -and $BackupTag) { Refuse '-BackupTag is only for Rollback' }
+if ($ExpectedCommit -and $ExpectedCommit -cnotmatch '^[0-9a-f]{40}$') {
+    Refuse '-ExpectedCommit must be the exact 40-character lowercase Git SHA'
+}
+if ($Mode -eq 'Install' -and -not $ExpectedCommit) {
+    Refuse 'Install requires the full -ExpectedCommit from the matching CheckLab preflight'
+}
 if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
     Refuse 'Git for Windows is required'
 }
@@ -115,6 +122,9 @@ if ($Mode -ne 'Rollback') {
 }
 $head = GitText -Words @('rev-parse','HEAD')
 if ($head -notmatch '^[0-9a-f]{40}$') { Refuse 'Unable to pin Git commit' }
+if ($ExpectedCommit -and $head -cne $ExpectedCommit) {
+    Refuse 'Source SHA changed since CheckLab; re-run preflight and do not apply'
+}
 $script = Join-Path $checkout 'candidates\pg23\lab_deploy.py'
 if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { Refuse 'Missing Git-tracked PG23 LAB updater' }
 
