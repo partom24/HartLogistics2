@@ -231,3 +231,20 @@ test('dispatch does not mutate stored buckets or consume inventory', () => {
   }
   assert.equal(JSON.stringify(draft), before);
 });
+
+test('malformed cyclic page objects fail closed without an exception', () => {
+  const draft = stage([entry(def('stone'), 1)]).draft;
+  draft.pages[0].extra = draft.pages;
+  assert.equal(inspectQ5Draft(draft).reason, 'invalid_q5_page');
+});
+
+test('fairness cursor rotates within the same destination priority without changing source', () => {
+  const draft = stage([entry(def('stone'), 11), entry(def('gold_ingot'), 9)]).draft;
+  const availability = all(draft);
+  const first = preview(draft, availability);
+  const second = preview(draft, availability, { afterKey: first.key });
+  assert.notEqual(second.key, first.key);
+  assert.equal(second.destinationKind, first.destinationKind);
+  assert.equal(preview(draft, availability, { afterKey: 'missing' }).reason, 'invalid_fairness_cursor');
+  assert.equal(draft.total, 20);
+});
