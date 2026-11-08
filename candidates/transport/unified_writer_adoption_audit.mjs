@@ -11,8 +11,10 @@
  * Authored independently of the owner's three reference-only modules.
  */
 export const CURRENT_ENTRY_POINTS = Object.freeze([
+  "SORTER_HOPPER_COMPACTION",
   "SORTER_PHYSICAL_MOVE",
   "COLLECTOR_Q4_INGRESS",
+  "ITEM_ENTITY_Q4_INGRESS",
   "RECEIVER_Q4_EGRESS",
   "COLLECTOR_NATIVE_DIRECT",
   "PHYSICAL_JOURNAL_RECOVERY",
