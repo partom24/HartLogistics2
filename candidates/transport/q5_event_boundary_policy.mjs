@@ -50,6 +50,9 @@ export const Q5_EVENT_POLICY = Object.freeze({
     phase:'deferred',targets:['owned_filter_frame']
   })
 });
+// Freeze nested target lists too; adding a target at runtime must not
+// silently convert a previously foreign/unknown action into a Hart callback.
+for (const spec of Object.values(Q5_EVENT_POLICY)) Object.freeze(spec.targets);
 export const Q5_EVENT_KINDS = Object.freeze(Object.keys(Q5_EVENT_POLICY));
 const valid=s=>typeof s==='string'&&s.length>0&&s.length<=256;
 const noPermission=Object.freeze({
@@ -71,8 +74,11 @@ const deny=(reason,more={})=>({
 export function previewQ5EventBoundary({
   world, worldId, eventKind, ownership, targetKind, managed, capturedEpoch
 }={}) {
+  if (typeof eventKind!=='string' ||
+      !Object.prototype.hasOwnProperty.call(Q5_EVENT_POLICY,eventKind)) {
+    return deny('unknown_event_entrypoint');
+  }
   const rule=Q5_EVENT_POLICY[eventKind];
-  if (!rule) return deny('unknown_event_entrypoint');
   if (!['hart','foreign','unknown'].includes(ownership)) {
     return deny('unclassified_event_owner');
   }
