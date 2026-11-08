@@ -14,9 +14,9 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Now
 
-- **HL-Q4-RECOVERY-001 — Owner-authorized bounded Q4 recovery hardening (active).** Derive PG25 1.5.8 from accepted PG24 1.5.7. Preserve unresolved raw Q4 receipts before queue migration, metadata repair, inventory mutation or inferred settlement; retain normal clear-journal routing. [Candidate and two-check LAB card](../candidates/pg25/TEST_SESSION.md).
+- **HL-Q4-RECOVERY-001 — Q4 recovery hardening; bounded LAB checks accepted, custody limitations remain.** Derive PG25 1.5.8 from accepted PG24 1.5.7. Preserve unresolved raw Q4 receipts before queue migration, metadata repair, inventory mutation or inferred settlement; retain normal clear-journal routing. [Candidate and two-check LAB card](../candidates/pg25/TEST_SESSION.md).
 - Owner authorized continuing development and GitHub work, involving them for issues or BDS testing. Earlier planning-only permission language is historical for this scope; compatibility, no-experiments, LAB-only and release gates remain.
-- Exit: actual-source fault/happy-path checks, immutable-source and synthetic deployment validation, green CI, then bounded owner BDS acceptance. Full custody, Q5/Bulk and network milestones are not completed by this fix.
+- Source/build/CI and bounded normal-start/eight-item LAB checks are accepted (HL-E-069/070). No more PG25 owner testing is needed. Next engineering work is the unresolved durable-custody/independent-audit boundary; full custody, Q5/Bulk and network milestones are not completed by this fix.
 
 ## Next
 
@@ -205,3 +205,8 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - Builds exact PG24→PG25 1.5.8, preserving original 72 files, native MR/compaction, menus and normal Q4 ingress/egress implementations. Removes legacy recovered-Q4 classification/replay; any raw pending marker or Q4 read error becomes HOLD before startup migration or recovery writes. Sticky process HOLD remains visible in status and stops cooperating Hart writers; it does not stop vanilla/foreign writers.
 - Local evidence HL-E-069: 32 actual-source Node cases, seven builder invariants and 13 synthetic installer/rollback cases pass; full local suites 257 Python / 424 Node pass. Existing PG24 witnesses HL-E-068 retained. [10/10 GitHub CI jobs passed](https://github.com/partom24/HartLogistics2/actions/runs/42490741041) at implementation `858310c2`; BDS validation remains NOT RUN.
 - Next owner gate: [two focused LAB checks](../candidates/pg25/TEST_SESSION.md), clean startup after pinned guarded upgrade and eight ordinary items through the existing isolated Hopper/C/R/output pair. No injected real receipt, forced crash, repeat PG24 ejection/PG23 book test or extra restart. Any unresolved receipt requires preservation/audit, not rollback or automatic compensation. No production approval.
+
+## PG25 owner scoped LAB acceptance (2026-11-08; HL-E-070)
+
+- PG25 **1.5.8** is installed/running from exact `e43ad176c1762d0a354893638bac44c9d13fce8d`, with owner Install COMPLETE and backup `lab-36ead7340407`. Status screenshot confirms unchanged 664/56/34 topology, Q4 34/34 and clear physical/Q4 journals. Output Hopper photo shows eight cobblestone; owner explicitly confirms input empty. Normal startup and the bounded ordinary route are **accepted**; owner testing closed.
+- No extra transfer/restart/reinstall or induced live failure is required. Output/status are screenshot-observed; input vacancy is owner-reported. Offline recovery fault tests remain separate; disk atomicity, noncooperating writers, new Q5/Bulk and production remain unresolved. Continue independent custody engineering using existing evidence, not another equivalent BDS rig.
