@@ -157,9 +157,11 @@ test('read failure during capture or final commit returns HOLD, never a fallback
   f.world.getDynamicProperty=()=>{throw Error('unloaded');};
   hold(session.capture(args(f)),'marker_read_failed');
   f.world.getDynamicProperty=get;
-  const token=session.capture(args(f)).token;
+  hold(session.capture(args(f)),'maintenance_session_latched');
+  const restarted=createQ5LegacyFenceSession();
+  const token=restarted.capture(args(f)).token;
   f.world.getDynamicProperty=()=>{throw Error('unloaded');};
-  hold(session.precommit(commitArgs(f,token)),'marker_read_failed');
+  hold(restarted.precommit(commitArgs(f,token)),'marker_read_failed');
   assert.equal(f.world.writes,0);
 });
 test('mid-pass property drift is a HOLD at both start and precommit',()=>{
@@ -299,4 +301,44 @@ test('source state is unchanged by dozens of legal and refused attempts',()=>{
   }
   assert.equal(JSON.stringify([...f.records]),before);
   assert.equal(f.world.writes,0);
+});
+
+test('observed maintenance latches HOLD across later marker rollback in one session',()=>{
+  const f=fixture(),session=createQ5LegacyFenceSession();
+  mutate(f,'REQUESTED',1);
+  hold(session.capture(args(f)),'maintenance_active_or_unknown');
+  mutate(f,'LEGACY',0);
+  hold(session.capture(args(f)),'maintenance_session_latched');
+  // A new memory session could see rolled-back bytes: this is a durable
+  // history/ABA limitation, not authority to ship the gate.
+  const restarted=createQ5LegacyFenceSession();
+  const fresh=restarted.capture(args(f));
+  assert.equal(fresh.ok,true);
+  assertNoPermission(fresh);
+  assert.equal(f.world.writes,0);
+});
+test('observed precommit drift latches future starts even after byte restoration',()=>{
+  const f=fixture(),session=createQ5LegacyFenceSession();
+  const original=JSON.stringify([...f.records]);
+  const token=session.capture(args(f)).token;
+  mutate(f,'LEGACY',0,2);
+  hold(session.precommit(commitArgs(f,token)),'marker_or_history_changed_after_capture');
+  f.records.clear();
+  for(const [key,raw] of JSON.parse(original))f.records.set(key,raw);
+  hold(session.capture(args(f)),'maintenance_session_latched');
+});
+test('unclassified writer latches the running gate rather than allowing next attempt',()=>{
+  const f=fixture(),session=createQ5LegacyFenceSession();
+  const unknown=session.capture(args(f)).token;
+  hold(session.precommit(commitArgs(f,unknown,'foreign_new_mutation')),
+    'unclassified_mutation_site');
+  hold(session.capture(args(f)),'maintenance_session_latched');
+  assert.equal(f.world.writes,0);
+});
+test('source-context switch latches the session even if the source is restored',()=>{
+  const f=fixture(),session=createQ5LegacyFenceSession();
+  const token=session.capture(args(f)).token;
+  hold(session.precommit({...commitArgs(f,token),sourceKey:'different'}),
+    'fence_context_changed');
+  hold(session.capture(args(f)),'maintenance_session_latched');
 });
