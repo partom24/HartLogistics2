@@ -65,6 +65,11 @@ jobs:
           node --check candidates/transport/q5_q4_read_adapter.mjs
           node --check tests/test_q5_q4_read_adapter.mjs
           node --test tests/test_q5_q4_read_adapter.mjs
+      - name: Q5 complete Q4 read-only preview and classification refusal tests
+        run: |
+          node --check candidates/transport/q5_readonly_preview.mjs
+          node --check tests/test_q5_readonly_preview.mjs
+          node --test tests/test_q5_readonly_preview.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
