@@ -70,6 +70,16 @@ jobs:
           node --check candidates/transport/q5_readonly_preview.mjs
           node --check tests/test_q5_readonly_preview.mjs
           node --test tests/test_q5_readonly_preview.mjs
+      - name: PG29 LAB-only read-only Q5 audit candidate source and mock checks
+        run: |
+          python -m unittest discover -s tests -p 'test_pg29_readonly_build.py' -v
+          python candidates/pg29/prepare_candidate.py
+          node --check --input-type=module < build/pg29-q5-readonly/behavior_pack/scripts/main.js
+          for js in build/pg29-q5-readonly/behavior_pack/scripts/q5_*.js build/pg29-q5-readonly/behavior_pack/scripts/ordinary_network_core.js; do
+            node --check --input-type=module < "$js"
+          done
+          node --check tests/test_pg29_audit_mock.mjs
+          node --test tests/test_pg29_audit_mock.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
