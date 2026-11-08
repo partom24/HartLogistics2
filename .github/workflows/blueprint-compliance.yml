@@ -45,6 +45,11 @@ jobs:
         run: |
           node --check candidates/transport/ordinary_network_core.mjs
           node --test tests/test_transport_bulk_core.mjs
+      - name: Q5 ordinary bucket pages and destination-aware selection (offline only)
+        run: |
+          node --check candidates/transport/q5_bucket_core.mjs
+          node --check tests/test_q5_bucket_core.mjs
+          node --test tests/test_q5_bucket_core.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
