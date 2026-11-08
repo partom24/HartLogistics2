@@ -1,0 +1,63 @@
+# PG-20 — native MR recovery candidate LAB acceptance card (READY after green CI)
+
+**What is being tested:** The new derived candidate preserves one complete metadata-rich (MR), non-Q4-serializable ItemStack along the existing Hopper → Collector → Receiver-output-Hopper bypass, now using one native `Container.moveItem` into a known empty output slot rather than debiting and recreating two slots. After a **normal** LAB restart the exact test-owned item should still be present once, with its visible metadata and no pending journal.
+
+**Why now:** [PG-19 source-executed fault witness](PG19_LEGACY_MR_RECOVERY_HAZARD.md) found a real original recovery branch that can recreate a damaged copy from incomplete serialized metadata under a simulated debit/credit exception. The [new PG20 candidate patch](../candidates/pg20/native_recovery_overlay.js) removes automatic lost-metadata recovery, marks native incomplete transfers HOLD/no replay, and gates all new physical moves behind an empty journal.
+
+**Prior evidence and reuse:** PG-08 owner-accepted link UI (HL-E-030); PG-13 normal-restart shadow markers (HL-E-035); PG-14 native whole transfer in test-owned vanilla chests with clean restart (HL-E-037/039); PG-15 controlled pre/post cuts and cleanup (HL-E-041) are NOT repeated. PG-19 eight source-executed original fault tests (HL-E-046) and PG-20's CI mocks test injected failures independently. This is the first **changed native whole-stack Hopper-to-Hopper MR** route; it needs only the two narrow in-game observations below. A clean restart **does not** prove crash/power-loss persistence atomicity or all opaque ItemStack field fidelity.
+
+**Action required:** **Manual LAB only, two focused observations on one reusable rig.** No BDS restart/installation performed by development tooling. **READINESS: READY only after all PG20 CI checks pass and the exact installed PG15 1.5.4 hash/registry preflight succeeds.** If any condition fails, do not improvise or place items.
+
+**Pass condition:** One disposable `minecraft:enchanted_book` with recognizable enchantment moves exactly once from source Hopper slot 0 to Receiver's output Hopper, remains the same visible item after a normal LAB restart, never appears in Q4, and `/hartlogistics:status` reports both journals clear before/after. No source double-debit, retry, additional book, or unexpected error.
+
+## Fixed runtime and installation gate
+
+- **Test ID:** PG-20 / native direct-only MR same-item handoff + restart, version `1.5.5-LAB-PG20`. GitHub [PR #31](https://github.com/partom24/HartLogistics2/pull/31); use the **merged full SHA printed by the launcher**, never a random local source edit.
+- **Target:** `C:\Servers\Thomas_MCBedrock - Copy (2)`, already-established cloned world `ThomasServer`, Overworld, BDS **1.26.63.1**, client **26.63**, existing no-experiments/no-cheats settings. **Production `C:\Servers\Thomas_MCBedrock` is strictly forbidden.** Never reset or recreate the cloned world, toggle cheats/experiments, upgrade BDS or alter another mod.
+- **Predecessor:** exact SHA-256-identical Git-generated **1.5.4-LAB-PG15** BP/RP and registrations in the world. The guarded Python installer rejects anything else, including version-correct but altered source. Same Hart pack UUIDs, both stable script dependencies `@minecraft/server 2.7.0` and `@minecraft/server-ui 2.2.0`, and **72 original pack files verified by baseline hashes**.
+- **Clean completed temporary instrumentation:** PG20 deliberately excludes completed PG13 shadow, PG14 chest-custody and PG15 cut commands. PG15 cleanup is already owner-confirmed; PG14 markers are owner-confirmed clear. **PG13 `shadowclear` was not previously evidenced.** While the old PG15 pack is still running, standing inside the isolated room, run **once** `/hartlogistics:shadowclear`. Expected `CLEAN PASS`, clearing *only* the two PG13 synthetic marker keys. It moves no items, and an already-empty pair also passes. If refused, **STOP and do not install PG20**; preserve the report. This is overdue cleanup, not a repeated PG13 test.
+- Still on PG15, run `/hartlogistics:status` to capture a baseline version, 664/54/31 historical registry counts or actual current values, and **Journals: sorter clear | queue clear**. If either journal is PENDING or unexpected errors appear, stop; do not clear legitimate Q4/physical journals just to satisfy this card.
+- **Stop LAB BDS normally**, without force-kill. On a Windows operator checkout of authorized repository `main`, run the Git-backed `candidates/pg20/Start-HartLogistics-PG20Lab.ps1` in `-Mode CheckLab` (read-only) and then `-Mode Install -Apply` *only if CheckLab passes*. This tool pins a full Git SHA, verifies the stopped exact LAB, installed PG15 hashes and world registrations, preserves all other packs and JSONC comments, and makes a new backup tag. It does **not** access production, modify worlds/cheat settings or launch/stop BDS. Keep prior backups and record the new `lab-XXXXXXXXXXXX` backup identifier. No install is implied merely by cloning or running Plan.
+- Restart only LAB BDS; run `/hartlogistics:status`, expect `Hart Logistics 1.5.5-LAB-PG20`, same pre-existing Sorter/Collector/Receiver/queue counts (apart from explicit test-owned new blocks), and both journals clear. If any missing pack, unknown command, unexpected Q4 changes or journal PENDING, **stop before placing the test item**.
+
+## One exact rig, same known isolated room
+
+The owner's stonebrick hall interior occupies approximately X=-968.64 to -937.30 and Z=-817.56 to -776.30, standing floor Y=69 (solid inert floor Y=68). Stand near `(-955,69,-806)` to operate. **Do not dig under the floor or overwrite unknown existing blocks.** These are new test-only coordinates, not the old PG14 chest positions or PG08 menu blocks.
+
+| Component | Number | Absolute position | Facing / exact purpose |
+| --- | ---: | --- | --- |
+| **Collector C** (`hartsorter:collector`) | 1 | **(-960,69,-809)** | Ordinary horizontal placement on floor; no Sorter; link to R using already accepted PG08 menu |
+| **Source vanilla Hopper H-in** | 1 | **(-961,69,-809)** | Hopper output faces **east (+X), directly into C**; source item will be in Hopper slot 0 |
+| **Receiver R** (`hartsorter:receiver`) | 1 | **(-950,70,-809)** | Directly **above H-out**, unpowered; link C→R (ten blocks east, one block higher) |
+| **Destination vanilla Hopper H-out** | 1 | **(-950,69,-809)** | Hopper output faces **east (+X) into inert solid test block**; no Hopper below or attached container |
+| **Inert stop block** (`minecraft:stone_bricks`) | 1 | **(-949,69,-809)** | Solid ordinary non-container; prevents H-out unloading sideways |
+| Sorters / vertical columns / item frames | **0** | None | No filters, modes or column height to set |
+| Chests / extra Hoppers / pipes / Bulk / Transporter / redstone | **0** | None | No other connection, powered Hopper or data migration |
+
+**Top + side geometry:**
+
+```text
+  Overworld, floor Y=69, positive X east →
+  (-961,69,-809)       (-960,69,-809)           (-950,69,-809)  (-949,69,-809)
+  [H-in faces east] -> [Collector C]             [H-out -> east][solid stone]
+                          ╲ link via menu ╱       [Receiver R] at (-950,70,-809), directly above H-out
+```
+
+**Separation:** This exact new rig is more than one full block away from the previously recorded PG14 chest coordinates `(-955,69,-804)` and `(-951,69,-804)`, and outside physical adjacency of the PG08 UI rig around Z=-797. The relevant legacy Hopper intake is a **face-adjacency** mechanism, not an 8-block area scan; no artificial 8-block rule applies between C and R, which are deliberately linked. There is no special separation between this rig and unrelated devices beyond proving the five specified block spaces and their immediately adjacent Hopper faces are inert/clear. If any location is now in use or its immediate faces touch foreign automation, **STOP** rather than moving it to guessed coordinates.
+
+**Initial physical state:** Both Hoppers single, valid, unlocked and empty (all **5 slots** each); one new Collector and one new Receiver with **new empty Q4**, no queue entries or pending physical transaction; R above H-out; stone stop at the output face. Link C to R via the already-tested PG08 Link/Confirm menu. No test item in any Hopper until both links/status are verified.
+
+## Two manual checks
+
+1. **Native MR movement:** Obtain just **one disposable, visually identifiable enchanted book** (`minecraft:enchanted_book`) without using cheat commands or changing game settings; record its enchantment/type or visible tooltip before insertion. Do not use a valuable item or an item from the original world. With empty output Hopper and existing clear journals, place it **once** in source Hopper slot 0. Allow the game normally to route it; inspect both Hoppers. **PASS:** source H-in empty; H-out contains exactly the **same one** book in an inventory slot, no different item, no Q4 queue accumulation, no PG20 HOLD error, sorter/queue journals clear via `/hartlogistics:status`. Other slots remain empty. **STOP** on any HOLD, missing or duplicate item, movement into an unexpected block, changed enchantment or no transfer; do not retry or issue new item commands.
+2. **Clean-restart retention:** With the book still in H-out and H-in empty, **normally stop and restart LAB BDS once**. Inspect the two Hoppers and `/hartlogistics:status` again. **PASS:** still exactly one same enchanted book in H-out, H-in empty, Q4 empty, journals clear, no automatic retry or metadata loss visible in the item tooltip. Capture the display and relevant BDS script log excerpt. **STOP** if status/PENDING, missing item, wrong metadata or any unexpected error.
+
+**No forced BDS crash, power-loss cutpoint, artificial global journal writing, production act, custom-container experiment or repeated PG08 UI test is part of PG20.** Existing 25 Node source-candidate fault cases cover before/after-move and write-error HOLD behavior without risking real world data.
+
+## Safe final cleanup and report
+
+- After successful second check, manually take the sole test-owned enchanted book out of H-out into your own inventory or discard it intentionally **only if disposable**; verify *both Hoppers empty*. Unlink test C only if convenient, and remove **only** test-owned R/C, H-in/H-out and inert stone block. Do not break any block or stored item from a pre-existing network, change the stonebrick floor or remove old PG08/PG14 markers, mods or unrelated packs.
+- The new candidate has **no test-only world keys, custom blocks, scheduled probe parameters or one-off debug commands**. The completed PG13/PG14/PG15 transient command implementations were *removed from the PG20 derived runtime*; their permanently stored offline tests/docs remain. Record that PG13 shadow cleanup was confirmed before upgrading and PG20 physical rig cleanup after acceptance.
+- **Evidence requested:** prior `shadowclear CLEAN PASS`, pre/post `/hartlogistics:status` (version, journals, counts), source and destination Hoppers with enchanted book before/after and after normal restart, any BDS script warnings/errors, final empty/removed rig, full Git SHA and installer backup tag.
+- On any unexpected **HOLD**, leave all items and installed pack/world state alone; do **not** clear `hartsorter:journal_v1`, break occupied blocks, manually recreate a missing book, restart hoping to fix it, or automatically roll back. The exact-backup rollback exists only for a separately reviewed safe response after physical custody is independently resolved. Installing/rolling back the pack does not roll back world contents.
+- **Evidence grade after successful manual test:** narrow `RUNTIME OBSERVED` single native-MR Hopper-to-Hopper transfer with visible metadata and clean-restart retention, **not** arbitrary opaque metadata/crash-atomic custody, not Q5 full-native MR storage, and not production acceptance.
