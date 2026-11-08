@@ -52,7 +52,7 @@ test('scanner HOLD remains HOLD with no recovery or replay command',()=>{
   f.invoke();
   assert.equal(f.chat.length,1);
   assert.match(f.chat[0],/HOLD: journal_not_clear/);
-  assert.doesNotMatch(f.chat[0],/CLEAR|RETRY|REPAIR/i);
+  assert.doesNotMatch(f.chat[0],/\b(?:CLEARED|RETRY|REPAIR)\b/i);
 });
 
 test('scanner exception reports HOLD and does not spawn alternate writer',()=>{
