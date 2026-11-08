@@ -58,6 +58,11 @@ jobs:
           node --check candidates/transport/crash_origin_reconciliation.mjs
           node --check tests/test_crash_origin_reconciliation.mjs
           node --test tests/test_crash_origin_reconciliation.mjs
+      - name: Audit single-writer adoption across old routes and postrestart journals
+        run: |
+          node --check candidates/transport/unified_writer_adoption_audit.mjs
+          node --check tests/test_unified_writer_adoption_audit.mjs
+          node --test tests/test_unified_writer_adoption_audit.mjs
       - name: Verify original cross-lane hazard model rejects phantom custody
         run: |
           node --check candidates/transport/cross_lane_hazard_audit.mjs
