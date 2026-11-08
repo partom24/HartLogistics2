@@ -121,9 +121,11 @@ export function inspectQ5Draft(draft) {
   let total = 0;
   for (let p = 0; p < draft.pages.length; p++) {
     const page = draft.pages[p];
+    let serialized;
+    try { serialized = JSON.stringify(page); } catch (_) { return fail('invalid_q5_page'); }
     if (!page || page.index !== p || !Array.isArray(page.buckets) ||
         !page.buckets.length || page.buckets.length > Q5_BUCKETS_PER_PAGE ||
-        JSON.stringify(page).length > Q5_PAGE_CHAR_LIMIT) return fail('invalid_q5_page');
+        !serialized || serialized.length > Q5_PAGE_CHAR_LIMIT) return fail('invalid_q5_page');
     for (const entry of page.buckets) {
       if (!entry || typeof entry.key !== 'string' || !positive(entry.count) ||
           seen.has(entry.key)) return fail('invalid_or_duplicate_bucket');
@@ -137,7 +139,9 @@ export function inspectQ5Draft(draft) {
     }
   }
   if (total !== draft.total) return fail('q5_total_mismatch');
-  if (draft.fingerprint !== pageFingerprint(draft.pages)) return fail('q5_page_fingerprint_mismatch');
+  let fingerprint;
+  try { fingerprint = pageFingerprint(draft.pages); } catch (_) { return fail('invalid_q5_page'); }
+  if (draft.fingerprint !== fingerprint) return fail('q5_page_fingerprint_mismatch');
   const canonical = paginate([...buckets].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   // Canonical page shape is fixed, so incomplete/reordered/broken page boundaries HOLD.
   if (!canonical || JSON.stringify(canonical) !== JSON.stringify(draft.pages)) {
@@ -152,17 +156,19 @@ export function inspectQ5Draft(draft) {
  * still refuses unknown capacity. A proposed selection is NOT a debit permit.
  */
 export function previewQ5Dispatch(draft, { availability, bulkLedger,
-    expectedEpoch, completeRoutes, maxBatch = 64 } = {}) {
+    expectedEpoch, completeRoutes, maxBatch = 64, afterKey = null } = {}) {
   const check = inspectQ5Draft(draft);
   if (!check.ok) return check;
   if (expectedEpoch !== draft.epoch || completeRoutes !== true) return fail('routing_authority_unverified');
   if (!positive(maxBatch) || !Array.isArray(availability) ||
       availability.length !== check.bucketCount) return fail('incomplete_destination_snapshot');
+  const knownKeys = new Set(check.buckets.map(b => b.key));
+  if (afterKey !== null && !knownKeys.has(afterKey)) return fail('invalid_fairness_cursor');
   const statuses = new Map();
   const legalStatus = ['none', 'usable', 'unavailable', 'full'];
   for (const a of availability) {
     if (!a || typeof a.key !== 'string' || statuses.has(a.key) ||
-        !check.buckets.some(b => b.key === a.key) ||
+        !knownKeys.has(a.key) ||
         !legalStatus.includes(a.filtered) || !legalStatus.includes(a.automatic) ||
         typeof a.wildcardVerified !== 'boolean') return fail('incomplete_destination_snapshot');
     statuses.set(a.key, a);
@@ -180,7 +186,11 @@ export function previewQ5Dispatch(draft, { availability, bulkLedger,
                      destinationKind: route.decision, rank: priority[route.decision] });
     }
   }
-  choices.sort((a, b) => a.rank - b.rank || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const sortedKeys = [...knownKeys].sort();
+  const positions = new Map(sortedKeys.map((key, index) => [key, index]));
+  const cursor = afterKey === null ? -1 : positions.get(afterKey);
+  const distance = key => (positions.get(key) - cursor - 1 + sortedKeys.length) % sortedKeys.length;
+  choices.sort((a, b) => a.rank - b.rank || distance(a.key) - distance(b.key));
   if (!choices.length) return { ok: true, decision: 'hold', executable: false };
   const { key, count, destinationKind } = choices[0];
   return { ok: true, decision: 'proposed', key, count, destinationKind,
