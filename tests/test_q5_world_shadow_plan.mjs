@@ -248,7 +248,7 @@ test('world changes between Q5 draft and shadow planning final re-read HOLD',()=
   };
   const r=run(f);
   hold(r);
-  assert.match(r.reason,/q4_changed_during_world_shadow_planning|final_world_ordinary_draft_refused/);
+  assert.match(r.reason,/q4_changed_during_world_shadow_planning|final_world_ordinary_draft_refused|world_ordinary_draft_refused:world_q4_changed_during_bucketization/);
 });
 test('change to Q4 witness claims while scans run is detected',()=>{
   const f=fixture(),get=f.world.getDynamicPropertyIds;
