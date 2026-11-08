@@ -14,8 +14,9 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 ## Now
 
-- **HL-PLAN-001 — Owner-authorized requirements and architecture planning (active).** Record the two new blocks, multi-controller/closed-loop topology, Q5 migration and MR lane; separate accepted requirements from candidates; identify decisions and compatibility tests needed before an implementation authorization. **This milestone does not authorize code changes.**
-- Exit when the owner has reviewed the open implementation gates and approved a design direction. A planning document or PR merge alone is not owner acceptance.
+- **HL-Q4-RECOVERY-001 — Owner-authorized bounded Q4 recovery hardening (active).** Derive PG25 1.5.8 from accepted PG24 1.5.7. Preserve unresolved raw Q4 receipts before queue migration, metadata repair, inventory mutation or inferred settlement; retain normal clear-journal routing. [Candidate and two-check LAB card](../candidates/pg25/TEST_SESSION.md).
+- Owner authorized continuing development and GitHub work, involving them for issues or BDS testing. Earlier planning-only permission language is historical for this scope; compatibility, no-experiments, LAB-only and release gates remain.
+- Exit: actual-source fault/happy-path checks, immutable-source and synthetic deployment validation, green CI, then bounded owner BDS acceptance. Full custody, Q5/Bulk and network milestones are not completed by this fix.
 
 ## Next
 
@@ -198,3 +199,9 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 
 - **Additional owner-observed scoped PASS:** vanilla Dispenser into the same linked test Collector/Receiver was reported working after prior Dropper route PASS. A fresh 1.5.7-LAB-PG24 status photo shows both journals clear and stable 664/56/34 topology; output Hopper photo contains **exactly 2 cobblestone in slot0**, consistent with two separate vanilla ejection tests. Lifetime delivered increased +1, corroborative but not attributable to the test in an active network.
 - Owner states they **restarted normally after taking these photos** and both cobblestone persisted. This is **owner-reported restart retention**; no new postrestart screenshot supplied. Prior PG24 normal Dropper route, Dispenser route, and owner-reported retention are closed; no additional owner testing required. Neither this restart nor source-only fault injection proves cross-save crash atomicity or exclusive native physical custody; Q5/Bulk/production remain blocked. [HL-E-067](ENGINEERING_EVIDENCE_REGISTER.md).
+
+## PG25 — ordinary Q4 recovery HOLD (2026-11-08)
+
+- Builds exact PG24→PG25 1.5.8, preserving original 72 files, native MR/compaction, menus and normal Q4 ingress/egress implementations. Removes legacy recovered-Q4 classification/replay; any raw pending marker or Q4 read error becomes HOLD before startup migration or recovery writes. Sticky process HOLD remains visible in status and stops cooperating Hart writers; it does not stop vanilla/foreign writers.
+- Local evidence HL-E-069: 30 actual-source Node cases, seven builder invariants and 13 synthetic installer/rollback cases pass; full local suites 257 Python / 422 Node pass. Existing PG24 witnesses HL-E-068 retained. GitHub CI and BDS results must be recorded separately.
+- Next owner gate: [two focused LAB checks](../candidates/pg25/TEST_SESSION.md), clean startup after pinned guarded upgrade and eight ordinary items through the existing isolated Hopper/C/R/output pair. No injected real receipt, forced crash, repeat PG24 ejection/PG23 book test or extra restart. Any unresolved receipt requires preservation/audit, not rollback or automatic compensation. No production approval.

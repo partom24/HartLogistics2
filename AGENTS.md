@@ -1,5 +1,15 @@
 # Hart Logistics 2 — contributor operating contract
 
+## Current owner development authorization (2026-11-08)
+
+The owner explicitly authorized ongoing implementation, offline testing/builds,
+GitHub development and preparation of LAB test deliveries, with owner involvement
+only for blocking issues or BDS testing. This supersedes older planning-only
+permission statements below for that development scope. Preserve the original
+72-file baseline and all state/compatibility contracts. Current bounded work is
+PG25 ordinary-Q4 recovery hardening from PG24; no experiments, world reset,
+production operation or public release is authorized by this instruction.
+
 ## Authority and repository boundary
 
 - **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.

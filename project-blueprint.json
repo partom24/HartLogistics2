@@ -17,7 +17,7 @@
     "archives": []
   },
   "state": {
-    "lifecycle": "planning",
+    "lifecycle": "development",
     "current_state": "docs/CURRENT_DEVELOPMENT_STATE.md",
     "evidence": "docs/ENGINEERING_EVIDENCE_REGISTER.md"
   },
@@ -32,6 +32,6 @@
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",
-    "current_milestone": "HL-PLAN-001"
+    "current_milestone": "HL-Q4-RECOVERY-001"
   }
 }
