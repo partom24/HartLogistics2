@@ -169,3 +169,67 @@ test('repeated stable censuses do not write any dynamic properties',()=>{
   assert.deepEqual(f.writes,[]);
   assert.equal(JSON.stringify([...f.records]),before);
 });
+
+test('unclaimed Q4 Receiver metadata refuses entire world census',()=>{
+  const f=fixture([2,3]);
+  f.records.set('hartsorter:q4m_q999',
+    JSON.stringify({v:4,h:1,t:1,n:2,q:1,r:1,d:0}));
+  hold(run(f),'unclaimed_q4_receiver_metadata');
+});
+test('the zero-Receiver claim cannot conceal leftover Q4 metadata',()=>{
+  const f=fixture([]);
+  f.records.set('hartsorter:q4m_q1',
+    JSON.stringify({v:4,h:0,t:0,n:1,q:0,r:0,d:0}));
+  hold(run(f),'unclaimed_q4_receiver_metadata');
+});
+test('legacy Q2/Q3 meta records are retained but globally held for manual review',()=>{
+  for(const prefix of ['hartsorter:q2m_','hartsorter:q3m_']){
+    const f=fixture([1]);
+    f.records.set(prefix+'q999','legacy-retained');
+    hold(run(f),'unresolved_legacy_q2_q3_metadata');
+    assert.equal(f.records.get(prefix+'q999'),'legacy-retained');
+  }
+});
+test('world cannot claim an empty observation without a readable property listing',()=>{
+  const f=fixture([]);
+  hold(run(f,{world:null}),'world_property_listing_unavailable');
+  hold(run(f,{world:{getDynamicProperty:()=>undefined}}),
+    'world_property_listing_unavailable');
+  const g=fixture([1]);
+  g.world.getDynamicPropertyIds=()=>{throw Error('unloaded');};
+  hold(run(g),'world_property_listing_failed');
+});
+test('ambiguous, duplicated or invalid world property listings are held',()=>{
+  for(const ids of [
+    ['hartsorter:q4m_q1','hartsorter:q4m_q1'],
+    ['hartsorter:q4m_q1',null],
+    ['hartsorter:q4m_q1','x'.repeat(257)],
+    {keys:['hartsorter:q4m_q1']}
+  ]){
+    const f=fixture([1]);
+    f.world.getDynamicPropertyIds=()=>ids;
+    hold(run(f),'invalid_world_property_listing');
+  }
+});
+test('metadata listing addition after first sweep is not mistaken for a stable registry',()=>{
+  const f=fixture([3,4]);
+  const original=f.world.getDynamicPropertyIds;let lists=0;
+  f.world.getDynamicPropertyIds=()=>{
+    lists++;
+    if(lists===6)f.records.set('hartsorter:q4m_q999',
+      '{"v":4,"h":0,"t":0,"n":1,"q":0,"r":0,"d":0}');
+    return original();
+  };
+  // One global listing + 2 Receivers * 2 scans = 5.
+  // The next metadata listing discovers the injected unregistered Receiver.
+  hold(run(f),'unclaimed_q4_receiver_metadata');
+});
+test('unrelated packs and old unreferenced Q4 definition sidecars remain untouched',()=>{
+  const f=fixture([1]);
+  f.records.set('other_pack:state','do-not-touch');
+  f.records.set('hartsorter:q4d_q1_legacyunused','{"typeId":"minecraft:dirt"}');
+  const snapshot=JSON.stringify([...f.records]);
+  assert.equal(run(f).ok,true);
+  assert.equal(JSON.stringify([...f.records]),snapshot);
+  assert.deepEqual(f.writes,[]);
+});
