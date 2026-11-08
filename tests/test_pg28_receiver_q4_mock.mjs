@@ -242,3 +242,10 @@ test("queue head larger than one stack debits one bounded segment",()=>{
   assert.equal(h.q.first.amount,36);assert.equal(h.output.total(),64);
   assert.equal(h.journal.at(-1),null);
 });
+
+test("Receiver touching an independent disconnected pipe must HOLD both routes",()=>{
+  const h=fixture();h.put("hartlogistics:transporter",3,70,0);
+  assert.equal(h.resolve(),undefined);
+  assert.equal(h.run(),0);assert.equal(h.q.total,8);
+  assert.equal(h.journal.length,0);
+});
