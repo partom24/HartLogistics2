@@ -24,17 +24,17 @@ const deny=r=>{
 
 test("current PG20 cannot be called integrated merely because its local journal is clear",()=>{
   const gaps=currentPg20WriterGaps();
-  assert.equal(gaps.length,6);
-  assert.equal(new Set(gaps.map(x=>x.path)).size,6);
+  assert.equal(gaps.length,8);
+  assert.equal(new Set(gaps.map(x=>x.path)).size,8);
   assert.ok(gaps.every(x=>x.integration==="NOT_IN_UNIFIED_RUNTIME_COORDINATOR"));
   assert.ok(gaps.every(x=>x.canTransfer===false));
 });
 
 test("concrete old entry paths and future route kinds appear exactly once",()=>{
-  assert.equal(CURRENT_ENTRY_POINTS.length,6);
+  assert.equal(CURRENT_ENTRY_POINTS.length,8);
   assert.equal(FUTURE_ENTRY_POINTS.length,5);
-  assert.equal(ALL_ENTRY_POINTS.length,11);
-  assert.equal(new Set(ALL_ENTRY_POINTS).size,11);
+  assert.equal(ALL_ENTRY_POINTS.length,13);
+  assert.equal(new Set(ALL_ENTRY_POINTS).size,13);
 });
 test("fully claimed cooperative census remains model-only, with no transfer authority",()=>{
   const r=auditUnifiedWriterCensus(census());
@@ -84,7 +84,7 @@ test("no invented permission on a clean startup with fully asserted routes",()=>
   assert.equal(r.acknowledgedGeneration,12);
   deny(r);
 });
-test("none of the old six physical and logical writers may stay outside coordination",()=>{
+test("none of the eight actual physical and logical writers may stay outside coordination",()=>{
   const d=scenario();
   d.census.entries.find(e=>e.path==="RECEIVER_Q4_EGRESS").state="BYPASSES_COORDINATOR";
   const r=auditRestartReservation(d);
