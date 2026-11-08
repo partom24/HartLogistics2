@@ -1,6 +1,11 @@
 # PG25 1.5.8 — bounded ordinary Q4 recovery hardening
 
-**LAB candidate, not yet BDS-accepted.** Upgrade only exact PG24 `1.5.7` using
+**CLOSED — owner scoped LAB acceptance, 2026-11-08 (HL-E-070).** Owner supplied exact pinned Install COMPLETE (`e43ad176c1762d0a354893638bac44c9d13fce8d`, backup `lab-36ead7340407`), a running PG25 status screenshot with unchanged 664/56/34 topology and both journals clear, and output Hopper photo showing eight cobblestone in slot0 with four empty slots. Owner explicitly confirmed input Hopper empty. Output/status are photo-observed; input vacancy is owner-reported. Normal startup and ordinary route accepted. No live interrupted-recovery/crash-atomicity test or extra post-transfer restart is claimed. No further testing/restart/reinstall needed. Optional cleanup: retrieve only the eight output items, preserve existing rig/world/backups. Temporary runtime instrumentation: NONE.
+
+The instructions below are retained as the completed procedure, not a request to perform it again.
+
+
+**Historical pre-test candidate instructions:** Upgrade only exact PG24 `1.5.7` using
 the guarded Git-backed launcher. No production operations or experiments.
 
 **What:** verify the new build starts with clear journals and the existing
