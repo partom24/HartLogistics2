@@ -60,6 +60,11 @@ jobs:
           node --check candidates/transport/q5_q4_readonly_snapshot.mjs
           node --check tests/test_q5_q4_readonly_snapshot.mjs
           node --test tests/test_q5_q4_readonly_snapshot.mjs
+      - name: Q5 source-shaped read-only Q4 property scans and drift faults
+        run: |
+          node --check candidates/transport/q5_q4_read_adapter.mjs
+          node --check tests/test_q5_q4_read_adapter.mjs
+          node --test tests/test_q5_q4_read_adapter.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
