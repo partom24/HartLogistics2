@@ -245,3 +245,19 @@ test('model never returns an executable callback or Q5 cutover permit',()=>{
   assert.equal(Object.keys(r).includes('permit'),false);
   noAuthority(r);
 });
+
+test('inherited Object keys never become a Hart event entrypoint',()=>{
+  const f=fixture();
+  for(const eventKind of ['constructor','toString','hasOwnProperty',
+                            '__proto__',null,{},1]){
+    held(op(f,eventKind,'sorter_service_face'),'unknown_event_entrypoint');
+  }
+});
+test('runtime cannot add a new recognized target to the frozen event policy',()=>{
+  for(const [name,rule] of Object.entries(Q5_EVENT_POLICY)){
+    assert.equal(Object.isFrozen(rule),true,name);
+    assert.equal(Object.isFrozen(rule.targets),true,name);
+    assert.throws(()=>rule.targets.push('foreign_chest'),TypeError);
+  }
+  assert.equal(Object.isFrozen(Q5_EVENT_POLICY),true);
+});
