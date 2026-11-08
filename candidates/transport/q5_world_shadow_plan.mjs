@@ -23,7 +23,6 @@ const noPermission=Object.freeze({
 });
 const hold=reason=>({ok:false,status:'HOLD',reason,...noPermission});
 const safe=n=>Number.isSafeInteger(n)&&n>=0;
-const string=s=>typeof s==='string'&&s.length>0&&s.length<=256;
 
 function serializeClaims(q4WitnessByReceiver,freeze) {
   try {
@@ -81,11 +80,9 @@ export function planQ5WorldShadowWrites({
     }
     uniqueNamespaces.add(prepared.namespace);
     if(!prepared.writes.every(w=>w &&
-        string(w.key)===false && // keys deliberately exceed 256 when encoded
-        typeof w.key==='string' &&
+        typeof w.key==='string' && w.key.length>0 &&
         w.key.startsWith(prepared.namespace) &&
         typeof w.value==='string')) {
-      // Validate the actual namespace rather than guessing maximum key size.
       return hold('invalid_shadow_write_shape');
     }
     for(const write of prepared.writes){
