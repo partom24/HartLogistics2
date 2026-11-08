@@ -18,7 +18,7 @@ An existing Sorter column may use either its original Hopper source or a pipe
 atop its highest Sorter. The pipe adapter reads a bounded live six-face graph:
 
 - Maximum 16 loaded pipes, one single chest/barrel input at/above intake height,
-  one Sorter-column endpoint. Refuse multiple sources/columns, double chests,
+  one Sorter-column endpoint, all in one 16x16 chunk. Refuse multiple sources/columns, double chests,
   unloaded/unknown frontier, lower pipe runs and foreign/virtual endpoints.
 - All original Sorter mode/filter/priority/redstone decisions remain in the
   same `processColumn`. Revalidate the graph/source immediately before the
@@ -64,7 +64,7 @@ token is introduced. This change creates no temporary runtime probe/command.
 
 ## Verification and delivery
 
-HL-E-071: 38 actual-source Node cases cover native whole movement, old Hopper
+HL-E-071: 41 actual-source Node cases cover native whole movement, old Hopper
 budget/branch, eight mode/identity comparisons, filter priority, six-face loops
 and refusals, redstone, metadata refusal, empty-slot backpressure, pre-mutation
 topology drift, native before/after faults with preserved receipts, pending
@@ -74,7 +74,7 @@ stable APIs, unchanged original assets/atlas entries, 64 geometry masks,
 dedicated texture identity and exact inherited code outside input dispatch.
 Thirteen synthetic installer/rollback tests reuse the existing guarded path.
 
-Complete local suites: **279 Python and 462 Node tests PASS**. Generated
+Complete local suites: **279 Python and 465 Node tests PASS**. Generated
 JavaScript syntax passes. [11/11 GitHub CI jobs passed](https://github.com/partom24/HartLogistics2/actions/runs/42495908522) at implementation `9b6d600f`, including Windows launcher/installer checks. Final delivery pin is tracked in PR #45. Owner BDS observations remain NOT RUN.
 
 Delivery is the established one-file Git-backed PowerShell launcher, exact

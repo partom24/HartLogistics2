@@ -63,7 +63,9 @@ def compile_patch(source, overlay):
         '''                if (dest.kind === "collector") {
                     if (pg26Transport) break; // No new virtual Q4 custody path.''')
     column = once(column, '                    const slotInfo = findAcceptSlot(dest.container, stack);',
-        '''                    const slotInfo = pg26Transport
+        '''                    if (pg26Transport && (!pg26SameChunk(col, dest.block) ||
+                        dest.block.location.y >= col.source.y)) break;
+                    const slotInfo = pg26Transport
                         ? pg26EmptyDestinationSlot(dest.container, stack)
                         : findAcceptSlot(dest.container, stack);''')
     column = once(column,

@@ -29,6 +29,10 @@ instrumentation: **NONE**; the Transporter is the actual planned feature block.
 - At most 16 connected pipes, exactly one **single chest or barrel** at/above
   intake height, exactly one Sorter column. Unknown/unloaded frontier, multiple
   sources/columns, double chest, foreign inventory or virtual C/R endpoint holds.
+- All routing pipes, source and output must remain in the same 16x16 chunk.
+  The active layout below fits chunk X=-59 / Z=-51 (x -944..-929,
+  z -816..-801). The detached visual rack has no inventory route; visual arms
+  alone do not authorize cross-chunk movement.
 - Ordinary queue-safe stacks only. Whole stack → empty destination slot through
   the existing native writer. No partial split/merge or MR transfer on the new
   pipe path. Insufficient empty-slot capacity/budget leaves source untouched.

@@ -16,6 +16,15 @@ function pg26PositionKey(p) {
     return `${p.x},${p.y},${p.z}`;
 }
 
+function pg26SameChunk(col, block) {
+    try {
+        if (!block || block.dimension.id !== col.d) return false;
+        const p = block.location;
+        return Math.floor(p.x/16) === Math.floor(col.source.x/16) &&
+            Math.floor(p.z/16) === Math.floor(col.source.z/16);
+    } catch (_) { return false; }
+}
+
 function pg26Neighbor(block, face) {
     const p = block.location;
     try { return block.dimension.getBlock({x:p.x+face.x,y:p.y+face.y,z:p.z+face.z}); }
@@ -57,7 +66,7 @@ function pg26ReadTransportInput(col) {
         while (pending.length) {
             const pipe = pending.pop(), key = pg26PositionKey(pipe.location);
             if (pipes.has(key)) continue;
-            if (pipes.size >= PG26_MAX_PIPES || pipe.location.y < col.source.y ||
+            if (pipes.size >= PG26_MAX_PIPES || !pg26SameChunk(col, pipe) || pipe.location.y < col.source.y ||
                 blockIsRedstonePowered(pipe)) return undefined;
             pipes.set(key, pipe);
             for (const face of PG26_FACES) {
@@ -68,11 +77,11 @@ function pg26ReadTransportInput(col) {
                 if (id === PG26_PIPE_ID) {
                     if (!pipes.has(pg26PositionKey(p))) pending.push(next);
                 } else if (id === SORTER_ID) {
-                    if (face.name !== "down" || p.x !== col.source.x ||
+                    if (!pg26SameChunk(col, next) || face.name !== "down" || p.x !== col.source.x ||
                         p.y !== col.source.y-1 || p.z !== col.source.z) return undefined;
                     ends.add(pg26PositionKey(p));
                 } else if (id === "minecraft:chest" || id === "minecraft:barrel") {
-                    if (p.y < col.source.y) return undefined;
+                    if (!pg26SameChunk(col, next) || p.y < col.source.y) return undefined;
                     // Refuse double chests: two block coordinates can alias
                     // one inventory, including an unobserved second half.
                     if (id === "minecraft:chest") {

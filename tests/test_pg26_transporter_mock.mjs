@@ -51,7 +51,7 @@ function fixture({hopper=false}={}) {
   const sorter=put("hartsorter:sorter",0,69,0),root=put(hopper?"minecraft:hopper":"hartlogistics:transporter",0,70,0,hopper?input:undefined);
   if(!hopper){put("hartlogistics:transporter",0,70,1);put("hartlogistics:transporter",0,70,2);}
   const sourceBlock=hopper?root:put("minecraft:barrel",0,70,3,input);
-  const outBlock=put("minecraft:chest",0,69,-1,output);
+  const outBlock=put("minecraft:chest",1,69,0,output);
   const entry={d:dim.id,x:0,y:69,z:0,mode:"wildcard",f:null};
   const col={d:dim.id,x:0,z:0,source:{x:0,y:70,z:0},sorters:[entry]};
   let compact=0, collectorCalls=0, onDestination=null;
@@ -94,7 +94,7 @@ for(const kind of ["minecraft:barrel","minecraft:chest"]){
     assert.equal(h.input.moves,1);assert.equal(h.input.sets+h.output.sets,0);
     assert.equal(h.props.size,0);assert.equal(h.compact(),0);
     const receipt=JSON.parse(h.writes[0][1]);assert.equal(receipt.opaqueTag,"pg20-native-opaque-v1");
-    assert.deepEqual(receipt.src,{x:0,y:70,z:3});assert.deepEqual(receipt.dst,{x:0,y:69,z:-1});
+    assert.deepEqual(receipt.src,{x:0,y:70,z:3});assert.deepEqual(receipt.dst,{x:1,y:69,z:0});
   });
 }
 test("a full 64-stack fits the pipe budget without changing legacy Hopper budget",()=>{
@@ -131,7 +131,10 @@ for(const bad of ["extra source","extra sorter","unloaded boundary","too many pi
     if(bad==="extra source")h.put("minecraft:barrel",1,70,1,new Inventory());
     if(bad==="extra sorter")h.put("hartsorter:sorter",0,69,1);
     if(bad==="unloaded boundary")h.missing.add("1,70,1");
-    if(bad==="too many pipes")for(let i=1;i<=16;i++)h.put("hartlogistics:transporter",i,70,1);
+    if(bad==="too many pipes"){
+      h.put("hartlogistics:transporter",1,70,1);
+      for(let x=2;x<=5;x++)for(let z=1;z<=4;z++)h.put("hartlogistics:transporter",x,70,z);
+    }
     if(bad==="double chest"){h.sourceBlock.typeId="minecraft:chest";h.put("minecraft:chest",1,70,3,new Inventory(54));}
     if(bad==="foreign inventory")h.put("othermod:store",1,70,1,new Inventory());
     if(bad==="virtual receiver")h.put("hartsorter:receiver",1,70,1);
@@ -141,7 +144,7 @@ for(const bad of ["extra source","extra sorter","unloaded boundary","too many pi
   });
 }
 test("connected loop is bounded, visited once and retains a unique source/column",()=>{
-  const h=fixture();for(const [x,z] of [[1,0],[1,1],[1,2]])h.put("hartlogistics:transporter",x,70,z);
+  const h=fixture();for(const [x,z] of [[1,1],[1,2],[2,1],[2,2]])h.put("hartlogistics:transporter",x,70,z);
   assert.ok(h.resolve());assert.equal(h.run(),8);
 });
 for(const where of ["pipe","sorter","legacy hopper"]){
@@ -218,4 +221,21 @@ test("all 64 neighbor masks drive the actual connection callback without stale a
     for(let i=0;i<faces.length;i++)assert.equal(h.root.permutation.getState("hartlogistics:connect_"+faces[i][0]),!!(mask&(1<<i)),`mask ${mask}/${faces[i][0]}`);
   }
   assert.equal(h.input.moves,0);assert.equal(h.writes.length,0);
+});
+test("loaded pipe crossing a chunk boundary cannot become a transfer path",()=>{
+  const h=fixture();h.put("hartlogistics:transporter",-1,70,1);
+  assert.equal(h.resolve(),undefined);assert.equal(h.run(),0);
+  assert.equal(h.input.total(),8);assert.equal(h.writes.length,0);
+});
+test("loaded input in another chunk refuses instead of borrowing a neighboring inventory",()=>{
+  const h=fixture();h.put("minecraft:air",0,70,3);h.put("minecraft:barrel",-1,70,1,h.input);
+  assert.equal(h.resolve(),undefined);assert.equal(h.run(),0);
+  assert.equal(h.input.total(),8);assert.equal(h.writes.length,0);
+});
+test("cross-chunk output is refused on the new pipe branch while the legacy Hopper branch is unchanged",()=>{
+  const h=fixture();h.outBlock.location={x:0,y:69,z:-1};
+  assert.equal(h.context.pg26SameChunk(h.col,{get dimension(){throw Error("unreadable block");}}),false);
+  assert.equal(h.run(),0);assert.equal(h.input.total(),8);assert.equal(h.writes.length,0);
+  const legacy=fixture({hopper:true});legacy.outBlock.location={x:0,y:69,z:-1};
+  assert.equal(legacy.run(),8);
 });
