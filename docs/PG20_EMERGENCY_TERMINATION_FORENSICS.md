@@ -2,6 +2,12 @@
 
 **State: ABRUPT TERMINATION REPORTED; test items reported back in player inventory after restart, consistent with earlier-save rollback. Actual interrupted transaction atomicity NOT established. No repeat kill required.**
 
+## Clarification received: automatic player-inventory restoration
+
+The owner has explicitly answered the provenance question: **YES, all four 64-stacks of cobblestone and the enchanted book were already back in their player inventory when they rejoined, without manually collecting/moving them.** Update HL-E-057 to **OWNER-CONFIRMED AUTOMATIC EARLIER-SAVE ROLLBACK-CONSISTENT**. This strengthens the saved-world rollback interpretation and removes the manual-recovery alternative; it still does **not** locate the specific interrupted PG20 transaction cutpoint or rule out additional retained items in the feeding chest/linked Receiver Q4. Bedrock's earlier-save restoration is an observed **engine fallback on this run, not an implementable Hart recovery guarantee**.
+
+Separately, the owner ran a **new normal-restart** test with the repeater chain extended: output Hopper shows **four 64-stack cobblestone plus one enchanted book**, input Hopper empty, active **1.5.5-LAB-PG20** and both journals clear. Grade **HL-E-058 scoped mixed-cargo normal-restart PASS**; do not mix this with the abrupt-kill event and do not claim the new book's enchantment without a tooltip. See [PG21 source-only custody hardening](PG21_POSTCRASH_CUSTODY_HARDENING.md). No further force-kill, extra owner test or pack install is warranted.
+
 ## Latest owner recovery observation — returned to player inventory (HL-E-057; 2026-11-07)
 
 Following the initially duplicated prekill Hopper image (HL-E-056), the owner supplied **four additional screenshots** and explicitly states **all original test items are back in the player's inventory**, identifying the **first Hopper screenshot as the input Hopper and the second as the output Hopper**. Treat this newer evidence as **reported postkill rollback to an earlier inventory save**, not as a confirmed metadata-rich in-flight transfer repair. The intended item accounting is **256 cobblestone (four complete stacks) plus one enchanted book**, previously shown occupying the *input Hopper* before the kill; the owner now reports those items in personal inventory. The previous byte-identical attachment remains a non-independent observation but is no longer the only postkill evidence.
