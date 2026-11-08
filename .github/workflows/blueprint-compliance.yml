@@ -107,6 +107,12 @@ jobs:
         run: |
           python candidates/pg15/prepare_candidate.py
           node --check --input-type=module < build/pg15-lab/behavior_pack/scripts/main.js
+      - name: Compile PG20 clean derived LAB pack and exercise native MR fault recovery
+        run: |
+          python candidates/pg20/prepare_candidate.py
+          node --check --input-type=module < build/pg20-lab/behavior_pack/scripts/main.js
+          node --check tests/test_pg20_native_recovery_mock.mjs
+          node --test tests/test_pg20_native_recovery_mock.mjs
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
