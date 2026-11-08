@@ -96,6 +96,11 @@ jobs:
       - name: Q5 anonymous event and deferred callback guard weaving (uninstallable)
         run: |
           python -m unittest discover -s tests -p 'test_q5_callback_guard_preview.py' -v
+      - name: Q5 single-use legacy precommit marker fence and restart fault matrix
+        run: |
+          node --check candidates/transport/q5_legacy_precommit_fence.mjs
+          node --check tests/test_q5_legacy_precommit_fence.mjs
+          node --test tests/test_q5_legacy_precommit_fence.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
