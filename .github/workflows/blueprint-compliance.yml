@@ -121,6 +121,11 @@ jobs:
           node --check candidates/transport/q5_history_first_transition.mjs
           node --check tests/test_q5_history_first_transition.mjs
           node --test tests/test_q5_history_first_transition.mjs
+      - name: Q5 whole-world shadow write plans and mock torn-record recovery (offline)
+        run: |
+          node --check candidates/transport/q5_world_shadow_plan.mjs
+          node --check tests/test_q5_world_shadow_plan.mjs
+          node --test tests/test_q5_world_shadow_plan.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
