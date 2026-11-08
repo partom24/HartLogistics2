@@ -262,3 +262,28 @@ test("redstone locked Sorter Hopper is checked before any PG23 compaction",()=>{
   assert(f.indexOf("hopperIsRedstoneLocked(sourceBlock)")<
          f.indexOf("pg23CompactSourceHopper(src, sourceBlock)"));
 });
+
+test("Q4 pending marker blocks legacy physical recovery before any physical inspection",()=>{
+  const reads=[],holds=[];
+  const context={
+    QUEUE_JOURNAL_KEY:"pendingQ4",
+    world:{getDynamicProperty:key=>{reads.push(key);return "pending";}},
+    pg20ReportHold:reason=>holds.push(reason)
+  };
+  vm.runInNewContext(body("recoverJournal"),context);
+  context.recoverJournal();
+  assert.deepEqual(reads,["pendingQ4"]);
+  assert.match(holds[0],/physical recovery paused/);
+});
+test("physical pending marker blocks queued recovery before it can alter Q4",()=>{
+  const reads=[],holds=[];
+  const context={
+    JOURNAL_KEY:"pendingPhysical",
+    world:{getDynamicProperty:key=>{reads.push(key);return "pending";}},
+    pg20ReportHold:reason=>holds.push(reason)
+  };
+  vm.runInNewContext(body("recoverQueueJournal"),context);
+  context.recoverQueueJournal();
+  assert.deepEqual(reads,["pendingPhysical"]);
+  assert.match(holds[0],/queued recovery paused/);
+});
