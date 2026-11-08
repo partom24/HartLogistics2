@@ -48,12 +48,20 @@ class PG27SourceSeams(unittest.TestCase):
         effects = report["catalogued_direct_effect_functions"]
         for name in (
             "safeMovePartial", "enqueueFromSource", "enqueueFromEjectedEntity",
-            "dequeueToReceiver", "recoverJournal", "recoverQueueJournal",
+            "dequeueToReceiver", "recoverJournal",
             "saveJournal", "saveQueueJournal", "persistQueueMeta",
             "persistQueuePage"
         ):
             self.assertIn(name, effects)
             self.assertGreater(effects[name], 0)
+
+    def test_pg25_recovery_is_a_hold_seam_not_a_direct_journal_writer(self):
+        census = audit.source_guard_census(self.source)
+        self.assertIn("recoverQueueJournal", audit.named_functions(self.source))
+        self.assertNotIn("recoverQueueJournal",
+                         census["catalogued_direct_effect_functions"])
+        self.assertIn("pg25PreservePendingQueueJournal",
+                      audit.named_functions(self.source))
 
     def test_source_contains_all_known_delayed_and_event_callback_registrations(self):
         report = audit.source_guard_census(self.source)
