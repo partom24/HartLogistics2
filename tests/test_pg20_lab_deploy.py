@@ -1,4 +1,4 @@
-"""PG20 guarded test-owned one-cobble deployment only against synthetic LAB fixtures."""
+"""PG20 MR recovery derived-pack deployment safety on synthetic LAB fixtures only."""
 from __future__ import annotations
 import importlib.util
 import json
@@ -23,7 +23,7 @@ class SyntheticPG20LAB(unittest.TestCase):
         self.work = Path(self.tmp.name)
         self.lab = self.work / "synthetic-LAB"
         self.lab.mkdir()
-        self.previous = self.work / "pg14"
+        self.previous = self.work / "pg15"
         self.current = self.work / "pg20"
         pg.pg15.prepare(self.previous)
         pg.pg20.prepare(self.current)
@@ -58,7 +58,7 @@ class SyntheticPG20LAB(unittest.TestCase):
             else:
                 self.assertEqual(path.read_bytes(), old)
 
-    def test_dry_plan_requires_exact_153_and_never_writes(self):
+    def test_dry_plan_requires_exact_154_and_never_writes(self):
         p = pg.create_plan(self.lab, self.current, self.previous)
         self.assertEqual(len(p), 2)
         for item in p:
