@@ -75,6 +75,10 @@ jobs:
           node --check candidates/transport/q5_maintenance_epoch.mjs
           node --check tests/test_q5_maintenance_epoch.mjs
           node --test tests/test_q5_maintenance_epoch.mjs
+      - name: Q5 PG27 source-level global freeze writer and callback seam census
+        run: |
+          python -m unittest discover -s tests -p 'test_q5_pg27_guard_audit.py' -v
+          python candidates/transport/q5_pg27_guard_audit.py
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
