@@ -51,6 +51,7 @@ def compile_patch(src: str, overlay: str) -> str:
         """    saveQueueJournal(tx);
     if (world.getDynamicProperty(QUEUE_JOURNAL_KEY) !== JSON.stringify(tx)) {
         pg24EntityHold = true;
+        pg20ReportHold("PG24 Q4 ejected entity intent readback mismatch: HOLD");
         throw new Error("PG24 Q4 ejected entity intent readback mismatch");
     }
     persistQueueEntry(receiver, q, seq, entryAfter);""",
