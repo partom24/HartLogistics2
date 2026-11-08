@@ -53,6 +53,11 @@ jobs:
         run: |
           node --check candidates/transport/custody_crash_gate.mjs
           node --test tests/test_transport_custody_crash_gate.mjs
+      - name: Classify owner rollback vs mixed physical custody without auto-settlement
+        run: |
+          node --check candidates/transport/crash_origin_reconciliation.mjs
+          node --check tests/test_crash_origin_reconciliation.mjs
+          node --test tests/test_crash_origin_reconciliation.mjs
       - name: Verify original cross-lane hazard model rejects phantom custody
         run: |
           node --check candidates/transport/cross_lane_hazard_audit.mjs
