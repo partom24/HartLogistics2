@@ -22,6 +22,7 @@ const noAuthority=Object.freeze({
 });
 const hold=reason=>({ok:false,status:'HOLD',reason,...noAuthority});
 const safe=n=>Number.isSafeInteger(n)&&n>=0;
+const safeJSON=value=>{try{return JSON.stringify(value)??null;}catch(_){return null;}};
 function witnessSignature(map,freeze) {
   try {
     const signature=JSON.stringify([freeze,[...map]]);
@@ -42,7 +43,7 @@ function correlate(prepared,observed,witnesses) {
   for(let i=0;i<observed.drafts.length;i++){
     const now=observed.drafts[i],planned=prepared.plans[i];
     const witness=witnesses.get(now.receiverId);
-    if(!planned || !witness ||
+    if(!planned || !planned.q4 || !witness ||
        planned.receiverId!==now.receiverId ||
        planned.sourceFingerprint!==now.sourceFingerprint ||
        planned.itemCount!==now.itemCount ||
@@ -50,8 +51,10 @@ function correlate(prepared,observed,witnesses) {
        planned.q4.receiverId!==now.receiverId ||
        planned.q4.snapshotFingerprint!==now.sourceFingerprint ||
        planned.q4.total!==now.itemCount ||
-       JSON.stringify(witness)!==JSON.stringify(planned.q4) ||
-       JSON.stringify(planned.draft)!==JSON.stringify(now.draft)){
+       safeJSON(witness)===null ||
+       safeJSON(witness)!==safeJSON(planned.q4) ||
+       safeJSON(planned.draft)===null ||
+       safeJSON(planned.draft)!==safeJSON(now.draft)){
       return false;
     }
     count+=now.itemCount;
