@@ -50,7 +50,7 @@ populateQ4FromEntries recordDirectReceiverTransfer rebuildQueueItem
 useReceiver selectCollector journalQueueState rebuildItem giveOrDrop setFilter
 destinationFor plantEmptyNativeFrame eraseOwnedFrame nativeFrameMirror
 saveRegistry saveLogistics pg26RefreshConnections pg24ClearVerifiedEntityIntent
-pg24VerifyEjectedCommit
+pg24VerifyEjectedCommit pg08CommitLink syncSorterModeVisual
 """.split())
 
 # Detect direct effect call sites, not merely path names or comments.
