@@ -208,17 +208,25 @@ def source_guard_census(source: str) -> dict:
     # event callbacks must be reviewed explicitly; their source locations are
     # reported and never presented as fully protected by a future function gate.
     ranges = list(locations.values())
-    top_level_effect_lines = [
-        masked.count("\n", 0, m.start()) + 1
+    # A named function's declaration is not an effect CALL. Discard its
+    # leading function keyword/name; only count actual callback-level calls.
+    declared = {
+        m.start(1) for m in re.finditer(
+            r"(?m)^function\s+([A-Za-z_$][\w$]*)\s*\(", masked
+        )
+    }
+    top_level_effects = [
+        (m.group().split("(")[0].strip(), masked.count("\n", 0, m.start()) + 1)
         for m in EFFECT_CALLS.finditer(masked)
-        if not any(start <= m.start() < end for start, end in ranges)
+        if m.start() not in declared and
+           not any(start <= m.start() < end for start, end in ranges)
     ]
     return {
         "status": "SOURCE_CENSUS_ONLY",
         "handler_seams": {k: list(v) for k, v in HANDLER_SEAMS.items()},
         "unimplemented_schedulers": ["q5_scheduler", "bulk_scheduler"],
         "catalogued_direct_effect_functions": effect_sites,
-        "top_level_callback_effect_lines": top_level_effect_lines,
+        "top_level_callback_effect_calls": top_level_effects,
         "registrations": dict(CALLBACK_COUNTS),
         "canFreezeWorld": False,
         "canRoute": False,
@@ -271,4 +279,4 @@ if __name__ == "__main__":
     print("Real global freeze/cutover authority: NONE")
     print("Mapped direct effect functions:", len(result["catalogued_direct_effect_functions"]))
     print("Unowned top-level callback effect sites (requires separate guards):",
-          result["top_level_callback_effect_lines"])
+          result["top_level_callback_effect_calls"])
