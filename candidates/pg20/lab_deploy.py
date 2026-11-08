@@ -91,7 +91,7 @@ def create_plan(root, generated, previous):
         if actual_version != OLD_VERSION or registered != OLD_VERSION:
             raise lab.UnsafeLab("Installed PG15 1.5.4 missing or mismatched")
         if lab.hashes(item["target"]) != old_hashes[kind]:
-            raise lab.UnsafeLab("Installed PG20 pack hash differs from exact known 1.5.4 build")
+            raise lab.UnsafeLab("Installed PG15 pack hash differs from exact known 1.5.4 build")
         out.append({
             **item,
             "source": generated / kind,
@@ -164,8 +164,8 @@ def main(argv=None):
             lab.assert_clean_git(ROOT, args.commit)
         pg20.pg08.check_baseline()
         with tempfile.TemporaryDirectory(prefix="pg20-offline-") as temp:
-            new = Path(temp) / "pg15"
-            old = Path(temp) / "pg14"
+            new = Path(temp) / "pg20"
+            old = Path(temp) / "pg15"
             pg20.prepare(new)
             pg15.prepare(old)
             next_hashes = check_candidate(new)
