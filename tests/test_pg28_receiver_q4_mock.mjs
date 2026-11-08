@@ -16,7 +16,8 @@ function fn(name) {
   return src.slice(a, b + 2);
 }
 const names = ["pg26PositionKey", "pg26SameChunk", "pg26Neighbor",
-  "pg26EmptyDestinationSlot", "pg28ReadReceiverInput", "pg28StillMatches",
+  "pg26EmptyDestinationSlot", "pg26RefreshConnections",
+  "pg28ReadReceiverInput", "pg28StillMatches",
   "pg28ProcessReceiverColumn", "dequeueToReceiver"];
 const functions = names.map(fn).join("\n");
 assert.match(fn("dequeueToReceiver"), /options\?\.emptyOnly/);
@@ -31,8 +32,13 @@ function fixture(options={}) {
     return blocks.get(k(p))??block("minecraft:air",p);
   }};
   function block(typeId,p,container) {
+    let states={};
+    const perm=x=>({getState:n=>x[n]??false,
+      withState:(n,v)=>perm({...x,[n]:v}),_states:x});
     return {typeId,location:{...p},dimension:dim,powered:false,
-      getComponent:name=>name==="minecraft:inventory" && container?{container}:undefined};
+      getComponent:name=>name==="minecraft:inventory" && container?{container}:undefined,
+      get permutation(){return perm(states);},
+      setPermutation(next){states={...next._states};}};
   }
   function put(typeId,x,y,z,container) {
     const b=block(typeId,{x,y,z},container);blocks.set(k(b.location),b);return b;
@@ -247,5 +253,16 @@ test("Receiver touching an independent disconnected pipe must HOLD both routes",
   const h=fixture();h.put("hartlogistics:transporter",3,70,0);
   assert.equal(h.resolve(),undefined);
   assert.equal(h.run(),0);assert.equal(h.q.total,8);
+  assert.equal(h.journal.length,0);
+});
+
+test("generated connection callback visually links Receiver without writing custody",()=>{
+  const h=fixture();
+  h.ctx.pg26RefreshConnections(h.pipe);
+  assert.equal(h.pipe.permutation.getState("hartlogistics:connect_east"),true);
+  assert.equal(h.journal.length,0);assert.equal(h.q.total,8);
+  h.put("minecraft:air",2,70,0);
+  h.ctx.pg26RefreshConnections(h.pipe);
+  assert.equal(h.pipe.permutation.getState("hartlogistics:connect_east"),false);
   assert.equal(h.journal.length,0);
 });
