@@ -24,7 +24,7 @@ HANDLER_SEAMS = {
     "physical_recovery": ("recoverJournal",),
     "q4_recovery": ("recoverQueueJournal", "pg25PreservePendingQueueJournal"),
     "receiver_q4_output": ("processReceiverDrain", "dequeueToReceiver"),
-    "sorter_compaction": ("pg23CompactSourceHopper", "compactSourceHopper"),
+    "sorter_compaction": ("pg23CompactSourceHopper",),
     "sorter_physical": ("schedulerTick", "processColumn", "safeMovePartial"),
     "transporter_input": ("pg26ReadTransportInput", "pg26TransportStillMatches"),
     "q5_scheduler": (),
