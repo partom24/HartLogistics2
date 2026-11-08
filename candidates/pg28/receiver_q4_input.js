@@ -57,6 +57,16 @@ function pg28ReadReceiverInput(col) {
             }
         }
         if (!sourceBlock || ends.size !== 1) return undefined;
+        // An apparently single-source graph is not exclusive if this Receiver
+        // also touches a disconnected pipe network feeding another Sorter.
+        // Reject all such competing physical egress attachments.
+        for (const face of PG26_FACES) {
+            const neighbor = pg26Neighbor(sourceBlock, face);
+            if (!neighbor) return undefined;
+            if (neighbor.typeId === PG26_PIPE_ID &&
+                !pipes.has(pg26PositionKey(neighbor.location)))
+                return undefined;
+        }
         return {
             receiver, block:sourceBlock,
             fingerprint:[...pipes].sort().join("|") + ">" +
