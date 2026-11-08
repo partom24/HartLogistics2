@@ -64,8 +64,8 @@ def check_candidate(generated):
                    "pg20MoveOpaqueNative(",
                    "function pg25PreservePendingQueueJournal()",
                    "pg25QueueHold", "HOLD (audit required)",
-                   "function pg27ReadTransportInput(", "PG27_MAX_PIPES = 16",
-                   "function pg27TransportStillMatches(", "slotInfo, want, pg27Transport",
+                   "function pg26ReadTransportInput(", "PG26_MAX_PIPES = 16",
+                   "function pg26TransportStillMatches(", "slotInfo, want, pg26Transport",
                    "function pg24VerifyEjectedCommit(",
                    "pg24ClearVerifiedEntityIntent();"):
         if marker not in source:
