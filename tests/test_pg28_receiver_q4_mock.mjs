@@ -86,6 +86,10 @@ function fixture(options={}) {
     },
     queueMetaSnapshot:m=>({...m}),
     findAcceptSlot:(c,item)=>{
+      const merge=c.values.findIndex(x=>x?.typeId===item.typeId &&
+        x.amount<item.maxAmount);
+      if(merge>=0)return {slot:merge,before:c.values[merge].amount,
+        room:item.maxAmount-c.values[merge].amount};
       const i=c.values.findIndex(x=>!x);
       return i<0?undefined:{slot:i,before:0,room:item.maxAmount};
     },
@@ -204,5 +208,37 @@ test("exception after journaled Q4 debit preserves unresolved receipt and HOLD",
 test("global and per-column budget are respected",()=>{
   const h=fixture();assert.equal(h.run(3),3);
   assert.equal(h.q.total,5);assert.equal(h.output.total(),3);
+  assert.equal(h.journal.at(-1),null);
+});
+
+test("legacy Receiver -> output Hopper retains original occupied-stack merge",()=>{
+  const h=fixture();const hopper=h.put("minecraft:hopper",2,69,0);
+  h.output.values[0]={typeId:"minecraft:cobblestone",amount:2,maxAmount:64};
+  const moved=h.ctx.dequeueToReceiver(h.receiver,
+    {block:hopper,container:h.output},16);
+  assert.equal(moved,8);assert.equal(h.output.values[0].amount,10);
+  assert.equal(h.q.total,0);assert.equal(h.journal.at(-1),null);
+});
+test("changed Sorter mode after admission refuses Q4 journal debit",()=>{
+  const h=fixture();h.onSlot(()=>{h.entry.mode="bypass";});
+  assert.equal(h.run(),0);assert.equal(h.q.total,8);
+  assert.equal(h.journal.length,0);
+});
+test("changed FILTER matching after admission refuses Q4 journal debit",()=>{
+  const h=fixture();h.entry.mode="filter";
+  h.entry.f={typeId:"minecraft:cobblestone"};
+  h.onSlot(()=>{h.entry.f={typeId:"minecraft:dirt"};});
+  assert.equal(h.run(),0);assert.equal(h.q.total,8);
+  assert.equal(h.journal.length,0);
+});
+test("new legacy Hopper before journal defeats a previously valid pipe",()=>{
+  const h=fixture();h.onSlot(()=>h.put("minecraft:hopper",2,69,0));
+  assert.equal(h.run(),0);assert.equal(h.q.total,8);
+  assert.equal(h.journal.length,0);
+});
+test("queue head larger than one stack debits one bounded segment",()=>{
+  const h=fixture();h.q.first.amount=100;h.q.total=100;h.q.meta.total=100;
+  assert.equal(h.run(),64);assert.equal(h.q.total,36);
+  assert.equal(h.q.first.amount,36);assert.equal(h.output.total(),64);
   assert.equal(h.journal.at(-1),null);
 });
