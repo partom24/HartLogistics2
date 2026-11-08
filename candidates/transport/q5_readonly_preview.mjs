@@ -8,6 +8,7 @@
  * cutover. This function NEVER creates Q5 shadow writes or a debit permit.
  */
 import { sampleQ4WorldReadOnly } from './q5_q4_read_adapter.mjs';
+import { inspectQ4OrdinaryDefinitionShape } from './q5_ordinary_shape_gate.mjs';
 import { q5IdentityKey, stageQ4OrdinaryDraft, inspectQ5Draft
 } from './q5_bucket_core.mjs';
 
@@ -20,7 +21,8 @@ const pos = n => Number.isSafeInteger(n) && n > 0;
 /**
  * \`identityAssertions\` is a Map from the *complete* canonical serialized
  * definition key to {classification:"ordinary",losslessIdentity:true,
- * metadataFree:true}. These are synthetic inputs, NOT automatically verified
+ * metadataFree:true,runtimeStackable:true,runtimeMaxStack:64,
+ * verifiedFreshRoundTrip:true}. These are synthetic inputs, NOT automatically verified
  * merely because q4 previously accepted the item.
  */
 export function previewQ5OrdinaryReceiver({receiver,world,epoch,identityAssertions}={}) {
@@ -30,12 +32,17 @@ export function previewQ5OrdinaryReceiver({receiver,world,epoch,identityAssertio
   const ids = new Set();
   const modeled = [];
   for (const entry of source.entries) {
+    const shape = inspectQ4OrdinaryDefinitionShape(entry.definition);
+    if (!shape.ok) return hold('q4_ordinary_shape_refused:' + shape.reason);
     const key = q5IdentityKey(entry.definition);
-    if (key === null) return hold('unsafe_source_definition');
+    if (key === null || key !== shape.key) return hold('unsafe_source_definition');
     ids.add(key);
     const a = identityAssertions.get(key);
     if (!a || a.classification !== 'ordinary' ||
-        a.losslessIdentity !== true || a.metadataFree !== true) {
+        a.losslessIdentity !== true || a.metadataFree !== true ||
+        a.runtimeStackable !== true ||
+        !Number.isSafeInteger(a.runtimeMaxStack) || a.runtimeMaxStack <= 1 ||
+        a.verifiedFreshRoundTrip !== true) {
       return hold('unverified_q5_identity_class');
     }
     modeled.push({

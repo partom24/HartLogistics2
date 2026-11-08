@@ -4,10 +4,14 @@ import { q5IdentityKey, inspectQ5Draft } from '../candidates/transport/q5_bucket
 import { previewQ5OrdinaryReceiver } from '../candidates/transport/q5_readonly_preview.mjs';
 
 const receiver = {id:'minecraft:overworld|-955,69,-790',queueKey:'q19'};
+const canonicalQ4 = d => ({
+  lore:[],ench:[],canDestroy:[],canPlaceOn:[],dyn:{},...d
+});
 function fixture(amounts=[4,7,3],definitions=[
   {typeId:'minecraft:stone'}, {typeId:'minecraft:gold_ingot'},
   {typeId:'minecraft:stone'}
 ]) {
+  const actualDefinitions=definitions.map(canonicalQ4);
   const store = new Map();
   const sum=amounts.reduce((a,b)=>a+b,0);
   const rows=amounts.map((n,i)=>['d'+i,n]);
@@ -17,15 +21,16 @@ function fixture(amounts=[4,7,3],definitions=[
   }));
   if(rows.length)store.set('hartsorter:q4p_q19_0',JSON.stringify([0,rows]));
   for(let i=0;i<rows.length;i++)
-    store.set('hartsorter:q4d_q19_d'+i,JSON.stringify(definitions[i]));
+    store.set('hartsorter:q4d_q19_d'+i,JSON.stringify(actualDefinitions[i]));
   const mutations=[];
   const world = {
     getDynamicPropertyIds:()=>[...store.keys()],
     getDynamicProperty:key=>store.get(key),
     setDynamicProperty:(...args)=>mutations.push(args)
   };
-  const proof = new Map(definitions.map(d=>[q5IdentityKey(d),{
-    classification:'ordinary',losslessIdentity:true,metadataFree:true
+  const proof = new Map(actualDefinitions.map(d=>[q5IdentityKey(d),{
+    classification:'ordinary',losslessIdentity:true,metadataFree:true,
+    runtimeStackable:true,runtimeMaxStack:64,verifiedFreshRoundTrip:true
   }]));
   return {receiver,store,world,proof,mutations,epoch:7};
 }
@@ -74,7 +79,7 @@ test('unknown metadata-rich identity refuses all Q5 ordinary conversion',()=>{
 });
 
 test('no automatic admission of Q4 data without full explicit classification',()=>{
-  const f=fixture();f.proof.delete(q5IdentityKey({typeId:'minecraft:gold_ingot'}));
+  const f=fixture();f.proof.delete(q5IdentityKey(canonicalQ4({typeId:'minecraft:gold_ingot'})));
   hold(run(f));
   assert.equal(f.mutations.length,0);
 });
@@ -95,14 +100,14 @@ test('empty Q4 can form an empty read-only Q5 draft',()=>{
   assert.equal(r.q4ObservedItems,0);
 });
 
-test('snapshot containing two item metadata variants remains separately keyed',()=>{
+test('metadata-rich potion variants cannot be forced into ordinary Q5 with synthetic proofs',()=>{
   const red={typeId:'minecraft:potion',potion:{effect:'healing',delivery:'drink'}};
   const blue={typeId:'minecraft:potion',potion:{effect:'speed',delivery:'drink'}};
-  const f=fixture([2,3,4],[red,blue,red]);const r=run(f);
-  assert.equal(r.ok,true);assert.equal(r.q5BucketCount,2);
-  assert.deepEqual(inspectQ5Draft(r.draft).buckets.map(b=>b.count).sort(),[3,6].sort());
-  assert.equal(r.canMigrate,false);
-  // Synthetic proof above does NOT establish the actual Bedrock potion roundtrip.
+  const f=fixture([2,3,4],[red,blue,red]);
+  const r=run(f);
+  hold(r);
+  assert.equal(r.reason,'q4_ordinary_shape_refused:native_or_opaque_item_type');
+  assert.deepEqual(f.mutations,[]);
 });
 
 test('pending or malformed legacy journals prevent even read-only staging',()=>{
@@ -156,4 +161,39 @@ test('preview does not advance persisted authority or supply an executable write
   assert.equal(Object.keys(a).includes('writes'),false);
   assert.equal(a.canStageWorld,false);
   assert.equal(a.canMigrate,false);
+});
+
+test('synthetic ordinary flags cannot override renamed or dynamic-property metadata',()=>{
+  for(const altered of [
+    {nameTag:'valuable'}, {dyn:{ownership:'opaque'}},
+    {ench:[{id:'sharpness',level:5}]},
+    {unknownMeta:'opaque'}
+  ]){
+    const f=fixture([1],[{typeId:'minecraft:stone',...altered}]);
+    const r=run(f);
+    hold(r);
+    assert.match(r.reason,/q4_ordinary_shape_refused/);
+  }
+});
+test('runtime stackability and fresh reconstruction assertions are independently required',()=>{
+  for(const bad of [
+    {runtimeStackable:false},{runtimeMaxStack:1},
+    {runtimeMaxStack:0},{verifiedFreshRoundTrip:false},
+    {verifiedFreshRoundTrip:undefined},{runtimeMaxStack:NaN}
+  ]){
+    const f=fixture();
+    const key=[...f.proof.keys()][0];
+    f.proof.set(key,{...f.proof.get(key),...bad});
+    const r=run(f);
+    hold(r);
+    assert.equal(r.reason,'unverified_q5_identity_class');
+  }
+});
+test('plain vanilla type with no canonical Q4 fields is not a Q5 draft',()=>{
+  const f=fixture();
+  const id='hartsorter:q4d_q19_d0';
+  f.store.set(id,JSON.stringify({typeId:'minecraft:stone'}));
+  const r=run(f);
+  hold(r);
+  assert.equal(r.reason,'q4_ordinary_shape_refused:incomplete_q4_ordinary_shape');
 });

@@ -84,6 +84,12 @@ jobs:
           node --check candidates/transport/q5_world_guard_read.mjs
           node --check tests/test_q5_world_guard_read.mjs
           node --test tests/test_q5_world_guard_read.mjs
+      - name: Q5 Q4 ordinary serialized shape and metadata-rich refusal gate (offline)
+        run: |
+          node --check candidates/transport/q5_ordinary_shape_gate.mjs
+          node --check tests/test_q5_ordinary_shape_gate.mjs
+          node --test tests/test_q5_ordinary_shape_gate.mjs
+          node --test tests/test_q5_readonly_preview.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
