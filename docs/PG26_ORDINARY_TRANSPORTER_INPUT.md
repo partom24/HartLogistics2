@@ -75,7 +75,7 @@ dedicated texture identity and exact inherited code outside input dispatch.
 Thirteen synthetic installer/rollback tests reuse the existing guarded path.
 
 Complete local suites: **279 Python and 462 Node tests PASS**. Generated
-JavaScript syntax passes. CI and owner observations must be recorded separately.
+JavaScript syntax passes. [11/11 GitHub CI jobs passed](https://github.com/partom24/HartLogistics2/actions/runs/42495908522) at implementation `9b6d600f`, including Windows launcher/installer checks. Final delivery pin is tracked in PR #45. Owner BDS observations remain NOT RUN.
 
 Delivery is the established one-file Git-backed PowerShell launcher, exact
 PG25→PG26 source hashes, read-only CheckLab, explicit SHA-pinned Install and
