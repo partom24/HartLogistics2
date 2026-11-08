@@ -106,9 +106,15 @@ function pg28ProcessReceiverColumn(col, globalRemaining) {
         // New pipe branch is empty-slot-only, even if Q4's legacy Hopper
         // output can merge into an existing stack. No direct Collector/Q4 loop.
         if (!pg26EmptyDestinationSlot(target.container, item)) continue;
+        const admittedMode = sorterMode(entry);
         const revalidate = () => {
             if (!pg28StillMatches(col, route) ||
-                blockIsRedstonePowered(sorterAt(entry))) return false;
+                blockIsRedstonePowered(sorterAt(entry)) ||
+                sorterMode(entry) !== admittedMode) return false;
+            if (admittedMode === "filter" &&
+                (!entry.f || !matchesFilter(item, entry.f))) return false;
+            if (admittedMode === "auto" && !autoSorterMatches(item, entry))
+                return false;
             const now = destinationFor(entry);
             return !!now && now.kind === "storage" &&
                 now.block.typeId === target.block.typeId &&
