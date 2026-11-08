@@ -79,6 +79,7 @@ export function readOnlyQ4Snapshot({ receiver, records, queueJournalClear,
   const firstPage = meta.q ? Math.floor((meta.h - 1) / Q4_SOURCE_PAGE_SIZE) : 0;
   const lastPage = meta.q ? Math.floor((meta.t - 1) / Q4_SOURCE_PAGE_SIZE) : -1;
   const referenced = [[k.meta, rawMeta]];
+  const seenDefinitions = new Set();
   const entries = [];
   let total = 0;
   const actualPages = new Set();
@@ -120,7 +121,8 @@ export function readOnlyQ4Snapshot({ receiver, records, queueJournalClear,
       const rawDefinition = records.get(defKey);
       const definition = parse(rawDefinition);
       if (q5IdentityKey(definition) === null) return fail('missing_or_unsafe_q4_definition');
-      if (!referenced.some(([key]) => key === defKey)) {
+      if (!seenDefinitions.has(defKey)) {
+        seenDefinitions.add(defKey);
         referenced.push([defKey, rawDefinition]);
       }
       const seq = pageNo * Q4_SOURCE_PAGE_SIZE + firstSlot + i + 1;
