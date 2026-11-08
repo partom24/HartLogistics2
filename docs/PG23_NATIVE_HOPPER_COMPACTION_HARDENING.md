@@ -49,4 +49,6 @@ PG23 adds a **cooperating Hart-script routing freeze** to `processColumn`, `proc
 - **Evidence HL-E-061:** original 1.4.1/PG20 unjournaled compaction hazard — SOURCE LEVEL, not observed live BDS duplication.
 - **Evidence HL-E-062:** PG23 1.5.6 source/mock/build/synthetic installer CI proof once final checked Git SHA passes all jobs — OFFLINE CANDIDATE, no runtime acceptance.
 
-**OFFLINE CI:** [all 8 CI jobs passing at source head e3cc04d4](https://github.com/partom24/HartLogistics2/actions/runs/42438003472); no runtime BDS observation or deployment by development.\n\n**Next step:** owner-initiated guarded PG20→PG23 LAB install and **two** focused isolated Sorter/Hopper observations, after complete CI. This is a **true changed path**, unlike already passed PG20 Collector-native routing. No further emergency kill is required or requested.
+**OFFLINE CI:** [all 8 CI jobs passing at source head e3cc04d4](https://github.com/partom24/HartLogistics2/actions/runs/42438003472); no runtime BDS observation or deployment by development.
+
+**Next step:** owner-initiated guarded PG20→PG23 LAB install and **two** focused isolated Sorter/Hopper observations, after complete CI. This is a **true changed path**, unlike already passed PG20 Collector-native routing. No further emergency kill is required or requested.
