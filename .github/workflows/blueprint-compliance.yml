@@ -29,6 +29,10 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_hartlogistics_lab_updater.py' -v
       - name: Check legacy MR preservation and proposed ordinary network fail-closed invariants
         run: python -m unittest discover -s tests -p 'test_legacy_mr_offline_invariants.py' -v
+      - name: Source-execute 1.4.1 native-item recovery fault windows without changing gameplay
+        run: |
+          node --check tests/test_legacy_mr_recovery_faults.mjs
+          node --test tests/test_legacy_mr_recovery_faults.mjs
       - name: Verify offline six-face Transporter graph connectivity proposal
         run: python -m unittest discover -s tests -p 'test_transport_topology_model.py' -v
       - name: Check proposed Transporter region authority fails closed on splits, unloads and competing controllers
