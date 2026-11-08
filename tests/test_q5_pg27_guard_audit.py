@@ -129,6 +129,30 @@ class PG27SourceSeams(unittest.TestCase):
                                     "callback_registration_changed"):
             audit.source_guard_census(mutated)
 
+    def test_only_five_known_direct_effect_calls_live_in_event_callbacks(self):
+        report = audit.source_guard_census(self.source)
+        calls = tuple(name for name, _line in
+                      report["top_level_callback_effect_calls"])
+        self.assertEqual(calls, audit.EXPECTED_TOP_LEVEL_EFFECT_CALLS)
+
+    def test_direct_writer_in_existing_callback_is_an_unreviewed_bypass(self):
+        anchor = "world.afterEvents.playerBreakBlock.subscribe(ev => {"
+        self.assertIn(anchor, self.source)
+        mutation = self.source.replace(
+            anchor, anchor + '\n  world.setDynamicProperty("q5_unreviewed", true);', 1
+        )
+        with self.assertRaisesRegex(
+            audit.Q5CoverageRefused, "uncatalogued_top_level_effect_call"
+        ):
+            audit.source_guard_census(mutation)
+
+    def test_top_level_writer_cannot_be_hidden_outside_named_functions(self):
+        changed = self.source + '\nworld.setDynamicProperty("q5_unreviewed", 1);\n'
+        with self.assertRaisesRegex(
+            audit.Q5CoverageRefused, "uncatalogued_top_level_effect_call"
+        ):
+            audit.source_guard_census(changed)
+
     def test_comments_and_quoted_text_do_not_forge_effect_calls(self):
         base = audit.source_guard_census(self.source)
         changed = self.source + (
