@@ -129,8 +129,6 @@ A first *isolated, uninstalled* Collector/Receiver menu candidate now exists und
 - A cooperative writer arbitration can detect multi-lane races across Q4/native/Q5/Bulk, but not block foreign player/addon changes to vanilla chests; readback receipt and native ItemStack clone/slot writes do not establish a crash-atomic journal+inventory commit. Whole-stack native move into known empty slot is a **design direction only**. Partial multi-write merges and spendable Bulk ledger updates remain blocked.
 - No new pack or user test required. Next engineering work should make a separately testable native metadata-preservation plan under explicit fail-closed custody limitations, and investigate a credible engine-enforced physical custody boundary before any Q5/Bulk runtime service.
 
-
-
 ## Post-PG-17 planning boundary — native inventory custody
 
 [Entity-inventory feasibility source review](CUSTODY_ENTITY_INVENTORY_FEASIBILITY.md) narrows the previously identified native-inventory entity option. Documented Hopper/owner/drop flags are **not an enforceable all-writer custody proof or crash-atomic transfer**. A bounded native MR buffer remains only a candidate; 200,000-item spendable Bulk and Q5 custody remain BLOCKED. Existing owner-observed PG-15 clean-restart and PG-16/17 offline results are reused, not rerun. **Next:** resolve whether a stable, genuinely exclusive, restart-safe ItemStack custodian can be demonstrated without weakening 1.4.1. No new gameplay/LAB scope is authorized by this review.
