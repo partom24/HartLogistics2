@@ -101,6 +101,11 @@ jobs:
           node --check candidates/transport/q5_legacy_precommit_fence.mjs
           node --check tests/test_q5_legacy_precommit_fence.mjs
           node --test tests/test_q5_legacy_precommit_fence.mjs
+      - name: Q5 source-shaped before/after/deferred event policy and vanilla isolation
+        run: |
+          node --check candidates/transport/q5_event_boundary_policy.mjs
+          node --check tests/test_q5_event_boundary_policy.mjs
+          node --test tests/test_q5_event_boundary_policy.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
