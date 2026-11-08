@@ -6,9 +6,9 @@ The owner explicitly authorized ongoing implementation, offline testing/builds,
 GitHub development and preparation of LAB test deliveries, with owner involvement
 only for blocking issues or BDS testing. This supersedes older planning-only
 permission statements below for that development scope. Preserve the original
-72-file baseline and all state/compatibility contracts. PG25 is accepted at its bounded LAB scope. Current work is the PG26 ordinary
-Transporter single-source/column native-input prototype, preserving the accepted
-PG25 gates and all existing Hopper paths; no experiments, world reset,
+72-file baseline and all state/compatibility contracts. PG25 is accepted at its bounded LAB scope. Current work is PG27 visual correction of the installed PG26 ordinary
+Transporter prototype: east/west model arms and English name, preserving the
+unchanged single-source/column routing, accepted PG25 gates and Hopper paths; no experiments, world reset,
 production operation or public release is authorized by this instruction.
 
 ## Authority and repository boundary
