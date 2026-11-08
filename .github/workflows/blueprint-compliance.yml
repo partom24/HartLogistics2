@@ -126,6 +126,11 @@ jobs:
           node --check candidates/transport/q5_world_shadow_plan.mjs
           node --check tests/test_q5_world_shadow_plan.mjs
           node --test tests/test_q5_world_shadow_plan.mjs
+      - name: Q5 current Q4 source freshness before and after sealed shadow inspection
+        run: |
+          node --check candidates/transport/q5_shadow_source_freshness.mjs
+          node --check tests/test_q5_shadow_source_freshness.mjs
+          node --test tests/test_q5_shadow_source_freshness.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
