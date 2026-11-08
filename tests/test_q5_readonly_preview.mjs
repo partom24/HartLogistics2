@@ -162,3 +162,38 @@ test('preview does not advance persisted authority or supply an executable write
   assert.equal(a.canStageWorld,false);
   assert.equal(a.canMigrate,false);
 });
+
+test('synthetic ordinary flags cannot override renamed or dynamic-property metadata',()=>{
+  for(const altered of [
+    {nameTag:'valuable'}, {dyn:{ownership:'opaque'}},
+    {ench:[{id:'sharpness',level:5}]},
+    {unknownMeta:'opaque'}
+  ]){
+    const f=fixture([1],[{typeId:'minecraft:stone',...altered}]);
+    const r=run(f);
+    hold(r);
+    assert.match(r.reason,/q4_ordinary_shape_refused/);
+  }
+});
+test('runtime stackability and fresh reconstruction assertions are independently required',()=>{
+  for(const bad of [
+    {runtimeStackable:false},{runtimeMaxStack:1},
+    {runtimeMaxStack:0},{verifiedFreshRoundTrip:false},
+    {verifiedFreshRoundTrip:undefined},{runtimeMaxStack:NaN}
+  ]){
+    const f=fixture();
+    const key=[...f.proof.keys()][0];
+    f.proof.set(key,{...f.proof.get(key),...bad});
+    const r=run(f);
+    hold(r);
+    assert.equal(r.reason,'unverified_q5_identity_class');
+  }
+});
+test('plain vanilla type with no canonical Q4 fields is not a Q5 draft',()=>{
+  const f=fixture();
+  const id='hartsorter:q4d_q19_d0';
+  f.store.set(id,JSON.stringify({typeId:'minecraft:stone'}));
+  const r=run(f);
+  hold(r);
+  assert.equal(r.reason,'q4_ordinary_shape_refused:incomplete_q4_ordinary_shape');
+});
