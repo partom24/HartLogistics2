@@ -44,6 +44,12 @@ def compile_patch(source, overlay):
                   "if (pg23LocalHold || pg24EntityHold || pg25QueueHold) return false;")
     source = once(source, "function recoverJournal() {",
                   "function recoverJournal() {\n    if (pg25QueueHold) return;")
+    # Menus and block inspection can also invoke queue loading. Prevent those
+    # callers from migrating/cleaning evidence before the scheduler sees HOLD.
+    source = once(source, "function loadReceiverQueue(receiver, force=false) {",
+                  "function loadReceiverQueue(receiver, force=false) {\n"
+                  "    if (pg25PreservePendingQueueJournal())\n"
+                  "        throw new Error(\"PG25 Q4 HOLD: queue loading/migration deferred pending audit\");")
     source = once(source, "function schedulerTick() {\n    if (!ready) return;",
                   "function schedulerTick() {\n    if (!ready || !pg23TransportMayRun()) return;")
     source = once(source, "    recoverQueueJournal();\n    if (getQueueJournal()) return;",

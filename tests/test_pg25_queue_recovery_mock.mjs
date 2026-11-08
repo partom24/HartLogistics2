@@ -92,6 +92,22 @@ test("physical pending journal still blocks ordinary admission with no Q4 receip
   const h = rig(undefined, {physicalPending: true}); h.recover();
   assert.equal(h.mayRun(), false); assert.deepEqual(h.calls, []);
 });
+test("menu/block queue loading cannot bypass HOLD even before recovery tick or via cache", () => {
+  const h = rig('{"kind":"enqueue"}');
+  h.context.queueCache = {has() {throw Error("cache must not be inspected");}};
+  vm.runInNewContext(body("loadReceiverQueue"), h.context);
+  assert.throws(() => h.context.loadReceiverQueue({id: "r"}), /PG25 Q4 HOLD/);
+  assert.throws(() => h.context.loadReceiverQueue({id: "r"}, true), /PG25 Q4 HOLD/);
+  assert.equal(h.mayRun(), false);
+  assert.equal(h.props.get("q4"), '{"kind":"enqueue"}');
+});
+test("clear-journal queue loading retains existing cached queue behavior", () => {
+  const h = rig(), q = {total: 8};
+  h.context.queueCache = new Map([["r", q]]);
+  vm.runInNewContext(body("loadReceiverQueue"), h.context);
+  assert.equal(h.context.loadReceiverQueue({id: "r"}), q);
+  assert.equal(h.mayRun(), true); assert.equal(h.logs.length, 0);
+});
 
 // Execute the actual startup callback, including its queue-migration gate.
 const startupStart = source.indexOf("system.run(() => {\n    registry = loadRegistry();");
