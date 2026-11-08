@@ -166,6 +166,13 @@ jobs:
           node --check --input-type=module < build/pg27-lab/behavior_pack/scripts/main.js
           node --test tests/test_pg27_connection_geometry.mjs
           python -m unittest discover -s tests -p 'test_pg27_lab_deploy.py' -v
+      - name: Source-execute PG28 Receiver Q4 to Transporter with failed-cut HOLD
+        run: |
+          python -m unittest discover -s tests -p 'test_pg28_candidate_build.py' -v
+          python candidates/pg28/prepare_candidate.py
+          node --check --input-type=module < build/pg28-lab/behavior_pack/scripts/main.js
+          node --check tests/test_pg28_receiver_q4_mock.mjs
+          node --test tests/test_pg28_receiver_q4_mock.mjs
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
