@@ -90,6 +90,11 @@ jobs:
           node --check tests/test_q5_ordinary_shape_gate.mjs
           node --test tests/test_q5_ordinary_shape_gate.mjs
           node --test tests/test_q5_readonly_preview.mjs
+      - name: Q5 all-Receiver two-sweep Q4 read-only conservation and drift tests
+        run: |
+          node --check candidates/transport/q5_world_receiver_census.mjs
+          node --check tests/test_q5_world_receiver_census.mjs
+          node --test tests/test_q5_world_receiver_census.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
