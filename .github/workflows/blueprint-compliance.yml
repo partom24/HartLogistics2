@@ -50,6 +50,11 @@ jobs:
           node --check candidates/transport/q5_bucket_core.mjs
           node --check tests/test_q5_bucket_core.mjs
           node --test tests/test_q5_bucket_core.mjs
+      - name: Q5 offline shadow staging and mixed-save fault matrix
+        run: |
+          node --check candidates/transport/q5_shadow_staging.mjs
+          node --check tests/test_q5_shadow_staging.mjs
+          node --test tests/test_q5_shadow_staging.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
