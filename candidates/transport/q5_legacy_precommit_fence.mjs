@@ -95,12 +95,20 @@ function verifiedLegacyPair(world,worldId) {
  */
 export function createQ5LegacyFenceSession() {
   const issued = new WeakMap();
+  // Once this running session has observed maintenance or inconsistent control,
+  // it cannot silently resume legacy routing after the marker looks normal.
+  // A restart still requires independently durable, monotonic history proof.
+  let holdLatched = false;
 
   function capture({world, worldId, handlerId, sourceKey}={}) {
     if (!valid(worldId) || !valid(sourceKey)) return deny('unknown_world_or_source');
     if (!allowedHandlers.has(handlerId)) return deny('unknown_hart_handler');
+    if (holdLatched) return deny('maintenance_session_latched');
     const pair = verifiedLegacyPair(world,worldId);
-    if (!pair.ok) return pair;
+    if (!pair.ok) {
+      holdLatched = true;
+      return pair;
+    }
     const token = Object.freeze({
       kind:'Q5_LEGACY_FENCE_OFFLINE_TOKEN',
       worldId, handlerId, sourceKey
@@ -123,15 +131,24 @@ export function createQ5LegacyFenceSession() {
     // Consume BEFORE checking any mutable world state. A failed attempt must
     // not retry a potentially ambiguous write or become valid after rollback.
     record.used=true;
+    if (holdLatched) return deny('maintenance_session_latched');
     if (world !== record.world || worldId !== record.worldId ||
         handlerId !== record.handlerId || sourceKey !== record.sourceKey) {
+      holdLatched=true;
       return deny('fence_context_changed');
     }
-    if (!allowedSites.has(mutationSite)) return deny('unclassified_mutation_site');
+    if (!allowedSites.has(mutationSite)) {
+      holdLatched=true;
+      return deny('unclassified_mutation_site');
+    }
     const pair=verifiedLegacyPair(world,worldId);
-    if (!pair.ok) return pair;
+    if (!pair.ok) {
+      holdLatched=true;
+      return pair;
+    }
     if (pair.raw[0] !== record.raw[0] ||
         pair.raw[1] !== record.raw[1]) {
+      holdLatched=true;
       return deny('marker_or_history_changed_after_capture');
     }
     return {
