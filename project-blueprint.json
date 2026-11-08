@@ -11,7 +11,8 @@
   "source": {
     "active": "addon",
     "test_roots": [
-      "tests"
+      "tests",
+      "candidates/pg29"
     ],
     "frozen_references": [],
     "archives": []
@@ -28,7 +29,15 @@
     "approval_reference": null,
     "evidence_reference": null
   },
-  "temporary_instrumentation": [],
+  "temporary_instrumentation": [
+    {
+      "id": "PG29-Q5-AUDIT",
+      "kind": "test",
+      "task": "PG29 Q5 LAB read-only Q4 snapshot audit; remove after owner test and LAB cleanup",
+      "path": "candidates/pg29/q5_audit_overlay.js",
+      "status": "active"
+    }
+  ],
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",
