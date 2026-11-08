@@ -17,6 +17,7 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 ## Now
 
 - **HL-TRANSPORT-001 — Ordinary Transporter prototype (active, owner-authorized ongoing development).** PG26 1.5.9 adds the new dedicated pipe resource/connection states and a bounded one-source/one-Sorter-column ordinary native input. No new inventory bank, virtual balance, controller authority or automatic recovery. [Scope and limits](PG26_ORDINARY_TRANSPORTER_INPUT.md), [two-check LAB card](../candidates/pg26/TEST_SESSION.md).
+- **PG26 runtime follow-up:** registration/rendering observed, but east/west visual/name defects block acceptance (HL-E-072). PG27 1.5.10 corrects the two world-model arms and displayed English name; gameplay is unchanged. [Visual correction](PG27_TRANSPORTER_VISUAL_CORRECTION.md), [existing-rack retest](../candidates/pg27/TEST_SESSION.md). The original ordinary/redstone route remains pending.
 - Preserve old Hopper columns, Sorter semantics, original assets/state and accepted PG25 HOLD gates. Offline/CI must pass before owner tests new block rendering and a native ordinary/redstone route. This is a partial PG09 input milestone; full PG09–11, MR/Q5/Bulk and production gates are not passed by inference.
 
 ## Next
