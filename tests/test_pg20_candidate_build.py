@@ -54,7 +54,8 @@ class PG20CandidateBuild(unittest.TestCase):
             for forbidden in ("const PG13_A =", "const PG14_RESERVE =",
                               "const PG15_KEY =", "hartlogistics:cutpre",
                               "hartlogistics:shadowbegin",
-                              "hartlogistics:custodytransfer"):
+                              "hartlogistics:custodytransfer",
+                              "function rebuildTransportItem("):
                 self.assertNotIn(forbidden,new)
 
     def test_original_file_footprint_and_untouched_assets(self):
