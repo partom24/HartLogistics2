@@ -74,6 +74,12 @@ CALLBACK_COUNTS = {
     "system.beforeEvents.startup.subscribe(": 2,
 }
 
+# Exactly five direct mutator calls live in top-level player/frame callbacks.
+# They are NOT protected merely by guarding named functions.
+EXPECTED_TOP_LEVEL_EFFECT_CALLS = (
+    "setType", "runCommand", "giveOrDrop", "saveRegistry", "giveOrDrop"
+)
+
 MANDATORY_REGISTRATIONS = (
     "system.runInterval(schedulerTick, 1);",
     "system.runInterval(logisticsTick, 1);",
@@ -221,6 +227,9 @@ def source_guard_census(source: str) -> dict:
         if m.start() not in declared and
            not any(start <= m.start() < end for start, end in ranges)
     ]
+    if tuple(name for name, _line in top_level_effects) != EXPECTED_TOP_LEVEL_EFFECT_CALLS:
+        raise Q5CoverageRefused("uncatalogued_top_level_effect_call")
+
     return {
         "status": "SOURCE_CENSUS_ONLY",
         "handler_seams": {k: list(v) for k, v in HANDLER_SEAMS.items()},
