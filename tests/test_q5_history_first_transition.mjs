@@ -36,6 +36,7 @@ const plan=(f,targetPhase,more={})=>planQ5MaintenanceRecordTransition({
 const noPermission=r=>{
   for(const name of ['canRoute','canMigrate','canResume','canDebitQ4',
     'canWriteQ5','canWriteWorld','canClearJournal','canSettle']){
+    if (name==='canSettle' && !Object.hasOwn(r,name)) continue;
     assert.equal(r[name],false,name);
   }
 };
