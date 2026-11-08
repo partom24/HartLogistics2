@@ -512,6 +512,37 @@ jobs:
           if ($output -notmatch 'No LAB/PROD/world files accessed') { throw 'Server access safety evidence missing' }
           Write-Host 'PG27 real Windows launcher source-only Plan PASS'
 
+  pg29-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out complete source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: PG29 source-only pinned-branch launcher Plan on disposable Windows fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'pg29-launcher-fixture'
+          [void](New-Item -ItemType Directory -Path $env:LOCALAPPDATA -Force)
+          $workspace = Join-Path $env:LOCALAPPDATA 'HartLogistics2-PG29-LAB'
+          & git.exe clone --quiet . $workspace
+          if ($LASTEXITCODE -ne 0) { throw 'Local fixture clone failed' }
+          & git.exe -C $workspace checkout -B dev/pg29-q5-audit-lab-only
+          if ($LASTEXITCODE -ne 0) { throw 'Local PG29 branch checkout failed' }
+          & git.exe -C $workspace remote set-url origin https://github.com/partom24/HartLogistics2.git
+          if ($LASTEXITCODE -ne 0) { throw 'Source fixture origin failed' }
+          $output = & '.\candidates\pg29\Start-HartLogistics-PG29Lab.ps1' -Mode Plan | Out-String
+          if (-not $output.Contains('Using Python 3.12')) { throw 'Wrong Python runtime selected' }
+          if ($output -notmatch 'PG29 SOURCE PASS') { throw 'Source-only PG29 Plan failed' }
+          if ($output -notmatch 'BP: 22 RP: 59') { throw 'PG29 source pack footprint changed' }
+          if ($output -notmatch 'No LAB/PROD/world files accessed') { throw 'Source-only boundary not reported' }
+          Write-Host 'PG29 Windows Python 3.12 source-only launcher Plan PASS'
+
   bundle2-readonly-preflight-windows:
     runs-on: windows-latest
     steps:
