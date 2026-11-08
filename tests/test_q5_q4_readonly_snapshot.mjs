@@ -131,7 +131,7 @@ test('missing, malformed and ambiguous definitions refuse the entire Q4 snapshot
 
 test('invalid Q4 head/tail/next/count cannot be quietly normalized',()=>{
   for(const changes of [
-    {h:0},{t:0},{t:3},{n:1},{q:2},{q:-1},{q:1.5},{v:3},
+    {h:0},{t:0},{t:3},{n:1},{q:1},{q:-1},{q:1.5},{v:3},
     {r:-1},{d:1.1},{q:Q4_SOURCE_CAPACITY+1}
   ]){
     const f=source([2]);const k='hartsorter:q4m_q13';
