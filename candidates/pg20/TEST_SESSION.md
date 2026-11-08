@@ -1,4 +1,4 @@
-# PG-20 — native MR recovery candidate LAB acceptance card (READY after green CI)
+# PG-20 — native MR recovery LAB test card (scoped acceptance PASS)
 
 **What is being tested:** The new derived candidate preserves one complete metadata-rich (MR), non-Q4-serializable ItemStack along the existing Hopper → Collector → Receiver-output-Hopper bypass, now using one native `Container.moveItem` into a known empty output slot rather than debiting and recreating two slots. After a **normal** LAB restart the exact test-owned item should still be present once, with its visible metadata and no pending journal.
 
@@ -61,3 +61,4 @@ The owner's stonebrick hall interior occupies approximately X=-968.64 to -937.30
 - **Evidence requested:** prior `shadowclear CLEAN PASS`, pre/post `/hartlogistics:status` (version, journals, counts), source and destination Hoppers with enchanted book before/after and after normal restart, any BDS script warnings/errors, final empty/removed rig, full Git SHA and installer backup tag.
 - On any unexpected **HOLD**, leave all items and installed pack/world state alone; do **not** clear `hartsorter:journal_v1`, break occupied blocks, manually recreate a missing book, restart hoping to fix it, or automatically roll back. The exact-backup rollback exists only for a separately reviewed safe response after physical custody is independently resolved. Installing/rolling back the pack does not roll back world contents.
 - **Evidence grade after successful manual test:** narrow `RUNTIME OBSERVED` single native-MR Hopper-to-Hopper transfer with visible metadata and clean-restart retention, **not** arbitrary opaque metadata/crash-atomic custody, not Q5 full-native MR storage, and not production acceptance.
+
