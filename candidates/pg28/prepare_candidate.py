@@ -46,7 +46,7 @@ def compile_patch(source, overlay):
     # No new queue debit/physical writer. Extend the EXISTING Q4 dequeue
     # strictly for this opt-in path, leaving all legacy Hopper calls unchanged.
     begin = "function dequeueToReceiver(receiver, output, maxMove) {"
-    end = "\nfunction journalQueueState("
+    end = "\nfunction recoverQueueJournal("
     if source.count(begin) != 1 or source.count(end) != 1:
         raise ValueError("PG28 REFUSED uncertain Q4 dequeue bounds")
     a, b = source.index(begin), source.index(end)
