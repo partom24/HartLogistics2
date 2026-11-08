@@ -276,7 +276,11 @@ test('offline freeze assertions alone are not accepted by existing shadow planne
     completeSnapshot:true,queueJournalClear:true,physicalJournalClear:true,
     sourceUnchanged:true,total:8};
   const plan=planQ5ShadowWrites({draft:one.draft,q4,freeze});
-  hold(plan,'global_freeze_unproven');
+  assert.equal(plan.ok,false);
+  assert.equal(plan.status,'HOLD');
+  assert.equal(plan.reason,'global_freeze_unproven');
+  for(const field of ['canRoute','canMigrate','canClearQ4','canSettle','canRetry','canWriteWorld'])
+    assert.equal(plan[field],false,field);
 });
 test('read-only inspection never mutates census, blocks or original phase',()=>{
   const f=clone(),before=JSON.stringify(f);
