@@ -84,3 +84,9 @@ experiments. [Complete two-check LAB card](../candidates/pg26/TEST_SESSION.md)
 specifies one new Sorter, three active pipes, one input barrel, one output chest,
 a detached seven-pipe visual rack, lever and supports, all coordinates and
 separation. No owner operation has occurred during development.
+
+## Post-PG27 owner-reported routing follow-up (HL-E-075)
+
+Following the visual closeout, the owner reported to this documentation channel that in the latest development discussion **"Q4 was still attempted to be used."** The original development-chat trace and test images were not provided here. This is **OWNER-REPORTED unresolved behavior**, not proof of a Q4 journal mutation, item transfer, loss or duplication. The ordinary pipe input above is designed for the Sorter/native-output route and must not create Collector/Q4 ingress. Existing physical/Q4 journal *safety checks* are valid and must not be confused with Q4 queue item routing.
+
+Before accepting the new route/redstone checkpoint, distinguish its actual triggering path from unchanged Collector/Receiver traffic, inspect existing evidence/source and verify only missing bounded native input/output/powered-state observations. HL-E-070 PG25 Q4 acceptance and HL-E-074 PG27 visual success remain unchanged. Receiver-to-Transporter extraction remains unimplemented, and the 1.4.1 baseline remains protected.
