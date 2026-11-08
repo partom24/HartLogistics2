@@ -84,7 +84,6 @@ MANDATORY_REGISTRATIONS = (
     "world.beforeEvents.playerInteractWithBlock.subscribe(",
     "world.afterEvents.playerPlaceBlock.subscribe(",
     "world.afterEvents.playerBreakBlock.subscribe(",
-    "system.runTimeout(() => processEjectedItemEntity(",
     "event.blockComponentRegistry.registerCustomComponent("
 )
 
@@ -185,6 +184,10 @@ def source_guard_census(source: str) -> dict:
     for marker in MANDATORY_REGISTRATIONS:
         if masked.count(marker) != 1:
             raise Q5CoverageRefused("callback_registration_changed:" + marker)
+    # Three delayed retries plus the entitySpawn initial callback: all matter.
+    retry_marker = "system.runTimeout(() => processEjectedItemEntity("
+    if masked.count(retry_marker) != 4:
+        raise Q5CoverageRefused("callback_registration_changed:" + retry_marker)
 
     mapped = required | NON_TRANSFER_EFFECT_SEAMS
     effect_sites = {}
