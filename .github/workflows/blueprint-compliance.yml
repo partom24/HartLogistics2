@@ -70,6 +70,11 @@ jobs:
           node --check candidates/transport/q5_readonly_preview.mjs
           node --check tests/test_q5_readonly_preview.mjs
           node --test tests/test_q5_readonly_preview.mjs
+      - name: Q5 world-wide maintenance epoch and unloaded-block refusal model (offline)
+        run: |
+          node --check candidates/transport/q5_maintenance_epoch.mjs
+          node --check tests/test_q5_maintenance_epoch.mjs
+          node --test tests/test_q5_maintenance_epoch.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
