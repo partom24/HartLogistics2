@@ -8,22 +8,22 @@
 
 The immutable 1.4.1 compatibility reference is `addon/`: **72/72 original files unchanged**, import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`, [hash registry](../BASELINE_HASHES.json). Candidate source/build entry points are under `candidates/`; ignored `build/` output is not source. PG27 derives the exact PG26 predecessor because safe update/rollback validates its installed hashes; there is one inherited gameplay implementation.
 
-## Actual installed LAB and latest finding
+## Installed LAB and accepted visual scope
 
-- **Installed/running:** PG26 **1.5.9-LAB-PG26**, source `6738497fd7077831abd316e257a4281d97fa0ae8`, owner installer backup **lab-d16a31ba5a8e**. Supplied normal-start log confirms BDS **1.26.63.1** and PG26 ready.
-- Latest screenshot: **664 Sorters / 56 Collectors (45 linked, 11 unlinked) / 35 Receivers**, Q4 paged 35/35, **sorter clear | queue clear**. Receiver count was previously 34; record the observation without inferring corruption or claiming unchanged topology.
-- **HL-E-072:** new pipe and dedicated inventory icon register/render, but owner reports east/west gaps and `/give` displays the raw translation key. Visual gate **NOT ACCEPTED**. No new Transporter item-transfer success/failure has been demonstrated.
-- Legacy caught filter-display unload warnings use unchanged PG25/PG26 code; they do not establish the pipe defect's cause. Raw owner log is not committed; [sanitized evidence](PG27_TRANSPORTER_VISUAL_CORRECTION.md).
+**Running:** 1.5.10-LAB-PG27, delivered source `e6442137f238ee55201dafa05068fe1047ea2f43` ([PR #46](https://github.com/partom24/HartLogistics2/pull/46)). Owner screenshot confirms version, 664 Sorters / 56 Collectors (45 linked, 11 unlinked) / 35 Receivers, Q4 paged 35/35 and **sorter clear | queue clear**. PG27 installer backup tag has not been supplied; do not invent it. Preserve older backups lab-d16a31ba5a8e and lab-36ead7340407.
 
-## Current correction and evidence
+**HL-E-074 — scoped visual success:** owner confirms east/west corrected and chest, barrel and double-chest connections pass; screenshots show the placed connections. Close these rendering checks without repeating them. This does not establish item extraction from any container. Explicit removal/replacement behavior and corrected inventory-name feedback were not separately confirmed; do not claim those observations. Receiver nonconnection is an unimplemented endpoint, not another X-axis rendering failure.
 
-**PG27 1.5.10-LAB-PG27** swaps the two world-model X-arm origins to match Bedrock's model-X reflection, sets the explicit English name `Hart Transporter`, and bumps manifest/status versions. Connection detection and all gameplay code are **byte-identical apart from the version literal**. Dedicated item model, texture, other arms, IDs, states, pack UUIDs and API requirements remain unchanged.
+PG27 changes only two world-arm origins, English display name and versions. Gameplay is unchanged. **HL-E-073 OFFLINE:** 299 Python / 468 Node pass; [12/12 final main CI jobs PASS](https://github.com/partom24/HartLogistics2/actions/runs/42499886661), including Windows launcher/upgrade/rollback. Original 72-file baseline unchanged; no temporary runtime instrumentation.
 
-**HL-E-073 OFFLINE PASS:** seven builder checks, three real-callback/visible-model-bound cases covering all 64 masks at positive/negative coordinates, historical wrong-side witness, shared seam and neighbor removal/replacement; 13 synthetic exact-predecessor deployment/rollback checks. Full local **299 Python / 468 Node** pass, generated JS syntax and normal/release structural validators pass. Final commit and GitHub Windows/Linux CI are tracked in the delivery PR. **PG27 BDS NOT RUN.** No temporary runtime instrumentation.
+## Work remaining and next steps
 
-## Next owner action
+1. **Next bounded checkpoint:** complete the pending ordinary native route/redstone validation using the existing PG26 route card, adapting only if the owner's actual layout differs. Single chest/barrel → Transporters → Sorter → native output; exact input/output counts, powered pause/resume and clear journals. Reuse accepted visuals and PG25 evidence; no reinstall or new visual rack.
+2. **Next development slice:** review Receiver Q4 extraction into the Transporter/Sorter path, defining queue debit, physical insertion, pending-receipt HOLD, unload/backpressure and rollback before implementation. Reuse authoritative writers; an arm-only change must not imply working extraction. Automate source/fault checks before requesting a narrow BDS session. Receiver support is not implemented or accepted yet.
+3. **Double-chest extraction:** currently deliberately refused (shared 54-slot inventory/aliasing). Visual connection success does not remove that guard. Establish single inventory identity and exactly-once source admission before expanding support.
+4. Full network/controller, cross-chunk routing, native MR storage, Q5 migration and Bulk remain separate gated work. Maintain ongoing development autonomy; involve owner for actual BDS checks or blocking issues.
 
-After final green CI, deliver the [complete PG27 launcher bootstrap and two visual checks](../candidates/pg27/TEST_SESSION.md). Reuse the owner's existing empty rack; no new construction. Verify status/name/continuous east-west seams and removal/replacement. Original [PG26 ordinary/redstone route](../candidates/pg26/TEST_SESSION.md) remains pending and requires a **Sorter**, not a Collector/Receiver endpoint. Do not feed the visual rack until that route's admission/setup is established.
+[Visual closeout and limits](PG27_TRANSPORTER_VISUAL_CORRECTION.md), [pending ordinary route card](../candidates/pg26/TEST_SESSION.md). No new test is required merely to repeat accepted rendering.
 
 ## Reusable acceptance and remaining gates
 

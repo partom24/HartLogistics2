@@ -14,11 +14,14 @@ Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bul
 
 - **HL-Q4-RECOVERY-001 — Scoped maintenance complete:** PG25 source/CI and bounded owner LAB normal startup/eight-item route accepted (HL-E-069/070); broader disk-atomic custody is not established.
 
+- **PG27 scoped visual closeout (HL-E-074):** east/west correction and chest/barrel/double-chest connection rendering owner-confirmed. Final source e6442137, CI 12/12 PASS. Item extraction remains a separate gate.
+
 ## Now
 
 - **HL-TRANSPORT-001 — Ordinary Transporter prototype (active, owner-authorized ongoing development).** PG26 1.5.9 adds the new dedicated pipe resource/connection states and a bounded one-source/one-Sorter-column ordinary native input. No new inventory bank, virtual balance, controller authority or automatic recovery. [Scope and limits](PG26_ORDINARY_TRANSPORTER_INPUT.md), [two-check LAB card](../candidates/pg26/TEST_SESSION.md).
-- **PG26 runtime follow-up:** registration/rendering observed, but east/west visual/name defects block acceptance (HL-E-072). PG27 1.5.10 corrects the two world-model arms and displayed English name; gameplay is unchanged. [Visual correction](PG27_TRANSPORTER_VISUAL_CORRECTION.md), [existing-rack retest](../candidates/pg27/TEST_SESSION.md). The original ordinary/redstone route remains pending.
-- Preserve old Hopper columns, Sorter semantics, original assets/state and accepted PG25 HOLD gates. Offline/CI must pass before owner tests new block rendering and a native ordinary/redstone route. This is a partial PG09 input milestone; full PG09–11, MR/Q5/Bulk and production gates are not passed by inference.
+- **Current checkpoint:** PG27 visual checks are closed successfully (HL-E-074). Complete the pending single chest/barrel → pipe → Sorter ordinary route and redstone pause/resume check; reuse accepted visuals and PG25 evidence.
+- **Following development:** safe Receiver Q4 extraction into the pipe/Sorter path, with existing writer/recovery gates and offline fault evidence before BDS testing. Receiver support remains unimplemented. Double-chest extraction needs shared-inventory identity/admission work; its visual PASS does not enable transfer.
+- Preserve Hopper compatibility, original assets/state and PG25 HOLD. Full PG09–11, MR/Q5/Bulk, cross-chunk/controller and production gates remain unresolved. [Current handoff](CURRENT_DEVELOPMENT_STATE.md).
 
 ## Next
 

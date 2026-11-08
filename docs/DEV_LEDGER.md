@@ -542,3 +542,11 @@ Owner executed `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` from thei
 - **HL-E-073 OFFLINE:** seven new builder tests, three actual-callback/visible-world-bound cases (all 64 masks, negative positions, historical failure, seam and remove/replace), 13 exact predecessor upgrade/rollback synthetic cases pass. Full local 299 Python / 468 Node, JS syntax and structural/release structural checks pass. Final GitHub Windows/Linux CI and pin are tracked in the delivery PR; runtime retest NOT RUN.
 - Reuse the owner's existing visual rack; two narrow checks, no new construction or PG25 repetition. Original ordinary/redstone route remains pending and requires a Sorter rather than a Receiver endpoint. [Correction](PG27_TRANSPORTER_VISUAL_CORRECTION.md), [operator card](../candidates/pg27/TEST_SESSION.md). Condensed current-state handoff to the present snapshot; historical acceptance remains in this ledger and the evidence register.
 - No temporary runtime instrumentation, server operation by development tooling, environment configuration/publish or production action.
+
+
+## 2026-11-08 — PG27 owner visual closeout (HL-E-074)
+
+- Delivered source e6442137f238ee55201dafa05068fe1047ea2f43; final main CI 12/12 PASS, run 42499886661. Owner screenshot confirms 1.5.10-LAB-PG27, topology 664/56/35, Q4 35/35 and both journals clear. New PG27 backup tag not provided.
+- Owner confirms east/west corrected and visual connections to chests, barrels and double chests pass; accompanying screenshots support container connection rendering. **Scoped visual checks CLOSED / SUCCESS.** No repeat rendering session. Name feedback and explicit remove/replace sequence not separately confirmed; no item-transfer acceptance inferred.
+- Receiver endpoint remains unimplemented. Double-chest physical extraction remains deliberately rejected despite visual arms. Ordinary single chest/barrel → pipe → Sorter route/redstone checkpoint remains pending.
+- Next: finish that bounded route checkpoint, then develop safe Receiver queue extraction after writer/recovery/backpressure/unload review and offline fault checks. Shared double-chest inventory identity is separate remaining work. No new installation, experiments, forced crash, runtime probe, release or production operation for documentation closeout.

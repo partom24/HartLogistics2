@@ -1,3 +1,5 @@
+**PG27 VISUAL CLOSEOUT (HL-E-074):** Owner confirms corrected east/west and chest/barrel/double-chest connections. These rendering checks are closed; do not rerun the historical instructions below. Ordinary item routing/redstone remains pending; Receiver extraction is unimplemented and double-chest extraction remains refused. See [current state](../../docs/CURRENT_DEVELOPMENT_STATE.md).
+
 # PG27 — Transporter east/west visual correction
 
 **What:** correct the world-model east/west arms and show `Hart Transporter` instead of a raw translation key. **Why now:** the owner's PG26 screenshots show gaps on that axis and the untranslated name. **Prior evidence:** PG26 installed from `6738497fd7077831abd316e257a4281d97fa0ae8`, backup `lab-d16a31ba5a8e`; BDS 1.26.63.1 startup confirmed. Latest screenshot shows 664 Sorters / 56 Collectors (45 linked, 11 unlinked) / 35 Receivers, Q4 paged 35/35 and both journals clear. This is registration/rendering evidence with a visual defect; ordinary Transporter item routing is still unaccepted. Accepted PG25 tests stay closed.
