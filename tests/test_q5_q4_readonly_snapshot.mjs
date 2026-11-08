@@ -70,7 +70,7 @@ test('Q4 arrival order is discarded by subsequent Q5 aggregation',()=>{
   });
   assert.equal(draft.ok,true);
   assert.equal(inspectQ5Draft(draft.draft).bucketCount,2);
-  assert.deepEqual(inspectQ5Draft(draft.draft).buckets.map(x=>x.count),[16,5].sort((a,b)=>a-b) /* overwritten below if order differs */.sort((a,b)=>a-b));
+  assert.deepEqual(inspectQ5Draft(draft.draft).buckets.map(x=>x.count).sort((a,b)=>a-b),[5,16]);
 });
 
 test('empty initialized Q4 stays read-only and has no pages',()=>{
