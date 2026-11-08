@@ -73,6 +73,8 @@ jobs:
       - name: PG29 LAB-only read-only Q5 audit candidate source and mock checks
         run: |
           python -m unittest discover -s tests -p 'test_pg29_readonly_build.py' -v
+          python -m unittest discover -s tests -p 'test_pg29_lab_deploy.py' -v
+          python candidates/pg29/lab_deploy.py
           python candidates/pg29/prepare_candidate.py
           node --check --input-type=module < build/pg29-q5-readonly/behavior_pack/scripts/main.js
           for js in build/pg29-q5-readonly/behavior_pack/scripts/q5_*.js build/pg29-q5-readonly/behavior_pack/scripts/ordinary_network_core.js; do
@@ -632,6 +634,27 @@ jobs:
           Write-Host 'PG26 launcher syntax and fail-closed CLI PASS'
       - name: Verify PG27 Transporter exact-pack upgrade and rollback on Windows fixture
         run: python -m unittest discover -s tests -p 'test_pg27_lab_deploy.py' -v
+      - name: PG29 temporary LAB launcher syntax, source pin and refusal
+        shell: powershell
+        run: |
+          $launcher = '.\candidates\pg29\Start-HartLogistics-PG29Lab.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $launcher).Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw ('PG29 PowerShell parse failure: ' + ($errors | Out-String)) }
+          $content = Get-Content -LiteralPath $launcher -Raw
+          if (-not $content.Contains("$" + "branch = 'dev/pg29-q5-audit-lab-only'")) { throw 'PG29 test branch guard absent' }
+          if (-not $content.Contains('C:\Servers\Thomas_MCBedrock - Copy (2)')) { throw 'PG29 LAB-only allowlist absent' }
+          foreach ($argsSet in @(
+            @('-Mode','Install'), @('-Mode','Rollback','-Apply'),
+            @('-Mode','CheckLab','-Apply'), @('-Mode','Plan','-Apply'),
+            @('-Mode','CheckLab')
+          )) {
+            $refused = $false
+            try { & $launcher @argsSet | Out-Null } catch { $refused = $true }
+            if (-not $refused) { throw ('PG29 did not refuse: ' + ($argsSet -join ' ')) }
+          }
+          Write-Host 'PG29 temporary LAB launcher parsing and refusal PASS'
       - name: PG27 PowerShell launcher parses and refuses unsafe modes
         shell: powershell
         run: |
