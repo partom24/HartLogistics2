@@ -135,6 +135,14 @@ jobs:
           node --check --input-type=module < build/pg23-lab/behavior_pack/scripts/main.js
           node --check tests/test_pg23_native_compaction_mock.mjs
           node --test tests/test_pg23_native_compaction_mock.mjs
+      - name: Verify PG24 protected baseline and exact Q4-entity derived patch
+        run: python -m unittest discover -s tests -p 'test_pg24_candidate_build.py' -v
+      - name: Source-execute PG24 verified ejected item intake and no-auto-recovery faults
+        run: |
+          python candidates/pg24/prepare_candidate.py
+          node --check --input-type=module < build/pg24-lab/behavior_pack/scripts/main.js
+          node --check tests/test_pg24_entity_custody_mock.mjs
+          node --test tests/test_pg24_entity_custody_mock.mjs
       - name: Compile isolated PG08 candidate and check JavaScript syntax
         run: |
           python candidates/pg08/prepare_candidate.py
