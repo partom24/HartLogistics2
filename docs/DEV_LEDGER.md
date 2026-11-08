@@ -378,3 +378,10 @@ Owner executed `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` from thei
 - Independently audits whole native ItemStack move-to-empty as **MODEL_DESIGN_ONLY** under asserted independent custody; rejects two-slot partial merges, Q5-to-physical virtual debits and spendable Bulk banks. A readback receipt is never a cross-domain atomicity proof. [39 Node scenarios](../tests/test_transport_cross_lane_hazard_audit.mjs) run in structural CI; zero model response authorizes a real move, Q4/Q5 debit, Bulk credit, replay, settle, reservation release, marker clear or production.
 - **No owner action/test, no new pack, no BDS script changes, no baseline `addon/` modification, no production installation.** Evidence **HL-E-043 (OFFLINE ONLY)**. PG16 and PG15 previously accepted scope remains unchanged.
 
+
+
+## 2026-11-07 — Stable entity-inventory custody source review after PG-17
+
+- Reviewed official stable entity \`minecraft:inventory\`, \`EntityInventoryComponent\`, \`Container\` and world dynamic-property interfaces against the existing [MR custody option C](MR_CUSTODY_ALTERNATIVES_12663.md). Wrote [targeted feasibility assessment](CUSTODY_ENTITY_INVENTORY_FEASIBILITY.md). The documented \`can_be_siphoned_from\` guards Hopper removal only, \`restrict_to_owner\` has unproven cross-script exclusion, and \`private\` suppresses drops on death rather than proving item survival.
+- An entity inventory could potentially hold finite whole native MR stacks, but no proof establishes stable 1.26.63.1 registration, original-world migration, independent exclusive custody, safe kill/unload handling or cross-inventory/world-journal crash atomicity. A 200,000-unit physical ordinary-item bank would need at least 3,125 full 64-stack slots, not a proved supported entity capacity.
+- **Result: HL-E-044 SOURCE REVIEW ONLY.** No new code, temporary instrumentation, LAB probe/rig, BDS test, accepted runtime feature, experiment, source-baseline change or production action. PG-03 NO-GO; PG-15 clean-restart evidence and PG-16/17 physical-spend blockers unchanged. Continue planning-only feasibility and preserve original MR bypass.
