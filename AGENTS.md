@@ -51,6 +51,13 @@ Bundle 0 source import/PG-01 and offline PG-02 are specifically authorized and c
 
 Owner-selected UI design: explicit **Link / Relink Receiver** button inside the Collector menu; select Receiver and confirm before storing. No implicit linking on placement, preserve all saved links, transport behavior and sneak-place. Before code changes, check stable `@minecraft/server-ui` dependency and native inventory UI collision for 26.63. See [menu design](docs/UI_LINKING_DESIGN.md).
 
+## Owner-required LAB patch instructions: complete copy-paste bootstrap
+
+- **Always provide the owner with complete executable PowerShell commands to obtain any newly introduced Git-tracked launcher** before asking them to invoke it. Never assume a new `Start-HartLogistics-PGxxLab.ps1` file already exists in Downloads or that an earlier `$pg15` variable now points to PG20. A plain repository link, path, or command against an undownloaded local script is **not sufficient**.
+- The documented source path is `https://raw.githubusercontent.com/partom24/HartLogistics2/main/candidates/pgNN/Start-HartLogistics-PGNNLab.ps1`. Show `Invoke-WebRequest -OutFile` with a concrete local filename, `Test-Path`, the version-correct `$pgNN` variable, and the **source-only/read-only** and **explicit -Apply** command sequence. Be precise that the launcher clones/fetches the full clean pinned Git checkout internally; there is no manual pack copying, separate full-repo pull or mcpack distribution.
+- Separate one-time in-game cleanup while the *old* pack is available, normal LAB BDS stop, source-only Plan if useful, `-Mode CheckLab`, explicit `-Mode Install -Apply`, backup-tag retention, normal LAB restart and `/hartlogistics:status`. If the owner already completed a step, **do not instruct repeating it**. Confirm exact pre/post versions and both journals before physical item testing. The launcher must never silently enable cheats/experiments or touch production.
+- When a user reports an install/restart without available readable status data, record **owner-reported install/restart**, not an invented runtime status PASS. The next instruction is only the remaining status/changed-path validation, not reinstallation.
+
 ## Owner-preferred LAB test distribution
 
 Temporary probe source is distributed via the authorized Git checkout and a guarded PowerShell LAB update pathway, **not manual mcpack downloads**. Bundle 0's Python updater only handles the original packs. Before installing independent probe source, build/validate a separate PowerShell path under the same strict LAB-only and temporary-instrumentation cleanup rules. No unapproved production or LAB operations.
