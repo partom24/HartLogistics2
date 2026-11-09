@@ -34,20 +34,20 @@ function pg31ReadOnlyWorldCensus(origin) {
         for (const r of sources) {
             if (!r || typeof r.id !== "string" ||
                 typeof r.queueKey !== "string" ||
-                !Number.isSafeInteger(Number(r.queued)) ||
-                Number(r.queued) < 0 || Number(r.queued) > 250000) {
+                !Number.isSafeInteger(r.queued) ||
+                r.queued < 0 || r.queued > 250000) {
                 pg31Hold(origin, "unrecognized registered Receiver");
                 return;
             }
             receivers.push({id:r.id, queueKey:r.queueKey});
-            expectedTotal += Number(r.queued);
+            expectedTotal += r.queued;
             if (!Number.isSafeInteger(expectedTotal)) {
                 pg31Hold(origin, "world queue count overflow");
                 return;
             }
         }
         sourceSignature = JSON.stringify(sources.map(r =>
-            [r.id,r.queueKey,Number(r.queued)]));
+            [r.id,r.queueKey,r.queued]));
     } catch (_) {
         pg31Hold(origin, "registry read failed");
         return;
