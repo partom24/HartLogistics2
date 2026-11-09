@@ -93,7 +93,7 @@ def prepare(target):
             main = scripts / "main.js"
             base = main.read_text(encoding="utf-8")
             base = once(base, 'const VERSION = "1.5.10-LAB-PG27";',
-                        'const VERSION = "1.5.13-LAB-PG31-Q5-READONLY";')
+                        'const VERSION = "1.5.13-LAB-PG31-Q4-WORLD-CENSUS";')
             main.write_text(
                 'import { previewQ5WorldQ4Census } from "./q5_world_receiver_census.js";\n'
                 + base.rstrip() + "\n\n" + overlay.rstrip() + "\n",
