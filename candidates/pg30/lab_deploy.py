@@ -84,7 +84,7 @@ def check_candidate(generated):
         raise lab.UnsafeLab("PG30 unsafe legacy routing/recovery code resurrected")
     overlay=(ROOT / "candidates/pg30/q5_property_probe_overlay.js").read_text()
     pg30.audit_overlay(overlay)
-    if not source.endswith("\\n\\n" + overlay.rstrip() + "\\n"):
+    if not source.endswith("\n\n" + overlay.rstrip() + "\n"):
         raise lab.UnsafeLab("PG30 test-only overlay differs from exact source")
     expected_scripts = {"main.js"}
     actual_scripts = {p.name for p in (generated / "behavior_pack/scripts").glob("*.js")}
