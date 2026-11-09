@@ -135,6 +135,12 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_q5_pg27_native_effect_census.py' -v
           python candidates/transport/q5_pg27_native_effect_census.py
+      - name: PG31 exact-PG27 all-Receiver read-only Q4 census candidate tests
+        run: |
+          python -m unittest discover -s tests -p 'test_pg31_world_census_build.py' -v
+          python -m unittest discover -s tests -p 'test_pg31_lab_deploy.py' -v
+          node --check candidates/pg31/q4_world_census_overlay.js
+          node --test tests/test_pg31_world_census_mock.mjs
       - name: Offline physical chest-vs-journal reconciliation (no automatic retries)
         run: |
           node --check candidates/transport/physical_reconciliation_core.mjs
@@ -564,6 +570,57 @@ jobs:
           if ($output -notmatch 'PG27 SOURCE PASS') { throw 'Source-only Plan failed' }
           if ($output -notmatch 'No LAB/PROD/world files accessed') { throw 'Server access safety evidence missing' }
           Write-Host 'PG27 real Windows launcher source-only Plan PASS'
+
+  pg31-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Synthetic PG31 stopped-LAB install and exact rollback
+        run: python -m unittest discover -s tests -p 'test_pg31_lab_deploy.py' -v
+      - name: PG31 PowerShell syntax and unsafe-argument refusals
+        shell: powershell
+        run: |
+          $launcher = '.\candidates\pg31\Start-HartLogistics-PG31Lab.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $launcher).Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw ('PG31 launcher syntax errors: ' + ($errors | Out-String)) }
+          foreach ($argsSet in @(
+            @('-Mode','Install'),
+            @('-Mode','Rollback','-Apply'),
+            @('-Mode','CheckLab','-Apply'),
+            @('-Mode','Plan','-Apply')
+          )) {
+            $refused = $false
+            try { & $launcher @argsSet | Out-Null } catch { $refused = $true }
+            if (-not $refused) { throw ('PG31 launcher did not refuse: ' + ($argsSet -join ' ')) }
+          }
+      - name: Real PG31 source-only Windows launcher Plan using Python 3.12
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'pg31-source-plan-fixture'
+          [void](New-Item -ItemType Directory -Path $env:LOCALAPPDATA -Force)
+          $workspace = Join-Path $env:LOCALAPPDATA 'HartLogistics2-PG31-LAB'
+          & git.exe clone --quiet . $workspace
+          if ($LASTEXITCODE -ne 0) { throw 'PG31 fixture clone failed' }
+          & git.exe -C $workspace checkout -B dev/pg31-world-q4-census-lab-only
+          if ($LASTEXITCODE -ne 0) { throw 'PG31 fixture branch checkout failed' }
+          & git.exe -C $workspace remote set-url origin https://github.com/partom24/HartLogistics2.git
+          if ($LASTEXITCODE -ne 0) { throw 'PG31 fixture origin failure' }
+          $output = & '.\candidates\pg31\Start-HartLogistics-PG31Lab.ps1' -Mode Plan | Out-String
+          if ($output -notmatch 'Using Python 3.12') { throw 'PG31 wrong Python' }
+          if ($output -notmatch 'PG31 SOURCE PASS') { throw 'PG31 source Plan refused' }
+          if ($output -notmatch 'BP: 23 RP: 59') { throw 'PG31 changed candidate pack footprint' }
+          if ($output -notmatch 'No LAB/PROD/world files accessed') { throw 'PG31 source isolation text missing' }
+          Write-Host 'PG31 Python 3.12 Windows source-only launcher Plan PASS'
 
   bundle2-readonly-preflight-windows:
     runs-on: windows-latest
