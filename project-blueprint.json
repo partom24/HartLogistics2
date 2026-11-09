@@ -11,7 +11,8 @@
   "source": {
     "active": "addon",
     "test_roots": [
-      "tests"
+      "tests",
+      "candidates/pg30"
     ],
     "frozen_references": [],
     "archives": []
@@ -28,7 +29,15 @@
     "approval_reference": null,
     "evidence_reference": null
   },
-  "temporary_instrumentation": [],
+  "temporary_instrumentation": [
+    {
+      "id": "PG30-Q5-PERSISTENCE",
+      "kind": "test",
+      "task": "PG30 LAB-only dual-property normal-restart persistence; remove after witnessed cleanup and guarded rollback",
+      "path": "candidates/pg30/q5_property_probe_overlay.js",
+      "status": "active"
+    }
+  ],
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",
