@@ -100,7 +100,7 @@ function pg31ReadOnlyWorldCensus(origin) {
     }
     pg31Send(origin, "§a[PG31 Q4 WORLD READ ONLY] STRUCTURAL PASS: " +
         report.receiverCount + " registered Receivers, " + report.itemCount +
-        " ordinary/modeled Q4 item counts in " + entries +
+        " queued Q4 items in " + entries +
         " queue entries.");
     pg31Send(origin, "§7Largest Receiver Q4: " + largest.itemCount +
         " items, " + largest.entryCount + " entries; fingerprint " +
