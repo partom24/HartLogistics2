@@ -69,10 +69,27 @@ def weave_native_precommit_refusals(source: str) -> dict:
         label = f"native:{index}:{site['owner']}:{method}"
         # Native e.g. entity.remove() is a zero-argument call; adding a
         # trailing comma in that case would be a needless syntax hazard.
-        tail = masked[match.end():].lstrip()
-        if not tail:
+        # The masked source erases quoted string arguments (e.g.
+        # setType("minecraft:air")), so it cannot distinguish those from
+        # an empty call. Inspect the original next token after skipping
+        # whitespace/comments; a native argument's first quote is significant.
+        cursor = match.end()
+        while cursor < len(source):
+            if source[cursor].isspace():
+                cursor += 1
+            elif source.startswith("//", cursor):
+                newline = source.find("\n", cursor + 2)
+                cursor = len(source) if newline < 0 else newline + 1
+            elif source.startswith("/*", cursor):
+                close = source.find("*/", cursor + 2)
+                if close < 0:
+                    raise NativePrecommitPreviewRefused("unterminated_arg_comment")
+                cursor = close + 2
+            else:
+                break
+        if cursor >= len(source):
             raise NativePrecommitPreviewRefused("unterminated_native_call")
-        original_has_args = not tail.startswith(")")
+        original_has_args = source[cursor] != ")"
         inserted = f"{HOLD_FUNCTION}('{label}')" + (
             ", " if original_has_args else ""
         )
