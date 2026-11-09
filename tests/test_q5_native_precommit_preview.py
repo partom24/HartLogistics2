@@ -67,6 +67,17 @@ class NativePrecommitPreviewTests(unittest.TestCase):
         for site in empties:
             self.assertFalse(site["inserted"].endswith(", "))
 
+    def test_native_string_first_argument_is_not_an_empty_call(self):
+        # Regression for setType("minecraft:air"): the masked source
+        # replaces string bytes with whitespace, but this is NOT remove().
+        quoted = [s for s in self.result["sites"]
+                  if self.source[s["position"]:].lstrip().startswith(
+                      ('"', "'"))]
+        self.assertTrue(any(s["method"] == "setType" for s in quoted))
+        for site in quoted:
+            self.assertTrue(site["originalHasArgs"], site)
+            self.assertTrue(site["inserted"].endswith(", "), site)
+
     def test_every_authority_bit_remains_closed(self):
         for key in ("canInstall", "canFreezeWorld", "canRoute", "canMigrate",
                     "canWriteWorld", "canActivateQ5", "hasRealMaintenanceMarker",
