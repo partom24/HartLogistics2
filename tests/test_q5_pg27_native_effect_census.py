@@ -43,8 +43,9 @@ class PG27NativeEffects(unittest.TestCase):
     def test_source_ejected_entity_remove_is_owned_not_inferred_from_queue(self):
         result=mod.audit_native_mutators(self.source)
         calls=result["methodCounts"]["remove"]
-        self.assertGreaterEqual(calls.get("enqueueFromEjectedEntity",0),1)
-        self.assertGreaterEqual(calls.get("recoverQueueJournal",0),1)
+        self.assertEqual(calls.get("pg24VerifyEjectedCommit"),1)
+        self.assertNotIn("enqueueFromEjectedEntity",calls)
+        self.assertNotIn("recoverQueueJournal",calls)
 
     def test_source_native_frame_and_display_mutators_are_in_scope(self):
         r=mod.audit_native_mutators(self.source)
@@ -60,7 +61,8 @@ class PG27NativeEffects(unittest.TestCase):
         found="entity.remove();"
         self.assertIn(found,altered)
         altered=altered.replace(found,found+" entity.remove();",1)
-        with self.assertRaises(mod.NativeEffectCoverageRefused):
+        with self.assertRaises((mod.NativeEffectCoverageRefused,
+                                mod.audit.Q5CoverageRefused)):
             mod.audit_native_mutators(altered)
 
     def test_additional_unjournaled_physical_setItem_is_not_silently_covered(self):
@@ -71,7 +73,8 @@ class PG27NativeEffects(unittest.TestCase):
         original="dst.setItem("
         self.assertIn(original,altered)
         altered=altered.replace(original,"dst.setItem(0, undefined); "+original,1)
-        with self.assertRaises(mod.NativeEffectCoverageRefused):
+        with self.assertRaises((mod.NativeEffectCoverageRefused,
+                                mod.audit.Q5CoverageRefused)):
             mod.audit_native_mutators(altered)
 
     def test_removed_or_renamed_method_cannot_silently_reduce_scope(self):
@@ -84,7 +87,7 @@ class PG27NativeEffects(unittest.TestCase):
             self.assertIn(sourceMethod,self.source)
             changed=self.source.replace(sourceMethod,replacement,1)
             with self.subTest(method=sourceMethod),self.assertRaises(
-                mod.NativeEffectCoverageRefused
+                (mod.NativeEffectCoverageRefused,mod.audit.Q5CoverageRefused)
             ):
                 mod.audit_native_mutators(changed)
 
@@ -94,7 +97,8 @@ class PG27NativeEffects(unittest.TestCase):
             "function secretUnreviewedNativeWriter() { foo.setItem(0, undefined); }\n"
             "system.runInterval(schedulerTick, 1);"
         )
-        with self.assertRaises(mod.NativeEffectCoverageRefused):
+        with self.assertRaises((mod.NativeEffectCoverageRefused,
+                                mod.audit.Q5CoverageRefused)):
             mod.audit_native_mutators(mutated)
 
     def test_top_level_added_world_mutator_refuses(self):
@@ -103,7 +107,8 @@ class PG27NativeEffects(unittest.TestCase):
             "world.setDynamicProperty('test:unregistered','value');\n"
             "system.runInterval(schedulerTick, 1);"
         )
-        with self.assertRaises(mod.NativeEffectCoverageRefused):
+        with self.assertRaises((mod.NativeEffectCoverageRefused,
+                                mod.audit.Q5CoverageRefused)):
             mod.audit_native_mutators(mutated)
 
     def test_js_comments_and_quoted_strings_do_not_create_mutation_sites(self):
