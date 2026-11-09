@@ -51,27 +51,33 @@ APPROVED_NATIVE_CALLS = {
         "showNativeFrameUpgradeNotice":1, "setWorldDynamic":1,
         "syncDisplay":1, "rebuildQueueItem":1, "rebuildItem":1,
     },
+    # PG24 verified removal is the sole retained native ejected entity delete.
+    # The former recovered-Q4 absent-entity path is no longer allowed.
     "remove": {
         "removeDisplay":1, "syncDisplay":1, "reconcileDisplays":1,
-        "enqueueFromEjectedEntity":1, "recoverQueueJournal":1,
+        "pg24VerifyEjectedCommit":1,
     },
     "setEquipment":{"equipDisplayEntity":1},
     "runCommand":{"equipDisplayEntity":1, "<top-level-callback>":1},
     "spawnEntity":{"syncDisplay":1},
     "setPermutation":{
-        "syncSorterModeVisual":1,"plantEmptyNativeFrame":1
+        "syncSorterModeVisual":1,"plantEmptyNativeFrame":1,
+        "pg26RefreshConnections":1,
     },
+    # PG25/PG24 queue-recovery no longer write physical slots on replay.
+    # Native PG20 MR and PG23 compaction have dedicated moveItem sites.
     "setItem":{
         "enqueueFromSource":2,"dequeueToReceiver":2,
-        "recoverQueueJournal":4,"setFilter":2,"recoverJournal":4,
-        "safeMovePartial":4,"compactSourceHopper":2,
+        "setFilter":2,"safeMovePartial":4,
+    },
+    "moveItem":{
+        "pg20MoveOpaqueNative":1, "pg23CompactSourceHopper":1,
     },
     "spawnItem":{"giveOrDrop":2},
     "setType":{
         "plantEmptyNativeFrame":1,"eraseOwnedFrame":1,
-        "<top-level-callback>":1
+        "<top-level-callback>":1,
     },
-    "moveItem":{},
     "transferItem":{}
 }
 
