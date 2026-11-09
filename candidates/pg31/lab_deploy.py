@@ -79,7 +79,7 @@ def check_candidate(generated):
     if ('import { previewQ5WorldQ4Census } from "./q5_world_receiver_census.js";' not in source
             or 'name:"hartlogistics:q5census"' not in source
             or "TEMP_TEST:PG31-Q4-WORLD-CENSUS" not in source
-            or 'NO Q5 WRITES OR AUTHORITY CHANGE' not in source):
+            or 'NO Q5 WRITES, NO AUTHORITY CHANGE' not in source):
         raise lab.UnsafeLab("PG31 read-only full-world census wiring missing")
     for audit_marker in ("setWorldDynamic(", "saveJournal(", "saveQueueJournal(",
                          "setDynamicProperty(", "moveItem(", "setItem(", "new ItemStack("):
