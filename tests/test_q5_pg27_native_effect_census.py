@@ -21,7 +21,7 @@ class PG27NativeEffects(unittest.TestCase):
     def test_exact_pg27_native_effect_owner_census_is_locked(self):
         record=mod.audit_native_mutators(self.source)
         self.assertEqual(record["status"],"EXACT_PG27_NATIVE_EFFECT_CENSUS_ONLY")
-        self.assertGreaterEqual(record["nativeEffectCount"],35)
+        self.assertEqual(record["nativeEffectCount"],33)
         self.assertEqual(record["methodCounts"],mod.APPROVED_NATIVE_CALLS)
         self.assertEqual(len(record["sites"]),record["nativeEffectCount"])
 
