@@ -10,7 +10,7 @@
 
 **Previously accepted and reused:** PG08 Collector UI and linking were owner-tested, PG27 running/visual behavior observed, PG30 temporary world-property normal-restart test completed, PG31 35-Receiver Q4 read-only census/rollback completed. **Do not repeat their item cargo, MR, Transporter, Q4 census, reboot-durability, or block geometry tests.**
 
-**Operator action:** One exact PG27 → PG32 stopped-LAB update, one armed Collector interaction and one immediate unarmed interaction, then exact guarded rollback to PG27. There is **no new block/physical rig to build**; use one *existing accessible* Collector in an isolated safe area of the already-cloned ThomasServer LAB world, empty hand, without changing inventory, filters, links or block state.
+**Operator action:** One exact PG27 → PG32 stopped-LAB update, one armed Collector interaction and one immediate unarmed interaction, then exact guarded rollback to PG27. There is **no new block/physical rig to build**; use one *existing accessible* Collector in an isolated safe area of the already-cloned ThomasServer LAB world, empty hand **while standing (NOT sneaking)**, without changing inventory, filters, links or block state.
 
 **PASS:** First click is cancelled and PG32 reports `last=CANCEL_READBACK_TRUE cancelled=1 armed=NO`. The ordinary unarmed Collector menu opens on the next click (close it without modifying anything). Both before and after status show clear journals; PG32 rollback restores PG27. Report this as **bounded runtime nonthrowing callback cancellation**, NOT global migration/freeze proof.
 
@@ -46,7 +46,7 @@ Plan should print `PG32 SOURCE PASS`, **BP 18 / RP 59**, and `No LAB/PROD/world 
 
 Start LAB normally, log in, verify status **1.5.14-LAB-PG32-NOTHROW-BEFORE-EVENT** and **sorter clear | queue clear**.
 
-At one existing **Collector** with no item in hand (do not build or break any block):
+At one existing **Collector**, standing **without sneaking** and with no item in hand (do not build or break any block):
 
 ```text
 /hartlogistics:status
