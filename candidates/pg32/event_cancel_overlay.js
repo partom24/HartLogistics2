@@ -55,7 +55,8 @@ function pg32CancelBeforeInteract(ev) {
             pg32LastResult = "EXPIRED";
             return false;
         }
-        if (!ev || ev.player?.id !== pg32Armed.playerId ||
+        if (!ev || ev.isFirstEvent !== true ||
+            ev.player?.id !== pg32Armed.playerId ||
             ev.block?.typeId !== "hartsorter:collector") return false;
         // Non-throwing, synchronous Bedrock beforeEvent cancellation.
         // Never cancel a foreign player's or vanilla block interaction.
