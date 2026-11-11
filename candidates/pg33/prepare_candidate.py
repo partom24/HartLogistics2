@@ -97,7 +97,7 @@ def compile_patch(source, overlay):
         if forbidden in overlay:
             raise ValueError("PG33 REFUSED a second physical/queue writer")
     for required in ("PG33_RECEIVER_BATCH = 64", "pg33ReadReceiverInput(",
-                     "pg33CommittedQ4Meta(", "pg33NativeOutputAllowed(", "pg33StillMatches(",
+                     "pg33LabScopeAllows(", "pg33CommittedQ4Meta(", "pg33NativeOutputAllowed(", "pg33StillMatches(",
                      "pg33ProcessReceiverColumn(", "expectedHead:",
                      "dequeueToReceiver(", "receiverOutputHopper"):
         if required == "receiverOutputHopper":
