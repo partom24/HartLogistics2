@@ -17,7 +17,7 @@ function fn(name) {
 }
 const names = ["pg26PositionKey", "pg26SameChunk", "pg26Neighbor",
   "pg26EmptyDestinationSlot", "pg26RefreshConnections",
-  "pg33ReadReceiverInput", "pg33CommittedQ4Meta", "pg33StillMatches",
+  "pg33LabScopeAllows", "pg33ReadReceiverInput", "pg33CommittedQ4Meta", "pg33StillMatches",
   "pg33NativeOutputAllowed", "pg33ProcessReceiverColumn", "dequeueToReceiver"];
 const functions = names.map(fn).join("\n");
 assert.match(fn("dequeueToReceiver"), /options\?\.emptyOnly/);
@@ -77,6 +77,10 @@ function fixture(options={}) {
     PG26_FACES:[["north",0,0,-1],["south",0,0,1],["east",1,0,0],
       ["west",-1,0,0],["up",0,1,0],["down",0,-1,0]].map(([name,x,y,z])=>({name,x,y,z})),
     PG33_RECEIVER_BATCH:64,PG33_DOWN:{name:"down",x:0,y:-1,z:0},
+    PG33_LAB_SCOPE:{
+      dimensionId:"minecraft:overworld",
+      column:{x:0,y:70,z:0},receiver:{x:2,y:70,z:0}
+    },
     world:{getDynamicProperty:key=>key==='q4m-fixture'?q4Raw:
       key==='q3m-fixture'?q3Raw:undefined},
     queueMetaKey:()=> 'q4m-fixture',
@@ -377,4 +381,21 @@ test("one ordinary 27-slot barrel output remains supported",()=>{
   assert.equal(h.output.total(),8);
   assert.equal(h.q.total,0);
   assert.equal(h.journal.at(-1),null);
+});
+
+test("strict LAB allowlist: no other column or registered historical Receiver can route",()=>{
+  const a=fixture();
+  a.col.source={x:1,y:70,z:0};
+  assert.equal(a.run(),0);
+  assert.equal(a.journal.length,0);
+  assert.equal(a.q.total,8);
+  const b=fixture();
+  b.receiver.x=3;
+  assert.equal(b.run(),0);
+  assert.equal(b.journal.length,0);
+  assert.equal(b.q.total,8);
+  const c=fixture();
+  c.col.d="minecraft:nether";
+  assert.equal(c.run(),0);
+  assert.equal(c.journal.length,0);
 });
