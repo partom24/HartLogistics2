@@ -254,3 +254,15 @@ test('no actual Bedrock event or native API is invoked by preview',()=>{
   assert.equal(f.writes,0);
   noAuthority(second);
 });
+
+test('null, malformed and empty inputs return HOLD without throwing',()=>{
+  const gate=createQ5NonThrowingBoundaryPreview();
+  for (const value of [null,42,'bad',[],undefined,{}]) {
+    const first=gate.captureEvent(value);
+    assert.equal(first.ok,false);
+    noAuthority(first);
+    const second=gate.previewPrecommit(value);
+    assert.equal(second.ok,false);
+    noAuthority(second);
+  }
+});
