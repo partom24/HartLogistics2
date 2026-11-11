@@ -113,7 +113,7 @@ class TestPG33ReceiverCandidate(unittest.TestCase):
         js = (self.output / "behavior_pack/scripts/main.js").read_text()
         def loc(name):
             match = re.search(
-                r"\\b" + name + r":\\{x:(-?\\d+),y:(-?\\d+),z:(-?\\d+)\\}",
+                r"\b" + name + r":\{x:(-?\d+),y:(-?\d+),z:(-?\d+)\}",
                 js
             )
             self.assertIsNotNone(match, "missing PG33 absolute LAB scope: " + name)
