@@ -92,6 +92,8 @@ def check_candidate(generated):
             raise lab.UnsafeLab("PG32 unexpected custody writer in temporary overlay")
     if audit_overlay.count("ev.cancel = true;") != 1:
         raise lab.UnsafeLab("PG32 cancellation statement not unique to overlay")
+    if "ev.isFirstEvent !== true" not in audit_overlay:
+        raise lab.UnsafeLab("PG32 first-event-only safety gate missing")
     if "pg32CancelBeforeInteract(ev)" not in audit_overlay:
         raise lab.UnsafeLab("PG32 cancellation helper absent")
     if {p.name for p in (generated / "behavior_pack/scripts").glob("*.js")} != {"main.js"}:
