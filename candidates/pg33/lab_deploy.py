@@ -58,7 +58,7 @@ def check_candidate(generated):
                    for d in bp["dependencies"]):
             raise lab.UnsafeLab("PG33 stable Script API dependency changed")
     source = (generated / "behavior_pack/scripts/main.js").read_text()
-    for marker in ('const VERSION = "1.5.15-LAB-PG33-NOTHROW-BEFORE-EVENT";',
+    for marker in ('const VERSION = "1.5.15-LAB-PG33";',
                    'const PG20_OPAQUE_JOURNAL = "pg20-native-opaque-v1"',
                    'const PG23_COMPACTION_JOURNAL = "pg23-native-hopper-compaction-v1"',
                    "pg23TransportMayRun()", "pg23CompactSourceHopper(src, sourceBlock)",
