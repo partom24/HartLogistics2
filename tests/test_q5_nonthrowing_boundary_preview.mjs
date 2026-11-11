@@ -110,7 +110,7 @@ test('foreign beforeEvents are untouched even during maintenance',()=>{
   const result=before(gate,f,{ownership:'foreign',managed:false});
   assert.equal(result.status,'FOREIGN_UNTOUCHED_MODEL_ONLY');
   assert.equal(result.wouldRequestManagedBeforeCancellation,false);
-  assert.equal(result.externalIsolationRequired,false);
+  assert.equal(result.externalIsolationRequired,true);
   assert.equal(f.reads,0);
   noAuthority(result);
 });
@@ -265,4 +265,21 @@ test('null, malformed and empty inputs return HOLD without throwing',()=>{
     assert.equal(second.ok,false);
     noAuthority(second);
   }
+});
+
+test('marker transition between event read and capture refuses before callback',()=>{
+  const f=fixture(),gate=createQ5NonThrowingBoundaryPreview();
+  const originalRead=f.world.getDynamicProperty;
+  let reads=0;
+  f.world.getDynamicProperty=key=>{
+    reads++;
+    if(reads===5) f.setPhase('REQUESTED',1);
+    return originalRead(key);
+  };
+  const result=before(gate,f);
+  assert.equal(result.ok,false);
+  assert.equal(result.wouldRequestManagedBeforeCancellation,true);
+  assert.match(result.reason,/fence_capture_hold/);
+  noAuthority(result);
+  assert.equal(f.writes,0);
 });
