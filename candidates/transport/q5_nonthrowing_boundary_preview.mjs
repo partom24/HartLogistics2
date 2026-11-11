@@ -66,9 +66,8 @@ export function createQ5NonThrowingBoundaryPreview() {
       decision?.phase==='before' && decision.wouldCancelBeforeEvent===true;
     if (decision?.status==='FOREIGN_EVENT_UNTOUCHED_MODEL_ONLY') {
       return {
-        ...held('foreign_event_unmodified_model_only',{
-          externalIsolationRequired:false
-        }),status:'FOREIGN_UNTOUCHED_MODEL_ONLY'
+        ...held('foreign_event_unmodified_model_only'),
+        status:'FOREIGN_UNTOUCHED_MODEL_ONLY'
       };
     }
     if (decision?.status==='VANILLA_TOPOLOGY_EDGE_UNRESOLVED') {
