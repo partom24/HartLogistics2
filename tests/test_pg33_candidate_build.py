@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -106,6 +107,39 @@ class TestPG33ReceiverCandidate(unittest.TestCase):
         self.assertIn("options?.expectedHead", new)
         self.assertIn("if (options?.revalidate && !options.revalidate()) return 0;", new)
         self.assertNotIn("setDynamicProperty(", (ROOT / "candidates/pg33/receiver_q4_input.js").read_text())
+
+    def test_owner_room_bounds_and_single_chunk_output_route(self):
+        """Prevent future test-rig coordinate changes from crossing walls/chunks."""
+        js = (self.output / "behavior_pack/scripts/main.js").read_text()
+        def loc(name):
+            match = re.search(
+                r"\\b" + name + r":\\{x:(-?\\d+),y:(-?\\d+),z:(-?\\d+)\\}",
+                js
+            )
+            self.assertIsNotNone(match, "missing PG33 absolute LAB scope: " + name)
+            return tuple(map(int, match.groups()))
+
+        root = loc("column")
+        receiver = loc("receiver")
+        sorter = (root[0], root[1]-1, root[2])
+        p1 = (root[0]+1, root[1], root[2])
+        collector = (receiver[0]+2, receiver[1], receiver[2])
+        hopper = (collector[0]+1, collector[1], collector[2])
+        chest_in = (hopper[0], hopper[1]+1, hopper[2])
+        chest_out = (sorter[0], sorter[1], sorter[2]+1)
+        lever = (sorter[0], sorter[1], sorter[2]-1)
+        blocks = (root, receiver, sorter, p1, collector,
+                  hopper, chest_in, chest_out, lever)
+        for x,y,z in blocks:
+            self.assertTrue(-969 <= x <= -938, ("outside room X",x,y,z))
+            self.assertTrue(68 <= y <= 75, ("outside room Y",x,y,z))
+            self.assertTrue(-818 <= z <= -777, ("outside room Z",x,y,z))
+        self.assertEqual(root, (-952,70,-791))
+        self.assertEqual(receiver, (-950,70,-791))
+        self.assertEqual(root[0]//16, receiver[0]//16)
+        self.assertEqual(root[2]//16, receiver[2]//16)
+        self.assertEqual(root[0]//16, chest_out[0]//16)
+        self.assertEqual(root[2]//16, chest_out[2]//16)
 
     def test_builder_rejects_existing_output_and_is_deterministic(self):
         with self.assertRaises(FileExistsError):
