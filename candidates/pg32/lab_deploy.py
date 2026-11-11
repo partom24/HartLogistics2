@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-NEW_VERSION = (1, 5, 13)
+NEW_VERSION = (1, 5, 14)
 OLD_VERSION = (1, 5, 10)
 WORLD = "ThomasServer"
 
@@ -31,7 +31,7 @@ def load(path, name):
 pg27_deploy = load(ROOT / "candidates/pg27/lab_deploy.py",
                    "pg32_old_verified_installer")
 pg32 = load(ROOT / "candidates/pg32/prepare_candidate.py",
-            "pg32_world_q4_census_builder")
+            "pg32_event_cancellation_builder")
 pg27 = pg32.pg27
 pg08 = pg27_deploy.pg08
 lab = pg27_deploy.lab
@@ -57,7 +57,7 @@ def check_candidate(generated):
                    for d in bp["dependencies"]):
             raise lab.UnsafeLab("PG32 stable Script API dependency changed")
     source = (generated / "behavior_pack/scripts/main.js").read_text()
-    for marker in ('const VERSION = "1.5.14-LAB-PG32-Q4-WORLD-CENSUS";',
+    for marker in ('const VERSION = "1.5.14-LAB-PG32-NOTHROW-BEFORE-EVENT";',
                    'const PG20_OPAQUE_JOURNAL = "pg20-native-opaque-v1"',
                    'const PG23_COMPACTION_JOURNAL = "pg23-native-hopper-compaction-v1"',
                    "pg23TransportMayRun()", "pg23CompactSourceHopper(src, sourceBlock)",
