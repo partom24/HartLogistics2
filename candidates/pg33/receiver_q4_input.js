@@ -3,11 +3,33 @@
  * No new queue writer, physical journal, persistent key, controller or replay.
  * Ambiguous receipts retain PG25's global HOLD policy.
  */
+/* Exact one-rig allowlist for this LAB-only delivery. A historical Q4
+ * Receiver or Sorter elsewhere cannot acquire the new pipe egress simply by
+ * having an old adjacent pipe. Delete/replace this LAB scope only after a
+ * separately reviewed general-routing authorization.
+ */
+const PG33_LAB_SCOPE = Object.freeze({
+    dimensionId:"minecraft:overworld",
+    column:{x:-940,y:70,z:-791},
+    receiver:{x:-938,y:70,z:-791}
+});
+function pg33LabScopeAllows(col, receiver=undefined) {
+    if (!col || col.d !== PG33_LAB_SCOPE.dimensionId ||
+        !col.source || col.source.x !== PG33_LAB_SCOPE.column.x ||
+        col.source.y !== PG33_LAB_SCOPE.column.y ||
+        col.source.z !== PG33_LAB_SCOPE.column.z) return false;
+    if (receiver === undefined) return true;
+    return receiver.d === PG33_LAB_SCOPE.dimensionId &&
+        receiver.x === PG33_LAB_SCOPE.receiver.x &&
+        receiver.y === PG33_LAB_SCOPE.receiver.y &&
+        receiver.z === PG33_LAB_SCOPE.receiver.z;
+}
+
 const PG33_RECEIVER_BATCH = 64;
 const PG33_DOWN = {name:"down",x:0,y:-1,z:0};
 
 function pg33ReadReceiverInput(col) {
-    if (!pg23TransportMayRun()) return undefined;
+    if (!pg33LabScopeAllows(col) || !pg23TransportMayRun()) return undefined;
     const dim = getDimension(col.d);
     if (!dim) return undefined;
     let root;
@@ -46,7 +68,8 @@ function pg33ReadReceiverInput(col) {
                     const idKey = logisticsId(next.dimension.id,p.x,p.y,p.z);
                     const known = findReceiverById(idKey);
                     const live = known && receiverAt(known);
-                    if (!known || known.present === false || known.d !== col.d ||
+                    if (!known || !pg33LabScopeAllows(col, known) ||
+                        known.present === false || known.d !== col.d ||
                         known.x !== p.x || known.y !== p.y || known.z !== p.z ||
                         !live || live.typeId !== RECEIVER_ID ||
                         pg26PositionKey(live.location) !== pg26PositionKey(p) ||
