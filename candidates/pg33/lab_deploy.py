@@ -81,6 +81,7 @@ def check_candidate(generated):
     if (source.count("function dequeueToReceiver(") != 1 or
             source.count("function pg33ProcessReceiverColumn(") != 1 or
             source.count("function pg33CommittedQ4Meta(") != 1 or
+            source.count("function pg33NativeOutputAllowed(") != 1 or
             "if (!pg26Input) return pg33ProcessReceiverColumn(col, globalRemaining);" not in source or
             "options?.expectedHead" not in source or
             "options?.revalidate" not in source or
