@@ -81,8 +81,8 @@ def check_candidate(generated):
     if (source.count("function dequeueToReceiver(") != 1 or
             source.count("function pg33ProcessReceiverColumn(") != 1 or
             source.count("function pg33LabScopeAllows(") != 1 or
-            "column:{x:-940,y:70,z:-791}" not in source or
-            "receiver:{x:-938,y:70,z:-791}" not in source or
+            "column:{x:-952,y:70,z:-791}" not in source or
+            "receiver:{x:-950,y:70,z:-791}" not in source or
             source.count("function pg33CommittedQ4Meta(") != 1 or
             source.count("function pg33NativeOutputAllowed(") != 1 or
             "if (!pg26Input) return pg33ProcessReceiverColumn(col, globalRemaining);" not in source or
