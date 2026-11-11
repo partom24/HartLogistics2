@@ -44,10 +44,14 @@ export function createQ5NonThrowingBoundaryPreview() {
   const fence=createQ5LegacyFenceSession();
   const tickets=new WeakMap();
 
-  function captureEvent({
-    world,worldId,eventKind,ownership,targetKind,managed,capturedEpoch,
-    handlerId,sourceKey
-  }={}) {
+  function captureEvent(request={}) {
+    if (!request || typeof request!=='object' || Array.isArray(request)) {
+      return held('invalid_event_request');
+    }
+    const {
+      world,worldId,eventKind,ownership,targetKind,managed,capturedEpoch,
+      handlerId,sourceKey
+    }=request;
     let decision;
     try {
       decision=previewQ5EventBoundary({
@@ -117,9 +121,11 @@ export function createQ5NonThrowingBoundaryPreview() {
     };
   }
 
-  function previewPrecommit({
-    ticket,world,worldId,handlerId,sourceKey,mutationSite
-  }={}) {
+  function previewPrecommit(request={}) {
+    if (!request || typeof request!=='object' || Array.isArray(request)) {
+      return held('invalid_precommit_request');
+    }
+    const {ticket,world,worldId,handlerId,sourceKey,mutationSite}=request;
     if (!ticket || typeof ticket!=='object' || !tickets.has(ticket)) {
       return held('unknown_or_restarted_event_ticket');
     }
