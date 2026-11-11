@@ -108,7 +108,7 @@ function fixture(options={}) {
       return i<0?undefined:{slot:i,before:0,room:item.maxAmount};
     },
     queueSlotState:(c,i)=>{if(onSlot)onSlot();const item=c.getItem(i);return {sig:item?.typeId??"",amount:item?.amount??0};},
-    queueDataSignature:data=>data.typeId,
+    queueDataSignature:data=>JSON.stringify(data),
     persistQueueEntry:(r,queue,seq,e)=>{queue.first=e;},
     clearQueueEntry:(r,queue,seq)=>{queue.first=undefined;},
     persistQueueMeta:(r,queue,m)=>{
