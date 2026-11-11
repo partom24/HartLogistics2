@@ -88,6 +88,8 @@ class TestPG33ReceiverCandidate(unittest.TestCase):
         self.assertIn("dequeueToReceiver(", source)
         self.assertIn('below.typeId === "minecraft:hopper"', source)
         self.assertIn("pg33CommittedQ4Meta(", source)
+        self.assertIn("pg33NativeOutputAllowed(", source)
+        self.assertIn('target.container.size !== 27', source)
         self.assertIn("pg33CommittedQ4Meta(route.receiver) !== committedQ4", source)
         self.assertIn("queueDataSignature(rebuiltData)", source)
         self.assertIn('id === RECEIVER_ID', source)
