@@ -108,6 +108,29 @@ function pg33StillMatches(col, expected) {
         actual.fingerprint === expected.fingerprint;
 }
 
+/* Only one non-aliased 27-slot native chest/barrel may receive new pipe
+ * output. Reject all double chests, unknown neighbors and other inventories.
+ */
+function pg33NativeOutputAllowed(col, target) {
+    try {
+        if (!target || target.kind !== "storage" ||
+            !target.container?.isValid || target.container.size !== 27 ||
+            !target.block || !pg26SameChunk(col, target.block) ||
+            target.block.location.y >= col.source.y) return false;
+        const id = target.block.typeId;
+        if (id !== "minecraft:chest" && id !== "minecraft:barrel")
+            return false;
+        if (id === "minecraft:chest") {
+            for (const face of PG26_FACES) {
+                if (face.y !== 0) continue;
+                const neighbor = pg26Neighbor(target.block, face);
+                if (!neighbor || neighbor.typeId === id) return false;
+            }
+        }
+        return true;
+    } catch (_) { return false; }
+}
+
 function pg33ProcessReceiverColumn(col, globalRemaining) {
     if (globalRemaining <= 0) return 0;
     const route = pg33ReadReceiverInput(col);
@@ -143,9 +166,7 @@ function pg33ProcessReceiverColumn(col, globalRemaining) {
     const wildcard = active.filter(e => sorterMode(e) === "wildcard");
     for (const entry of [...exact, ...auto, ...wildcard]) {
         const target = destinationFor(entry);
-        if (!target || target.kind !== "storage" || !target.container?.isValid ||
-            !pg26SameChunk(col, target.block) ||
-            target.block.location.y >= col.source.y) continue;
+        if (!pg33NativeOutputAllowed(col, target)) continue;
         // New pipe branch is empty-slot-only, even if Q4's legacy Hopper
         // output can merge into an existing stack. No direct Collector/Q4 loop.
         if (!pg26EmptyDestinationSlot(target.container, item)) continue;
@@ -161,12 +182,10 @@ function pg33ProcessReceiverColumn(col, globalRemaining) {
             if (admittedMode === "auto" && !autoSorterMatches(item, entry))
                 return false;
             const now = destinationFor(entry);
-            return !!now && now.kind === "storage" &&
+            return pg33NativeOutputAllowed(col, now) &&
                 now.block.typeId === target.block.typeId &&
                 pg26PositionKey(now.block.location) ===
                     pg26PositionKey(target.block.location) &&
-                now.container?.isValid && pg26SameChunk(col, now.block) &&
-                now.block.location.y < col.source.y &&
                 now.container.size === target.container.size &&
                 !!pg26EmptyDestinationSlot(now.container, item);
         };
