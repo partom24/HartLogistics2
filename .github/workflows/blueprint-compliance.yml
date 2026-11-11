@@ -258,6 +258,15 @@ jobs:
           node --check --input-type=module < build/pg26-lab/behavior_pack/scripts/main.js
           node --test tests/test_pg26_transporter_mock.mjs
           python -m unittest discover -s tests -p 'test_pg26_lab_deploy.py' -v
+      - name: Verify PG32 temporary no-throw beforeEvent source, Node callback and guarded LAB roundtrip
+        run: |
+          python -m unittest discover -s tests -p 'test_pg32_candidate_build.py' -v
+          python -m unittest discover -s tests -p 'test_pg32_lab_deploy.py' -v
+          python candidates/pg32/prepare_candidate.py
+          node --check --input-type=module < build/pg32-lab/behavior_pack/scripts/main.js
+          node --check candidates/pg32/event_cancel_overlay.js
+          node --check tests/test_pg32_event_cancel_mock.mjs
+          node --test tests/test_pg32_event_cancel_mock.mjs
       - name: Verify PG27 Transporter geometry against actual world-neighbor flags
         run: |
           python -m unittest discover -s tests -p 'test_pg27_candidate_build.py' -v
@@ -833,3 +842,30 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
           }
+
+  pg32-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up LAB-host-compatible Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Parse PG32 PowerShell launcher and verify guarded synthetic LAB roundtrip
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\pg32\Start-HartLogistics-PG32Lab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $text = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('dev/pg32-nothrow-before-event-lab-only', 'HartLogistics2-PG32-LAB',
+             'CheckLab', 'Rollback', 'ExpectedCommit', 'confirm-lab-only', 'assert_no_link')) {
+             if (-not $text.Contains($anchor)) { throw "PG32 launcher boundary missing: $anchor" }
+          }
+          python -m unittest discover -s tests -p 'test_pg32_lab_deploy.py' -v
