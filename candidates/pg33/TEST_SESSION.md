@@ -14,7 +14,7 @@
 
 **Operator work:** One stopped-LAB upgrade from exact PG27 and subsequent guarded rollback; one small, clearly isolated rig and **two** in-game checkpoints (paused queue, then unpowered delivery). Do not repeat tests to manufacture a PASS. No forced crash or extra restart.
 
-**PASS:** With Sorter powered, exactly 8 plain cobblestone move from the test Hopper source into **only the new Receiver Q4 queue**; the output chest remains empty. After unpower, exactly 8 cobblestone appear in the output chest, new Receiver queued count becomes 0, and **both journals clear**. Native route should never debit existing historical Receiver queues.
+**PASS:** With Sorter powered, exactly 8 plain cobblestone move from the test Hopper source into **only the new Receiver Q4 queue**; the output chest remains empty. After unpower, exactly 8 cobblestone appear in the output chest, new Receiver queued count becomes 0, and **both journals clear**. The LAB allowlist prevents historical Receiver queues from being debited through this new route; their original PG27 routing may continue independently.
 
 **HOLD:** Unexpected inventory changes, missing/unloaded block, competing Hopper or inventory, wrong/double chest, failed links, version/registration mismatch, wrong per-Receiver count, unexpected count or identity at output, pending journal or any change outside isolated rig. Stop, retain all backups; do not clear journals, drain historical Q4 queues, delete an occupied Receiver or repair by hand.
 
@@ -23,6 +23,7 @@
 - Target ONLY `C:\Servers\Thomas_MCBedrock - Copy (2)`, existing production-derived world `ThomasServer`; hard deny `C:\Servers\Thomas_MCBedrock`.
 - Exact installed PG27 1.5.10 is the predecessor; source-only derived PG33 1.5.15. Original 72-file baseline and UUIDs identical; only the existing Q4 dequeue writer gets opt-in pipe admission. Q4 authority remains unchanged.
 - No new native container, Q5 property, migration, Bulk capacity, pipe inventory or controller.
+- **Additional LAB-only allowlist:** the new pipe route is permitted ONLY for **column (-940,70,-791) and Receiver (-938,70,-791) in the Overworld**. All historical Receiver / other Sorter coordinates remain on their original PG27 behavior, even if pipes happen to be adjacent. This allowlist is deliberately not a production network feature; generalizing it requires a later separately reviewed change.
 - New route requires exactly one registered Q4-v4 Receiver, no legacy output Hopper, at most 16 fully loaded same-chunk pipes, one Sorter column, redstone-respected ordinary item, **one non-double 27-slot chest/barrel** in an empty destination slot. Unsupported/opaque queue-head stays queued. Original legacy output Hopper behavior remains as PG27.
 - Installer Plan has no LAB access; CheckLab is read-only and hashes two exact PG27 packs/registrations; Install/Rollback require `-Apply`, SHA pin and LAB server stopped. Backups are retained; no automatic restart.
 - **Never** move items from an already-populated Receiver into this prototype. Create one new test Receiver/Collector, then leave existing queues and world untouched. If the planned test location is occupied, DO NOT demolish old builds; report the conflict before installation/testing.
