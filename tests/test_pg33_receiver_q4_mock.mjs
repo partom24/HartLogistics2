@@ -18,7 +18,7 @@ function fn(name) {
 const names = ["pg26PositionKey", "pg26SameChunk", "pg26Neighbor",
   "pg26EmptyDestinationSlot", "pg26RefreshConnections",
   "pg33ReadReceiverInput", "pg33CommittedQ4Meta", "pg33StillMatches",
-  "pg33ProcessReceiverColumn", "dequeueToReceiver"];
+  "pg33NativeOutputAllowed", "pg33ProcessReceiverColumn", "dequeueToReceiver"];
 const functions = names.map(fn).join("\n");
 assert.match(fn("dequeueToReceiver"), /options\?\.emptyOnly/);
 assert.match(fn("dequeueToReceiver"), /options\?\.revalidate/);
@@ -343,4 +343,38 @@ test("powered destination after queue inspection refuses journaled credit",()=>{
   assert.equal(h.run(),0);
   assert.equal(h.journal.length,0);
   assert.equal(h.q.total,8);
+});
+
+test("double chest output adjacency is refused, even if one half reports 27 slots",()=>{
+  const h=fixture();
+  h.put("minecraft:chest",1,69,1);
+  assert.equal(h.run(),0);
+  assert.equal(h.q.total,8);
+  assert.equal(h.output.total(),0);
+  assert.equal(h.journal.length,0);
+});
+test("unknown neighbor of chest output is an unsafe frontier",()=>{
+  const h=fixture();
+  h.missing.add("0,69,2");
+  assert.equal(h.run(),0);
+  assert.equal(h.q.total,8);
+  assert.equal(h.journal.length,0);
+});
+test("wrong-sized and arbitrary inventory outputs are refused",()=>{
+  for (const kind of ["minecraft:hopper","minecraft:trapped_chest","minecraft:chest"]) {
+    const h=fixture();
+    h.outBlock.typeId=kind;
+    if(kind==="minecraft:chest") h.output.size=54;
+    assert.equal(h.run(),0,kind);
+    assert.equal(h.q.total,8,kind);
+    assert.equal(h.journal.length,0,kind);
+  }
+});
+test("one ordinary 27-slot barrel output remains supported",()=>{
+  const h=fixture();
+  h.outBlock.typeId="minecraft:barrel";
+  assert.equal(h.run(),8);
+  assert.equal(h.output.total(),8);
+  assert.equal(h.q.total,0);
+  assert.equal(h.journal.at(-1),null);
 });
