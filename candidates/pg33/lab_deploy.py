@@ -80,6 +80,9 @@ def check_candidate(generated):
         raise lab.UnsafeLab("PG33 legacy Q4 recovery mutator survived")
     if (source.count("function dequeueToReceiver(") != 1 or
             source.count("function pg33ProcessReceiverColumn(") != 1 or
+            source.count("function pg33LabScopeAllows(") != 1 or
+            "column:{x:-940,y:70,z:-791}" not in source or
+            "receiver:{x:-938,y:70,z:-791}" not in source or
             source.count("function pg33CommittedQ4Meta(") != 1 or
             source.count("function pg33NativeOutputAllowed(") != 1 or
             "if (!pg26Input) return pg33ProcessReceiverColumn(col, globalRemaining);" not in source or
