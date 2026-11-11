@@ -261,6 +261,7 @@ jobs:
       - name: Verify PG33 Receiver Q4 to Transporter ordinary output (source-only)
         run: |
           python -m unittest discover -s tests -p 'test_pg33_candidate_build.py' -v
+          python -m unittest discover -s tests -p 'test_pg33_lab_deploy.py' -v
           python candidates/pg33/prepare_candidate.py
           node --check --input-type=module < build/pg33-lab/behavior_pack/scripts/main.js
           node --check tests/test_pg33_receiver_q4_mock.mjs
@@ -840,3 +841,31 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
           }
+
+  pg33-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up Python 3.12 (matching current owner LAB)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Parse PG33 PowerShell launcher and verify exact-LAB synthetic upgrade and rollback
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\pg33\Start-HartLogistics-PG33Lab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $script = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('dev/pg33-receiver-transporter-q4-egress',
+            'HartLogistics2-PG33-LAB', 'CheckLab', 'Rollback', 'ExpectedCommit',
+            'confirm-lab-only', 'Assert-Unlinked')) {
+            if (-not $script.Contains($anchor)) { throw "PG33 launcher safety anchor missing: $anchor" }
+          }
+          python -m unittest discover -s tests -p 'test_pg33_lab_deploy.py' -v
