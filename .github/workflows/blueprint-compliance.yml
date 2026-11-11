@@ -258,6 +258,13 @@ jobs:
           node --check --input-type=module < build/pg26-lab/behavior_pack/scripts/main.js
           node --test tests/test_pg26_transporter_mock.mjs
           python -m unittest discover -s tests -p 'test_pg26_lab_deploy.py' -v
+      - name: Verify PG33 Receiver Q4 to Transporter ordinary output (source-only)
+        run: |
+          python -m unittest discover -s tests -p 'test_pg33_candidate_build.py' -v
+          python candidates/pg33/prepare_candidate.py
+          node --check --input-type=module < build/pg33-lab/behavior_pack/scripts/main.js
+          node --check tests/test_pg33_receiver_q4_mock.mjs
+          node --test tests/test_pg33_receiver_q4_mock.mjs
       - name: Verify PG27 Transporter geometry against actual world-neighbor flags
         run: |
           python -m unittest discover -s tests -p 'test_pg27_candidate_build.py' -v
