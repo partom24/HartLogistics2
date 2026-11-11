@@ -10,8 +10,8 @@
  */
 const PG33_LAB_SCOPE = Object.freeze({
     dimensionId:"minecraft:overworld",
-    column:{x:-940,y:70,z:-791},
-    receiver:{x:-938,y:70,z:-791}
+    column:{x:-952,y:70,z:-791},
+    receiver:{x:-950,y:70,z:-791}
 });
 function pg33LabScopeAllows(col, receiver=undefined) {
     if (!col || col.d !== PG33_LAB_SCOPE.dimensionId ||
