@@ -41,7 +41,7 @@ function fixture(){
     f(origin);
   };
   const event=(block=classId,p=player)=>({
-    player:p,block:{typeId:block},cancel:false
+    player:p,block:{typeId:block},isFirstEvent:true,cancel:false
   });
   let calls=0;
   const simulate=e=>{
@@ -142,7 +142,7 @@ test('second operator cannot disarm a first operator arm',()=>{
 test('cancel setter exception does not throw or change actual callback default',()=>{
   const f=fixture();
   f.command('q5cancelarm');
-  const e={player:f.player,block:{typeId:classId}};
+  const e={player:f.player,block:{typeId:classId},isFirstEvent:true};
   Object.defineProperty(e,'cancel',{set(){throw Error('read-only event');}});
   assert.equal(f.simulate(e),'ORIGINAL');
   f.command('q5cancelcheck');
@@ -152,7 +152,7 @@ test('cancel setter exception does not throw or change actual callback default',
 test('failure to readback cancel never claims diagnostic PASS',()=>{
   const f=fixture();
   f.command('q5cancelarm');
-  const e={player:f.player,block:{typeId:classId}};
+  const e={player:f.player,block:{typeId:classId},isFirstEvent:true};
   Object.defineProperty(e,'cancel',{get(){return false;},set(){}});
   assert.equal(f.simulate(e),'ORIGINAL');
   f.command('q5cancelcheck');
@@ -174,4 +174,16 @@ test('overlay has no runtime Q5 marker, Q4 or physical ItemStack operations',()=
     'q5_maintenance_marker_v1'
   ])assert.equal(overlay.includes(forbidden),false,forbidden);
   assert.equal(overlay.includes('ev.cancel = true;'),true);
+});
+
+test('repeat interaction events do not spend the one-shot arm',()=>{
+  const f=fixture();
+  f.command('q5cancelarm');
+  const repeated=f.event();
+  repeated.isFirstEvent=false;
+  assert.equal(f.simulate(repeated),'ORIGINAL');
+  assert.equal(repeated.cancel,false);
+  assert.equal(f.simulate(f.event()),'CANCELLED');
+  f.command('q5cancelcheck');
+  assert.match(f.messages.at(-1),/cancelled=1 armed=NO/);
 });
