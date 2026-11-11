@@ -10,7 +10,7 @@ const classId='hartsorter:collector';
 function fixture(){
   const commands=new Map(),messages=[],logs=[];
   const player={
-    id:'owner-1',typeId:'minecraft:player',
+    id:'owner-1',typeId:'minecraft:player',isSneaking:false,
     sendMessage:m=>messages.push(m)
   };
   const system={
@@ -183,6 +183,19 @@ test('repeat interaction events do not spend the one-shot arm',()=>{
   repeated.isFirstEvent=false;
   assert.equal(f.simulate(repeated),'ORIGINAL');
   assert.equal(repeated.cancel,false);
+  assert.equal(f.simulate(f.event()),'CANCELLED');
+  f.command('q5cancelcheck');
+  assert.match(f.messages.at(-1),/cancelled=1 armed=NO/);
+});
+
+test('sneak-place Collector interactions are untouched even while armed',()=>{
+  const f=fixture();
+  f.command('q5cancelarm');
+  f.player.isSneaking=true;
+  const sneaking=f.event();
+  assert.equal(f.simulate(sneaking),'ORIGINAL');
+  assert.equal(sneaking.cancel,false);
+  f.player.isSneaking=false;
   assert.equal(f.simulate(f.event()),'CANCELLED');
   f.command('q5cancelcheck');
   assert.match(f.messages.at(-1),/cancelled=1 armed=NO/);
