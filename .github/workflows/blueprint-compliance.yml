@@ -865,7 +865,7 @@ jobs:
           if ($errors.Count -ne 0) { throw ($errors | Out-String) }
           $text = Get-Content -LiteralPath $launcher -Raw
           foreach ($anchor in @('dev/pg32-nothrow-before-event-lab-only', 'HartLogistics2-PG32-LAB',
-             'CheckLab', 'Rollback', 'ExpectedCommit', 'confirm-lab-only', 'assert_no_link')) {
+             'CheckLab', 'Rollback', 'ExpectedCommit', 'confirm-lab-only', 'Assert-Unlinked')) {
              if (-not $text.Contains($anchor)) { throw "PG32 launcher boundary missing: $anchor" }
           }
           python -m unittest discover -s tests -p 'test_pg32_lab_deploy.py' -v
