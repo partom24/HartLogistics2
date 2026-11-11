@@ -28,7 +28,15 @@
     "approval_reference": null,
     "evidence_reference": null
   },
-  "temporary_instrumentation": [],
+  "temporary_instrumentation": [
+    {
+      "id": "PG32-NOTHROW-BEFORE-EVENT",
+      "kind": "test",
+      "task": "Temporary one-shot operator-owned Collector beforeEvent cancellation feasibility in LAB; close unmerged after exact PG27 rollback",
+      "path": "candidates/pg32/event_cancel_overlay.js",
+      "status": "active"
+    }
+  ],
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",
