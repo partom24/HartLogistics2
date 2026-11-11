@@ -56,6 +56,7 @@ function pg32CancelBeforeInteract(ev) {
             return false;
         }
         if (!ev || ev.isFirstEvent !== true ||
+            ev.player?.isSneaking ||
             ev.player?.id !== pg32Armed.playerId ||
             ev.block?.typeId !== "hartsorter:collector") return false;
         // Non-throwing, synchronous Bedrock beforeEvent cancellation.
