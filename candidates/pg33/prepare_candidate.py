@@ -1,7 +1,8 @@
-"""PG33 offline candidate: Receiver Q4 -> pipe -> Sorter using existing Q4 writer.
+"""PG33 LAB-scoped Receiver Q4 -> Transporter -> Sorter using existing writer.
 
-Builds the exact accepted PG27 predecessor. No LAB deployment pathway is
-introduced until source/fault verification and owner test scope are reviewed.
+Build exact PG27 unchanged predecessor. The separate stopped-LAB guarded
+installer must pass source/CI and owner's bounded gameplay test. Building
+this source never reads or modifies LAB/world/production.
 """
 from __future__ import annotations
 
@@ -133,7 +134,7 @@ def prepare(target):
                 )
                 manifest["header"]["description"] = (
                     "Receiver Q4 -> Transporter -> Sorter source-only candidate; "
-                    "not approved for LAB deployment."
+                    "LAB candidate requiring exact pinned source and owner test."
                 )
                 for module in manifest["modules"]:
                     if module["version"] != [1, 5, 10]:
@@ -152,8 +153,8 @@ def prepare(target):
                 encoding="utf-8"
             )
             (target / "NOT_APPROVED_FOR_INSTALL.txt").write_text(
-                "PG33 1.5.15 SOURCE/OFFLINE candidate only.\n"
-                "No authorized LAB installer; Q4 -> pipe -> Sorter has no BDS acceptance.\n"
+                "PG33 1.5.15 guarded LAB candidate; manual copying prohibited.\n"
+                "Only exact-SHA stopped-LAB launcher after all CI passes; no BDS acceptance yet.\n"
                 "PG25 raw pending receipts HOLD; original 72-file 1.4.1 immutable.\n",
                 encoding="utf-8"
             )
