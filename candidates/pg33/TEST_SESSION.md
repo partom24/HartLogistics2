@@ -23,7 +23,7 @@
 - Target ONLY `C:\Servers\Thomas_MCBedrock - Copy (2)`, existing production-derived world `ThomasServer`; hard deny `C:\Servers\Thomas_MCBedrock`.
 - Exact installed PG27 1.5.10 is the predecessor; source-only derived PG33 1.5.15. Original 72-file baseline and UUIDs identical; only the existing Q4 dequeue writer gets opt-in pipe admission. Q4 authority remains unchanged.
 - No new native container, Q5 property, migration, Bulk capacity, pipe inventory or controller.
-- **Additional LAB-only allowlist:** the new pipe route is permitted ONLY for **column (-940,70,-791) and Receiver (-938,70,-791) in the Overworld**. All historical Receiver / other Sorter coordinates remain on their original PG27 behavior, even if pipes happen to be adjacent. This allowlist is deliberately not a production network feature; generalizing it requires a later separately reviewed change.
+- **Additional LAB-only allowlist:** the new pipe route is permitted ONLY for **column (-952,70,-791) and Receiver (-950,70,-791) in the Overworld**. All historical Receiver / other Sorter coordinates remain on their original PG27 behavior, even if pipes happen to be adjacent. This allowlist is deliberately not a production network feature; generalizing it requires a later separately reviewed change.
 - New route requires exactly one registered Q4-v4 Receiver, no legacy output Hopper, at most 16 fully loaded same-chunk pipes, one Sorter column, redstone-respected ordinary item, **one non-double 27-slot chest/barrel** in an empty destination slot. Unsupported/opaque queue-head stays queued. Original legacy output Hopper behavior remains as PG27.
 - Installer Plan has no LAB access; CheckLab is read-only and hashes two exact PG27 packs/registrations; Install/Rollback require `-Apply`, SHA pin and LAB server stopped. Backups are retained; no automatic restart.
 - **Never** move items from an already-populated Receiver into this prototype. Create one new test Receiver/Collector, then leave existing queues and world untouched. If the planned test location is occupied, DO NOT demolish old builds; report the conflict before installation/testing.
@@ -56,24 +56,26 @@ Start LAB normally, verify `/hartlogistics:status` reports **1.5.15-LAB-PG33**, 
 
 ## 4. READY rig card — ONLY in verified clear, empty LAB space
 
-Use Overworld and first inspect the full bounding area **x -941 to -934, y 69 to 72, z -793 to -789**. This is a prospective test location, **not proof that the region is empty**. If it contains old machines, redstone, chests, inventories, pipes or another add-on's blocks, **STOP; do not break them**. No world reset, old queue draining or relocation of existing items.
+The owner established the testing room's interior as **x -969..-938, y 68..75, z -818..-777**. The first location proposal exceeded its eastern X boundary and has been retired. The revised one-rig placement is wholly inside the room, away from the walls. The room-wide screenshot does **not** verify the exact new cells are empty.
 
-The entire active path fits in chunk X=-59 (-944..-929) and Z=-50 (-800..-785).
+Use Overworld and first inspect the full bounding area **x -953 to -946, y 69 to 72, z -793 to -789**. This is a prospective test location, **not proof that the region is empty**. If it contains old machines, redstone, chests, inventories, pipes or another add-on's blocks, **STOP; do not break them**. No world reset, old queue draining or relocation of existing items.
+
+The entire active path fits in chunk X=-60 (-960..-945) and Z=-50 (-800..-785).
 
 **New rig inventory:** 2 Transporters, 1 Sorter, 1 Collector, 1 Receiver, 1 vanilla Hopper, 2 **single** chests, 1 lever and 3 plain stonebrick supports. Output chest must have **all 27 slots empty**. No double chests, powered/foreign adjacent sources, neighboring pipe networks or output Hopper beneath R.
 
 | Role | XYZ | Exact instruction |
 |---|---|---|
-| Output Sorter S | **(-940,69,-791)** | Face output **south (+Z)**; select **WILDCARD**; no filter |
-| Output single chest O | **(-940,69,-790)** | South of S, ordinary 27 empty slots, no adjacent chest |
-| Transporter P0 | **(-940,70,-791)** | Immediately above S |
-| Transporter P1 | **(-939,70,-791)** | East of P0 |
-| Test Receiver R | **(-938,70,-791)** | East of P1; NO Hopper at (-938,69,-791); support with stonebrick |
-| Test Collector C | **(-936,70,-791)** | Two east of R; support with stonebrick |
-| Input Hopper H | **(-935,70,-791)** | Immediately east of C, spout **west (-X) toward Collector**, support with stonebrick |
-| Input single chest I | **(-935,71,-791)** | Above H, initially empty |
-| Sorter pause lever | **(-940,69,-792)** | On north face of S; initially ON (powered) |
-| R/C/H supports | **(-938,69,-791), (-936,69,-791), (-935,69,-791)** | Three ordinary stonebrick blocks; NO inventory under R |
+| Output Sorter S | **(-952,69,-791)** | Face output **south (+Z)**; select **WILDCARD**; no filter |
+| Output single chest O | **(-952,69,-790)** | South of S, ordinary 27 empty slots, no adjacent chest |
+| Transporter P0 | **(-952,70,-791)** | Immediately above S |
+| Transporter P1 | **(-951,70,-791)** | East of P0 |
+| Test Receiver R | **(-950,70,-791)** | East of P1; NO Hopper at (-950,69,-791); support with stonebrick |
+| Test Collector C | **(-948,70,-791)** | Two east of R; support with stonebrick |
+| Input Hopper H | **(-947,70,-791)** | Immediately east of C, spout **west (-X) toward Collector**, support with stonebrick |
+| Input single chest I | **(-947,71,-791)** | Above H, initially empty |
+| Sorter pause lever | **(-952,69,-792)** | On north face of S; initially ON (powered) |
+| R/C/H supports | **(-950,69,-791), (-948,69,-791), (-947,69,-791)** | Three ordinary stonebrick blocks; NO inventory under R |
 
 Path: `I ↓ Hopper → Collector C → (linked Q4) Receiver R → P1 → P0 ↓ Sorter S → O`.
 
