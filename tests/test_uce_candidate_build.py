@@ -119,6 +119,11 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("verifyInternalRoute:tx=>",self.main)
         self.assertIn("executeUnifiedOrdinaryWithdrawal(args)",self.main)
         self.assertIn("serviceUnifiedReceiverMR({",self.main)
+        self.assertIn("createUnifiedLinkRegistry({world",self.main)
+        self.assertIn("function uceSelectCollectorForLink(player,block)",self.main)
+        self.assertIn("function uceUseReceiverLinkOrStatus(player,block)",self.main)
+        self.assertIn("uceAllowsSorterRegistryWrite(key)",self.main)
+
 
     def test_no_automatic_authority_install_or_second_bridge_writer(self):
         bridge=(ROOT/"candidates/uce/runtime_bridge.js").read_text()
