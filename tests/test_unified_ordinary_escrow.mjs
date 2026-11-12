@@ -218,3 +218,93 @@ test('partial post-consume crash retains physical/ticket mismatch until explicit
   assert.equal(f.writer.inspect().snapshot.total,64);
   assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),true);
 });
+
+
+test('reverse product journey: credited Receiver count -> certified native escrow -> debit -> native destination',()=>{
+  const f=fixture();
+  enter(f);
+  assert.equal(credit(f).ok,true);
+  assert.equal(consume(f).ok,true);
+  assert.equal(f.reg.stageMovedTicket(f.owner).ok,true);
+  assert.equal(ackConsume(f).ok,true);
+  assert.equal(f.writer.inspect().snapshot.total,64);
+  // The (future) one outer coordinator must first verify deposit completion
+  // before retiring this marker; no code here clears it automatically.
+  f.values.delete(boundaryKey);
+
+  const withdrawId='ordinary-withdraw-32';
+  const claim={schema:'hart-uce-ordinary-boundary-v1',
+    worldId,epoch,operationId:withdrawId,phase:'ESCROW_READY',
+    direction:'withdraw',accountId,key,count:32,
+    expectedRevision:f.writer.inspect().snapshot.revision};
+  f.values.set(boundaryKey,JSON.stringify(claim));
+  const registry=createUnifiedCarrierRegistry({
+    world:f.world,worldId,epoch,boundaryOperationId:withdrawId,
+    externalFence:()=>true,ownerVerifier:()=>true});
+  assert.equal(registry.ok,true);
+  const terminal=container(9);
+  const to={ownerId:receiver,container:f.host.container,slot:0};
+  const output={ownerId:'sorter-destination',container:terminal,slot:3};
+  const isCertified=(stack,k,n)=>stack?.typeId==='minecraft:cobblestone'&&
+    stack.amount===n&&k===key&&stack.maxAmount===64&&
+    !stack.nameTag&&stack.getLore().length===0;
+  const port=createUnifiedNativePort({
+    world:f.world,worldId,epoch,boundaryOperationId:withdrawId,
+    externalFence:()=>true,verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:registry.durableOwnershipWitness,
+    makeCertifiedOrdinaryItem:(k,n)=>k===key?
+      {typeId:'minecraft:cobblestone',amount:n,maxAmount:64,
+       nameTag:'',lore:[],getLore:()=>[]}:null,
+    certifyOrdinaryEscrow:isCertified,
+    verifyLedgerWithdrawalReservation:({operationId,accountId:a,key:k,count:n,direction})=>{
+      const v=f.writer.inspect(),t=JSON.parse(f.values.get(boundaryKey));
+      return v.ok&&v.snapshot.accounts.find(a=>a.id===accountId)?.total>=n&&
+        operationId===withdrawId&&a===accountId&&k===key&&
+        direction==='withdraw'&&t.operationId===withdrawId;
+    }
+  });
+  assert.equal(port.ok,true);
+  const materialized=port.materializeCertifiedOrdinary({
+    operationId:'native-materialize-1',to,accountId,key,count:32});
+  assert.equal(materialized.ok,true,materialized.reason);
+  assert.equal(registry.stageMovedTicket(f.owner).ok,true);
+  const acknowledged=port.ackMaterializedOrdinary({
+    operationId:'native-materialize-1',to,accountId,key,count:32});
+  assert.equal(acknowledged.ok,true,acknowledged.reason);
+  assert.equal(registry.inspectCustody(f.owner).occupied,1);
+  assert.equal(f.writer.inspect().snapshot.total,64);
+  const writer=createUnifiedShardWriter({
+    world:f.world,worldId,epoch,shardKey,externalFence:()=>true,
+    verifyEscrowCustody:()=>registry.inspectCustody(f.owner).occupied===1});
+  const debited=writer.applyBoundaryCommit({
+    operationId:withdrawId,accountId,key,count:32,direction:'withdraw',
+    expectedRevision:claim.expectedRevision,expectedEpoch:epoch});
+  assert.equal(debited.ok,true,debited.reason);
+  assert.equal(writer.inspect().snapshot.total,32);
+  const moved=port.moveWhole({operationId:'native-withdraw-output-1',
+    from:to,to:output});
+  assert.equal(moved.ok,true,moved.reason);
+  assert.equal(registry.stageMovedTicket(f.owner).ok,true);
+  assert.equal(port.ackWhole({operationId:'native-withdraw-output-1',
+    from:to,to:output}).ok,true);
+  assert.equal(registry.inspectCustody(f.owner).occupied,0);
+  assert.equal(writer.inspect().snapshot.total,32);
+  assert.equal(terminal.getItem(3)?.amount,32);
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+});
+
+test('withdrawal cannot materialize without a matching ledger reservation and empty host slot',()=>{
+  const f=fixture();
+  const port=createUnifiedNativePort({
+    world:f.world,worldId,epoch,boundaryOperationId:outerId,
+    externalFence:()=>true,verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:()=>false,
+    makeCertifiedOrdinaryItem:()=>({typeId:'minecraft:cobblestone',amount:64}),
+    certifyOrdinaryEscrow:()=>true,
+    verifyLedgerWithdrawalReservation:()=>false});
+  hold(port.materializeCertifiedOrdinary({
+    operationId:'fake',to:f.to,accountId,key,count:64}),
+    'ordinary_materialize_escrow_not_reserved');
+  assert.equal(f.host.container.getItem(0),undefined);
+  assert.equal(f.writer.inspect().snapshot.total,0);
+});
