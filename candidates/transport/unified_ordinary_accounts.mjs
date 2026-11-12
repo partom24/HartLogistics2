@@ -71,8 +71,14 @@ function inspectAccount(account) {
         !nat(q.received) || !nat(q.delivered))) {
       return denied('invalid_receiver_legacy_provenance');
     }
-  } else if (account.legacyQ4 !== undefined) {
-    return denied('bulk_has_legacy_q4');
+  } else {
+    if (account.legacyQ4 !== undefined)
+      return denied('bulk_has_legacy_q4');
+    if (!['controller','member'].includes(account.role) ||
+        !idOK(account.controllerOwnerId) ||
+        (account.role === 'controller' &&
+         account.controllerOwnerId !== account.ownerId))
+      return denied('invalid_bulk_controller_claim');
   }
   return {ok:true};
 }
@@ -90,7 +96,7 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
     return denied('invalid_ledger_header');
   }
   let total=0,prev=null,receivers=0;
-  const seenQueueKeys=new Set();
+  const seenQueueKeys=new Set(), bulkAccounts=[];
   for (const a of snapshot.accounts) {
     const check=inspectAccount(a);
     if (!check.ok) return check;
@@ -99,6 +105,7 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
     prev=a.id;
     total+=a.total;
     if (!nat(total)) return denied('ledger_total_overflow');
+    if (a.kind === 'bulk') bulkAccounts.push(a);
     if (a.kind === 'receiver') {
       receivers++;
       if (a.legacyQ4 !== undefined) {
@@ -110,6 +117,14 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
   }
   if (total!==snapshot.total)
     return denied('ledger_conservation_mismatch');
+  const controllers=bulkAccounts.filter(a=>a.role==='controller');
+  // One-member shards may contain a member whose controller belongs to a
+  // different shard. Cross-shard controller existence is checked by the
+  // sealed world index; never invent a new controller for that member.
+  if (controllers.length>1 || (bulkAccounts.length>1 &&
+      controllers.length!==1) || (controllers.length===1 &&
+      bulkAccounts.some(a=>a.controllerOwnerId!==controllers[0].ownerId)))
+    return denied('bulk_controller_conflict');
   if (seenQueueKeys.size!==snapshot.sourceReceivers.length)
     return denied('source_provenance_count_mismatch');
   let sourcePrev=null;
@@ -167,7 +182,13 @@ export function registerUnifiedEmptyAccount(snapshot,{kind,ownerId,
   next.accounts.push({
     id,kind,ownerId,
     capacity:kind==='receiver'?UCE_RECEIVER_CAPACITY:UCE_BULK_MEMBER_CAPACITY,
-    total:0,buckets:[],lifetime:{received:0,delivered:0}
+    total:0,buckets:[],lifetime:{received:0,delivered:0},
+    ...(kind === 'bulk' ? {
+      role:snapshot.accounts.some(a=>a.kind==='bulk')
+        ? 'member' : 'controller',
+      controllerOwnerId:snapshot.accounts.find(a=>a.kind==='bulk')
+        ?.controllerOwnerId ?? ownerId
+    } : {})
   });
   next.accounts.sort((a,b)=>order(a.id,b.id));
   next.revision++;
@@ -278,7 +299,9 @@ export function stageUnifiedOrdinaryAccounts({
   for (const ownerId of bulkMemberIds) {
     accounts.push({id:'bulk:'+ownerId,kind:'bulk',ownerId,
       capacity:UCE_BULK_MEMBER_CAPACITY,total:0,buckets:[],
-      lifetime:{received:0,delivered:0}});
+      lifetime:{received:0,delivered:0},
+      role:ownerId === bulkMemberIds[0] ? 'controller' : 'member',
+      controllerOwnerId:bulkMemberIds[0]});
   }
   accounts.sort((a,b)=>order(a.id,b.id));
   sources.sort((a,b)=>order(a.id,b.id));
