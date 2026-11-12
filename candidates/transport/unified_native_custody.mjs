@@ -86,7 +86,9 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
      typeof durableOwnershipWitness!=='function')
     return deny('invalid_native_port_binding');
   let quarantined=false;
-  const fence=()=>verifyUnifiedMutationFence(world,worldId,epoch,externalFence);
+  const fence=(operationId=null)=>verifyUnifiedMutationFence(
+    world,worldId,epoch,externalFence,
+    {allowedNativeOperationId:operationId});
   function inspectPending(){
     const j=readJournal(world);
     if(!j.ok)return j;
@@ -192,7 +194,7 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
    */
   function ackWhole({operationId,from,to}={}){
     if(quarantined)return deny('native_session_quarantined');
-    const gate=fence();
+    const gate=fence(operationId);
     if(!gate.ok)return deny(gate.reason);
     const j=readJournal(world);
     if(!j.ok)return j;
