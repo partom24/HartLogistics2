@@ -629,6 +629,27 @@ function uceOrdinaryServiceTick(){
             }
             if(sourceRecord)break;
         }
+        // A pipe-attached chest/barrel is a native INPUT (never a final
+        // storage output). Collector sources retain admission priority.
+        // Every candidate passes through the same escrow->ledger credit
+        // coordinator, so no second ordinary Transporter queue is created.
+        if(!sourceRecord){
+            const pipe=ucePipeRouteNetwork(receiver);
+            for(const input of pipe?.inputs||[]){
+                for(let i=0;i<input.container.size;i++){
+                    let item;
+                    try{item=input.container.getItem(i);}
+                    catch(_){continue;}
+                    const key=ucePlainItemIdentity(item);
+                    if(!key)continue;
+                    sourceRecord={...input,kind:'pipe',locked:false};
+                    sourceSlot=i;
+                    sourceKey=key;
+                    break;
+                }
+                if(sourceRecord)break;
+            }
+        }
         const output=receiverOutputHopper(receiver);
         const outgoing=output&&!output.locked&&
             !blockIsRedstonePowered(receiverAt(receiver))?
@@ -752,6 +773,8 @@ function uceOrdinaryServiceTick(){
             physicalSlot={ownerId:endpointId,
                 container:sourceRecord.container,slot:sourceSlot};
             routeVerify=()=>{
+                if(sourceRecord.kind==='pipe')
+                    return ucePipeSourceStillConnected(receiver,sourceRecord);
                 const cb=linked.some(c=>{
                     const b=collectorAt(c);
                     return b && !blockIsRedstonePowered(b) &&
