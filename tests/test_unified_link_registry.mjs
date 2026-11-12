@@ -38,7 +38,7 @@ function fixture(opts={}){
     verifySealedReceiver:()=>receiverValid});
   const writer=create();
   assert.equal(writer.ok,true,writer.reason);
-  return {writer,create,values,saved,setValid:x=>{valid=x;},
+  return {writer,create,values,world,saved,setValid:x=>{valid=x;},
     setReceiverValid:x=>{receiverValid=x;},
     get writes(){return writes}};
 }
@@ -137,4 +137,64 @@ test('an unsealed new Receiver cannot be targeted even without a legacy Q4 row',
   f.values.set(UCE_LINKS_KEY,JSON.stringify({...f.saved,receivers:[]}));
   hold(f.writer.linkCollector(req()),'collector_or_sealed_receiver_unverified');
   assert.equal(f.writes,0);
+});
+
+test('PG36 absent fresh-world registry is initialized atomically by first Collector link only',()=>{
+  const f=fixture();
+  f.values.delete(UCE_LINKS_KEY);
+  f.values.delete('hartsorter:q4m_q1');
+  let bootstrapChecks=0;
+  const verified=()=>{bootstrapChecks++;return true;};
+  const writer=createUnifiedLinkRegistry({
+    world:f.world,worldId,epoch,externalFence:()=>true,
+    verifyCollectorBlock:()=>true,verifySealedReceiver:()=>true,
+    verifyEmptyNewWorld:verified});
+  const pre=writer.inspect();
+  assert.equal(pre.ok,true,pre.reason);
+  assert.equal(pre.collectorCount,0);
+  assert.equal(pre.receiverCount,0);
+  assert.equal(pre.revision,0);
+  assert.equal(f.writes,0,'inspect never writes a synthetic registry');
+  const out=writer.linkCollector(req());
+  assert.equal(out.ok,true,out.reason);
+  assert.equal(out.status,'COLLECTOR_LINK_COMMITTED_READBACK');
+  assert.equal(f.writes,1,'one combined registry/link atomic write only');
+  assert.ok(bootstrapChecks>=3,'fresh-world proof rechecked around write');
+  const saved=JSON.parse(f.values.get(UCE_LINKS_KEY));
+  assert.equal(saved.nextQueue,1);
+  assert.equal(saved.receivers.length,0);
+  assert.equal(saved.collectors.length,1);
+  assert.equal(saved.collectors[0].link,receiver.id);
+  assert.equal(writer.inspect().revision,1);
+});
+
+test('PG36 existing Q4 and missing/corrupt saved registry remain HOLD unless explicit fresh proof',()=>{
+  const f=fixture();
+  f.values.delete(UCE_LINKS_KEY);
+  hold(f.writer.inspect(),'saved_logistics_missing_or_oversized');
+  hold(f.writer.linkCollector(req()),'saved_logistics_missing_or_oversized');
+  assert.equal(f.writes,0);
+  for(const raw of [null,'','{broken']){
+    f.values.set(UCE_LINKS_KEY,raw);
+    const writer=createUnifiedLinkRegistry({
+      world:f.world,worldId,epoch,externalFence:()=>true,
+      verifyCollectorBlock:()=>true,verifySealedReceiver:()=>true,
+      verifyEmptyNewWorld:()=>true});
+    hold(writer.inspect());
+    assert.equal(f.writes,0);
+  }
+});
+
+test('PG36 fresh origin proof must remain valid immediately before first write',()=>{
+  const f=fixture();
+  f.values.delete(UCE_LINKS_KEY);
+  let proofs=0;
+  const writer=createUnifiedLinkRegistry({
+    world:f.world,worldId,epoch,externalFence:()=>true,
+    verifyCollectorBlock:()=>true,verifySealedReceiver:()=>true,
+    verifyEmptyNewWorld:()=>++proofs<3});
+  const result=writer.linkCollector(req());
+  hold(result,'link_route_or_writer_fence_changed_prewrite');
+  assert.equal(f.writes,0);
+  assert.equal(f.values.has(UCE_LINKS_KEY),false);
 });

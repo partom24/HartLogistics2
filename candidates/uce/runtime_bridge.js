@@ -575,6 +575,44 @@ function uceSelectCollectorForLink(player,block){
     uceShowCollectorLinkedStatus(player,block);
     player.sendMessage('§b[Collector] Selected for UCE linkage. Interact with a registered Receiver to commit the relationship.');
 }
+/**
+ * PG36: only a zero-Q4 cold-activated NEW world may bootstrap the missing
+ * original link registry. New Receiver identities already live in sealed
+ * reserved shards; the old registry must still have no historical owner.
+ * This proof is evaluated before read-only inspect AND immediately before
+ * the ONE link commit; it cannot synthesize or overwrite a Q4 registry.
+ */
+function uceEmptyLinkRegistryBootProof(authority){
+    try{
+        if(!authority)return false;
+        const cold=inspectUnifiedActiveColdImport({world,
+            worldId:authority.worldId,epoch:authority.epoch});
+        if(!cold.ok||cold.currentLedgerTotal!==0)return false;
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||seal.worldId!==authority.worldId||
+           seal.epoch!==authority.epoch||
+           seal.receivers!==0||seal.initialItemCount!==0||
+           !Array.isArray(seal.q4Sources)||seal.q4Sources.length!==0||
+           !Array.isArray(seal.shards)||seal.shards.length!==32||
+           seal.shards.some(s=>!s.owner?.startsWith('reserve:')||
+               s.initialCount!==0))
+            return false;
+        // Undefined means never initialized. An empty string, null or
+        // malformed saved registry is an ambiguity and must remain HOLD.
+        if(world.getDynamicProperty(LOGISTICS_KEY)!==undefined)return false;
+        const keys=world.getDynamicPropertyIds();
+        return Array.isArray(keys)&&keys.length<=200000&&
+          !keys.some(k=>typeof k!=='string'||
+            k==='hartsorter:logistics_v1'||
+            k===LOGISTICS_KEY||
+            k==='hartsorter:journal_v1'||
+            k.startsWith('hartsorter:queue_journal')||
+            k.startsWith('hartsorter:q2')||
+            k.startsWith('hartsorter:q3')||
+            k.startsWith('hartsorter:q4'));
+    }catch(_){return false;}
+}
 function uceUseReceiverLinkOrStatus(player,block){
     if(!player||!block||block.typeId!==RECEIVER_ID)return;
     const pending=ucePendingLinkBlocks.get(player.id);
@@ -618,7 +656,8 @@ function uceUseReceiverLinkOrStatus(player,block){
         externalFence:()=>uceLegacyWriterBlocked()&&
             !!uceAuthoritySnapshot(),
         verifyCollectorBlock:c=>c.id===pending.id&&candidate(),
-        verifySealedReceiver:receiverVerified
+        verifySealedReceiver:receiverVerified,
+        verifyEmptyNewWorld:()=>uceEmptyLinkRegistryBootProof(authority)
     });
     if(!editor.ok){
         player.sendMessage('§c[Collector] Link authority unavailable: '+editor.reason);

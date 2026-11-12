@@ -58,7 +58,8 @@ function parse(raw){
   return {ok:true,data};
 }
 export function createUnifiedLinkRegistry({world,worldId,epoch,
-    externalFence,verifyCollectorBlock,verifySealedReceiver}={}){
+    externalFence,verifyCollectorBlock,verifySealedReceiver,
+    verifyEmptyNewWorld}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !id(worldId)||!Number.isSafeInteger(epoch)||epoch<1||
@@ -71,9 +72,19 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
     let raw;
     try{raw=world.getDynamicProperty(UCE_LINKS_KEY);}
     catch(_){return hold('saved_logistics_unreadable');}
+    // A truly new UCE world has no legacy Q4 link registry. Only its
+    // independently verified empty sealed origin permits a virtual initial
+    // record; never silently recreate a missing/corrupt archived registry.
+    if(raw===undefined){
+      let safe=false;
+      try{safe=verifyEmptyNewWorld?.()===true;}catch(_){}
+      if(!safe)return hold('saved_logistics_missing_or_oversized');
+      return {ok:true,raw:undefined,bootstrap:true,
+        data:{collectors:[],receivers:[],nextQueue:1}};
+    }
     const parsed=parse(raw);
     if(!parsed.ok)return parsed;
-    return {...parsed,raw};
+    return {...parsed,raw,bootstrap:false};
   }
   function inspect(){
     const r=read();
@@ -148,7 +159,11 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
       stillCollector=verifyCollectorBlock(collector)===true;
       stillReceiver=verifySealedReceiver(receiverId)===true;
     }catch(_){}
-    if(!gate2.ok||!stillCollector||!stillReceiver)
+    let stillEmptySafe=!previous.bootstrap;
+    if(previous.bootstrap){
+      try{stillEmptySafe=verifyEmptyNewWorld?.()===true;}catch(_){}
+    }
+    if(!gate2.ok||!stillCollector||!stillReceiver||!stillEmptySafe)
       return hold('link_route_or_writer_fence_changed_prewrite');
     try{world.setDynamicProperty(UCE_LINKS_KEY,raw);}
     catch(_){

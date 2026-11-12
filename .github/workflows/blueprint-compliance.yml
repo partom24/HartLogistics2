@@ -205,6 +205,12 @@ jobs:
         run: |
           node --check tests/test_uce_unified_tick_gate.mjs
           node --test tests/test_uce_unified_tick_gate.mjs
+      - name: UCE PG36 fresh sealed new-world first Collector link bootstrap
+        run: |
+          node --check candidates/transport/unified_link_registry.mjs
+          node --test tests/test_unified_link_registry.mjs
+          node --check tests/test_uce_new_world_link_bootstrap.mjs
+          node --test tests/test_uce_new_world_link_bootstrap.mjs
       - name: UCE new Receiver sealed registration runtime hydration and links
         run: |
           node --check tests/test_uce_receiver_runtime_registration.mjs
