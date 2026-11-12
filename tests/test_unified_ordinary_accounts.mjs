@@ -6,6 +6,7 @@ import {previewQ5WorldQ4Census} from '../candidates/transport/q5_world_receiver_
 import {
   UCE_LEDGER_SCHEMA,UCE_RECEIVER_CAPACITY,UCE_BULK_MEMBER_CAPACITY,
   stageUnifiedOrdinaryAccounts,inspectUnifiedOrdinaryLedger,
+  createEmptyUnifiedOrdinaryLedger,registerUnifiedEmptyAccount,
   transitionUnifiedOrdinaryAccounts
 } from '../candidates/transport/unified_ordinary_accounts.mjs';
 
@@ -236,4 +237,62 @@ test('empty Q4 Receiver remains a real account and retains its lifetime counters
   assert.deepEqual(a.buckets,[]);
   assert.equal(a.legacyQ4.received,7);
   assert.equal(a.legacyQ4.delivered,7);
+});
+
+
+test('new worlds can create genuine Receiver and Bulk members without invented Q4 provenance',()=>{
+  const empty=createEmptyUnifiedOrdinaryLedger({
+    worldId:'minecraft:overworld:new-world',epoch:41
+  });
+  assert.equal(empty.ok,true);
+  let s=empty.snapshot;
+  const r=registerUnifiedEmptyAccount(s,{
+    kind:'receiver',ownerId:'minecraft:overworld|10,70,10',
+    expectedRevision:0,expectedEpoch:41
+  });
+  assert.equal(r.ok,true,r.reason);
+  s=r.next;
+  assert.equal(s.sourceReceivers.length,0);
+  assert.equal(s.accounts[0].legacyQ4,undefined);
+  assert.equal(inspectUnifiedOrdinaryLedger(s).ok,true);
+  const b=registerUnifiedEmptyAccount(s,{
+    kind:'bulk',ownerId:'minecraft:overworld|11,70,10',
+    expectedRevision:1,expectedEpoch:41
+  });
+  assert.equal(b.ok,true,b.reason);
+  assert.equal(b.next.revision,2);
+  assert.equal(b.next.accounts.find(a=>a.kind==='bulk').capacity,200000);
+  assert.equal(inspectUnifiedOrdinaryLedger(b.next).ok,true);
+  hold(registerUnifiedEmptyAccount(s,{
+    kind:'receiver',ownerId:'minecraft:overworld|10,70,10',
+    expectedRevision:1,expectedEpoch:41
+  }),'duplicate_account');
+  hold(registerUnifiedEmptyAccount(s,{
+    kind:'bulk',ownerId:'minecraft:overworld|11,70,10',
+    expectedRevision:0,expectedEpoch:41
+  }),'invalid_or_stale_registration');
+});
+
+test('new accounts coexist with imported Q4 accounts without changing imported source facts',()=>{
+  const imported=stage(fixture()).snapshot;
+  const r=registerUnifiedEmptyAccount(imported,{
+    kind:'receiver',ownerId:'minecraft:overworld|99,70,-40',
+    expectedRevision:imported.revision,expectedEpoch:imported.epoch
+  });
+  assert.equal(r.ok,true,r.reason);
+  const s=r.next;
+  assert.equal(s.accounts.filter(a=>a.kind==='receiver').length,3);
+  assert.equal(s.sourceReceivers.length,2);
+  assert.equal(s.total,36);
+  assert.equal(inspectUnifiedOrdinaryLedger(s).ok,true);
+  const a=registerUnifiedEmptyAccount(s,{
+    kind:'bulk',ownerId:'bank-b2',
+    expectedRevision:s.revision,expectedEpoch:s.epoch
+  });
+  assert.equal(a.ok,true,a.reason);
+  assert.equal(a.next.total,36);
+  assert.equal(inspectUnifiedOrdinaryLedger(a.next).ok,true);
+  const tampered=structuredClone(a.next);
+  tampered.accounts[1].legacyQ4=undefined;
+  hold(inspectUnifiedOrdinaryLedger(tampered),'source_provenance_count_mismatch');
 });
