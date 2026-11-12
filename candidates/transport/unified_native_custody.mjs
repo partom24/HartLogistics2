@@ -77,7 +77,8 @@ function verifyEndpoint(value){
  * record and must be re-run just before the move.
  */
 export function createUnifiedNativePort({world,worldId,epoch,externalFence,
-    verifyEndpointOwner,durableOwnershipWitness}={}){
+    verifyEndpointOwner,durableOwnershipWitness,
+    boundaryOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !name(worldId)||!pos(epoch)||
@@ -88,7 +89,8 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
   let quarantined=false;
   const fence=(operationId=null)=>verifyUnifiedMutationFence(
     world,worldId,epoch,externalFence,
-    {allowedNativeOperationId:operationId});
+    {allowedNativeOperationId:operationId,
+     allowedBoundaryOperationId:boundaryOperationId});
   function inspectPending(){
     const j=readJournal(world);
     if(!j.ok)return j;
