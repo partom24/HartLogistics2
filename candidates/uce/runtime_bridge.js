@@ -370,6 +370,11 @@ function uceUnifiedServiceTick(){
     // The ordinary lane must not even start until its recovery is resolved.
     if(uceUnifiedJournalHold())return;
     uceOrdinaryServiceTick(authority);
+    // The same native custody journal also covers original direct Sorter
+    // outputs to ordinary vanilla storage: never run them in parallel with
+    // an unsettled Receiver boundary.
+    if(uceUnifiedJournalHold())return;
+    uceSorterDirectServiceTick(authority);
 }
 /**
  * Read the immutable cold seal, not an additional Receiver registry. Original
@@ -1342,4 +1347,127 @@ function uceSendMigrationPreview(origin){
     if(target&&typeof target.sendMessage==='function'){
         for(const line of lines)target.sendMessage(line);
     }else for(const line of lines)log(line.replace(/§./g,''));
+}
+
+/*
+ * Direct Hopper->Sorter->vanilla storage, using UCE's existing native
+ * physical movement journal (NOT the old 1.4.1 safeMovePartial writer).
+ * Storage is the native inventory owner; no synthetic Receiver queue,
+ * separate bank balance or second scheduler is introduced.
+ *
+ * This deliberately moves WHOLE stacks into EMPTY slots only. It will HOLD
+ * when partial merge or chest alias identity is uncertain; the full 1.4.1
+ * merge/throughput compatibility gate is still pending Bedrock acceptance.
+ * A persisted PREPARED intent is never auto-cleared or replayed on restart.
+ */
+let uceSorterDirectCursor=0;
+function uceDirectStorageOwnerBlock(block){
+    try{
+        if(!block||!supportedStorage(block))return false;
+        if(block.typeId==='minecraft:chest'){
+            // Two block aliases can expose the same double-chest inventory.
+            // Do not infer whole-stack ownership through an unproven alias.
+            for(const face of PG26_FACES){
+                if(face.y!==0)continue;
+                const neighbor=pg26Neighbor(block,face);
+                if(!neighbor||neighbor.typeId==='minecraft:chest')
+                    return false;
+            }
+        }
+        return blockContainer(block)?.isValid===true;
+    }catch(_){return false;}
+}
+function uceSorterDirectServiceTick(authority){
+    try{
+        if(!Array.isArray(columns)||!columns.length)return;
+        for(let step=0;step<columns.length;step++){
+            const ix=(uceSorterDirectCursor+step)%columns.length;
+            const col=columns[ix],dim=getDimension(col.d);
+            const source=dim?.getBlock(col.source);
+            if(!source||source.typeId!=='minecraft:hopper'||
+               hopperIsRedstoneLocked(source))continue;
+            const input=blockContainer(source);
+            if(!input||!input.isValid)continue;
+            for(let slot=0;slot<input.size;slot++){
+                const stack=input.getItem(slot);
+                if(!stack)continue;
+                const selected=uceSorterColumnWinner(col,stack);
+                if(!selected||selected.kind!=='storage'||
+                   !uceDirectStorageOwnerBlock(selected.block))continue;
+                const dest=selected.container;
+                if(!dest?.isValid||dest===input)continue;
+                const destSlot=uceNativeOutputSlot(dest);
+                if(destSlot<0)continue;
+                const p=source.location,q=selected.block.location;
+                const fromId='sorter-native-in|'+source.dimension.id+
+                    '|'+p.x+','+p.y+','+p.z;
+                const toId='sorter-native-out|'+selected.block.dimension.id+
+                    '|'+q.x+','+q.y+','+q.z;
+                // Slot/winner revalidation must not depend on source occupancy
+                // AFTER a successful move, because ACK sees that slot empty.
+                const routeStillSelected=item=>{
+                    const current=uceSorterColumnWinner(col,item);
+                    return !!current&&current.kind==='storage'&&
+                        current.entry===selected.entry&&
+                        uceSameLoadedBlock(current.source.block,source)&&
+                        uceSameLoadedBlock(current.block,selected.block)&&
+                        uceDirectStorageOwnerBlock(current.block);
+                };
+                const endpointValid=ref=>{
+                    if(ref.ownerId===fromId){
+                        if(ref.container!==input||ref.slot!==slot||
+                           !uceLiveHopperOwner({d:source.dimension.id,
+                             x:p.x,y:p.y,z:p.z}))return false;
+                        const now=input.getItem(slot);
+                        return routeStillSelected(now||stack);
+                    }
+                    if(ref.ownerId===toId){
+                        if(ref.container!==dest||ref.slot!==destSlot)
+                            return false;
+                        const live=getBlock(selected.block.dimension.id,
+                            q.x,q.y,q.z);
+                        return uceSameLoadedBlock(live,selected.block)&&
+                            uceDirectStorageOwnerBlock(live)&&
+                            routeStillSelected(stack);
+                    }
+                    return false;
+                };
+                const operationId=uceNativeReceiptId();
+                if(!operationId){uceBridgeLog('direct sorter receipt exhausted');return;}
+                const port=createUnifiedNativePort({
+                    world,worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence:()=>uceLegacyWriterBlocked()&&
+                        !!uceAuthoritySnapshot(),
+                    verifyEndpointOwner:endpointValid,
+                    // A loaded, stable vanilla inventory is the destination
+                    // owner, not a UCE count account. This is independent
+                    // native block identity corroborating the saved intent.
+                    // It is NOT a hard-crash disk-atomicity proof.
+                    durableOwnershipWitness:j=>
+                        j.operationId===operationId&&
+                        j.from.ownerId===fromId&&j.to.ownerId===toId&&
+                        routeStillSelected(stack)
+                });
+                if(!port.ok){uceBridgeLog('direct sorter port '+port.reason);return;}
+                const from={ownerId:fromId,container:input,slot};
+                const to={ownerId:toId,container:dest,slot:destSlot};
+                const moved=port.moveWhole({operationId,from,to});
+                if(!moved.ok){
+                    uceBridgeLog('direct sorter move HOLD '+moved.reason);
+                    return;
+                }
+                if(moved.status!=='NATIVE_MOVED_PENDING_OWNERSHIP_ACK'){
+                    uceBridgeLog('direct sorter unexpected move receipt');return;
+                }
+                const ack=port.ackWhole({operationId,from,to});
+                if(!ack.ok){
+                    uceBridgeLog('direct sorter ACK HOLD '+ack.reason);
+                    return;
+                }
+                uceSorterDirectCursor=(ix+1)%columns.length;
+                return;
+            }
+        }
+        uceSorterDirectCursor=(uceSorterDirectCursor+1)%columns.length;
+    }catch(_){uceBridgeLog('direct sorter runtime HOLD');}
 }

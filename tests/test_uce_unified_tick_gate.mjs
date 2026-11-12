@@ -47,6 +47,9 @@ function fixture({ready=true,active=true,sealed=true,
     },
     uceOrdinaryServiceTick:a=>{
       assert.equal(a,authority);calls.push('ORDINARY');
+    },
+    uceSorterDirectServiceTick:a=>{
+      assert.equal(a,authority);calls.push('SORTER');
     }
   };
   vm.runInNewContext(actual,context);
@@ -55,8 +58,8 @@ function fixture({ready=true,active=true,sealed=true,
 }
 test('valid ACTIVE sealed world services both lanes under a single authority proof',()=>{
   const f=fixture();
-  assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY']);
-  assert.equal(f.reads.length,8);
+  assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
+  assert.equal(f.reads.length,12);
 });
 test('missing authority or failed cold seal never invokes either lane',()=>{
   assert.deepEqual(fixture({active:false}).calls,['authority']);
@@ -82,7 +85,7 @@ test('ambiguous falsy journal values HOLD; absence may proceed',()=>{
   }
   assert.deepEqual(fixture({journals:{
     'hartsorter:journal_v1':''
-  }}).calls,['authority','cold','MR','ORDINARY']);
+  }}).calls,['authority','cold','MR','ORDINARY','SORTER']);
 });
 test('world property throw is global HOLD, not legacy fallback or a write',()=>{
   const f=fixture({thrown:true});
@@ -101,13 +104,20 @@ test('MR clears its own acknowledged journal before ordinary lane starts',()=>{
   const f=fixture({afterMR:j=>{
     j['hartlogistics:uce_native_intent_v1']=undefined;
   }});
-  assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY']);
+  assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
 });
 
 test('dirty legacy Sorter topology is refreshed inside unified tick only',()=>{
   const r=fixture({dirty:true});
-  assert.deepEqual(r.calls,['authority','cold','topology','MR','ORDINARY']);
+  assert.deepEqual(r.calls,['authority','cold','topology','MR','ORDINARY','SORTER']);
   const held=fixture({dirty:true,topologyFails:true});
   assert.deepEqual(held.calls,['authority','cold','topology']);
   assert.equal(held.messages.some(x=>x.includes('topology')),true);
+});
+
+test('ordinary operation leaving a pending intent holds direct native Sorter work',()=>{
+  const f=fixture({afterMR:j=>{
+    j['hartlogistics:uce_native_intent_v1']=undefined;
+  }});
+  assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
 });
