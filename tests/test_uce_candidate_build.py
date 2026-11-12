@@ -103,7 +103,11 @@ class UceBuildTests(unittest.TestCase):
             self.assertNotIn("if (uceLegacyWriterBlocked())",
                              s[brace:brace+165],name)
         self.assertIn("uceSelectCollectorForLink(ev.player,ev.block); return;",s)
-        self.assertIn("New UCE Receiver requires registered sealed ownership",s)
+        self.assertIn("uceRegisterNewReceiver(ev.player,ev.block); return;",s)
+        self.assertIn("if (uceLegacyWriterBlocked()) uceHydrateNewReceivers();",s)
+        self.assertIn("function uceOrdinaryAccountSource(authority,ownerId)",s)
+        self.assertIn("function uceRegisterNewReceiver(player,block)",s)
+        self.assertIn("function uceHydrateNewReceivers()",s)
         self.assertIn("UCE owns this block. Remove through an explicit drained custody operation",s)
         self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||",s)
         self.assertIn("block.typeId === 'hartlogistics:bulk_storage'",s)

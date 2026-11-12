@@ -75,7 +75,7 @@ def compile_patch(source,bridge):
       "        registerReceiver(ev.block);",
       "    if (ev.block.typeId === RECEIVER_ID) {\n"+
       "        if (uceLegacyWriterBlocked()) {\n"+
-      "            ev.player?.sendMessage('§e[Receiver] New UCE Receiver requires registered sealed ownership; no Q4 writer activated.'); return;\n"+
+      "            uceRegisterNewReceiver(ev.player,ev.block); return;\n"+
       "        }\n"+
       "        registerReceiver(ev.block);")
     source=once(source,"function sendDiagnostics(origin) {",
@@ -130,6 +130,7 @@ def compile_patch(source,bridge):
     source=guard_function(source,"recoverQueueJournal")
     source=guard_function(source,"flushLogistics")
     source=once(source,"    migrateLegacyCollectorsIfNeeded();",
+      "    if (uceLegacyWriterBlocked()) uceHydrateNewReceivers();\n"
       "    if (!uceLegacyWriterBlocked()) migrateLegacyCollectorsIfNeeded();")
     # PG25 rewrote the original Receiver-startup loop; do not assume its
     # inner statements still match frozen 1.4.1. Fence the complete marked

@@ -118,3 +118,23 @@ test('unreadable, duplicated or mutated source registry fails closed',()=>{
   hold(b.writer.linkCollector(req()),'saved_collector_registry_invalid');
   assert.equal(a.writes+b.writes,0);
 });
+
+test('Collector links to a newly sealed Receiver absent the old Q4 registry',()=>{
+  const f=fixture();
+  const saved={...f.saved,receivers:[]};
+  f.values.set(UCE_LINKS_KEY,JSON.stringify(saved));
+  const out=f.writer.linkCollector(req());
+  assert.equal(out.ok,true,out.reason);
+  assert.equal(f.writes,1);
+  const now=JSON.parse(f.values.get(UCE_LINKS_KEY));
+  assert.equal(now.receivers.length,0);
+  assert.equal(now.collectors[0].link,receiver.id);
+  assert.equal(f.values.get('hartsorter:q4m_q1'),
+    'original-q4-custody-bytes');
+});
+test('an unsealed new Receiver cannot be targeted even without a legacy Q4 row',()=>{
+  const f=fixture({receiverValid:false});
+  f.values.set(UCE_LINKS_KEY,JSON.stringify({...f.saved,receivers:[]}));
+  hold(f.writer.linkCollector(req()),'collector_or_sealed_receiver_unverified');
+  assert.equal(f.writes,0);
+});

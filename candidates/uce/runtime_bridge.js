@@ -302,13 +302,168 @@ function uceUnifiedServiceTick(){
     uceMrServiceTick();
     uceOrdinaryServiceTick();
 }
+/**
+ * Read the immutable cold seal, not an additional Receiver registry. Original
+ * Q4 owners use sealed keys; new Receiver identity lives inside a presealed
+ * empty shard and is rehydrated read-only after every restart.
+ */
+function uceSealedRegions(authority){
+    try{
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||seal.worldId!==authority.worldId||
+           seal.epoch!==authority.epoch||!Array.isArray(seal.shards))
+            return undefined;
+        return seal.shards;
+    }catch(_){return undefined;}
+}
+function uceInspectReceiverRegion(authority,shardKey){
+    const reader=createUnifiedShardWriter({
+        world,shardKey,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false
+    });
+    return reader.ok?reader.inspect():reader;
+}
 function uceOrdinaryAccountSource(authority,ownerId){
-    let seal;
-    try{seal=JSON.parse(world.getDynamicProperty('hartlogistics:uce_cold_seal_v1'));}
-    catch(_){return undefined;}
-    if(!seal||!Array.isArray(seal.shards))return undefined;
-    const match=seal.shards.filter(s=>s.owner==='receiver:'+ownerId);
-    return match.length===1?match[0].key:undefined;
+    const regions=uceSealedRegions(authority);
+    if(!regions)return undefined;
+    let found=undefined;
+    for(const region of regions){
+        let claimed=region.owner==='receiver:'+ownerId;
+        if(region.owner.startsWith('reserve:')){
+            const view=uceInspectReceiverRegion(authority,region.key);
+            if(!view.ok)return undefined;
+            claimed=view.snapshot.accounts.some(a=>
+                a.id==='receiver:'+ownerId&&a.kind==='receiver');
+        }
+        if(claimed){
+            if(found!==undefined)return undefined;
+            found=region.key;
+        }
+    }
+    return found;
+}
+/**
+ * Hydration is intentionally MEMORY ONLY. New Receiver rows live in their
+ * existing immutable-seal ledger property; the legacy logistics_v2 registry
+ * never becomes a second source of item ownership or a new Q4 queue.
+ */
+function uceHydrateNewReceivers(){
+    const authority=uceAuthoritySnapshot();
+    if(!authority)return false;
+    const active=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!active.ok){uceBridgeLog('receiver hydration HOLD '+active.reason);return false;}
+    const regions=uceSealedRegions(authority);
+    if(!regions)return false;
+    for(const region of regions){
+        if(!region.owner.startsWith('reserve:'))continue;
+        const view=uceInspectReceiverRegion(authority,region.key);
+        if(!view.ok)return false;
+        for(const account of view.snapshot.accounts){
+            if(account.kind!=='receiver')continue;
+            const a=account.uceAnchor;
+            if(!a)return false;
+            const existing=findReceiverById(account.ownerId);
+            if(existing){
+                if(existing.d!==a.dimensionId||existing.x!==a.x||
+                   existing.y!==a.y||existing.z!==a.z)return false;
+                continue;
+            }
+            logistics.receivers.push({
+                id:account.ownerId,d:a.dimensionId,
+                x:a.x,y:a.y,z:a.z,present:true,
+                queued:account.total,received:account.lifetime.received,
+                delivered:account.lifetime.delivered
+            });
+        }
+    }
+    return true;
+}
+function uceNewReceiverIdentityUnclaimed(authority,ownerId){
+    if(logistics.receivers.some(r=>r.id===ownerId))return false;
+    const regions=uceSealedRegions(authority);
+    if(!regions)return false;
+    for(const region of regions){
+        if(region.owner==='receiver:'+ownerId)return false;
+        const view=uceInspectReceiverRegion(authority,region.key);
+        if(!view.ok)return false;
+        if(view.snapshot.accounts.some(a=>
+           a.kind==='receiver'&&a.ownerId===ownerId))return false;
+    }
+    return true;
+}
+function uceRegisterNewReceiver(player,block){
+    if(!block||block.typeId!==RECEIVER_ID)return;
+    const authority=uceAuthoritySnapshot();
+    if(!authority){
+        player?.sendMessage('§c[Receiver] Authority unverified; registration HOLD.');
+        return;
+    }
+    const proof=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!proof.ok){
+        player?.sendMessage('§c[Receiver] Custody HOLD: '+proof.reason);
+        return;
+    }
+    const p=block.location;
+    const anchor={dimensionId:block.dimension.id,x:p.x,y:p.y,z:p.z};
+    const ownerId=logisticsId(anchor.dimensionId,p.x,p.y,p.z);
+    if(findReceiverById(ownerId)){
+        uceShowReceiverLinkedStatus(player,block);
+        return;
+    }
+    const regions=uceSealedRegions(authority);
+    if(!regions)return;
+    const placement=(id,at)=>{
+        try{
+            if(id!==ownerId||at.dimensionId!==anchor.dimensionId||
+               at.x!==anchor.x||at.y!==anchor.y||at.z!==anchor.z)
+                return false;
+            const b=getBlock(at.dimensionId,at.x,at.y,at.z);
+            return !!b&&b.typeId===RECEIVER_ID&&
+                b.dimension.id===at.dimensionId&&
+                b.location.x===at.x&&b.location.y===at.y&&
+                b.location.z===at.z;
+        }catch(_){return false;}
+    };
+    for(const region of regions){
+        if(!region.owner.startsWith('reserve:'))continue;
+        const writer=createUnifiedShardWriter({
+            world,shardKey:region.key,
+            worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyReceiverReserveShard:key=>{
+                const latest=uceSealedRegions(authority);
+                return !!latest&&latest.filter(s=>
+                    s.key===key&&s.owner===region.owner).length===1;
+            },
+            verifyReceiverPlacement:placement,
+            verifyGlobalReceiverUniqueness:id=>
+                uceNewReceiverIdentityUnclaimed(authority,id)
+        });
+        if(!writer.ok)continue;
+        const view=writer.inspect();
+        if(!view.ok||view.snapshot.accounts.length!==0)continue;
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return;
+        const saved=writer.registerNewReceiver({ownerId,anchor,
+            operationId,expectedEpoch:authority.epoch,
+            expectedRevision:view.snapshot.revision});
+        if(!saved.ok){
+            player?.sendMessage('§c[Receiver] Registration HOLD: '+saved.reason);
+            return;
+        }
+        if(!uceHydrateNewReceivers()){
+            player?.sendMessage('§c[Receiver] Registered on disk, but in-memory refresh HOLD; restart for reconciliation.');
+            return;
+        }
+        player?.sendMessage('§a[Receiver] Registered in unified custody; no legacy Q4 queue created.');
+        uceShowReceiverLinkedStatus(player,block);
+        return;
+    }
+    player?.sendMessage('§c[Receiver] No sealed empty Receiver slots available; registration HOLD.');
 }
 function ucePlainItemIdentity(stack){
     if(uceClassifyLiveStack(stack)!=='ORDINARY')return undefined;
@@ -409,6 +564,7 @@ function uceUseReceiverLinkOrStatus(player,block){
            !Array.isArray(updated.receivers))
             throw new Error('registry readback not parseable');
         logistics=updated;
+        if(!uceHydrateNewReceivers())throw new Error('new Receiver hydration HOLD');
     }catch(_){
         player.sendMessage('§c[Collector] Link record committed but live refresh is ambiguous; stop routing and restart for reconciliation.');
         return;

@@ -337,6 +337,9 @@ test('new Receiver registration fails closed without a valid live identity and r
     anchor:{dimensionId:'minecraft:overworld',x:2,y:3,z:4},
     operationId:'unverified-receiver',expectedEpoch:epoch,
     expectedRevision:0});
-  fail(out,'receiver_placement_or_uniqueness_unproven');
+  assert.equal(out.ok,false);
+  assert.equal(out.status,'HOLD');
+  assert.equal(out.reason,'receiver_placement_or_uniqueness_unproven');
+  assert.equal(out.canMoveNative,false);
   assert.equal(f.writes,before);
 });

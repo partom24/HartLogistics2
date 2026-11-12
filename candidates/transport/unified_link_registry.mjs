@@ -7,8 +7,9 @@
  * legacy writers are completely fenced while UCE owns mutation authority.
  *
  * This adapter may append an EMPTY newly placed Collector or relink an
- * existing Collector to an ALREADY SEALED Receiver. It cannot create new
- * Receiver accounts, select an absent Receiver, or migrate queued items.
+ * existing Collector to an ALREADY SEALED Receiver, including a new one
+ * owned by a presealed empty shard. It cannot create Receiver accounts,
+ * select an absent Receiver, or migrate queued items.
  * The caller must prove the actual loaded blocks before and immediately
  * before writing, and preserve the existing immutable Q4 linkage records.
  */
@@ -99,8 +100,9 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
     const revision=old.uceLinkRevision??0;
     if(revision!==expectedRevision)
       return hold('stale_link_registry_revision');
-    if(!old.receivers.some(r=>r.id===receiverId))
-      return hold('unregistered_receiver_cannot_link');
+    // Legacy receiver registry rows are not an ownership oracle. A newly
+    // registered UCE Receiver exists in a sealed shard, not a Q4 registry.
+    // The caller's live, rechecked sealed-account proof is authoritative.
     const current=old.collectors.find(c=>c.id===collector.id);
     if(current&&(current.d!==collector.d||
        current.x!==collector.x||current.y!==collector.y||
