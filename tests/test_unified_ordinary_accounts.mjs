@@ -404,5 +404,8 @@ test('first registered Bulk member retains controller claim; later member cannot
   assert.equal(inspectUnifiedOrdinaryLedger(second.next).ok,true);
   const forged=structuredClone(second.next);
   forged.accounts.find(a=>a.ownerId==='member:second').role='controller';
+  hold(inspectUnifiedOrdinaryLedger(forged),'invalid_bulk_controller_claim');
+  // A coherent-looking second controller is still rejected globally.
+  forged.accounts.find(a=>a.ownerId==='member:second').controllerOwnerId='member:second';
   hold(inspectUnifiedOrdinaryLedger(forged),'bulk_controller_conflict');
 });
