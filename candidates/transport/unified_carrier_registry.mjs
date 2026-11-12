@@ -224,6 +224,221 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
       entityId:e.id,ownerId,capacitySlots:UCE_CARRIER_SLOTS,
       hasHardCrashAtomicityProof:false,canReplace:false,canDestroy:false};
   }
-  return {ok:true,inspectHost,registerEmptyHost,
+
+  /**
+   * Native custody tickets are part of THIS host's ownership record, not an
+   * alternative store for ItemStacks. They list the slot in which the original
+   * native ItemStack physically resides and a partial read-only witness.
+   * Each native transfer must have one MOVED_INSPECTED global journal intent.
+   */
+  const ticketSchema='hart-uce-native-host-tickets-v1';
+  const journalKey='hartlogistics:uce_native_intent_v1';
+  function ticketKey(owner){
+    const hk=hostKey(owner);
+    return hk ? hk.replace('uce_native_host_','uce_native_ticket_') : null;
+  }
+  function visibleWitness(stack){
+    if(!stack||!id(stack.typeId)||!Number.isSafeInteger(stack.amount)||
+       stack.amount<1)return null;
+    let lore=[];
+    try{if(typeof stack.getLore==='function')lore=stack.getLore();}
+    catch(_){return null;}
+    if(!Array.isArray(lore)||lore.some(v=>typeof v!=='string'))return null;
+    return {typeId:stack.typeId,amount:stack.amount,
+      nameTag:typeof stack.nameTag==='string'?stack.nameTag:'',
+      lore};
+  }
+  function readTickets(owner){
+    const key=ticketKey(owner);
+    if(!key)return hold('invalid_ticket_owner');
+    const r=read(world,key);
+    if(!r.ok)return r;
+    if(r.raw===undefined||r.raw===null||r.raw==='')return {
+      ok:true,empty:true,
+      record:{schema:ticketSchema,worldId,epoch,ownerId:owner,
+        revision:0,slots:[],lastReceipt:null}};
+    if(typeof r.raw!=='string'||r.raw.length>12000)
+      return hold('native_ticket_invalid_size');
+    let rec;
+    try{rec=JSON.parse(r.raw);}catch(_){return hold('native_ticket_invalid_json');}
+    if(!rec||rec.schema!==ticketSchema||rec.worldId!==worldId||
+       rec.epoch!==epoch||rec.ownerId!==owner||
+       !Number.isSafeInteger(rec.revision)||rec.revision<0||
+       !Array.isArray(rec.slots)||rec.slots.length>UCE_CARRIER_SLOTS)
+      return hold('native_ticket_invalid_record');
+    const seen=new Set();
+    for(const ticket of rec.slots){
+      if(!ticket||!Number.isSafeInteger(ticket.slot)||
+         ticket.slot<0||ticket.slot>=UCE_CARRIER_SLOTS||
+         seen.has(ticket.slot)||!id(ticket.operationId)||
+         !visibleWitness(ticket.witness))
+        return hold('native_ticket_invalid_slot');
+      seen.add(ticket.slot);
+    }
+    if(rec.slots.some((t,i)=>i>0&&rec.slots[i-1].slot>=t.slot))
+      return hold('native_ticket_noncanonical_order');
+    if(rec.lastReceipt!==null && (!rec.lastReceipt||
+       !id(rec.lastReceipt.operationId) ||
+       !['ADMITTED','RELEASED'].includes(rec.lastReceipt.action)||
+       !Number.isSafeInteger(rec.lastReceipt.revision)||
+       rec.lastReceipt.revision!==rec.revision))
+      return hold('native_ticket_invalid_last_receipt');
+    return {ok:true,record:rec,empty:false};
+  }
+  function currentJournal(){
+    const r=read(world,journalKey);
+    if(!r.ok)return r;
+    if(typeof r.raw!=='string')return hold('native_move_journal_missing');
+    let j;
+    try{j=JSON.parse(r.raw);}catch(_){return hold('native_move_journal_invalid');}
+    if(!j||j.phase!=='MOVED_INSPECTED'||!id(j.operationId)||
+       j.worldId!==worldId||j.epoch!==epoch||!j.from||!j.to||
+       !visibleWitness(j.witness))
+      return hold('native_move_journal_not_settleable');
+    return {ok:true,record:j};
+  }
+  /**
+   * A host is READY only if every physically occupied slot has exactly one
+   * persisted claim and every claim has an observable matching native stack.
+   * Identical read-only witnesses are NOT complete hidden-NBT comparisons.
+   */
+  function inspectCustody({ownerId,anchor}={}){
+    const host=inspectHost({ownerId,anchor});
+    if(!host.ok)return host;
+    const tickets=readTickets(ownerId);
+    if(!tickets.ok)return tickets;
+    let physical=0;
+    try{
+      for(let slot=0;slot<host.container.size;slot++){
+        const item=host.container.getItem(slot);
+        const claim=tickets.record.slots.find(t=>t.slot===slot);
+        if(item!==undefined)physical++;
+        if((item===undefined)!==(claim===undefined))
+          return hold('native_ticket_physical_slot_mismatch');
+        if(item!==undefined &&
+           JSON.stringify(visibleWitness(item))!==
+             JSON.stringify(claim.witness))
+          return hold('native_ticket_item_witness_mismatch');
+      }
+    }catch(_){return hold('native_ticket_slot_read_failed');}
+    if(physical!==tickets.record.slots.length)
+      return hold('native_ticket_count_mismatch');
+    return {ok:true,status:'NATIVE_CUSTODY_CLAIMS_RECONCILED',
+      ownerId,entityId:host.entityId,ticketRevision:tickets.record.revision,
+      occupied:physical,free:UCE_CARRIER_SLOTS-physical,
+      slots:tickets.record.slots.map(x=>x.slot),
+      canTransfer:true,canSpawn:false,canDestroy:false};
+  }
+  /**
+   * Stage native ownership AFTER native port MOVED_INSPECTED and BEFORE
+   * native ACK; one ticket property write is bounded to nine original items.
+   * ADMITTED adds a carrier claim, RELEASED removes one.
+   *
+   * Uncertain writes HOLD; successful retry of the identical operation is
+   * read-only and does not duplicate/remove a second claim.
+   */
+  function stageMovedTicket({ownerId,anchor}={}){
+    if(quarantined)return hold('carrier_session_quarantined');
+    const gate=fence();
+    if(!gate.ok)return hold(gate.reason);
+    const host=inspectHost({ownerId,anchor});
+    if(!host.ok)return host;
+    const journal=currentJournal();
+    if(!journal.ok)return journal;
+    const j=journal.record;
+    const admitting=j.to.ownerId===ownerId;
+    const releasing=j.from.ownerId===ownerId;
+    if(admitting===releasing)return hold('native_move_not_exclusive_to_host');
+    const slot=admitting?j.to.slot:j.from.slot;
+    if(!Number.isSafeInteger(slot)||slot<0||slot>=UCE_CARRIER_SLOTS)
+      return hold('native_ticket_slot_out_of_range');
+    const tickets=readTickets(ownerId);
+    if(!tickets.ok)return tickets;
+    const previous=tickets.record;
+    if(previous.lastReceipt?.operationId===j.operationId){
+      const r=previous.lastReceipt;
+      if(r.action!==(admitting?'ADMITTED':'RELEASED')||
+         r.slot!==slot)return hold('native_ticket_receipt_conflict');
+      return {ok:true,status:'NATIVE_TICKET_ALREADY_STAGED',
+        operationId:j.operationId,
+        canClearJournal:false,canSpawn:false,canDestroy:false};
+    }
+    const old=previous.slots.find(x=>x.slot===slot);
+    if(admitting&&old)return hold('native_ticket_destination_claimed');
+    if(releasing&&!old)return hold('native_ticket_source_unclaimed');
+    if(releasing&&JSON.stringify(old.witness)!==
+       JSON.stringify(j.witness))
+      return hold('native_ticket_outbound_witness_conflict');
+    const nextSlots=admitting?
+      [...previous.slots,{slot,operationId:j.operationId,
+        witness:j.witness}]:
+      previous.slots.filter(x=>x.slot!==slot);
+    nextSlots.sort((a,b)=>a.slot-b.slot);
+    const expected=new Map(nextSlots.map(x=>[x.slot,x.witness]));
+    try{
+      for(let i=0;i<host.container.size;i++){
+        const actual=visibleWitness(host.container.getItem(i));
+        const want=expected.get(i);
+        if((actual===null)!==(want===undefined) ||
+          (actual!==null&&JSON.stringify(actual)!==
+            JSON.stringify(want)))
+          return hold('native_ticket_postmove_physical_mismatch');
+      }
+    }catch(_){return hold('native_ticket_physical_unreadable');}
+    const updated={...previous,revision:previous.revision+1,
+      slots:nextSlots,lastReceipt:{operationId:j.operationId,
+        action:admitting?'ADMITTED':'RELEASED',slot,
+        revision:previous.revision+1}};
+    if(!Number.isSafeInteger(updated.revision))
+      return hold('native_ticket_revision_overflow');
+    const raw=JSON.stringify(updated);
+    if(raw.length>12000||!ASCII.test(raw))
+      return hold('native_ticket_capacity_exceeded');
+    const key=ticketKey(ownerId);
+    const r=read(world,key);
+    if(!r.ok)return r;
+    if((r.raw===undefined||r.raw===null||r.raw==='')!==tickets.empty)
+      return hold('native_ticket_changed_prewrite');
+    if(!tickets.empty&&JSON.stringify(previous)!==r.raw)
+      return hold('native_ticket_changed_prewrite');
+    if(!fence().ok)return hold('native_ticket_fence_changed_prewrite');
+    try{world.setDynamicProperty(key,raw);}
+    catch(_){
+      quarantined=true;
+      return hold('native_ticket_write_outcome_ambiguous');
+    }
+    const observed=read(world,key);
+    if(!observed.ok||observed.raw!==raw){
+      quarantined=true;
+      return hold('native_ticket_write_readback_failed');
+    }
+    return {ok:true,status:'NATIVE_TICKET_STAGED_FOR_ACK',
+      operationId:j.operationId,action:updated.lastReceipt.action,
+      ticketRevision:updated.revision,
+      canClearJournal:false,canSpawn:false,canDestroy:false};
+  }
+  /** Bind this function as the unified native port's ACK proof callback. */
+  function durableOwnershipWitness(intent){
+    if(!intent||!id(intent.operationId)||!intent.from||!intent.to)
+      return false;
+    const hostOwner=intent.to.ownerId;
+    const outboundOwner=intent.from.ownerId;
+    // The caller must prove which endpoint is an actual owner host. We do
+    // not infer a carrier merely from a forged owner ID string.
+    for(const owner of [hostOwner,outboundOwner]){
+      const t=readTickets(owner);
+      if(!t.ok||t.empty)continue;
+      if(t.record.lastReceipt?.operationId!==intent.operationId)continue;
+      const action=owner===hostOwner?'ADMITTED':'RELEASED';
+      if(t.record.lastReceipt.action===action&&
+         t.record.lastReceipt.slot===(action==='ADMITTED'?
+           intent.to.slot:intent.from.slot))
+        return true;
+    }
+    return false;
+  }
+
+  return {ok:true,inspectHost,registerEmptyHost,inspectCustody,
+    stageMovedTicket,durableOwnershipWitness,
     getSessionQuarantine:()=>quarantined};
 }
