@@ -89,9 +89,9 @@ def compile_patch(source,bridge):
                  "markLogisticsAbsent","allocateQueueKey"):
         source=guard_function(source,name)
     source=guard_function(source,"selectCollector",
-      "uceShowCollectorLinkedStatus(player,block); return;")
+      "uceSelectCollectorForLink(player,block); return;")
     source=guard_function(source,"useReceiver",
-      "uceShowReceiverLinkedStatus(player,block); return;")
+      "uceUseReceiverLinkOrStatus(player,block); return;")
     source=guard_function(source,"loadReceiverQueue",
       "throw new Error('UCE_LEGACY_QUEUE_LOAD_FENCED');")
     source=guard_function(source,"recoverJournal")
