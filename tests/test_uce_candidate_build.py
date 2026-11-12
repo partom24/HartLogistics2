@@ -135,6 +135,8 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("sourceRecord={...input,kind:'pipe',locked:false};",self.main)
         self.assertIn("if(sourceRecord.kind==='pipe')",self.main)
         self.assertIn("preferredOutputKeys:preferredKeys",self.main)
+        self.assertIn("preferredOutputReady=preferredKeys.length>0;",self.main)
+        self.assertIn("!preferredOutputReady",self.main)
         self.assertIn("uceChoosePipeDestination(receiver,item,",self.main)
         self.assertIn("ucePipeDestinationStillValid(",self.main)
         self.assertIn("planUnifiedBulkService(",self.main)
