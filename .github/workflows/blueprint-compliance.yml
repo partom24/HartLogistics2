@@ -708,6 +708,8 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: UCE 1.5.16 synthetic stopped-LAB two-pack install, rollback and fault injection
+        run: python -m unittest discover -s tests -p 'test_uce_lab_deploy_synthetic.py' -v
       - name: UCE LAB installer synthetic source/hash refusal on Windows
         run: python -m unittest discover -s tests -p 'test_uce_lab_deploy.py' -v
       - name: Verify PG08 LAB replacement safety on Windows fixture
