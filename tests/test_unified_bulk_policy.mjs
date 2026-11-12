@@ -91,7 +91,7 @@ test('a usable filtered destination outranks Bulk storage even below high-water'
   const r=planUnifiedBulkService({
     ...options(s),preferredOutputKeys:[key]});
   assert.equal(r.status,'IDLE');
-  assert.equal(r.reason,'bulk_retains_custody_or_no_output');
+  assert.equal(r.reason,'preferred_sorter_output_ready');
 });
 test('unmatched ordinary items enter Bulk before any Wildcard route at low Receiver balance',()=>{
   const s=fixture(200,300,0);
