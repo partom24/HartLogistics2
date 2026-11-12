@@ -713,22 +713,29 @@ function uceOrdinaryServiceTick(){
         if(bankNetwork?.banks?.length){
             const members=[...new Set(bankNetwork.banks
                 .map(b=>uceBulkOwnerId(b)))].sort();
-            const outputKeys=[];
-            if(!sourceRecord && account.total===0 &&
-               !blockIsRedstonePowered(receiverAt(receiver))){
-                for(const bank of ledger.snapshot.accounts){
-                    if(bank.kind!=='bulk'||!members.includes(bank.ownerId))
-                        continue;
-                    for(const entry of bank.buckets){
-                        try{
-                            const def=JSON.parse(entry.key);
-                            const liveItem=new ItemStack(def.typeId,1);
-                            const accepted=uceClassifyLiveStack(liveItem)==='ORDINARY'&&
-                                (outgoing ||
-                                  (!output&&uceChoosePipeDestination(
-                                      receiver,liveItem)));
-                            if(accepted)outputKeys.push(entry.key);
-                        }catch(_){}
+            const outputKeys=[],preferredKeys=[];
+            if(!blockIsRedstonePowered(receiverAt(receiver))){
+                const canDeliver=(key)=>{
+                    try{
+                        const def=JSON.parse(key);
+                        const item=new ItemStack(def.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY')
+                            return false;
+                        return !!outgoing||
+                            (!output&&!!uceChoosePipeDestination(
+                                receiver,item,true));
+                    }catch(_){return false;}
+                };
+                // Only Filter/seeded Auto (or the preserved native Hopper)
+                // outranks governed Bulk. Wildcard is never a Bulk bypass.
+                for(const entry of account.buckets)
+                    if(canDeliver(entry.key))preferredKeys.push(entry.key);
+                if(!sourceRecord&&account.total===0){
+                    for(const bank of ledger.snapshot.accounts){
+                        if(bank.kind!=='bulk'||
+                           !members.includes(bank.ownerId))continue;
+                        for(const entry of bank.buckets)
+                            if(canDeliver(entry.key))outputKeys.push(entry.key);
                     }
                 }
             }
@@ -736,6 +743,7 @@ function uceOrdinaryServiceTick(){
                 snapshot:ledger.snapshot,receiverOwnerId:ownerId,
                 connectedBankOwnerIds:members,
                 sourceWaiting:!!sourceRecord,
+                preferredOutputKeys:preferredKeys,
                 outputEligibleKeys:outputKeys
             });
             if(!plan.ok){
@@ -797,7 +805,8 @@ function uceOrdinaryServiceTick(){
                     const item=new ItemStack(def.typeId,1);
                     if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
                     const route=outgoing?undefined:
-                        uceChoosePipeDestination(receiver,item);
+                        uceChoosePipeDestination(receiver,item,
+                            !!bankNetwork?.banks?.length);
                     if(!outgoing&&!route)continue;
                     if(outgoing&&uceNativeOutputSlot(outgoing.container)<0)
                         continue;
