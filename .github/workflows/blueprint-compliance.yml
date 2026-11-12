@@ -151,6 +151,10 @@ jobs:
           node --check candidates/transport/unified_cold_q4_importer.mjs
           node --check tests/test_unified_cold_q4_importer.mjs
           node --test tests/test_unified_cold_q4_importer.mjs
+      - name: UCE ordinary physical escrow native receipt to ledger account to native ACK
+        run: |
+          node --check tests/test_unified_ordinary_escrow.mjs
+          node --test tests/test_unified_ordinary_escrow.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
