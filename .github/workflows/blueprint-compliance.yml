@@ -146,6 +146,11 @@ jobs:
           python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
           python candidates/uce/prepare_candidate.py
           node --check --input-type=module < build/uce-integrated/behavior_pack/scripts/main.js
+      - name: UCE cold Q4 import with immutable 1.4.1 source, MR holds and torn-stage recovery
+        run: |
+          node --check candidates/transport/unified_cold_q4_importer.mjs
+          node --check tests/test_unified_cold_q4_importer.mjs
+          node --test tests/test_unified_cold_q4_importer.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
