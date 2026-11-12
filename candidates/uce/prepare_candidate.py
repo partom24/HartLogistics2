@@ -19,7 +19,9 @@ VERSION=[1,5,16]
 MODULES=(
     "unified_ordinary_accounts","unified_world_shard_writer",
     "unified_native_custody","unified_carrier_registry",
-    "unified_receiver_mr_service","q5_bucket_core",
+    "unified_receiver_mr_service","unified_cold_q4_importer",
+    "q5_world_receiver_census","q5_q4_read_adapter",
+    "q5_q4_readonly_snapshot","q5_bucket_core",
     "q5_ordinary_shape_gate","ordinary_network_core"
 )
 spec=importlib.util.spec_from_file_location(
@@ -82,6 +84,7 @@ def compile_patch(source,bridge):
       'import {createUnifiedCarrierRegistry} from "./uce/unified_carrier_registry.js";\n'
       'import {createUnifiedNativePort} from "./uce/unified_native_custody.js";\n'
       'import {serviceUnifiedReceiverMR} from "./uce/unified_receiver_mr_service.js";\n'
+      'import {inspectUnifiedActiveColdImport} from "./uce/unified_cold_q4_importer.js";\n'
     )
     source=once(source,"import {\n    world,\n    system,",
       imports+"\nimport {\n    world,\n    system,")
