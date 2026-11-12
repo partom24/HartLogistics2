@@ -130,7 +130,9 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('port.ackWhole({operationId,from,to})',s)
         self.assertIn("global custody HOLD: journal unreadable",s)
         self.assertIn("if(uceUnifiedJournalHold())return;",s)
-        self.assertEqual(s.count("if(uceUnifiedJournalHold())return;"),3)
+        self.assertEqual(s.count("if(uceUnifiedJournalHold())return;"),4)
+        # Three coordinated scheduler gates plus the existing entity-event
+        # ingress gate; all share one native and legacy journal authority.
         self.assertIn("hartsorter:queue_journal_v1",s)
         self.assertIn('executeUnifiedOrdinaryDeposit(args)',s)
         self.assertIn('executeUnifiedOrdinaryWithdrawal(args)',s)
