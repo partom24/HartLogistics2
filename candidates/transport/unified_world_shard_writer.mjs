@@ -90,7 +90,8 @@ function noLegacyJournal(world){
  * Never infer exclusivity from a marker alone: the caller must wire a real
  * synchronous runtime writer exclusion inspection before enabling ACTIVE.
  */
-export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence){
+export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
+    {allowedNativeOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
       typeof externalFence!=='function')
     return hold('invalid_unified_mutation_fence');
@@ -98,6 +99,21 @@ export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence){
   if(!a.ok)return a;
   const j=noLegacyJournal(world);
   if(!j.ok)return j;
+  // The same UCE engine owns native and ordinary transfers. An unresolved
+  // native intent freezes every unrelated ordinary-account mutation.
+  const native=read(world,'hartlogistics:uce_native_intent_v1');
+  if(!native.ok)return native;
+  if(native.value!==undefined && native.value!==null &&
+     native.value!=='') {
+    let intent;
+    try{intent=JSON.parse(native.value);}
+    catch(_){return hold('native_intent_invalid_for_unified_fence');}
+    if(!intent || intent.schema!=='hart-uce-native-intent-v1' ||
+       intent.worldId!==worldId || intent.epoch!==epoch ||
+       typeof intent.operationId!=='string'||!intent.operationId ||
+       intent.operationId!==allowedNativeOperationId)
+      return hold('native_intent_pending_global');
+  }
   let exclusive=false;
   try{exclusive=externalFence()===true;}catch(_){}
   if(!exclusive)return hold('legacy_writer_exclusion_unproven');
