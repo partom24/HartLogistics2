@@ -105,7 +105,8 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("uceSelectCollectorForLink(ev.player,ev.block); return;",s)
         self.assertIn("New UCE Receiver requires registered sealed ownership",s)
         self.assertIn("UCE owns this block. Remove through an explicit drained custody operation",s)
-        self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID",s)
+        self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||",s)
+        self.assertIn("block.typeId === 'hartlogistics:bulk_storage'",s)
 
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
