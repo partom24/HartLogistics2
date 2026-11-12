@@ -387,7 +387,6 @@ test('ordinary physical-boundary transfer advances Receiver lifetime counters on
 
 
 test('first registered Bulk member retains controller claim; later member cannot elect itself',()=>{
-  const f=fixture([], {bulkMemberIds:[]});
   let s=createEmptyUnifiedOrdinaryLedger({worldId:'minecraft:overworld:bank',
     epoch:7}).snapshot;
   const first=registerUnifiedEmptyAccount(s,{
