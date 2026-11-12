@@ -120,6 +120,12 @@ function uceMrServiceTick(){
         return;
     }
     if(!ready)return;
+    const cold=inspectUnifiedActiveColdImport({world,
+      worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold.ok){
+        uceBridgeLog('incomplete cold authority: '+cold.reason);
+        return;
+    }
     // A shared journal means at most one unresolved native ownership transfer
     // can exist across the entire engine. No auto-clear or retry on restart.
     if(world.getDynamicProperty('hartlogistics:uce_native_intent_v1')){
