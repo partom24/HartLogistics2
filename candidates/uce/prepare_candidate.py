@@ -22,7 +22,7 @@ MODULES=(
     "unified_native_custody","unified_carrier_registry",
     "unified_receiver_mr_service","unified_ordinary_service",
     "unified_bulk_policy","unified_link_registry",
-    "unified_cold_q4_importer",
+    "unified_cold_q4_importer","unified_migration_preflight",
     "q5_world_receiver_census","q5_q4_read_adapter",
     "q5_q4_readonly_snapshot","q5_bucket_core",
     "q5_ordinary_shape_gate","ordinary_network_core"
@@ -96,6 +96,20 @@ def compile_patch(source,bridge):
       "        ev.player?.sendMessage('§e[Hart Logistics] UCE owns this block. Remove through an explicit drained custody operation; breaking is blocked.');\n"+
       "        return;\n"+
       "    }")
+    source=once(source,
+      "            system.run(() => sendDiagnostics(origin));\\n"+
+      "        }\\n    );",
+      "            system.run(() => sendDiagnostics(origin));\\n"+
+      "        }\\n    );\\n"+
+      "    event.customCommandRegistry.registerCommand(\\n"+
+      "        {\\n"+
+      "            name: 'hartlogistics:migration_preview',\\n"+
+      "            description: 'Read-only 1.4.1 Q4 migration preflight.',\\n"+
+      "            permissionLevel: CommandPermissionLevel.GameDirectors,\\n"+
+      "            cheatsRequired: false\\n"+
+      "        },\\n"+
+      "        (origin) => system.run(() => uceSendMigrationPreview(origin))\\n"+
+      "    );")
     source=once(source,"function setWorldDynamic(key, value) {",
       "function setWorldDynamic(key, value) {\n"+
       "    if (uceLegacyWriterBlocked() && !uceAllowsSorterRegistryWrite(key))\n"+
@@ -155,6 +169,7 @@ def compile_patch(source,bridge):
       'import {q5IdentityKey} from "./uce/q5_bucket_core.js";\n'
       'import {inspectQ4OrdinaryDefinitionShape} from "./uce/q5_ordinary_shape_gate.js";\n'
       'import {inspectUnifiedActiveColdImport} from "./uce/unified_cold_q4_importer.js";\n'
+      'import {previewUnifiedMigrationPreflight} from "./uce/unified_migration_preflight.js";\n'
     )
     source=once(source,"import {\n    world,\n    system,",
       imports+"\nimport {\n    world,\n    system,")

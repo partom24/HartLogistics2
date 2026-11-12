@@ -1240,3 +1240,31 @@ function uceSendDiagnostics(origin){
         for(const line of lines)target.sendMessage(line);
     }else for(const line of lines)log(line.replace(/§./g,''));
 }
+
+// Read-only LAB migration census, never a live Q4->UCE writer. Displaying
+// an ordinary count does not certify actual ItemStack roundtrip or backup.
+function uceSendMigrationPreview(origin){
+    const result=previewUnifiedMigrationPreflight({world});
+    const lines=['§6[Hart Logistics] §fArchived Q4 migration preflight'];
+    if(!result.ok)
+        lines.push('§cHOLD: '+result.reason);
+    else
+        lines.push('§aQ4 source census observed (read only).');
+    if(Number.isSafeInteger(result.receiverCount)){
+        lines.push('§7Receivers: §f'+result.receiverCount+
+            ' | Q4 items: §f'+result.q4ItemCount);
+        lines.push('§7Ordinary shape: §f'+
+            result.ordinaryShapeCandidateCount+
+            ' | Metadata-rich/unknown: §f'+
+            result.metadataRichOrUnknownCount);
+        if(result.opaqueReasons?.length)
+            lines.push('§eOpaque item reasons: '+
+                result.opaqueReasons.join(', '));
+    }
+    lines.push('§7NOT a freeze, backup proof, native item proof, migration, or release.');
+    lines.push('§7No items, Q4 properties or authority were changed.');
+    const target=origin?.sourceEntity;
+    if(target&&typeof target.sendMessage==='function'){
+        for(const line of lines)target.sendMessage(line);
+    }else for(const line of lines)log(line.replace(/§./g,''));
+}

@@ -164,6 +164,11 @@ jobs:
         run: |
           node --check tests/test_uce_bulk_runtime_ownership.mjs
           node --test tests/test_uce_bulk_runtime_ownership.mjs
+      - name: UCE archived-world Q4 non-mutating census and item-shape preflight
+        run: |
+          node --check candidates/transport/unified_migration_preflight.mjs
+          node --check tests/test_unified_migration_preflight.mjs
+          node --test tests/test_unified_migration_preflight.mjs
       - name: UCE one global custody/recovery gate for native and ordinary service
         run: |
           node --check tests/test_uce_unified_tick_gate.mjs

@@ -94,6 +94,9 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("UCE_LEGACY_WORLD_WRITER_FENCED",s)
         self.assertIn("if (uceLegacyWriterBlocked()) { uceSendDiagnostics(origin); return; }",s)
         self.assertIn("function uceSendDiagnostics(origin)",s)
+        self.assertIn("function uceSendMigrationPreview(origin)",s)
+        self.assertIn("hartlogistics:migration_preview",s)
+        self.assertIn("previewUnifiedMigrationPreflight({world})",s)
         # Original physical native-frame filter configuration stays operable
         # and cannot accidentally become a second Q4 item storage writer.
         for name in ("setFilter","giveOrDrop","syncDisplay",
