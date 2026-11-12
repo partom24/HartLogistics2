@@ -1471,3 +1471,99 @@ function uceSorterDirectServiceTick(authority){
         uceSorterDirectCursor=(uceSorterDirectCursor+1)%columns.length;
     }catch(_){uceBridgeLog('direct sorter runtime HOLD');}
 }
+
+/*
+ * Original Dropper/Dispenser item ejection into an existing Collector,
+ * without re-enabling the old Q4 entity_enqueue writer. Uses ONE existing
+ * UCE native intent and carrier-ticket writer. Native ItemStack is copied
+ * without metadata reconstruction, then the exact source entity is removed
+ * only AFTER destination custody is saved/read back.
+ *
+ * Interrupted duplication ambiguity remains globally HELD for audit.
+ */
+function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
+    if(!ready||!entity?.isValid||entity.typeId!=='minecraft:item')return;
+    const authority=uceAuthoritySnapshot();
+    if(!authority)return;
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold.ok){
+        uceBridgeLog('ejected-item cold authority HOLD '+cold.reason);
+        return;
+    }
+    if(uceUnifiedJournalHold())return;
+    const found=ejectedItemCollector(entity,spawnLoc);
+    if(!found){
+        // Retry observation only, never retry a custody write. Vanilla can
+        // publish a dropped entity before its triggered_bit becomes visible.
+        if(retries<4)
+            system.runTimeout(()=>
+              uceProcessEjectedItemEntity(entity,retries+1,spawnLoc),1);
+        return;
+    }
+    const receiver=findReceiverById(found.collector.link);
+    if(!receiver||receiver.present===false||!receiverAt(receiver)||
+       !uceOrdinaryAccountSource(authority,receiver.id))return;
+    const stack=itemEntityStack(entity);
+    if(!stack||stack.amount<1)return;
+    const ownerId=receiver.id,anchor={dimensionId:receiver.d,
+        x:receiver.x,y:receiver.y,z:receiver.z};
+    const registry=createUnifiedCarrierRegistry({
+        world,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        ownerVerifier:uceLiveReceiverOwner
+    });
+    if(!registry.ok){uceBridgeLog('ejected registry '+registry.reason);return;}
+    let host=registry.inspectHost({ownerId,anchor});
+    if(!host.ok&&host.reason==='carrier_record_missing'){
+        const created=registry.registerEmptyHost({ownerId,anchor});
+        if(!created.ok){uceBridgeLog('ejected host '+created.reason);return;}
+        host=registry.inspectHost({ownerId,anchor});
+    }
+    if(!host.ok){uceBridgeLog('ejected host '+host.reason);return;}
+    const custody=registry.inspectCustody({ownerId,anchor});
+    if(!custody.ok){uceBridgeLog('ejected ticket '+custody.reason);return;}
+    if(custody.free<=0)return; // Preserve the original vanilla item.
+    const slot=uceNativeOutputSlot(host.container);
+    if(slot<0)return;
+    const sourceOwnerId='ejected-item|'+entity.id;
+    const to={ownerId,container:host.container,slot};
+    const verifyEndpointOwner=ref=>{
+        if(ref.ownerId===ownerId)
+            return uceLiveReceiverOwner(ownerId,anchor)&&
+                registry.inspectHost({ownerId,anchor}).ok;
+        if(ref.ownerId!==sourceOwnerId||ref.entity!==entity||
+           !entity.isValid||entity.typeId!=='minecraft:item')
+            return false;
+        const current=ejectedItemCollector(entity,spawnLoc);
+        return !!current&&
+            current.collector.id===found.collector.id&&
+            uceSameLoadedBlock(current.source,found.source)&&
+            current.collector.link===ownerId;
+    };
+    const op=uceNativeReceiptId();
+    if(!op){uceBridgeLog('ejected native receipt exhausted');return;}
+    const port=createUnifiedNativePort({
+        world,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        verifyEndpointOwner,
+        durableOwnershipWitness:registry.durableOwnershipWitness
+    });
+    if(!port.ok){uceBridgeLog('ejected native port '+port.reason);return;}
+    const staged=port.stageEjectedItem({
+        operationId:op,entity,sourceOwnerId,to});
+    if(!staged.ok){
+        uceBridgeLog('ejected item stage HOLD '+staged.reason);
+        return;
+    }
+    const ticket=registry.stageMovedTicket({ownerId,anchor});
+    if(!ticket.ok){
+        uceBridgeLog('ejected item ticket HOLD '+ticket.reason);
+        return;
+    }
+    const ack=port.ackEjectedItem({
+        operationId:op,entity,sourceOwnerId,to});
+    if(!ack.ok)uceBridgeLog('ejected item ACK HOLD '+ack.reason);
+}

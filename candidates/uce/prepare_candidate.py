@@ -110,6 +110,14 @@ def compile_patch(source,bridge):
       "        },\n"+
       "        (origin) => system.run(() => uceSendMigrationPreview(origin))\n"+
       "    );")
+    source=once(source,
+      "    system.runTimeout(() => processEjectedItemEntity(ev.entity, 0, spawnLoc), 1);",
+      "    system.runTimeout(() => {\n"+
+      "        if (uceLegacyWriterBlocked()) {\n"+
+      "            uceProcessEjectedItemEntity(ev.entity,0,spawnLoc); return;\n"+
+      "        }\n"+
+      "        processEjectedItemEntity(ev.entity,0,spawnLoc);\n"+
+      "    },1);")
     source=once(source,"function setWorldDynamic(key, value) {",
       "function setWorldDynamic(key, value) {\n"+
       "    if (uceLegacyWriterBlocked() && !uceAllowsSorterRegistryWrite(key))\n"+
