@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createUnifiedNativePort} from '../candidates/transport/unified_native_custody.mjs';
 import {
   createUnifiedCarrierRegistry,UCE_CARRIER_TYPE,UCE_CARRIER_SCHEMA,
   UCE_CARRIER_SLOTS
@@ -15,7 +16,18 @@ const anchor={dimensionId:'minecraft:overworld',x:-952,y:70,z:-791};
 function fakeContainer(){
   const slots=Array.from({length:UCE_CARRIER_SLOTS},()=>undefined);
   return {size:UCE_CARRIER_SLOTS,isValid:true,
-    getItem:i=>slots[i]===undefined?undefined:structuredClone(slots[i]),
+    getItem:i=>{
+      if(slots[i]===undefined)return undefined;
+      const v=structuredClone(slots[i]);
+      v.getLore=()=>[...(v.lore||[])];
+      return v;
+    },
+    moveItem:(i,j,target)=>{
+      if(slots[i]===undefined||target.getItem(j)!==undefined)
+        throw Error('engine empty-destination-only');
+      target.inject(j,slots[i]);
+      slots[i]=undefined;
+    },
     inject:(i,v)=>{slots[i]=structuredClone(v);}};
 }
 function fixture(opts={}){
@@ -191,4 +203,96 @@ test('entity ID substitution in persisted record is a HOLD, never a new host',()
   r.entityId='invented-other-entity';
   f.records.set(key,JSON.stringify(r));
   failed(inspect(f),'carrier_entity_id_changed');
+});
+
+
+test('actual UCE native port + carrier ticket store integrates source->host->destination with durable ACK',()=>{
+  const f=fixture();
+  assert.equal(register(f).ok,true);
+  const host=inspect(f);
+  assert.equal(host.ok,true);
+  const src=fakeContainer(),dest=fakeContainer();
+  const rich={typeId:'minecraft:diamond_pickaxe',amount:1,
+    nameTag:'Épée brillante 🗡️',lore:['Âme ancienne','Never flatten'],
+    hiddenNbt:{enchants:['mending','unbreaking'],opaqueTag:'world-data'}};
+  src.inject(0,rich);
+  const port=createUnifiedNativePort({
+    world:f.world,worldId,epoch,externalFence:()=>true,
+    verifyEndpointOwner:p=>p.ownerId!==ownerId ||
+      f.mgr.inspectHost({ownerId,anchor}).ok,
+    durableOwnershipWitness:f.mgr.durableOwnershipWitness
+  });
+  assert.equal(port.ok,true,port.reason);
+  const input={ownerId:'vanilla-hopper:1',container:src,slot:0};
+  const carrierSlot={ownerId,container:host.container,slot:2};
+  const r=port.moveWhole({operationId:'native-mr-accept-1',
+    from:input,to:carrierSlot});
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'NATIVE_MOVED_PENDING_OWNERSHIP_ACK');
+  assert.equal(f.mgr.inspectCustody({ownerId,anchor}).ok,false);
+  const stage=f.mgr.stageMovedTicket({ownerId,anchor});
+  assert.equal(stage.ok,true,stage.reason);
+  assert.equal(stage.action,'ADMITTED');
+  const ack=port.ackWhole({operationId:'native-mr-accept-1',
+    from:input,to:carrierSlot});
+  assert.equal(ack.ok,true,ack.reason);
+  assert.equal(ack.status,'NATIVE_CUSTODY_ACK_READBACK');
+  let custody=f.mgr.inspectCustody({ownerId,anchor});
+  assert.equal(custody.ok,true,custody.reason);
+  assert.equal(custody.occupied,1);
+  assert.deepEqual(host.container.getItem(2).hiddenNbt,rich.hiddenNbt);
+  const output={ownerId:'vanilla-chest:2',container:dest,slot:4};
+  const r2=port.moveWhole({operationId:'native-mr-release-2',
+    from:carrierSlot,to:output});
+  assert.equal(r2.ok,true,r2.reason);
+  const stage2=f.mgr.stageMovedTicket({ownerId,anchor});
+  assert.equal(stage2.ok,true,stage2.reason);
+  assert.equal(stage2.action,'RELEASED');
+  assert.equal(port.ackWhole({operationId:'native-mr-release-2',
+    from:carrierSlot,to:output}).ok,true);
+  custody=f.mgr.inspectCustody({ownerId,anchor});
+  assert.equal(custody.ok,true,custody.reason);
+  assert.equal(custody.occupied,0);
+  assert.deepEqual(dest.getItem(4).hiddenNbt,rich.hiddenNbt);
+  assert.equal(src.getItem(0),undefined);
+});
+
+test('foreign native modification of a ticketed slot is HOLD, never auto repaired',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  const host=inspect(f),src=fakeContainer();
+  src.inject(0,{typeId:'minecraft:enchanted_book',amount:1,
+    nameTag:'original',lore:['owned'],hiddenNbt:{rare:123}});
+  const port=createUnifiedNativePort({world:f.world,worldId,epoch,
+    externalFence:()=>true,verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:f.mgr.durableOwnershipWitness});
+  const from={ownerId:'vanilla:1',container:src,slot:0};
+  const to={ownerId,container:host.container,slot:0};
+  assert.equal(port.moveWhole({operationId:'admit',from,to}).ok,true);
+  assert.equal(f.mgr.stageMovedTicket({ownerId,anchor}).ok,true);
+  assert.equal(port.ackWhole({operationId:'admit',from,to}).ok,true);
+  host.container.inject(0,{typeId:'minecraft:stone',amount:1});
+  failed(f.mgr.inspectCustody({ownerId,anchor}),
+    'native_ticket_item_witness_mismatch');
+});
+
+test('repeated staging of the same moved operation is read-only, not duplicate ticket credit',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  const host=inspect(f),src=fakeContainer();
+  src.inject(0,{typeId:'minecraft:diamond_sword',amount:1,
+    nameTag:'Sword',lore:[]});
+  const port=createUnifiedNativePort({world:f.world,worldId,epoch,
+    externalFence:()=>true,verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:f.mgr.durableOwnershipWitness});
+  const from={ownerId:'vanilla:1',container:src,slot:0};
+  const to={ownerId,container:host.container,slot:0};
+  assert.equal(port.moveWhole({operationId:'one-admission',from,to}).ok,true);
+  const first=f.mgr.stageMovedTicket({ownerId,anchor});
+  assert.equal(first.ok,true,first.reason);
+  const before=f.writes;
+  const repeat=f.mgr.stageMovedTicket({ownerId,anchor});
+  assert.equal(repeat.ok,true,repeat.reason);
+  assert.equal(repeat.status,'NATIVE_TICKET_ALREADY_STAGED');
+  assert.equal(f.writes,before);
+  assert.equal(port.ackWhole({operationId:'one-admission',from,to}).ok,true);
+  assert.equal(f.mgr.inspectCustody({ownerId,anchor}).occupied,1);
 });
