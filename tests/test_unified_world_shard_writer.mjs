@@ -220,3 +220,91 @@ test('unresolved native MR intent blocks all ordinary Receiver/Bulk spends under
   assert.equal(f.writer.applyInternalTransfer(f.req).ok,true);
   assert.equal(f.writes,1);
 });
+
+
+function boundaryFixture(opts={}){
+  const f=fixture(opts);
+  const intent={schema:'hart-uce-ordinary-boundary-v1',
+    phase:'ESCROW_READY',worldId,epoch,operationId:'bound-in-1',
+    direction:'deposit',accountId:'receiver:r1',key:itemKey,count:8,
+    expectedRevision:f.req.expectedRevision};
+  f.values.set('hartlogistics:uce_boundary_intent_v1',
+    JSON.stringify(intent));
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyEscrowCustody:()=>opts.escrow!==false});
+  const request={operationId:intent.operationId,accountId:intent.accountId,
+    key:intent.key,count:intent.count,direction:intent.direction,
+    expectedRevision:intent.expectedRevision,expectedEpoch:epoch};
+  return {f,intent,writer,request};
+}
+test('physical boundary credit stays on same UCE ledger writer and denies concurrent internal spending',()=>{
+  const {f,writer,request}=boundaryFixture();
+  holds(f.writer.applyInternalTransfer(f.req),'ordinary_boundary_pending_global');
+  assert.equal(f.writes,0);
+  const step=writer.applyBoundaryCommit(request);
+  assert.equal(step.ok,true,step.reason);
+  assert.equal(step.status,'BOUNDARY_ACCOUNT_WRITE_READBACK');
+  assert.equal(f.writes,1);
+  const view=writer.inspect();
+  assert.equal(view.snapshot.total,20);
+  assert.equal(view.snapshot.accounts.find(a=>a.kind==='receiver').total,20);
+  assert.equal(view.lastReceipt.kind,'BOUNDARY');
+  assert.equal(view.lastReceipt.operationId,'bound-in-1');
+  const repeat=writer.applyBoundaryCommit(request);
+  assert.equal(repeat.ok,true,repeat.reason);
+  assert.equal(repeat.status,'BOUNDARY_ACCOUNT_ALREADY_COMMITTED');
+  assert.equal(f.writes,1);
+});
+test('physical boundary credit requires escrow proof and exact persisted intent',()=>{
+  const a=boundaryFixture({escrow:false});
+  holds(a.writer.applyBoundaryCommit(a.request),
+    'native_escrow_custody_unverified');
+  assert.equal(a.f.writes,0);
+  const b=boundaryFixture();
+  b.intent.phase='PREPARED';
+  b.f.values.set('hartlogistics:uce_boundary_intent_v1',
+    JSON.stringify(b.intent));
+  holds(b.writer.applyBoundaryCommit(b.request),
+    'boundary_intent_not_commit_ready');
+  assert.equal(b.f.writes,0);
+});
+test('physical boundary receipt rejects wrong item/account/revision without credit',()=>{
+  const a=boundaryFixture();
+  holds(a.writer.applyBoundaryCommit({...a.request,count:9}),
+    'boundary_intent_not_commit_ready');
+  holds(a.writer.applyBoundaryCommit({...a.request,accountId:'bulk:b1'}),
+    'boundary_intent_not_commit_ready');
+  holds(a.writer.applyBoundaryCommit({...a.request,expectedRevision:99}),
+    'boundary_intent_not_commit_ready');
+  assert.equal(a.f.writes,0);
+});
+test('boundary write throw after persistence is quarantined, restart sees one committed receipt',()=>{
+  const a=boundaryFixture({onWrite:(k,v,values)=>{
+    values.set(k,v);
+    throw Error('write callback threw after property updated');
+  }});
+  holds(a.writer.applyBoundaryCommit(a.request),'boundary_account_write_ambiguous');
+  holds(a.writer.applyBoundaryCommit(a.request),
+    'shard_session_quarantine:boundary_write_outcome_ambiguous');
+  assert.equal(a.f.writes,1);
+  const clean=createUnifiedShardWriter({world:a.f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyEscrowCustody:()=>true});
+  const r=clean.applyBoundaryCommit(a.request);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'BOUNDARY_ACCOUNT_ALREADY_COMMITTED');
+  assert.equal(a.f.writes,1);
+});
+test('boundary withdraw decreases count once but leaves physical proof requirement external',()=>{
+  const a=boundaryFixture();
+  a.intent.direction='withdraw';
+  a.intent.count=5;
+  a.f.values.set('hartlogistics:uce_boundary_intent_v1',
+    JSON.stringify(a.intent));
+  const req={...a.request,direction:'withdraw',count:5};
+  const r=a.writer.applyBoundaryCommit(req);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(a.writer.inspect().snapshot.total,7);
+  assert.equal(a.writer.inspect().snapshot.accounts.find(a=>a.id==='receiver:r1').total,7);
+});
