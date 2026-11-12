@@ -48,7 +48,8 @@ test('legacy link and source-writer guard remains in generated builder, never a 
   assert.match(builder,/uceAllowsSorterRegistryWrite\(key\)/);
   assert.match(builder,/guard_function\(source,"selectCollector"/);
   assert.match(builder,/guard_function\(source,"useReceiver"/);
-  assert.match(builder,/guard_function\(source,"dequeueToReceiver"/);
-  assert.match(builder,/guard_function\(source,"enqueueFromEjectedEntity"/);
-  assert.match(builder,/guard_function\(source,"pg20MoveOpaqueNative"/);
+  // These writers are fenced by the compiler's exact-name loop.
+  assert.match(builder,/"dequeueToReceiver","pg20MoveOpaqueNative"/);
+  assert.match(builder,/"enqueueFromEjectedEntity"/);
+  assert.match(builder,/source=guard_function\(source,name,ret\)/);
 });
