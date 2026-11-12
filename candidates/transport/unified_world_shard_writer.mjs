@@ -14,7 +14,8 @@
  */
 import {inspectUnifiedOrdinaryLedger,
   transitionUnifiedOrdinaryAccounts,
-  transitionUnifiedOrdinaryBoundary} from './unified_ordinary_accounts.mjs';
+  transitionUnifiedOrdinaryBoundary,
+  registerUnifiedEmptyAccount} from './unified_ordinary_accounts.mjs';
 
 export const UCE_SHARD_SCHEMA='hart-uce-world-shard-v1';
 export const UCE_AUTHORITY_SCHEMA='hart-uce-world-authority-v1';
@@ -168,7 +169,8 @@ export function previewUnifiedShard({snapshot,shardKey}={}){
  * callback proves algorithm behavior only, not actual writer exclusion.
  */
 export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
-    externalFence,verifyEscrowCustody}={}){
+    externalFence,verifyEscrowCustody,
+    verifyBulkPlacement,verifyGlobalBulkUniqueness}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !KEY.test(shardKey||'')||typeof worldId!=='string'||
@@ -329,6 +331,79 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       hasHardCrashDiskProof:false,canMoveNative:false};
   }
 
+  /**
+   * Register a NEW physically verified Bulk Storage member inside one
+   * pre-sealed Receiver shard. The member has zero balance and no separate
+   * virtual queue. The first local bank becomes controller; a bank in a
+   * competing world shard must not elect another controller.
+   *
+   * The two callbacks must inspect the real loaded block and every sealed
+   * shard, respectively. Source-only mocks do not prove live ownership.
+   */
+  function registerBulkMember({ownerId,operationId,
+      expectedRevision,expectedEpoch}={}){
+    if(quarantine)return hold('shard_session_quarantine:'+quarantine);
+    if(typeof verifyBulkPlacement!=='function'||
+       typeof verifyGlobalBulkUniqueness!=='function')
+      return hold('bulk_world_placement_verification_unbound');
+    if(typeof ownerId!=='string'||!ownerId||ownerId.length>256||
+       !ASCII.test(ownerId)||typeof operationId!=='string'||
+       !operationId||operationId.length>256||!ASCII.test(operationId)||
+       !nat(expectedRevision)||expectedEpoch!==epoch)
+      return hold('invalid_bulk_registration_request');
+    const gate=fence();
+    if(!gate.ok)return gate;
+    const a=read(world,shardKey);
+    if(!a.ok)return a;
+    const parsed=unpack(a.value,shardKey,worldId,epoch);
+    if(!parsed.ok)return parsed;
+    const before=parsed.value.snapshot;
+    if(before.revision!==expectedRevision ||
+       !before.accounts.some(x=>x.kind==='receiver'))
+      return hold('stale_or_unanchored_bulk_registration');
+    let place=false,unique=false;
+    try{
+      place=verifyBulkPlacement(ownerId,shardKey)===true;
+      unique=verifyGlobalBulkUniqueness(ownerId,shardKey)===true;
+    }catch(_){}
+    if(!place||!unique)return hold('bulk_placement_or_global_identity_unproven');
+    const step=registerUnifiedEmptyAccount(before,{kind:'bulk',
+      ownerId,expectedRevision,expectedEpoch:epoch});
+    if(!step.ok)return hold(step.reason);
+    const receipt={kind:'REGISTER_BULK',operationId,epoch,
+      revision:step.next.revision,beforeRevision:before.revision,
+      accountId:'bulk:'+ownerId,shardKey};
+    const updated=pack(shardKey,step.next,receipt);
+    if(!updated.ok)return updated;
+    const check=read(world,shardKey);
+    if(!check.ok)return check;
+    if(check.value!==a.value)return hold('bulk_account_changed_prewrite');
+    const again=fence();
+    let stillPlace=false,stillUnique=false;
+    try{
+      stillPlace=verifyBulkPlacement(ownerId,shardKey)===true;
+      stillUnique=verifyGlobalBulkUniqueness(ownerId,shardKey)===true;
+    }catch(_){}
+    if(!again.ok||!stillPlace||!stillUnique)
+      return hold('bulk_owner_or_fence_changed_prewrite');
+    try{world.setDynamicProperty(shardKey,updated.raw);}
+    catch(_){
+      quarantine='bulk_registration_write_ambiguous';
+      return hold('bulk_registration_write_ambiguous');
+    }
+    const saved=read(world,shardKey);
+    if(!saved.ok||saved.value!==updated.raw ||
+       !unpack(saved.value,shardKey,worldId,epoch).ok){
+      quarantine='bulk_registration_readback_mismatch';
+      return hold('bulk_registration_readback_mismatch');
+    }
+    return {ok:true,status:'BULK_ACCOUNT_REGISTERED_SAME_LEDGER',
+      accountId:receipt.accountId,revision:step.next.revision,
+      controllerOwnerId:step.next.accounts.find(x=>
+        x.id===receipt.accountId).controllerOwnerId,
+      receipt,canMoveNative:false,canClearQ4:false};
+  }
+
   return {ok:true,inspect,applyInternalTransfer,applyBoundaryCommit,
-    getSessionQuarantine:()=>quarantine};
+    registerBulkMember,getSessionQuarantine:()=>quarantine};
 }
