@@ -86,9 +86,45 @@ test('unregistered loaded bank or duplicate node refuses logical transfer',()=>{
     connectedBankOwnerIds:['bank-a','bank-a']});
   assert.equal(duplicate.reason,'invalid_bulk_route_membership');
 });
-test('below threshold no unsolicited bank debit even when no output available',()=>{
+test('a usable filtered destination outranks Bulk storage even below high-water',()=>{
   const s=fixture(200,300,0);
-  const r=planUnifiedBulkService(options(s));
+  const r=planUnifiedBulkService({
+    ...options(s),preferredOutputKeys:[key]});
   assert.equal(r.status,'IDLE');
   assert.equal(r.reason,'bulk_retains_custody_or_no_output');
+});
+test('unmatched ordinary items enter Bulk before any Wildcard route at low Receiver balance',()=>{
+  const s=fixture(200,300,0);
+  const r=planUnifiedBulkService(options(s));
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'TRANSFER_DRAFT_ONLY');
+  assert.equal(r.direction,'receiver_to_bulk');
+  assert.equal(r.from,'receiver:r1');
+  assert.equal(r.to,'bulk:bank-a');
+  assert.equal(r.count,64);
+  const moved=transitionUnifiedOrdinaryAccounts(s,{
+    operationId:'bulk-before-wildcard',from:r.from,to:r.to,
+    key:r.key,count:r.count,expectedRevision:r.expectedRevision,
+    expectedEpoch:r.expectedEpoch});
+  assert.equal(moved.ok,true,moved.reason);
+  assert.equal(moved.next.total,s.total);
+});
+test('continuous Collector ingress does not starve at low water; near-full spills safely',()=>{
+  const low=fixture(200,300,0);
+  const wait=planUnifiedBulkService({...options(low),sourceWaiting:true});
+  assert.equal(wait.status,'IDLE');
+  const high=fixture(249700,300,0);
+  const spill=planUnifiedBulkService({...options(high),sourceWaiting:true});
+  assert.equal(spill.status,'TRANSFER_DRAFT_ONLY');
+  assert.equal(spill.count,64);
+});
+test('Bulk bank cannot refill an empty Receiver without an actual preferred route',()=>{
+  const s=fixture(0,250,0);
+  const without=planUnifiedBulkService({
+    ...options(s),outputEligibleKeys:[]});
+  assert.equal(without.status,'IDLE');
+  const withFilter=planUnifiedBulkService({
+    ...options(s),outputEligibleKeys:[key]});
+  assert.equal(withFilter.status,'TRANSFER_DRAFT_ONLY');
+  assert.equal(withFilter.direction,'bulk_to_receiver');
 });
