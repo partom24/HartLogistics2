@@ -141,6 +141,11 @@ jobs:
           node --check candidates/transport/unified_carrier_registry.mjs
           node --check tests/test_unified_carrier_registry.mjs
           node --test tests/test_unified_carrier_registry.mjs
+      - name: Build unified Bedrock candidate from PG33 and assert old writers frozen under UCE
+        run: |
+          python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
+          python candidates/uce/prepare_candidate.py
+          node --check --input-type=module < build/uce-integrated/behavior_pack/scripts/main.js
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
