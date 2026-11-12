@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createUnifiedNativePort} from '../candidates/transport/unified_native_custody.mjs';
+import {serviceUnifiedReceiverMR} from '../candidates/transport/unified_receiver_mr_service.mjs';
 import {
   createUnifiedCarrierRegistry,UCE_CARRIER_TYPE,UCE_CARRIER_SCHEMA,
   UCE_CARRIER_SLOTS
@@ -298,4 +299,65 @@ test('repeated staging of the same moved operation is read-only, not duplicate t
   assert.equal(f.writes,before);
   assert.equal(port.ackWhole({operationId:'one-admission',from,to}).ok,true);
   assert.equal(f.mgr.inspectCustody({ownerId,anchor}).occupied,1);
+});
+
+
+test('playable service: Collector native MR ingress while Receiver powered, then unpowered output',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  const src=fakeContainer(),dst=fakeContainer();
+  const original={typeId:'minecraft:diamond_pickaxe',amount:1,
+    nameTag:'Protected Mr',lore:['Never flatten'],
+    hiddenNbt:{enchantments:['mending'],source:'player-original'}};
+  src.inject(0,original);
+  src.inject(1,{typeId:'minecraft:cobblestone',amount:64});
+  const port=createUnifiedNativePort({world:f.world,worldId,epoch,
+    externalFence:()=>true,verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:f.mgr.durableOwnershipWitness});
+  const common={registry:f.mgr,port,ownerId,anchor,
+    identify:stack=>stack.maxAmount===64?'ORDINARY':
+      stack.typeId==='minecraft:cobblestone'?'ORDINARY':'MR'};
+  const ingress=serviceUnifiedReceiverMR({...common,
+    direction:'ingress',operationId:'s-1',receiverPowered:true,
+    inputSources:[{container:src,ownerId:'collector-hopper:1',
+      locked:false,blockVerified:true}]});
+  assert.equal(ingress.ok,true,ingress.reason);
+  assert.equal(ingress.moved,1);
+  assert.equal(f.mgr.inspectCustody({ownerId,anchor}).occupied,1);
+  assert.equal(src.getItem(0),undefined);
+  assert.equal(src.getItem(1).amount,64);
+  const paused=serviceUnifiedReceiverMR({...common,direction:'egress',
+    operationId:'s-2',receiverPowered:true,
+    output:{container:dst,ownerId:'destination-hopper:1',blockVerified:true}});
+  assert.equal(paused.status,'IDLE');
+  assert.equal(paused.reason,'receiver_output_redstone_paused');
+  assert.equal(f.mgr.inspectCustody({ownerId,anchor}).occupied,1);
+  const release=serviceUnifiedReceiverMR({...common,direction:'egress',
+    operationId:'s-2',receiverPowered:false,
+    output:{container:dst,ownerId:'destination-hopper:1',blockVerified:true}});
+  assert.equal(release.ok,true,release.reason);
+  assert.equal(release.status,'MR_NATIVE_CUSTODY_TRANSFER_COMPLETE');
+  assert.deepEqual(dst.getItem(0).hiddenNbt,original.hiddenNbt);
+  assert.equal(f.mgr.inspectCustody({ownerId,anchor}).occupied,0);
+});
+
+test('service refuses uncertified MR shape and honors blocked Collector/redstone',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  const src=fakeContainer();
+  src.inject(0,{typeId:'minecraft:potion',amount:1,nameTag:'Custom potion'});
+  const port=createUnifiedNativePort({world:f.world,worldId,epoch,
+    externalFence:()=>true,verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:f.mgr.durableOwnershipWitness});
+  const common={registry:f.mgr,port,ownerId,anchor,
+    direction:'ingress',operationId:'s-hold',
+    inputSources:[{container:src,ownerId:'input-source',
+      blockVerified:true,locked:false}]};
+  const powered=serviceUnifiedReceiverMR({...common,
+    collectorPowered:true,identify:()=> 'MR'});
+  assert.equal(powered.status,'IDLE');
+  const unknown=serviceUnifiedReceiverMR({...common,
+    identify:()=> 'UNKNOWN'});
+  assert.equal(unknown.status,'HOLD');
+  assert.equal(unknown.reason,'uncertified_item_class');
+  assert.equal(f.writes,2); // Only initial carrier reservation/activation.
+  assert.equal(src.getItem(0).typeId,'minecraft:potion');
 });
