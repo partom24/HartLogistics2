@@ -184,6 +184,10 @@ jobs:
         run: |
           node --check tests/test_uce_bulk_runtime_ownership.mjs
           node --test tests/test_uce_bulk_runtime_ownership.mjs
+      - name: UCE exact-PG33 stopped LAB installer source, tamper and refusal tests
+        run: |
+          python -m unittest discover -s tests -p 'test_uce_lab_deploy.py' -v
+          python candidates/uce/lab_deploy.py
       - name: UCE explicit zero-Q4 new LAB world activation via existing cold authority
         run: |
           node --check candidates/transport/unified_new_world_activation.mjs
