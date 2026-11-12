@@ -277,9 +277,10 @@ test('a long loop cannot exceed bounded 128-pipe discovery budget',()=>{
   for(let x=1;x>=-125;x--)f.put('hartlogistics:transporter',x,70,4);
   assert.equal(f.network(),undefined);
 });
-test('a loaded downward bend can reach a lower Sorter without Q4 routing',()=>{
+test('a loaded downward bend can traverse lower Y without changing source ownership',()=>{
   const f=fixture();
-  f.put('hartlogistics:transporter',1,70,4);
-  f.put('hartlogistics:transporter',1,69,4);
+  for(const x of [1,0,-1])f.put('hartlogistics:transporter',x,70,4);
+  f.put('hartlogistics:transporter',-1,69,4);
   assert.ok(f.network());
+  assert.equal(f.choose(COBBLE).entry,f.filter);
 });
