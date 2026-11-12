@@ -5,6 +5,7 @@ import {readOnlyQ4Snapshot} from '../candidates/transport/q5_q4_readonly_snapsho
 import {previewQ5WorldQ4Census} from '../candidates/transport/q5_world_receiver_census.mjs';
 import {
   UCE_LEDGER_SCHEMA,UCE_RECEIVER_CAPACITY,UCE_BULK_MEMBER_CAPACITY,
+  createEmptyUnifiedOrdinaryLedger,registerUnifiedEmptyAccount,
   stageUnifiedOrdinaryAccounts,inspectUnifiedOrdinaryLedger,
   createEmptyUnifiedOrdinaryLedger,registerUnifiedEmptyAccount,
   transitionUnifiedOrdinaryAccounts,transitionUnifiedOrdinaryBoundary
@@ -382,4 +383,28 @@ test('ordinary physical-boundary transfer advances Receiver lifetime counters on
     queueKey:'q1',fingerprint:after.legacyQ4.fingerprint,
     head:1,tail:2,next:3,received:27,delivered:7
   });
+});
+
+
+test('first registered Bulk member retains controller claim; later member cannot elect itself',()=>{
+  const f=fixture([], {bulkMemberIds:[]});
+  let s=createEmptyUnifiedOrdinaryLedger({worldId:'minecraft:overworld:bank',
+    epoch:7}).snapshot;
+  const first=registerUnifiedEmptyAccount(s,{
+    kind:'bulk',ownerId:'member:first',
+    expectedRevision:s.revision,expectedEpoch:7});
+  assert.equal(first.ok,true,first.reason);
+  assert.equal(first.next.accounts[0].role,'controller');
+  assert.equal(first.next.accounts[0].controllerOwnerId,'member:first');
+  const second=registerUnifiedEmptyAccount(first.next,{
+    kind:'bulk',ownerId:'member:second',
+    expectedRevision:first.next.revision,expectedEpoch:7});
+  assert.equal(second.ok,true,second.reason);
+  const member=second.next.accounts.find(a=>a.ownerId==='member:second');
+  assert.equal(member.role,'member');
+  assert.equal(member.controllerOwnerId,'member:first');
+  assert.equal(inspectUnifiedOrdinaryLedger(second.next).ok,true);
+  const forged=structuredClone(second.next);
+  forged.accounts.find(a=>a.ownerId==='member:second').role='controller';
+  hold(inspectUnifiedOrdinaryLedger(forged),'bulk_controller_conflict');
 });
