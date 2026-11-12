@@ -97,18 +97,18 @@ def compile_patch(source,bridge):
       "        return;\n"+
       "    }")
     source=once(source,
-      "            system.run(() => sendDiagnostics(origin));\\n"+
-      "        }\\n    );",
-      "            system.run(() => sendDiagnostics(origin));\\n"+
-      "        }\\n    );\\n"+
-      "    event.customCommandRegistry.registerCommand(\\n"+
-      "        {\\n"+
-      "            name: 'hartlogistics:migration_preview',\\n"+
-      "            description: 'Read-only 1.4.1 Q4 migration preflight.',\\n"+
-      "            permissionLevel: CommandPermissionLevel.GameDirectors,\\n"+
-      "            cheatsRequired: false\\n"+
-      "        },\\n"+
-      "        (origin) => system.run(() => uceSendMigrationPreview(origin))\\n"+
+      "            system.run(() => sendDiagnostics(origin));\n"+
+      "        }\n    );",
+      "            system.run(() => sendDiagnostics(origin));\n"+
+      "        }\n    );\n"+
+      "    event.customCommandRegistry.registerCommand(\n"+
+      "        {\n"+
+      "            name: 'hartlogistics:migration_preview',\n"+
+      "            description: 'Read-only 1.4.1 Q4 migration preflight.',\n"+
+      "            permissionLevel: CommandPermissionLevel.GameDirectors,\n"+
+      "            cheatsRequired: false\n"+
+      "        },\n"+
+      "        (origin) => system.run(() => uceSendMigrationPreview(origin))\n"+
       "    );")
     source=once(source,"function setWorldDynamic(key, value) {",
       "function setWorldDynamic(key, value) {\n"+
