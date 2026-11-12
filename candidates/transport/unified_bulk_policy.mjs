@@ -46,6 +46,10 @@ export function planUnifiedBulkService({snapshot,receiverOwnerId,
   // against a continuously active Collector; allow native admission first,
   // then spill after ingress pauses or high-water backpressure is reached.
   const preferred=new Set(preferredOutputKeys);
+  // A real Filter/seeded-Auto target must be served ahead of *any* other
+  // receiver-to-bank move, regardless of account key ordering.
+  if(recv.buckets.some(entry=>preferred.has(entry.key)))
+    return idle('preferred_sorter_output_ready');
   if(recv.buckets.length &&
      (!sourceWaiting ||
        recv.total>=recv.capacity-UCE_BULK_RECEIVER_RESERVE)){
