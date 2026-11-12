@@ -220,3 +220,35 @@ test('pipe output is refused if it aliases a connected input container',()=>{
   assert.ok(f.network());
   assert.notEqual(f.choose(COBBLE)?.dest.block,source);
 });
+
+test('governed ordinary routing refuses Wildcard while native MR still may use it',()=>{
+  const f=fixture();
+  f.filter.m='bypass';
+  assert.equal(f.choose(COBBLE).entry,f.fallback);
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true),undefined);
+  const preferred=f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,false);
+  assert.equal(preferred.mode,'wildcard');
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,preferred),true);
+});
+test('governed Bulk still allows Filter then seeded Auto, not an unseeded Auto',()=>{
+  const f=fixture();
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true)?.entry,f.filter);
+  f.filter.m='auto';f.filter.f=null;
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true),undefined);
+  const c=f.chestA.getComponent('minecraft:inventory').container;
+  c.setItem(2,{typeId:'minecraft:cobblestone',amount:3});
+  const seeded=f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true);
+  assert.equal(seeded.entry,f.filter);
+  assert.equal(seeded.mode,'auto');
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,seeded),true);
+  c.setItem(2,undefined);
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,seeded),false);
+});
