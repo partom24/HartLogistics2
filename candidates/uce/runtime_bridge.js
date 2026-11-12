@@ -285,6 +285,88 @@ function uceNativeOutputSlot(container){
     }catch(_){return -1;}
     return -1;
 }
+function uceBulkOwnerId(block){
+    if(!block||block.typeId!=='hartlogistics:bulk_storage')return undefined;
+    const p=block.location;
+    return block.dimension.id+'|'+p.x+','+p.y+','+p.z;
+}
+function uceBulkPlacementVerified(receiver,ownerId){
+    const route=ucePipeRouteNetwork(receiver);
+    if(!route||!Array.isArray(route.banks))return false;
+    const matching=route.banks.filter(b=>uceBulkOwnerId(b)===ownerId);
+    if(matching.length!==1)return false;
+    const registered=logistics.receivers.filter(r=>
+        r.id!==receiver.id&&r.present!==false);
+    for(const other of registered){
+        const competitor=ucePipeRouteNetwork(other);
+        if(competitor?.banks?.some(b=>uceBulkOwnerId(b)===ownerId))
+            return false;
+    }
+    return true;
+}
+function uceBulkGlobalUniqueness(ownerId,shardKey,authority){
+    try{
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||!Array.isArray(seal.shards))return false;
+        let matchedRegion=0;
+        for(const region of seal.shards){
+            if(region.key===shardKey)matchedRegion++;
+            const reader=createUnifiedShardWriter({world,shardKey:region.key,
+                worldId:authority.worldId,epoch:authority.epoch,
+                externalFence:()=>false});
+            if(!reader.ok)return false;
+            const state=reader.inspect();
+            if(!state.ok)return false;
+            for(const member of state.snapshot.accounts){
+                if(member.kind!=='bulk')continue;
+                if(member.ownerId===ownerId)return false;
+                if(member.role==='controller'&&region.key!==shardKey)
+                    return false;
+            }
+        }
+        return matchedRegion===1;
+    }catch(_){return false;}
+}
+/**
+ * Append at most one VERIFIED empty Bulk member to the same Receiver shard.
+ * The caller must not continue using an old revision after this write.
+ * This is registration ONLY; the first real item transfer uses the same
+ * versioned ledger writer on a later scheduler tick.
+ */
+function uceMaybeRegisterBulk(receiver,shardKey,authority){
+    const network=ucePipeRouteNetwork(receiver);
+    if(!network?.banks?.length)return false;
+    const bankBlocks=[...network.banks].sort((a,b)=>
+        uceBulkOwnerId(a)<uceBulkOwnerId(b)?-1:
+        uceBulkOwnerId(a)>uceBulkOwnerId(b)?1:0);
+    const writer=createUnifiedShardWriter({world,shardKey,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        verifyBulkPlacement:(owner)=>
+            uceBulkPlacementVerified(receiver,owner),
+        verifyGlobalBulkUniqueness:(owner,region)=>
+            uceBulkGlobalUniqueness(owner,region,authority)
+    });
+    if(!writer.ok){uceBridgeLog('Bulk writer '+writer.reason);return true;}
+    const view=writer.inspect();
+    if(!view.ok){uceBridgeLog('Bulk shard '+view.reason);return true;}
+    for(const block of bankBlocks){
+        const ownerId=uceBulkOwnerId(block);
+        if(view.snapshot.accounts.some(x=>x.id==='bulk:'+ownerId))
+            continue;
+        const op=uceNativeReceiptId();
+        if(!op){uceBridgeLog('Bulk receipt exhausted');return true;}
+        const r=writer.registerBulkMember({ownerId,
+            operationId:op,expectedEpoch:authority.epoch,
+            expectedRevision:view.snapshot.revision});
+        if(!r.ok)uceBridgeLog('Bulk registration '+r.reason);
+        return true;
+    }
+    return false;
+}
+
 function uceSameLoadedBlock(a,b){
     if(!a||!b||a.typeId!==b.typeId||
        a.dimension?.id!==b.dimension?.id)return false;
@@ -317,6 +399,10 @@ function uceOrdinaryServiceTick(){
         const accountId='receiver:'+ownerId;
         const shardKey=uceOrdinaryAccountSource(authority,ownerId);
         if(!shardKey)continue;
+        if(uceMaybeRegisterBulk(receiver,shardKey,authority)){
+            uceOrdinaryCursor=(index+1)%receivers.length;
+            return;
+        }
         const anchor={dimensionId:receiver.d,
             x:receiver.x,y:receiver.y,z:receiver.z};
         const linked=logistics.collectors.filter(c=>
