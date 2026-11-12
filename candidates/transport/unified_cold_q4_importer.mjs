@@ -17,7 +17,7 @@
 import {previewQ5WorldQ4Census} from './q5_world_receiver_census.mjs';
 import {readOnlyQ4Snapshot} from './q5_q4_readonly_snapshot.mjs';
 import {stageUnifiedOrdinaryAccounts} from './unified_ordinary_accounts.mjs';
-import {previewUnifiedShard,UCE_AUTHORITY_KEY,
+import {previewUnifiedShard,inspectUnifiedWorldShard,UCE_AUTHORITY_KEY,
     UCE_AUTHORITY_SCHEMA} from './unified_world_shard_writer.mjs';
 
 export const UCE_COLD_SEAL_KEY='hartlogistics:uce_cold_seal_v1';
@@ -222,4 +222,79 @@ export function executeUnifiedColdQ4Import(args){
     shardCount:p.shards.length,originalQ4Retained:true,
     hasHardCrashAtomicityProof:false,hasNativeMRMigrationProof:false,
     releaseApproved:false};
+}
+
+
+/**
+ * Required startup gate BEFORE any ACTIVE UCE service may move items. Check the
+ * ACTIVE marker, cold seal, every registered shard, and original account owner
+ * identities. A missing/torn/shadow-rewound shard refuses global activation.
+ * Legitimate post-commit account balance revisions are allowed; an unmodified
+ * GENESIS shard must match its original seal hash.
+ */
+export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
+  if(!world||typeof world.getDynamicProperty!=='function'||
+     !validId(worldId)||!positive(epoch))
+    return refuse('invalid_cold_authority_check');
+  const marker=read(world,UCE_AUTHORITY_KEY);
+  if(!marker.ok)return marker;
+  if(typeof marker.value!=='string'||marker.value.length>4096)
+    return refuse('active_authority_missing');
+  let active;
+  try{active=JSON.parse(marker.value);}
+  catch(_){return refuse('active_authority_corrupt');}
+  if(!active||active.schema!==UCE_AUTHORITY_SCHEMA||
+     active.state!=='ACTIVE'||active.worldId!==worldId||
+     active.epoch!==epoch||active.writer!=='UCE_EXCLUSIVE'||
+     active.q4LegacyWritersFenced!==true||
+     active.migrationReconciled!==true||
+     !nat(active.initialItemCount)||!nat(active.shardCount)||
+     typeof active.coldSealHash!=='string')
+    return refuse('active_authority_not_verified');
+  const rawSeal=read(world,UCE_COLD_SEAL_KEY);
+  if(!rawSeal.ok)return rawSeal;
+  if(typeof rawSeal.value!=='string'||
+     rawSeal.value.length>maxSeal||
+     hash(rawSeal.value)!==active.coldSealHash)
+    return refuse('cold_seal_missing_or_changed');
+  let seal;
+  try{seal=JSON.parse(rawSeal.value);}
+  catch(_){return refuse('cold_seal_invalid');}
+  if(!seal||seal.schema!==UCE_COLD_SEAL_SCHEMA||
+     seal.worldId!==worldId||seal.epoch!==epoch||
+     seal.initialItemCount!==active.initialItemCount||
+     !Array.isArray(seal.shards)||
+     seal.shards.length!==active.shardCount||
+     !Array.isArray(seal.q4Sources)||
+     seal.q4Sources.length!==seal.receivers)
+    return refuse('cold_seal_authority_mismatch');
+  let total=0,ids=new Set(),keys=new Set();
+  for(const item of seal.shards){
+    if(!item||!validId(item.owner)||!validId(item.key)||
+       !nat(item.initialCount)||typeof item.initialHash!=='string'||
+       keys.has(item.key)||ids.has(item.owner))
+      return refuse('cold_shard_index_invalid');
+    keys.add(item.key);ids.add(item.owner);
+    const raw=read(world,item.key);
+    if(!raw.ok)return raw;
+    const checked=inspectUnifiedWorldShard({
+      raw:raw.value,shardKey:item.key,worldId,epoch});
+    if(!checked.ok)
+      return refuse('cold_shard_unreadable:'+item.key+':'+checked.reason);
+    if(checked.snapshot.accounts.length!==1||
+       checked.snapshot.accounts[0].id!==item.owner)
+      return refuse('cold_shard_account_changed');
+    if(checked.snapshot.revision===0 &&
+       hash(raw.value)!==item.initialHash)
+      return refuse('cold_genesis_shard_mismatch');
+    total+=checked.snapshot.total;
+    if(!nat(total))return refuse('cold_current_total_overflow');
+  }
+  if(!seal.shards.length&&active.initialItemCount!==0)
+    return refuse('cold_empty_shards_with_items');
+  return {ok:true,status:'COLD_UCE_AUTHORITY_AND_SHARDS_VERIFIED',
+    currentLedgerTotal:total,initialItemCount:active.initialItemCount,
+    receiverCount:seal.receivers,shardCount:keys.size,
+    canDeleteQ4:false,canMoveNative:false,
+    hasCrashAtomicityProof:false};
 }
