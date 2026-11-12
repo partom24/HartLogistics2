@@ -81,6 +81,17 @@ def compile_patch(source,bridge):
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
       "    if (uceLegacyWriterBlocked()) return;")
+    source=once(source,
+      "world.beforeEvents.playerBreakBlock.subscribe(ev => {\n"+
+      "    const block=ev.block;\n    if(!block)return;",
+      "world.beforeEvents.playerBreakBlock.subscribe(ev => {\n"+
+      "    const block=ev.block;\n    if(!block)return;\n"+
+      "    if (uceLegacyWriterBlocked() &&\n"+
+      "        (block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID)) {\n"+
+      "        ev.cancel=true;\n"+
+      "        ev.player?.sendMessage('§e[Hart Logistics] UCE owns this block. Remove through an explicit drained custody operation; breaking is blocked.');\n"+
+      "        return;\n"+
+      "    }")
     source=once(source,"function setWorldDynamic(key, value) {",
       "function setWorldDynamic(key, value) {\n"+
       "    if (uceLegacyWriterBlocked() && !uceAllowsSorterRegistryWrite(key))\n"+
