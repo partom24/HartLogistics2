@@ -4,8 +4,8 @@
  *
  * Reuses PG26 face/neighbor/position API and the original Sorter filter/mode
  * registry. Rejects unloaded frontiers, ambiguous Receiver attachments,
- * extra container sources, cross-chunk routes, redstone-paused segments and
- * double-chest inventory aliases. Every physical destination is reselected
+ * unsupported inventory sources, redstone-paused pipe segments and
+ * double-chest or cross-network input aliases. Every destination is reselected
  * immediately before a native writer changes custody.
  */
 // Traversal is allowed across LOADED chunks in one dimension; an
@@ -92,6 +92,17 @@ function ucePipeRouteNetwork(receiver) {
                 const neighbor=pg26Neighbor(bank,face);
                 if(!neighbor)return undefined;
                 if(neighbor.typeId===PG26_PIPE_ID &&
+                   !seen.has(pg26PositionKey(neighbor.location)))
+                    return undefined;
+            }
+        }
+        // One physical chest may touch multiple pipes in the SAME graph.
+        // A different disconnected pipe component cannot also own it.
+        for(const source of inputs.values()){
+            for(const face of PG26_FACES){
+                const neighbor=pg26Neighbor(source.block,face);
+                if(!neighbor)return undefined;
+                if(neighbor.typeId===PG26_PIPE_ID&&
                    !seen.has(pg26PositionKey(neighbor.location)))
                     return undefined;
             }
