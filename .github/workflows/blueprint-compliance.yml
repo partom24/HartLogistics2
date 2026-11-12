@@ -164,6 +164,11 @@ jobs:
         run: |
           node --check tests/test_uce_sorter_config_fence.mjs
           node --test tests/test_uce_sorter_config_fence.mjs
+      - name: UCE versioned Collector link and sealed Receiver authority, no Q4 mutation
+        run: |
+          node --check candidates/transport/unified_link_registry.mjs
+          node --check tests/test_unified_link_registry.mjs
+          node --test tests/test_unified_link_registry.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
