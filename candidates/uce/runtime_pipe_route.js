@@ -17,8 +17,7 @@ function ucePipeSameChunk(root,block) {
 }
 function ucePipeRouteNetwork(receiver) {
     try{
-        if(!receiver||receiver.present===false||
-           receiverOutputHopper(receiver))return undefined;
+        if(!receiver||receiver.present===false)return undefined;
         const root=receiverAt(receiver);
         if(!root||blockIsRedstonePowered(root))return undefined;
         const rootKey=pg26PositionKey(root.location);
@@ -139,7 +138,11 @@ function ucePipeAutoSeed(item,container) {
     return false;
 }
 function uceChoosePipeDestination(receiver,item) {
-    if(!item||!item.typeId)return undefined;
+    // The old Receiver output Hopper retains first claim to physical egress.
+    // Bulk account discovery on the SAME graph may still occur, because
+    // moving virtual balances is not a second physical output writer.
+    if(!item||!item.typeId||receiverOutputHopper(receiver))
+        return undefined;
     const graph=ucePipeRouteNetwork(receiver),root=receiverAt(receiver);
     if(!graph||!root)return undefined;
     const candidates=[];
