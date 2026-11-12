@@ -186,7 +186,8 @@ function uceMrServiceTick(){
                     return uceLiveReceiverOwner(ownerId,anchor)&&
                         registry.inspectHost({ownerId,anchor}).ok;
                 const e=endpoints.get(ref.ownerId);
-                return !!e&&uceLiveHopperOwner(e);
+                return !!e&&(typeof e.verify==='function'
+                    ? e.verify():uceLiveHopperOwner(e));
             },
             durableOwnershipWitness:registry.durableOwnershipWitness
         });
@@ -208,10 +209,27 @@ function uceMrServiceTick(){
             }
         }
         const output=receiverOutputHopper(receiver);
-        const outputNative=output && !output.locked ?
+        let outputNative=output && !output.locked ?
           {ownerId:hopperOwner(output.block,'output'),
            container:output.container,blockVerified:true,locked:false}:
           undefined;
+        // The original output Hopper always wins, even if powered/locked.
+        // Without one, a single revalidated Transporter graph may select
+        // the Filter -> Auto -> Wildcard native destination.
+        if(!output&&!blockIsRedstonePowered(rb)){
+            const custody=registry.inspectCustody({ownerId,anchor});
+            if(custody.ok&&custody.slots.length){
+                const native=host.container.getItem(custody.slots[0]);
+                const route=uceChoosePipeDestination(receiver,native);
+                if(route){
+                    endpoints.set(route.ownerId,{verify:()=>
+                        ucePipeDestinationStillValid(receiver,native,route)});
+                    outputNative={ownerId:route.ownerId,
+                        container:route.dest.container,
+                        blockVerified:true,locked:false};
+                }
+            }
+        }
         // MR-first, independent of ordinary admission. A powered Receiver
         // blocks output only; Collector ingress remains eligible.
         const direction=outputNative&&!blockIsRedstonePowered(rb)&&
