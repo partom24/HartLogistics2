@@ -293,3 +293,12 @@ test('a loaded downward bend can traverse lower Y without changing source owners
   assert.ok(f.network());
   assert.equal(f.choose(COBBLE).entry,f.filter);
 });
+
+test('one physical Transporter input cannot serve two disconnected pipe networks',()=>{
+  const f=fixture();
+  f.put('minecraft:barrel',1,70,4,f.inventories[0]);
+  assert.ok(f.network());
+  f.put('hartlogistics:transporter',0,70,4);
+  assert.equal(f.network(),undefined);
+  assert.equal(f.choose(COBBLE),undefined);
+});
