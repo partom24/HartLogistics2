@@ -121,6 +121,11 @@ jobs:
           node --check candidates/transport/q5_world_ordinary_preview.mjs
           node --check tests/test_q5_world_ordinary_preview.mjs
           node --test tests/test_q5_world_ordinary_preview.mjs
+      - name: UCE shared Receiver and Bulk account cold-Q4 ingestion and conservation (source only)
+        run: |
+          node --check candidates/transport/unified_ordinary_accounts.mjs
+          node --check tests/test_unified_ordinary_accounts.mjs
+          node --test tests/test_unified_ordinary_accounts.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
