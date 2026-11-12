@@ -8,12 +8,13 @@
  * double-chest inventory aliases. Every physical destination is reselected
  * immediately before a native writer changes custody.
  */
-function ucePipeSameChunk(root,block) {
-    if(!root||!block||root.dimension.id!==block.dimension.id)
-        return false;
-    const a=root.location,b=block.location;
-    return Math.floor(a.x/16)===Math.floor(b.x/16)&&
-        Math.floor(a.z/16)===Math.floor(b.z/16);
+// Traversal is allowed across LOADED chunks in one dimension; an
+// unloaded frontier remains a graph-wide HOLD. This UCE reader does not
+// enlarge PG26's unchanged legacy single-chunk Transporter implementation.
+const UCE_MAX_LOADED_PIPES=128;
+function ucePipeSameDimension(root,block) {
+    return !!root&&!!block&&
+        root.dimension.id===block.dimension.id;
 }
 function ucePipeRouteNetwork(receiver) {
     try{
@@ -33,11 +34,10 @@ function ucePipeRouteNetwork(receiver) {
             const pipe=pending.pop();
             const at=pg26PositionKey(pipe.location);
             if(seen.has(at))continue;
-            if(!ucePipeSameChunk(root,pipe)||
-               pipe.location.y<root.location.y ||
+            if(!ucePipeSameDimension(root,pipe)||
                pipe.typeId!==PG26_PIPE_ID||
                blockIsRedstonePowered(pipe) ||
-               seen.size>=PG26_MAX_PIPES)return undefined;
+               seen.size>=UCE_MAX_LOADED_PIPES)return undefined;
             seen.set(at,pipe);
             for(const face of PG26_FACES) {
                 const next=pg26Neighbor(pipe,face);
@@ -51,7 +51,7 @@ function ucePipeRouteNetwork(receiver) {
                     if(pg26PositionKey(p)!==rootKey||
                        next.dimension.id!==receiver.d)return undefined;
                 } else if(type===SORTER_ID){
-                    if(face.name!=='down'||!ucePipeSameChunk(root,next))
+                    if(face.name!=='down'||!ucePipeSameDimension(root,next))
                         return undefined;
                     // A powered Sorter pauses only that endpoint. Other
                     // Sorters on the same verified pipe must keep routing.
@@ -62,7 +62,7 @@ function ucePipeRouteNetwork(receiver) {
                        entry.nativeQuarantine)return undefined;
                     endpoints.set(pg26PositionKey(p),entry);
                 } else if(type==='hartlogistics:bulk_storage'){
-                    if(!ucePipeSameChunk(root,next))return undefined;
+                    if(!ucePipeSameDimension(root,next))return undefined;
                     banks.set(pg26PositionKey(p),next);
                 } else if(type==='minecraft:chest'||
                           type==='minecraft:barrel'){
@@ -70,7 +70,7 @@ function ucePipeRouteNetwork(receiver) {
                     // or above its input level is a SOURCE, never an output.
                     // Destination containers are exclusively behind Sorters.
                     if(p.y<root.location.y||
-                       !ucePipeSameChunk(root,next))return undefined;
+                       !ucePipeSameDimension(root,next))return undefined;
                     const source=uceReadOnlyPipeInput(next,root);
                     if(!source)return undefined;
                     inputs.set(pg26PositionKey(p),source);
@@ -114,7 +114,7 @@ function ucePipeRouteNetwork(receiver) {
 function uceReadOnlyPipeInput(block,root){
     try{
         if(!block||!['minecraft:chest','minecraft:barrel']
-            .includes(block.typeId)||!ucePipeSameChunk(root,block)||
+            .includes(block.typeId)||!ucePipeSameDimension(root,block)||
            block.location.y<root.location.y)return undefined;
         // A double chest may expose the same mutable 54-slot inventory
         // through two block wrappers. Until native alias identity is
@@ -149,7 +149,7 @@ function uceReadOnlySorterDestination(entry,root) {
         const at=b.location;
         const dest=b.dimension.getBlock({
             x:at.x+face.x,y:at.y+face.y,z:at.z+face.z});
-        if(!dest||!ucePipeSameChunk(root,dest) ||
+        if(!dest||!ucePipeSameDimension(root,dest) ||
            !['minecraft:chest','minecraft:barrel'].includes(dest.typeId))
             return undefined;
         if(dest.typeId==='minecraft:chest'){
