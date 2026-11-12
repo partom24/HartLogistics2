@@ -188,6 +188,10 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_uce_lab_deploy.py' -v
           python candidates/uce/lab_deploy.py
+      - name: UCE PG35 guarded new LAB world switch synthetic safety and property backup
+        run: |
+          python -m py_compile candidates/uce/lab_world_switch.py
+          python -m unittest discover -s tests -p 'test_uce_empty_world_switch.py' -v
       - name: UCE explicit zero-Q4 new LAB world activation via existing cold authority
         run: |
           node --check candidates/transport/unified_new_world_activation.mjs
@@ -708,6 +712,8 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: UCE PG35 synthetic empty-world stage, pack binding and restore on Windows
+        run: python -m unittest discover -s tests -p 'test_uce_empty_world_switch.py' -v
       - name: UCE 1.5.16 synthetic stopped-LAB two-pack install, rollback and fault injection
         run: python -m unittest discover -s tests -p 'test_uce_lab_deploy_synthetic.py' -v
       - name: UCE LAB installer synthetic source/hash refusal on Windows
