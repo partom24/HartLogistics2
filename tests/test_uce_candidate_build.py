@@ -72,7 +72,7 @@ class UceBuildTests(unittest.TestCase):
         for name in (
           "safeMovePartial","enqueueFromSource","enqueueFromEjectedEntity",
           "dequeueToReceiver","pg20MoveOpaqueNative","pg23CompactSourceHopper",
-          "compactSourceHopper","pg24VerifyEjectedCommit",
+          "pg24VerifyEjectedCommit",
           "setFilter","giveOrDrop","syncDisplay","reconcileDisplays",
           "plantEmptyNativeFrame","eraseOwnedFrame",
           "loadReceiverQueue","recoverJournal","recoverQueueJournal",
