@@ -22,7 +22,8 @@ function ucePipeRouteNetwork(receiver) {
         const root=receiverAt(receiver);
         if(!root||blockIsRedstonePowered(root))return undefined;
         const rootKey=pg26PositionKey(root.location);
-        const pending=[],seen=new Map(),endpoints=new Map();
+        const pending=[],seen=new Map(),endpoints=new Map(),
+            banks=new Map();
         for(const face of PG26_FACES) {
             const b=pg26Neighbor(root,face);
             if(!b)return undefined;
@@ -59,22 +60,37 @@ function ucePipeRouteNetwork(receiver) {
                     if(!entry||!live||live.typeId!==SORTER_ID||
                        entry.nativeQuarantine)return undefined;
                     endpoints.set(pg26PositionKey(p),entry);
+                } else if(type==='hartlogistics:bulk_storage'){
+                    if(!ucePipeSameChunk(root,next))return undefined;
+                    banks.set(pg26PositionKey(p),next);
                 } else if(type===COLLECTOR_ID ||
-                          type==='hartlogistics:bulk_storage' ||
                           next.getComponent('minecraft:inventory')?.container){
-                    // No silent ingress through an unrelated inventory
-                    // touching a pipe, including a not-yet-wired Bulk bank.
+                    // No silent ingress from a foreign inventory touching
+                    // an unverified pipe graph.
                     return undefined;
                 }
             }
         }
-        if(!endpoints.size)return undefined;
+        if(!endpoints.size&&!banks.size)return undefined;
+        // A Bulk block touching TWO disconnected pipe graphs would create
+        // ambiguous bank ownership. Only one connected loaded component
+        // can authorize its registration.
+        for(const bank of banks.values()){
+            for(const face of PG26_FACES){
+                const neighbor=pg26Neighbor(bank,face);
+                if(!neighbor)return undefined;
+                if(neighbor.typeId===PG26_PIPE_ID &&
+                   !seen.has(pg26PositionKey(neighbor.location)))
+                    return undefined;
+            }
+        }
         const sortedPipes=[...seen.keys()].sort();
         const sortedOutputs=[...endpoints.keys()].sort();
         return {receiverId:receiver.id,
             fingerprint:receiver.id+'|'+sortedPipes.join(';')+
               '->'+sortedOutputs.join(';'),
-            entries:[...endpoints.values()]};
+            entries:[...endpoints.values()],
+            banks:[...banks.values()]};
     }catch(_){return undefined;}
 }
 function uceReadOnlySorterDestination(entry,root) {
