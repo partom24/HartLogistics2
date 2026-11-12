@@ -42,7 +42,8 @@ def historical(path: str) -> str:
         raise lab.UnsafeLab("PG36 unexpected historic source path")
     result=subprocess.run(
         ["git","-C",str(ROOT),"show",PG35_PIN+":"+path],
-        check=True,text=True,capture_output=True)
+        check=True,text=True,encoding="utf-8",errors="strict",
+        capture_output=True)
     return result.stdout
 
 def blob_identity(revision: str, path: str) -> str:
@@ -131,8 +132,15 @@ def make_plan(root: Path, generated: Path, prior: Path, desired, earlier,
             pg08.version_in_registry(record["old_bytes"],pack_uuid)!=uce_deploy.NEW_VERSION):
             raise lab.UnsafeLab("PG36 wrong LAB pack/world/registration")
         expected=desired[kind] if rollback_tag else earlier[kind]
-        if lab.hashes(record["target"])!=expected:
-            raise lab.UnsafeLab("PG36 installed UCE hash mismatch: "+kind)
+        actual=lab.hashes(record["target"])
+        if actual!=expected:
+            # Read-only, privacy-safe diagnostics: relative filenames only,
+            # not item contents or world data. Never weaken the hash refusal.
+            differing=sorted(k for k in (actual.keys()|expected.keys())
+                             if actual.get(k)!=expected.get(k))
+            raise lab.UnsafeLab("PG36 installed UCE hash mismatch: "+kind+
+                "; differing relative files: "+repr(differing[:12])+
+                (" (+more)" if len(differing)>12 else ""))
         dest=prior/kind if rollback_tag else generated/kind
         if rollback_tag:
             backed=backup/f"pack-{i}"
