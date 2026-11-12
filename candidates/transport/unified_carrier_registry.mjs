@@ -296,8 +296,9 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     if(typeof r.raw!=='string')return hold('native_move_journal_missing');
     let j;
     try{j=JSON.parse(r.raw);}catch(_){return hold('native_move_journal_invalid');}
-    if(!j||!['MOVED_INSPECTED','CONSUMED_INSPECTED'].includes(j.phase)||
+    if(!j||!['MOVED_INSPECTED','CONSUMED_INSPECTED','MATERIALIZED_INSPECTED'].includes(j.phase)||
        (j.phase==='CONSUMED_INSPECTED' && j.kind!=='CONSUME_ORDINARY_ESCROW')||
+       (j.phase==='MATERIALIZED_INSPECTED' && j.kind!=='MATERIALIZE_ORDINARY_ESCROW')||
        !id(j.operationId)||
        j.worldId!==worldId||j.epoch!==epoch||!j.from||!j.to||
        !visibleWitness(j.witness))
@@ -360,6 +361,10 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
        (admitting || !releasing ||
         j.to.ownerId.slice(0,7)!=='ledger:'))
       return hold('consumed_escrow_claim_direction_invalid');
+    if(j.phase==='MATERIALIZED_INSPECTED' &&
+       (!admitting || releasing ||
+        j.from.ownerId.slice(0,7)!=='ledger:'))
+      return hold('materialized_escrow_claim_direction_invalid');
     const slot=admitting?j.to.slot:j.from.slot;
     if(!Number.isSafeInteger(slot)||slot<0||slot>=UCE_CARRIER_SLOTS)
       return hold('native_ticket_slot_out_of_range');
