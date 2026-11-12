@@ -47,7 +47,9 @@ function inspectAccount(account) {
       account.capacity !== (account.kind === 'receiver'
         ? UCE_RECEIVER_CAPACITY : UCE_BULK_MEMBER_CAPACITY) ||
       !nat(account.total) || account.total > account.capacity ||
-      !Array.isArray(account.buckets)) return denied('invalid_account');
+      !Array.isArray(account.buckets) || !account.lifetime ||
+      !nat(account.lifetime.received) || !nat(account.lifetime.delivered))
+    return denied('invalid_account');
   let total=0, previous=null;
   for (const b of account.buckets) {
     if (!b || !keyCheck(b.key) || !pos(b.count) ||
@@ -165,7 +167,7 @@ export function registerUnifiedEmptyAccount(snapshot,{kind,ownerId,
   next.accounts.push({
     id,kind,ownerId,
     capacity:kind==='receiver'?UCE_RECEIVER_CAPACITY:UCE_BULK_MEMBER_CAPACITY,
-    total:0,buckets:[]
+    total:0,buckets:[],lifetime:{received:0,delivered:0}
   });
   next.accounts.sort((a,b)=>order(a.id,b.id));
   next.revision++;
@@ -255,6 +257,8 @@ export function stageUnifiedOrdinaryAccounts({
     accounts.push({
       id:'receiver:'+receiver.id,kind:'receiver',
       ownerId:receiver.id,capacity:UCE_RECEIVER_CAPACITY,total:accountTotal,
+      lifetime:{received:source.metadata.received,
+                delivered:source.metadata.delivered},
       buckets:[...counts].sort(([a],[b])=>order(a,b))
         .map(([key,count])=>({key,count})),
       legacyQ4:{queueKey:receiver.queueKey,
@@ -273,7 +277,8 @@ export function stageUnifiedOrdinaryAccounts({
 
   for (const ownerId of bulkMemberIds) {
     accounts.push({id:'bulk:'+ownerId,kind:'bulk',ownerId,
-      capacity:UCE_BULK_MEMBER_CAPACITY,total:0,buckets:[]});
+      capacity:UCE_BULK_MEMBER_CAPACITY,total:0,buckets:[],
+      lifetime:{received:0,delivered:0}});
   }
   accounts.sort((a,b)=>order(a.id,b.id));
   sources.sort((a,b)=>order(a.id,b.id));
@@ -330,6 +335,12 @@ export function transitionUnifiedOrdinaryAccounts(snapshot,{
   b.buckets.sort((x,y)=>order(x.key,y.key));
   a.total-=count;
   b.total+=count;
+  // Original 1.4.1 lifetime numbers are historical provenance. UCE live
+  // counters evolve independently without changing the frozen q4 metadata.
+  if(a.kind==='receiver')a.lifetime.delivered+=count;
+  if(b.kind==='receiver')b.lifetime.received+=count;
+  if(!nat(a.lifetime.delivered)||!nat(b.lifetime.received))
+    return denied('lifetime_counter_overflow');
   next.revision++;
   const check=inspectUnifiedOrdinaryLedger(next);
   if (!check.ok || check.total!==snapshot.total)
@@ -382,14 +393,18 @@ export function transitionUnifiedOrdinaryBoundary(snapshot,{
     else account.buckets.push({key,count});
     account.total+=count;
     next.total+=count;
+    if(account.kind==='receiver')account.lifetime.received+=count;
   }else{
     existing.count-=count;
     if(existing.count===0)
       account.buckets=account.buckets.filter(x=>x.key!==key);
     account.total-=count;
     next.total-=count;
+    if(account.kind==='receiver')account.lifetime.delivered+=count;
   }
   account.buckets.sort((a,b)=>order(a.key,b.key));
+  if(!nat(account.lifetime.received)||!nat(account.lifetime.delivered))
+    return denied('lifetime_counter_overflow');
   next.revision++;
   const checked=inspectUnifiedOrdinaryLedger(next);
   if(!checked.ok)return denied('boundary_ledger_conservation_failure');
