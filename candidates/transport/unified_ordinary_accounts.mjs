@@ -117,7 +117,7 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
     const account=snapshot.accounts.find(a=>a.id==='receiver:'+source.id);
     if (!account || account.legacyQ4.queueKey!==source.queueKey ||
         account.legacyQ4.fingerprint!==source.fingerprint ||
-        account.total!==source.itemCount)
+        (snapshot.revision===0 && account.total!==source.itemCount))
       return denied('source_account_mismatch');
   }
   return {ok:true,status:'LEDGER_CONSISTENT_SOURCE_ONLY',
