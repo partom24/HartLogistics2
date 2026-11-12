@@ -7,7 +7,7 @@ import {
   UCE_LEDGER_SCHEMA,UCE_RECEIVER_CAPACITY,UCE_BULK_MEMBER_CAPACITY,
   stageUnifiedOrdinaryAccounts,inspectUnifiedOrdinaryLedger,
   createEmptyUnifiedOrdinaryLedger,registerUnifiedEmptyAccount,
-  transitionUnifiedOrdinaryAccounts
+  transitionUnifiedOrdinaryAccounts,transitionUnifiedOrdinaryBoundary
 } from '../candidates/transport/unified_ordinary_accounts.mjs';
 
 const item=(typeId='minecraft:cobblestone',extra={})=>({
@@ -295,4 +295,45 @@ test('new accounts coexist with imported Q4 accounts without changing imported s
   const tampered=structuredClone(a.next);
   tampered.accounts.find(x=>x.id==='receiver:minecraft:overworld|0,70,-40').legacyQ4=undefined;
   hold(inspectUnifiedOrdinaryLedger(tampered),'source_provenance_count_mismatch');
+});
+
+
+test('boundary deposit and withdraw drafts preserve conservation across the physical interface',()=>{
+  const s=stage(fixture()).snapshot;
+  const key=q5IdentityKey(item());
+  const deposit=transitionUnifiedOrdinaryBoundary(s,{
+    operationId:'ordinary-physical-in',accountId:'receiver:minecraft:overworld|0,70,-40',
+    key,count:64,direction:'deposit',
+    expectedRevision:s.revision,expectedEpoch:s.epoch
+  });
+  assert.equal(deposit.ok,true,deposit.reason);
+  assert.equal(deposit.totalAfter,deposit.totalBefore+64);
+  assert.equal(deposit.canWriteWorld,false);
+  assert.equal(deposit.externalCustodyProofRequired,true);
+  assert.equal(inspectUnifiedOrdinaryLedger(deposit.next).ok,true);
+  const withdraw=transitionUnifiedOrdinaryBoundary(deposit.next,{
+    operationId:'ordinary-physical-out',accountId:'receiver:minecraft:overworld|0,70,-40',
+    key,count:36,direction:'withdraw',
+    expectedRevision:deposit.next.revision,expectedEpoch:s.epoch
+  });
+  assert.equal(withdraw.ok,true,withdraw.reason);
+  assert.equal(withdraw.next.total,s.total+28);
+  assert.equal(inspectUnifiedOrdinaryLedger(withdraw.next).ok,true);
+  assert.equal(s.total,36);
+});
+test('boundary refuses unauthenticated identity, stale epoch and over-capacity',()=>{
+  const s=stage(fixture()).snapshot,key=q5IdentityKey(item());
+  const base={operationId:'b-1',accountId:'receiver:minecraft:overworld|0,70,-40',
+    key,count:1,direction:'deposit',
+    expectedRevision:s.revision,expectedEpoch:s.epoch};
+  hold(transitionUnifiedOrdinaryBoundary(s,{...base,key:'minecraft:stone'}),
+    'invalid_or_stale_boundary_request');
+  hold(transitionUnifiedOrdinaryBoundary(s,{...base,expectedEpoch:s.epoch+1}),
+    'invalid_or_stale_boundary_request');
+  hold(transitionUnifiedOrdinaryBoundary(s,{...base,count:250000}),
+    'boundary_account_full');
+  hold(transitionUnifiedOrdinaryBoundary(s,{...base,direction:'withdraw',
+    count:100}),'boundary_insufficient_balance');
+  hold(transitionUnifiedOrdinaryBoundary(s,{...base,direction:'withdraw',
+    accountId:'bulk:bank-b1'}),'boundary_insufficient_balance');
 });
