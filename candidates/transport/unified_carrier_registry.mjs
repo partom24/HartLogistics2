@@ -94,7 +94,9 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
      typeof externalFence!=='function'||
      typeof ownerVerifier!=='function')
     return hold('invalid_carrier_registry_binding');
-  const fence=()=>verifyUnifiedMutationFence(world,worldId,epoch,externalFence);
+  const fence=(operationId=null)=>verifyUnifiedMutationFence(
+    world,worldId,epoch,externalFence,
+    {allowedNativeOperationId:operationId});
   let quarantined=false;
   function inspectHost({ownerId,anchor}={}){
     const key=hostKey(ownerId);
@@ -341,13 +343,13 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
    */
   function stageMovedTicket({ownerId,anchor}={}){
     if(quarantined)return hold('carrier_session_quarantined');
-    const gate=fence();
-    if(!gate.ok)return hold(gate.reason);
     const host=inspectHost({ownerId,anchor});
     if(!host.ok)return host;
     const journal=currentJournal();
     if(!journal.ok)return journal;
     const j=journal.record;
+    const gate=fence(j.operationId);
+    if(!gate.ok)return hold(gate.reason);
     const admitting=j.to.ownerId===ownerId;
     const releasing=j.from.ownerId===ownerId;
     if(admitting===releasing)return hold('native_move_not_exclusive_to_host');
@@ -403,7 +405,7 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
       return hold('native_ticket_changed_prewrite');
     if(!tickets.empty&&ticketJson(previous)!==r.raw)
       return hold('native_ticket_changed_prewrite');
-    if(!fence().ok)return hold('native_ticket_fence_changed_prewrite');
+    if(!fence(j.operationId).ok)return hold('native_ticket_fence_changed_prewrite');
     try{world.setDynamicProperty(key,raw);}
     catch(_){
       quarantined=true;
