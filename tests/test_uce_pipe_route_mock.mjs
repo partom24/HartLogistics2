@@ -185,7 +185,7 @@ test('multiple chest/barrel inputs are deduplicated and sorted deterministically
   const graph=f.network();
   assert.ok(graph);
   assert.equal(graph.inputs.length,2);
-  assert.deepEqual(graph.inputs.map(x=>f.k(x.block.location)),
+  assert.deepEqual(Array.from(graph.inputs,x=>f.k(x.block.location)),
     ['1,70,4','3,71,4']);
   assert.equal(graph.inputs[0].block,source1);
   assert.equal(graph.inputs[1].block,source2);
