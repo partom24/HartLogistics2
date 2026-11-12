@@ -1,0 +1,239 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {q5IdentityKey} from '../candidates/transport/q5_bucket_core.mjs';
+import {readOnlyQ4Snapshot} from '../candidates/transport/q5_q4_readonly_snapshot.mjs';
+import {previewQ5WorldQ4Census} from '../candidates/transport/q5_world_receiver_census.mjs';
+import {
+  UCE_LEDGER_SCHEMA,UCE_RECEIVER_CAPACITY,UCE_BULK_MEMBER_CAPACITY,
+  stageUnifiedOrdinaryAccounts,inspectUnifiedOrdinaryLedger,
+  transitionUnifiedOrdinaryAccounts
+} from '../candidates/transport/unified_ordinary_accounts.mjs';
+
+const item=(typeId='minecraft:cobblestone',extra={})=>({
+  typeId,lore:[],ench:[],canDestroy:[],canPlaceOn:[],...extra
+});
+const proof=()=>({
+  classification:'ordinary',losslessIdentity:true,metadataFree:true,
+  runtimeStackable:true,runtimeMaxStack:64,verifiedFreshRoundTrip:true
+});
+function fixture(groups=[
+  [{definition:item(),amount:12},{definition:item('minecraft:stone'),amount:8}],
+  [{definition:item('minecraft:iron_ingot'),amount:16}]
+], options={}) {
+  const records=new Map(),receivers=[],sourceSnapshots=[],proofs=new Map();
+  let total=0;
+  for(let i=0;i<groups.length;i++){
+    const queueKey='q'+(i+1),id='minecraft:overworld|'+i+',70,-40';
+    const receiver={id,queueKey},rows=groups[i];
+    receivers.push(receiver);
+    const count=rows.reduce((n,x)=>n+x.amount,0);
+    total+=count;
+    const next=rows.length+1;
+    records.set('hartsorter:q4m_'+queueKey,JSON.stringify({
+      v:4,h:rows.length?1:0,t:rows.length,n:next,
+      q:count,r:count+7,d:7
+    }));
+    if(rows.length){
+      records.set('hartsorter:q4p_'+queueKey+'_0',JSON.stringify([
+        0,rows.map((x,j)=>['d'+j,x.amount])
+      ]));
+    }
+    rows.forEach((x,j)=>{
+      records.set('hartsorter:q4d_'+queueKey+'_d'+j,
+        JSON.stringify(x.definition));
+      proofs.set(q5IdentityKey(x.definition),proof());
+    });
+  }
+  const world={
+    getDynamicPropertyIds:()=>[...records.keys()],
+    getDynamicProperty:key=>records.get(key)
+  };
+  const worldId='minecraft:overworld:immutable-141-zip';
+  const census=previewQ5WorldQ4Census({
+    world,worldId,receivers,expectedReceiverCount:receivers.length,
+    expectedQueuedTotal:total,registrySnapshotStable:true
+  });
+  assert.equal(census.ok,true,census.reason);
+  for(const receiver of receivers){
+    const snap=readOnlyQ4Snapshot({receiver,records,queueJournalClear:true,
+      physicalJournalClear:true});
+    assert.equal(snap.ok,true,snap.reason);
+    sourceSnapshots.push(snap);
+  }
+  return {world,records,census,sourceSnapshots,proofs,
+    bulkMemberIds:options.bulkMemberIds??['bank-b1'],epoch:8};
+}
+const stage=(f,changes={})=>stageUnifiedOrdinaryAccounts({
+  worldCensus:f.census,sourceSnapshots:f.sourceSnapshots,
+  ordinaryProofs:f.proofs,bulkMemberIds:f.bulkMemberIds,epoch:f.epoch,
+  ...changes
+});
+const hold=(r,reason)=>{
+  assert.equal(r.ok,false,JSON.stringify(r));
+  assert.equal(r.status,'HOLD');
+  if(reason)assert.equal(r.reason,reason);
+  for(const k of ['canWriteWorld','canMoveItems','canCommitMigration','canClearQ4'])
+    assert.equal(r[k],false,k);
+};
+function move(snapshot,from,to,key,count,op='tx-1',extra={}){
+  return transitionUnifiedOrdinaryAccounts(snapshot,{
+    operationId:op,from,to,key,count,
+    expectedRevision:snapshot.revision,expectedEpoch:snapshot.epoch,
+    ...extra
+  });
+}
+test('real Q4 structure -> shared Receiver/Bulk account draft; exact counters and bytes untouched',()=>{
+  const f=fixture(),before=JSON.stringify([...f.records]),r=stage(f);
+  assert.equal(r.ok,true);
+  assert.equal(r.status,'COLD_Q4_ACCOUNT_DRAFT_ONLY');
+  assert.equal(r.snapshot.schema,UCE_LEDGER_SCHEMA);
+  assert.equal(r.snapshot.total,36);
+  assert.equal(r.matchedReceivers,2);
+  assert.deepEqual(r.snapshot.accounts.map(a=>a.id),[
+    'bulk:bank-b1','receiver:minecraft:overworld|0,70,-40',
+    'receiver:minecraft:overworld|1,70,-40'
+  ]);
+  assert.equal(r.snapshot.accounts[0].capacity,UCE_BULK_MEMBER_CAPACITY);
+  assert.equal(r.snapshot.accounts[1].capacity,UCE_RECEIVER_CAPACITY);
+  assert.equal(r.snapshot.accounts[1].legacyQ4.received,27);
+  assert.equal(r.snapshot.accounts[1].legacyQ4.delivered,7);
+  assert.equal(inspectUnifiedOrdinaryLedger(r.snapshot).total,36);
+  assert.equal(r.hasAuthenticatedFreeze,false);
+  assert.equal(r.hasAtomicBedrockSaveProof,false);
+  assert.equal(r.canCommitMigration,false);
+  assert.equal(JSON.stringify([...f.records]),before);
+});
+test('one logical Receiver -> Bulk revision preserves both balances without any external write',()=>{
+  const f=fixture(),s=stage(f).snapshot;
+  const key=q5IdentityKey(item());
+  const r=move(s,'receiver:minecraft:overworld|0,70,-40','bulk:bank-b1',key,9);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.receipt.beforeRevision,0);
+  assert.equal(r.receipt.afterRevision,1);
+  assert.equal(r.next.total,36);
+  assert.equal(r.next.accounts.find(a=>a.kind==='bulk').total,9);
+  const receiver=r.next.accounts.find(a=>a.ownerId==='minecraft:overworld|0,70,-40');
+  assert.equal(receiver.total,11);
+  assert.equal(receiver.legacyQ4.received,27);
+  assert.equal(inspectUnifiedOrdinaryLedger(r.next).ok,true);
+  assert.equal(s.revision,0);
+  assert.equal(s.accounts.find(a=>a.kind==='bulk').total,0);
+  assert.equal(r.hasDurableReceipt,false);
+  assert.equal(r.canWriteWorld,false);
+});
+test('reused expected revision cannot debit again',()=>{
+  const s=stage(fixture()).snapshot;
+  const key=q5IdentityKey(item());
+  const args={operationId:'tx-1',
+    from:'receiver:minecraft:overworld|0,70,-40',
+    to:'bulk:bank-b1',key,count:4,expectedRevision:0,expectedEpoch:8};
+  const a=transitionUnifiedOrdinaryAccounts(s,args);
+  assert.equal(a.ok,true);
+  hold(transitionUnifiedOrdinaryAccounts(a.next,args),
+    'invalid_or_stale_transfer_request');
+});
+test('bulk->receiver and receiver->receiver share the same revision and item identity',()=>{
+  const s=stage(fixture()).snapshot,key=q5IdentityKey(item());
+  const a=move(s,'receiver:minecraft:overworld|0,70,-40','bulk:bank-b1',key,8);
+  const b=move(a.next,'bulk:bank-b1','receiver:minecraft:overworld|1,70,-40',key,6,'tx-2');
+  assert.equal(b.ok,true,b.reason);
+  assert.equal(b.next.revision,2);
+  assert.equal(b.next.total,36);
+  assert.equal(b.next.accounts.find(x=>x.id==='bulk:bank-b1').total,2);
+  const c=move(b.next,'receiver:minecraft:overworld|1,70,-40',
+    'receiver:minecraft:overworld|0,70,-40',key,4,'tx-3');
+  assert.equal(c.ok,true,c.reason);
+  assert.equal(c.next.total,36);
+  assert.equal(inspectUnifiedOrdinaryLedger(c.next).ok,true);
+});
+test('strict all-or-HOLD for metadata-rich or nonstackable source',()=>{
+  for(const typeId of ['minecraft:diamond_sword','minecraft:enchanted_book',
+                       'minecraft:filled_map','minecraft:shulker_box']){
+    const f=fixture([[{definition:item(typeId),amount:1}]]);
+    hold(stage(f),'q4_not_ordinary:native_or_opaque_item_type');
+  }
+});
+test('metadata-rich ordinary type does not become a count bucket',()=>{
+  const f=fixture([[{definition:item('minecraft:stone',{nameTag:'unique'}),amount:5}]]);
+  hold(stage(f),'q4_not_ordinary:serialized_item_metadata_present');
+});
+test('missing runtime identity certification fails closed',()=>{
+  const f=fixture();f.proofs.delete(q5IdentityKey(item('minecraft:stone')));
+  hold(stage(f),'uncertified_ordinary_identity');
+});
+test('extra unverified identity refuses staging',()=>{
+  const f=fixture();f.proofs.set(q5IdentityKey(item('minecraft:sand')),proof());
+  hold(stage(f),'world_count_or_certification_mismatch');
+});
+test('modified Q4 fingerprint and missing Receiver refuse all-or-HOLD',()=>{
+  const f=fixture(),bad=f.sourceSnapshots.map(s=>({...s}));
+  bad[0].snapshotFingerprint='fnv32:aaaaaaaa';
+  hold(stage(f,{sourceSnapshots:bad}),'q4_census_snapshot_mismatch');
+  hold(stage(f,{sourceSnapshots:bad.slice(0,1)}),'invalid_cold_import_inputs');
+});
+test('tampered counts, duplicate buckets and reordered accounts cannot pass verification',()=>{
+  const s=stage(fixture()).snapshot;
+  const a=structuredClone(s);a.total++;
+  hold(inspectUnifiedOrdinaryLedger(a),'ledger_conservation_mismatch');
+  const b=structuredClone(s);
+  b.accounts[1].buckets.push({...b.accounts[1].buckets[0]});
+  hold(inspectUnifiedOrdinaryLedger(b),'invalid_or_unsorted_ordinary_bucket');
+  const c=structuredClone(s);c.accounts.reverse();
+  hold(inspectUnifiedOrdinaryLedger(c),'duplicate_or_unordered_account');
+});
+test('unknown account, insufficient balance and same-owner movement refuse mutation',()=>{
+  const s=stage(fixture()).snapshot,key=q5IdentityKey(item());
+  hold(move(s,'unknown','bulk:bank-b1',key,1),'unknown_account');
+  hold(move(s,'receiver:minecraft:overworld|0,70,-40',
+    'bulk:bank-b1',key,13),'insufficient_source_balance');
+  hold(move(s,'bulk:bank-b1','bulk:bank-b1',key,1),'invalid_or_stale_transfer_request');
+});
+test('receiver and Bulk capacities enforced without partial debit',()=>{
+  const f=fixture([[{definition:item(),amount:250000}]],{
+    bulkMemberIds:['bank-b1']
+  });
+  const s=stage(f).snapshot;
+  assert.equal(s.accounts.find(a=>a.kind==='receiver').total,250000);
+  const key=q5IdentityKey(item()),src='receiver:minecraft:overworld|0,70,-40';
+  const a=move(s,src,'bulk:bank-b1',key,200000);
+  assert.equal(a.ok,true,a.reason);
+  hold(move(a.next,src,'bulk:bank-b1',key,1,'tx-2'),'destination_full');
+  hold(move(a.next,'bulk:bank-b1',src,key,200001,'tx-3'),
+    'insufficient_source_balance');
+  const b=move(a.next,'bulk:bank-b1',src,key,100000,'tx-4');
+  assert.equal(b.ok,true,b.reason);
+  assert.equal(b.next.accounts.find(x=>x.id===src).total,150000);
+  assert.equal(b.next.total,250000);
+});
+test('zero/negative batch and incorrect epoch or revision refuse transition',()=>{
+  const s=stage(fixture()).snapshot,key=q5IdentityKey(item());
+  for(const count of [0,-1,1.5]){
+    hold(move(s,'receiver:minecraft:overworld|0,70,-40',
+      'bulk:bank-b1',key,count),'invalid_or_stale_transfer_request');
+  }
+  hold(move(s,'receiver:minecraft:overworld|0,70,-40',
+    'bulk:bank-b1',key,1,'tx-1',{expectedEpoch:9}),
+  'invalid_or_stale_transfer_request');
+});
+test('35 Receiver Q4 fixture builds deterministic ledger without loading a world',()=>{
+  const f=fixture(Array.from({length:35},(_,i)=>[
+    {definition:item(i%2?'minecraft:stone':'minecraft:cobblestone'),
+      amount:10000+i}
+  ]));
+  const r=stage(f);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.snapshot.accounts.length,36);
+  assert.equal(r.snapshot.total,35*10000+34*35/2);
+  assert.equal(r.matchedReceivers,35);
+  assert.equal(inspectUnifiedOrdinaryLedger(r.snapshot).ok,true);
+});
+test('empty Q4 Receiver remains a real account and retains its lifetime counters',()=>{
+  const f=fixture([[],[{definition:item(),amount:5}]]);
+  const r=stage(f);
+  assert.equal(r.ok,true,r.reason);
+  const a=r.snapshot.accounts.find(x=>x.id==='receiver:minecraft:overworld|0,70,-40');
+  assert.equal(a.total,0);
+  assert.deepEqual(a.buckets,[]);
+  assert.equal(a.legacyQ4.received,7);
+  assert.equal(a.legacyQ4.delivered,7);
+});
