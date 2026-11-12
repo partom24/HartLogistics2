@@ -360,7 +360,7 @@ function uceShowReceiverLinkedStatus(player,block){
         ownerId:id,anchor:{dimensionId:receiver.d,
             x:receiver.x,y:receiver.y,z:receiver.z}}):undefined;
     const mrText=claims?.ok?
-        claims.occupied+' / '+claims.occupied+claims.free+' native slots':
+        claims.occupied+' / '+(claims.occupied+claims.free)+' native slots':
         'native custody '+(claims?.reason||'not registered');
     player.sendMessage('§7[Receiver] §fOrdinary '+
         own.total+'/250000 | Bulk '+bulkTotal+'/'+totalCapacity+
