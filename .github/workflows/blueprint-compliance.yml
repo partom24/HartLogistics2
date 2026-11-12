@@ -126,6 +126,11 @@ jobs:
           node --check candidates/transport/unified_ordinary_accounts.mjs
           node --check tests/test_unified_ordinary_accounts.mjs
           node --test tests/test_unified_ordinary_accounts.mjs
+      - name: UCE one-property world shard writer, ambiguous-save quarantine and restart cuts
+        run: |
+          node --check candidates/transport/unified_world_shard_writer.mjs
+          node --check tests/test_unified_world_shard_writer.mjs
+          node --test tests/test_unified_world_shard_writer.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
