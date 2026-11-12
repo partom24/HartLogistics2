@@ -63,20 +63,20 @@ def compile_patch(source,bridge):
       "system.beforeEvents.startup.subscribe((event) => {\n"+
       "    uceRegisterBulkComponent(event.blockComponentRegistry);")
     source=once(source,
-      "    if (ev.block.typeId === COLLECTOR_ID) {\\n"+
+      "    if (ev.block.typeId === COLLECTOR_ID) {\n"+
       "        const e = registerCollector(ev.block);",
-      "    if (ev.block.typeId === COLLECTOR_ID) {\\n"+
-      "        if (uceLegacyWriterBlocked()) {\\n"+
-      "            uceSelectCollectorForLink(ev.player,ev.block); return;\\n"+
-      "        }\\n"+
+      "    if (ev.block.typeId === COLLECTOR_ID) {\n"+
+      "        if (uceLegacyWriterBlocked()) {\n"+
+      "            uceSelectCollectorForLink(ev.player,ev.block); return;\n"+
+      "        }\n"+
       "        const e = registerCollector(ev.block);")
     source=once(source,
-      "    if (ev.block.typeId === RECEIVER_ID) {\\n"+
+      "    if (ev.block.typeId === RECEIVER_ID) {\n"+
       "        registerReceiver(ev.block);",
-      "    if (ev.block.typeId === RECEIVER_ID) {\\n"+
-      "        if (uceLegacyWriterBlocked()) {\\n"+
-      "            ev.player?.sendMessage('§e[Receiver] New UCE Receiver requires registered sealed ownership; no Q4 writer activated.'); return;\\n"+
-      "        }\\n"+
+      "    if (ev.block.typeId === RECEIVER_ID) {\n"+
+      "        if (uceLegacyWriterBlocked()) {\n"+
+      "            ev.player?.sendMessage('§e[Receiver] New UCE Receiver requires registered sealed ownership; no Q4 writer activated.'); return;\n"+
+      "        }\n"+
       "        registerReceiver(ev.block);")
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
