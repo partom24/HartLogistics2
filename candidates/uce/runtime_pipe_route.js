@@ -183,7 +183,7 @@ function ucePipeAutoSeed(item,container) {
     }catch(_){}
     return false;
 }
-function uceChoosePipeDestination(receiver,item) {
+function uceChoosePipeDestination(receiver,item,onlyPreferred=false) {
     // The old Receiver output Hopper retains first claim to physical egress.
     // Bulk account discovery on the SAME graph may still occur, because
     // moving virtual balances is not a second physical output writer.
@@ -204,7 +204,7 @@ function uceChoosePipeDestination(receiver,item) {
         if(mode==='filter'&&matchesFilter(item,entry.f))priority=0;
         if(mode==='auto'&&ucePipeAutoSeed(item,dest.container))
             priority=1;
-        if(mode==='wildcard')priority=2;
+        if(mode==='wildcard'&&!onlyPreferred)priority=2;
         if(priority<0)continue;
         candidates.push({entry,mode,dest,slot:empty,priority});
     }
@@ -218,11 +218,12 @@ function uceChoosePipeDestination(receiver,item) {
     const routeId=graph.fingerprint+'#'+selected.entry.d+'|'+
         selected.entry.x+','+selected.entry.y+','+selected.entry.z+
         '#'+selected.mode+'#'+destId;
-    return {...selected,routeId,
+    return {...selected,routeId,onlyPreferred,
         ownerId:'uce-pipe-output|'+destId};
 }
 function ucePipeDestinationStillValid(receiver,item,admitted) {
-    const current=uceChoosePipeDestination(receiver,item);
+    const current=uceChoosePipeDestination(receiver,item,
+        admitted?.onlyPreferred===true);
     return !!current&&current.routeId===admitted.routeId &&
         current.slot===admitted.slot;
 }
