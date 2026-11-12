@@ -81,6 +81,17 @@ def compile_patch(source,bridge):
           "dequeueToReceiver","pg20MoveOpaqueNative","pg23CompactSourceHopper",
           "pg24VerifyEjectedCommit") else "return;"
         source=guard_function(source,name,ret)
+    # New Collector/Receiver registration and relinking are not allowed to
+    # mutate the old Q4 logistics registry behind the unified custody engine.
+    # Existing persisted links remain readable; a future UCE link service
+    # must provide a versioned writer and an explicit owner proof.
+    for name in ("registerCollector","registerReceiver",
+                 "markLogisticsAbsent","allocateQueueKey"):
+        source=guard_function(source,name)
+    source=guard_function(source,"selectCollector",
+      "uceShowCollectorLinkedStatus(player,block); return;")
+    source=guard_function(source,"useReceiver",
+      "uceShowReceiverLinkedStatus(player,block); return;")
     source=guard_function(source,"loadReceiverQueue",
       "throw new Error('UCE_LEGACY_QUEUE_LOAD_FENCED');")
     source=guard_function(source,"recoverJournal")
