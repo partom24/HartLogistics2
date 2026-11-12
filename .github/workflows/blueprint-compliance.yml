@@ -164,6 +164,10 @@ jobs:
         run: |
           node --check tests/test_uce_bulk_runtime_ownership.mjs
           node --test tests/test_uce_bulk_runtime_ownership.mjs
+      - name: UCE new Receiver sealed registration runtime hydration and links
+        run: |
+          node --check tests/test_uce_receiver_runtime_registration.mjs
+          node --test tests/test_uce_receiver_runtime_registration.mjs
       - name: UCE sealed Sorter noncustody configuration gate, legacy link freeze
         run: |
           node --check tests/test_uce_sorter_config_fence.mjs
