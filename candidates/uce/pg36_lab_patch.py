@@ -45,6 +45,17 @@ def historical(path: str) -> str:
         check=True,text=True,capture_output=True)
     return result.stdout
 
+def blob_identity(revision: str, path: str) -> str:
+    if revision not in ("HEAD", PG35_PIN):
+        raise lab.UnsafeLab("PG36 unexpected Git revision")
+    result=subprocess.run(
+        ["git","-C",str(ROOT),"rev-parse",revision+":"+path],
+        check=True,text=True,capture_output=True)
+    value=result.stdout.strip()
+    if not re.fullmatch(r"[0-9a-f]{40}",value):
+        raise lab.UnsafeLab("PG36 source blob identity unreadable")
+    return value
+
 def render_pack_pair(folder: Path):
     """Recreate prior and fixed exact candidates, without touching LAB."""
     old=folder/"pg33";current=folder/"fixed";prior=folder/"pg35"
@@ -55,7 +66,7 @@ def render_pack_pair(folder: Path):
     # an independent intervening change is a new delivery and needs review.
     for path in ("candidates/uce/prepare_candidate.py",
                  "candidates/uce/runtime_pipe_route.js"):
-        if (ROOT/path).read_text(encoding="utf-8")!=historical(path):
+        if blob_identity("HEAD",path)!=blob_identity(PG35_PIN,path):
             raise lab.UnsafeLab("PG36 base builder/route changed since PG35")
     shutil.copytree(current,prior)
     baseline=(old/"behavior_pack/scripts/main.js").read_text(encoding="utf-8")
