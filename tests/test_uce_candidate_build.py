@@ -121,6 +121,8 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('    uceMrServiceTick(authority);',s)
         self.assertIn('    uceOrdinaryServiceTick(authority);',s)
         self.assertIn("global custody HOLD: journal unreadable",s)
+        self.assertIn("if(uceUnifiedJournalHold())return;",s)
+        self.assertEqual(s.count("if(uceUnifiedJournalHold())return;"),2)
         self.assertIn("hartsorter:queue_journal_v1",s)
         self.assertIn('executeUnifiedOrdinaryDeposit(args)',s)
         self.assertIn('executeUnifiedOrdinaryWithdrawal(args)',s)

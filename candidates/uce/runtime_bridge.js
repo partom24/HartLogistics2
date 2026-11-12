@@ -289,10 +289,29 @@ function uceMrServiceTick(authority){
  * invokes this function; neither representation registers its own timer.
  */
 let uceOrdinaryCursor=0;
+function uceUnifiedJournalHold(){
+    try{
+        for(const key of [
+            'hartsorter:journal_v1',
+            'hartsorter:queue_journal_v1',
+            'hartlogistics:uce_native_intent_v1',
+            'hartlogistics:uce_boundary_intent_v1'
+        ]){
+            const value=world.getDynamicProperty(key);
+            if(value!==undefined&&value!==null&&value!==''){
+                uceBridgeLog('global custody HOLD: pending '+key);
+                return true;
+            }
+        }
+    }catch(_){
+        uceBridgeLog('global custody HOLD: journal unreadable');
+        return true;
+    }
+    return false;
+}
 function uceUnifiedServiceTick(){
-    // One scheduler and one global custody/recovery authority. Do not
-    // advance EITHER lane when ANY saved transaction might own an item.
-    // Fail closed on unknown journal data; no auto-replay or auto-clear.
+    // One cold authority and one coordinated transfer/recovery gate. No
+    // global saved transaction can coexist with a new physical custody move.
     const authority=uceAuthoritySnapshot();
     if(!authority||!ready){
         if(!authority)uceBridgeLog(
@@ -305,24 +324,11 @@ function uceUnifiedServiceTick(){
         uceBridgeLog('incomplete cold authority: '+cold.reason);
         return;
     }
-    try{
-        for(const key of [
-            'hartsorter:journal_v1',
-            'hartsorter:queue_journal_v1',
-            'hartlogistics:uce_native_intent_v1',
-            'hartlogistics:uce_boundary_intent_v1'
-        ]){
-            const value=world.getDynamicProperty(key);
-            if(value!==undefined&&value!==null&&value!==''){
-                uceBridgeLog('global custody HOLD: pending '+key);
-                return;
-            }
-        }
-    }catch(_){
-        uceBridgeLog('global custody HOLD: journal unreadable');
-        return;
-    }
+    if(uceUnifiedJournalHold())return;
     uceMrServiceTick(authority);
+    // MR may have left an uncertain PREPARED intent in this same tick.
+    // The ordinary lane must not even start until its recovery is resolved.
+    if(uceUnifiedJournalHold())return;
     uceOrdinaryServiceTick(authority);
 }
 /**

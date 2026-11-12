@@ -9,13 +9,13 @@ import vm from 'node:vm';
  */
 const bridge=fs.readFileSync(new URL(
   '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
-const first=bridge.indexOf('function uceUnifiedServiceTick(){');
+const first=bridge.indexOf('function uceUnifiedJournalHold(){');
 const last=bridge.indexOf('\n/**\n * Read the immutable cold seal',first);
 assert.ok(first>=0&&last>first,'unified scheduler must have stable bounds');
 const actual=bridge.slice(first,last);
 
 function fixture({ready=true,active=true,sealed=true,
-                  thrown=false,journals={}}={}){
+                  thrown=false,journals={},afterMR=null}={}){
   const calls=[],messages=[],reads=[];
   const authority=active?{worldId:'restored-lab-copy',epoch:41}:undefined;
   const world={
@@ -38,6 +38,7 @@ function fixture({ready=true,active=true,sealed=true,
     uceBridgeLog:msg=>messages.push(msg),
     uceMrServiceTick:a=>{
       assert.equal(a,authority);calls.push('MR');
+      if(typeof afterMR==='function')afterMR(journals);
     },
     uceOrdinaryServiceTick:a=>{
       assert.equal(a,authority);calls.push('ORDINARY');
@@ -50,7 +51,7 @@ function fixture({ready=true,active=true,sealed=true,
 test('valid ACTIVE sealed world services both lanes under a single authority proof',()=>{
   const f=fixture();
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY']);
-  assert.equal(f.reads.length,4);
+  assert.equal(f.reads.length,8);
 });
 test('missing authority or failed cold seal never invokes either lane',()=>{
   assert.deepEqual(fixture({active:false}).calls,['authority']);
@@ -82,4 +83,18 @@ test('world property throw is global HOLD, not legacy fallback or a write',()=>{
   const f=fixture({thrown:true});
   assert.deepEqual(f.calls,['authority','cold']);
   assert.equal(f.messages.some(x=>x.includes('unreadable')),true);
+});
+
+test('MR PREPARED in this tick prevents any later ordinary service start',()=>{
+  const f=fixture({afterMR:j=>{
+    j['hartlogistics:uce_native_intent_v1']='PREPARED';
+  }});
+  assert.deepEqual(f.calls,['authority','cold','MR']);
+  assert.equal(f.messages.some(x=>x.includes('uce_native_intent_v1')),true);
+});
+test('MR clears its own acknowledged journal before ordinary lane starts',()=>{
+  const f=fixture({afterMR:j=>{
+    j['hartlogistics:uce_native_intent_v1']=undefined;
+  }});
+  assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY']);
 });
