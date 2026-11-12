@@ -59,7 +59,8 @@ def compile_patch(source,bridge):
       "        throw new Error('UCE_LEGACY_WORLD_WRITER_FENCED');")
     for name in ("safeMovePartial","enqueueFromSource",
       "enqueueFromEjectedEntity","dequeueToReceiver","pg20MoveOpaqueNative",
-      "pg23CompactSourceHopper","compactSourceHopper",
+      "pg23CompactSourceHopper",
+      # PG23 replaced the old unjournaled compactSourceHopper function.
       "pg24VerifyEjectedCommit","giveOrDrop","setFilter",
       "plantEmptyNativeFrame","eraseOwnedFrame",
       "syncDisplay","reconcileDisplays"):
