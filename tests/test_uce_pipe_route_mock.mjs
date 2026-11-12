@@ -96,7 +96,10 @@ test('bypass and powered Sorter cannot take items',()=>{
   const f=fixture();f.filter.m='bypass';
   assert.equal(f.choose(COBBLE).entry,f.fallback);
   f.nearerSorter.powered=true;
-  assert.equal(f.network(),undefined);
+  assert.ok(f.network());
+  assert.equal(f.choose(COBBLE).entry,f.fallback);
+  f.fartherSorter.powered=true;
+  assert.equal(f.choose(COBBLE),undefined);
 });
 test('unloaded pipe boundary or foreign inventory HOLLDS without route',()=>{
   const f=fixture();
