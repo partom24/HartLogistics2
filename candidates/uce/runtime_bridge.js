@@ -932,3 +932,72 @@ function uceRegisterBulkComponent(registry){
         }
     });
 }
+
+
+/* Unified administrative diagnostics through the existing
+ * hartlogistics:status command. Read-only; no recovery, election,
+ * migration, item creation, or Q4 mutation is ever triggered.
+ */
+function uceSendDiagnostics(origin){
+    const lines=['§6[Hart Logistics UCE] §fUnified product status'];
+    const auth=uceAuthoritySnapshot();
+    if(!auth){
+        lines.push('§cUCE authority not ACTIVE: all legacy custody writers frozen.');
+    }else{
+        const cold=inspectUnifiedActiveColdImport({world,
+            worldId:auth.worldId,epoch:auth.epoch});
+        if(!cold.ok){
+            lines.push('§cCOLD AUTHORITY HOLD: '+cold.reason);
+        }else{
+            let ordinary=0,receiverCount=0,bankCount=0,bulkTotal=0,
+                bankCapacity=0,unreadable=0,controllerCount=0;
+            try{
+                const seal=JSON.parse(world.getDynamicProperty(
+                    'hartlogistics:uce_cold_seal_v1'));
+                for(const region of seal.shards){
+                    const reader=createUnifiedShardWriter({
+                        world,shardKey:region.key,
+                        worldId:auth.worldId,epoch:auth.epoch,
+                        externalFence:()=>false
+                    });
+                    const v=reader.ok&&reader.inspect();
+                    if(!v?.ok){unreadable++;continue;}
+                    for(const account of v.snapshot.accounts){
+                        if(account.kind==='receiver'){
+                            receiverCount++;ordinary+=account.total;
+                        }else if(account.kind==='bulk'){
+                            bankCount++;bulkTotal+=account.total;
+                            bankCapacity+=account.capacity;
+                            if(account.role==='controller')controllerCount++;
+                        }
+                    }
+                }
+            }catch(_){unreadable++;}
+            lines.push('§7Receivers: §f'+receiverCount+
+                ' | Ordinary: §f'+ordinary);
+            lines.push('§7Bulk: §f'+bulkTotal+'/'+bankCapacity+
+                ' in '+bankCount+' members | controllers '+controllerCount);
+            lines.push('§7Shard/authority: §f'+
+                (unreadable===0?'verified':'HOLD '+unreadable+' unreadable'));
+            lines.push('§7Q4 archive: §fretained unchanged; items migrated only by verified seal');
+        }
+    }
+    try{
+        const native=world.getDynamicProperty(
+            'hartlogistics:uce_native_intent_v1');
+        const boundary=world.getDynamicProperty(
+            'hartlogistics:uce_boundary_intent_v1');
+        const q4native=world.getDynamicProperty('hartsorter:journal_v1');
+        const q4queue=world.getDynamicProperty('hartsorter:queue_journal_v1');
+        lines.push('§7Pending custody: §fMR '+(native?'HOLD':'clear')+
+            ' | Ordinary '+(boundary?'HOLD':'clear')+
+            ' | Q4 '+(q4native||q4queue?'HOLD':'clear'));
+    }catch(_){
+        lines.push('§cCustody journals unreadable: global HOLD');
+    }
+    lines.push('§7Build: §fSOURCE ONLY; no BDS acceptance or hard-crash disk proof');
+    const target=origin?.sourceEntity;
+    if(target&&typeof target.sendMessage==='function'){
+        for(const line of lines)target.sendMessage(line);
+    }else for(const line of lines)log(line.replace(/§./g,''));
+}
