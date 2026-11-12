@@ -293,6 +293,6 @@ test('new accounts coexist with imported Q4 accounts without changing imported s
   assert.equal(a.next.total,36);
   assert.equal(inspectUnifiedOrdinaryLedger(a.next).ok,true);
   const tampered=structuredClone(a.next);
-  tampered.accounts[1].legacyQ4=undefined;
+  tampered.accounts.find(x=>x.id==='receiver:minecraft:overworld|0,70,-40').legacyQ4=undefined;
   hold(inspectUnifiedOrdinaryLedger(tampered),'source_provenance_count_mismatch');
 });
