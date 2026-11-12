@@ -7,7 +7,7 @@ import {
   UCE_NEW_RECEIVER_RESERVES
 } from '../candidates/transport/unified_cold_q4_importer.mjs';
 import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
-  createUnifiedShardWriter}
+  createUnifiedShardWriter,previewUnifiedShard}
   from '../candidates/transport/unified_world_shard_writer.mjs';
 
 const worldId='minecraft:overworld:archived-141-test',epoch=77;
@@ -342,4 +342,51 @@ test('new Receiver registration fails closed without a valid live identity and r
   assert.equal(out.reason,'receiver_placement_or_uniqueness_unproven');
   assert.equal(out.canMoveNative,false);
   assert.equal(f.writes,before);
+});
+
+test('cross-shard Bulk member cannot spend against another region controller',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const seal=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
+  const first=seal.shards[0].key,second=seal.shards[1].key;
+  for(const [key,ownerId] of [[first,'bank-a'],[second,'bank-b']]){
+    const writer=createUnifiedShardWriter({
+      world:f.world,shardKey:key,worldId,epoch,externalFence:()=>true,
+      verifyBulkPlacement:()=>true,
+      verifyGlobalBulkUniqueness:()=>true});
+    const current=writer.inspect().snapshot;
+    assert.equal(writer.registerBulkMember({ownerId,
+      operationId:'register-'+ownerId,
+      expectedRevision:current.revision,expectedEpoch:epoch}).ok,true);
+  }
+  const read=createUnifiedShardWriter({world:f.world,shardKey:second,
+    worldId,epoch,externalFence:()=>true}).inspect().snapshot;
+  const local=read.accounts.find(a=>a.id==='bulk:bank-b');
+  local.role='member';local.controllerOwnerId='bank-a';
+  const forged=previewUnifiedShard({snapshot:read,shardKey:second});
+  assert.equal(forged.ok,true,forged.reason);
+  f.values.set(second,forged.raw);
+  fail(inspectUnifiedActiveColdImport({world:f.world,worldId,epoch}),
+    'cold_bulk_controller_conflict');
+});
+test('same newly registered Receiver cannot claim two reserved shards',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const seal=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
+  const reserves=seal.shards.filter(x=>x.owner.startsWith('reserve:'));
+  const anchor={dimensionId:'minecraft:overworld',x:60,y:71,z:32};
+  const ownerId='minecraft:overworld|60|71|32';
+  for(let i=0;i<2;i++){
+    const shardKey=reserves[i].key;
+    const writer=createUnifiedShardWriter({world:f.world,shardKey,
+      worldId,epoch,externalFence:()=>true,
+      verifyReceiverReserveShard:()=>true,
+      verifyReceiverPlacement:()=>true,
+      // Deliberately forged uniqueness to test the global inspection gate.
+      verifyGlobalReceiverUniqueness:()=>true});
+    const before=writer.inspect().snapshot;
+    assert.equal(writer.registerNewReceiver({
+      ownerId,anchor,operationId:'forged-receiver-'+i,
+      expectedRevision:before.revision,expectedEpoch:epoch}).ok,true);
+  }
+  fail(inspectUnifiedActiveColdImport({world:f.world,worldId,epoch}),
+    'invalid_or_duplicate_new_receiver_owner');
 });

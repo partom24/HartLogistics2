@@ -316,8 +316,11 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
     // One shard may not simultaneously bind its members to different owners.
     const localBanks=checked.snapshot.accounts.filter(a=>a.kind==='bulk');
     const localControllers=localBanks.filter(a=>a.role==='controller');
-    if(localControllers.length>1 ||
-       (localControllers.length===1 && localBanks.some(a=>
+    // Current runtime has no cross-shard Bulk transfer protocol. Each
+    // network that holds banks must own its own controller; never silently
+    // accept a foreign shard's controller as local spend authorization.
+    if(localBanks.length && (localControllers.length!==1 ||
+       localBanks.some(a=>
          a.controllerOwnerId!==localControllers[0].ownerId)))
       return refuse('cold_bulk_controller_conflict');
     // Original Receiver ownership remains sealed to its immutable Q4 source.
