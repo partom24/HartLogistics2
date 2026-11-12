@@ -128,3 +128,24 @@ test('Bulk bank cannot refill an empty Receiver without an actual preferred rout
   assert.equal(withFilter.status,'TRANSFER_DRAFT_ONLY');
   assert.equal(withFilter.direction,'bulk_to_receiver');
 });
+
+test('Filter match on a later identity outranks a Bulk spill from earlier bucket',()=>{
+  const s=fixture(200,0,0);
+  const key2=q5IdentityKey({typeId:'minecraft:stone',
+    lore:[],ench:[],canDestroy:[],canPlaceOn:[]});
+  const recv=s.accounts.find(a=>a.id==='receiver:r1');
+  recv.buckets=[{key,count:100},{key:key2,count:100}]
+    .sort((a,b)=>a.key<b.key?-1:1);
+  assert.equal(inspectUnifiedOrdinaryLedger(s).ok,true);
+  const selected=planUnifiedBulkService({
+    ...options(s),preferredOutputKeys:[key2],sourceWaiting:true});
+  assert.equal(selected.ok,true);
+  assert.equal(selected.status,'IDLE');
+  assert.equal(selected.reason,'preferred_sorter_output_ready');
+  assert.equal(selected.canWriteWorld,false);
+  // The filtered destination disappears: do not discard either identity.
+  const fallback=planUnifiedBulkService({
+    ...options(s),preferredOutputKeys:[],sourceWaiting:false});
+  assert.equal(fallback.status,'TRANSFER_DRAFT_ONLY');
+  assert.equal(fallback.count,64);
+});
