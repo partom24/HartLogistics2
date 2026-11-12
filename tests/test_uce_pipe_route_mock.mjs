@@ -190,11 +190,11 @@ test('multiple chest/barrel inputs are deduplicated and sorted deterministically
   assert.equal(graph.inputs[1].block,source2);
 });
 test('a source below Receiver level and double-chest aliases fail the entire graph',()=>{
+  const low=fixture();
+  // This block is directly below a pipe, at y=69 while Receiver is y=70.
+  low.put('minecraft:barrel',3,69,4,low.inventories[0]);
+  assert.equal(low.network(),undefined);
   const f=fixture();
-  f.put('minecraft:barrel',1,70,4,f.inventories[0]);
-  f.put('minecraft:chest',1,69,4,f.inventories[1]);
-  assert.equal(f.network(),undefined);
-  f.put('minecraft:air',1,69,4);
   const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
   f.put('minecraft:chest',1,70,5,f.inventories[0]);
   assert.equal(f.network(),undefined);
