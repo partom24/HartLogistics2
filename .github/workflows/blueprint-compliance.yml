@@ -688,6 +688,28 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - name: UCE Win LAB installer syntax, source-only checks and CLI refusal
+        shell: powershell
+        run: |
+          $launcher = '.\\candidates\\uce\\Start-HartLogistics-UCELab.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $launcher).Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw ('UCE PowerShell syntax errors: ' + ($errors | Out-String)) }
+          foreach ($argsSet in @(
+            @('-Mode','Install'),
+            @('-Mode','Rollback','-Apply'),
+            @('-Mode','CheckLab','-Apply'),
+            @('-Mode','Plan','-Apply'),
+            @('-Mode','CheckLab')
+          )) {
+            $rejected = $false
+            try { & $launcher @argsSet | Out-Null } catch { $rejected = $true }
+            if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
+          }
+          Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: UCE LAB installer synthetic source/hash refusal on Windows
+        run: python -m unittest discover -s tests -p 'test_uce_lab_deploy.py' -v
       - name: Verify PG08 LAB replacement safety on Windows fixture
         run: python -m unittest discover -s tests -p 'test_pg08_lab_deploy.py' -v
       - name: Verify PG13 guarded replacement on Windows synthetic fixture
