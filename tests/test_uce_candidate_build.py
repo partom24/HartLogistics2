@@ -101,6 +101,25 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('executeUnifiedOrdinaryWithdrawal(args)',s)
         self.assertEqual(s.count('function logisticsTick() {'),1)
 
+    def test_bulk_block_and_same_scheduler_integration(self):
+        bp=self.bp
+        definition=json.loads((bp/"blocks/bulk_storage.json").read_text())
+        components=definition["minecraft:block"]["components"]
+        self.assertFalse(components["minecraft:destructible_by_mining"])
+        self.assertFalse(components["minecraft:destructible_by_explosion"])
+        self.assertIn("hartlogistics:bulk_storage_surface",components)
+        self.assertTrue((bp/"recipes/bulk_storage.json").is_file())
+        self.assertTrue((self.rp/"textures/blocks/hartlogistics_bulk_storage.png").is_file())
+        self.assertIn("uceRegisterBulkComponent(event.blockComponentRegistry)",self.main)
+        self.assertIn("function ucePipeRouteNetwork(receiver)",self.main)
+        self.assertIn("ucePipeDestinationStillValid(",self.main)
+        self.assertIn("planUnifiedBulkService(",self.main)
+        self.assertIn("registerBulkMember(",self.main)
+        self.assertIn("shardWriter.applyInternalTransfer(",self.main)
+        self.assertIn("verifyInternalRoute:tx=>",self.main)
+        self.assertIn("executeUnifiedOrdinaryWithdrawal(args)",self.main)
+        self.assertIn("serviceUnifiedReceiverMR({",self.main)
+
     def test_no_automatic_authority_install_or_second_bridge_writer(self):
         bridge=(ROOT/"candidates/uce/runtime_bridge.js").read_text()
         for forbidden in ("world.setDynamicProperty(","setItem(","moveItem(",
