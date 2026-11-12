@@ -513,3 +513,62 @@ function uceOrdinaryServiceTick(){
     }
     uceOrdinaryCursor=(uceOrdinaryCursor+1)%receivers.length;
 }
+
+
+/* Bulk Storage block uses its own asset and this read-only menu. No old
+ * Collector/Receiver/Sorter interface is replaced. Actual account
+ * registration is a separate authenticated one-shard UCE writer operation.
+ */
+function uceBulkAccountAt(block){
+    try{
+        const authority=uceAuthoritySnapshot();
+        if(!authority)return undefined;
+        const cold=inspectUnifiedActiveColdImport({world,
+            worldId:authority.worldId,epoch:authority.epoch});
+        if(!cold.ok)return undefined;
+        const p=block.location;
+        const ownerId=block.dimension.id+'|'+p.x+','+p.y+','+p.z;
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||!Array.isArray(seal.shards))return undefined;
+        for(const region of seal.shards){
+            const s=createUnifiedShardWriter({world,
+                shardKey:region.key,worldId:authority.worldId,
+                epoch:authority.epoch,
+                externalFence:()=>false});
+            if(!s.ok)continue;
+            const read=s.inspect();
+            if(!read.ok)continue;
+            const bank=read.snapshot.accounts.find(x=>
+                x.id==='bulk:'+ownerId);
+            if(bank)return {bank,ownerId,region:region.key};
+        }
+        return {ownerId};
+    }catch(_){return undefined;}
+}
+function uceShowBulkStatus(player,block){
+    if(!player||!block||block.typeId!=='hartlogistics:bulk_storage')
+        return;
+    const state=uceBulkAccountAt(block);
+    const status=state?.bank ?
+       ('Stored '+state.bank.total+' / 200000\\n'+
+        'Item kinds: '+state.bank.buckets.length+
+        '\\nOwner: '+state.ownerId) :
+       ('Not registered. No verified UCE network account is spendable.'+
+        '\\nConnect a verified Receiver before service is enabled.');
+    const form=new ActionFormData()
+       .title('Hart Bulk Storage')
+       .body(status.replaceAll('\\\\n','\\n'))
+       .button('Close');
+    form.show(player).catch(_=>{});
+}
+function uceRegisterBulkComponent(registry){
+    registry.registerCustomComponent('hartlogistics:bulk_storage_surface',{
+        onPlayerInteract(e){
+            if(!e?.player||e.block?.typeId!=='hartlogistics:bulk_storage')
+                return;
+            const p=e.player,b=e.block;
+            system.run(()=>uceShowBulkStatus(p,b));
+        }
+    });
+}
