@@ -136,7 +136,10 @@ test('unloaded host returns HOLD, later same entity/item survives mock restart r
   const view=newManager.inspectHost({ownerId,anchor});
   assert.equal(view.ok,true,view.reason);
   assert.equal(view.occupiedSlots,1);
-  assert.deepEqual(view.container.getItem(0),sample);
+  const actual=view.container.getItem(0);
+  assert.equal(typeof actual.getLore,'function');
+  delete actual.getLore;
+  assert.deepEqual(actual,sample);
   assert.equal(f.spawned.length,1);
 });
 test('reserved record after ambiguous spawn is HOLD and never automatically spawned again',()=>{
