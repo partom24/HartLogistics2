@@ -88,7 +88,7 @@ test('whole original ItemStack moves natively with opaque mock payload intact an
   assert.equal(f.port.inspectPending().phase,'MOVED_INSPECTED');
   assert.equal(JSON.parse(f.values.get(UCE_NATIVE_INTENT_KEY)).schema,UCE_NATIVE_INTENT_SCHEMA);
   assert.equal(f.writes,2);
-  holds(run(f),'native_intent_already_pending');
+  holds(run(f),'native_intent_pending_global');
 });
 test('ACK requires persistent ownership proof; never clears a moved item merely from physical readback',()=>{
   const f=fixture();assert.equal(run(f).ok,true);
@@ -115,7 +115,7 @@ test('pending legacy queue or native journal blocks new move',()=>{
   assert.equal(f.src.moves,0);
   const g=fixture();
   g.values.set(UCE_NATIVE_INTENT_KEY,'unparseable');
-  holds(run(g),'native_intent_invalid');
+  holds(run(g),'native_intent_invalid_for_unified_fence');
   assert.equal(g.src.moves,0);
 });
 test('unverified endpoint identity / changed prewrite fence preserves source',()=>{
@@ -199,5 +199,5 @@ test('restart finds pending native intent but never automatically settles or rep
   });
   assert.equal(p.inspectPending().phase,'MOVED_INSPECTED');
   holds(p.moveWhole({operationId:'again',from:f.from,to:f.to}),
-    'native_intent_already_pending');
+    'native_intent_pending_global');
 });
