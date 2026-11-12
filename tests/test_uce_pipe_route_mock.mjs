@@ -104,12 +104,13 @@ test('bypass and powered Sorter cannot take items',()=>{
   f.fartherSorter.powered=true;
   assert.equal(f.choose(COBBLE),undefined);
 });
-test('unloaded pipe boundary or foreign inventory HOLLDS without route',()=>{
+test('unloaded pipe boundary or unsupported foreign inventory HOLDS without route',()=>{
   const f=fixture();
   f.missing.add('3,70,3');
   assert.equal(f.network(),undefined);
   f.missing.clear();
-  f.put('minecraft:chest',1,70,4,f.chestA.getComponent('minecraft:inventory').container);
+  f.put('minecraft:shulker_box',1,70,4,
+    f.chestA.getComponent('minecraft:inventory').container);
   assert.equal(f.network(),undefined);
 });
 test('second Receiver on graph refuses ambiguous source owner',()=>{
