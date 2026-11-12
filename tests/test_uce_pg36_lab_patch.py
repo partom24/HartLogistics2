@@ -75,6 +75,18 @@ class PG36PatchTests(unittest.TestCase):
             self.assertEqual((new/name).read_bytes(),raw)
         self.assertEqual((new/"db"/"CURRENT").read_bytes(),b"NEW WORLD DATABASE")
 
+    def test_historical_git_text_decoded_as_utf8_on_windows(self):
+        # Python subprocess default text encoding on Windows is not guaranteed
+        # UTF-8. It previously mojibaked the two runtime scripts when
+        # recreating the exact installed PG35 predecessor.
+        original=pg36.historical("candidates/uce/runtime_bridge.js")
+        self.assertIn("§c[Collector]",original)
+        self.assertNotIn("Â§",original)
+        rebuilt=(self.prior/"behavior_pack/scripts/main.js").read_text(
+            encoding="utf-8")
+        self.assertIn("§c[Collector]",rebuilt)
+        self.assertNotIn("Â§",rebuilt)
+
     def test_only_two_bedrock_script_paths_change_and_no_resource_or_manifest(self):
         changed={p for p in self.earlier["behavior_pack"]
             if self.earlier["behavior_pack"][p]!=self.desired["behavior_pack"][p]}
