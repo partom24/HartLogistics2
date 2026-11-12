@@ -88,9 +88,18 @@ class UceBuildTests(unittest.TestCase):
             self.assertIn("if (uceLegacyWriterBlocked())",
                           s[brace:brace+165],name)
         self.assertIn(
-          "if (uceLegacyWriterBlocked()) { uceMrServiceTick(); return; }",s)
+          "if (uceLegacyWriterBlocked()) { uceUnifiedServiceTick(); return; }",s)
         self.assertIn("if (uceLegacyWriterBlocked()) return;",s)
         self.assertIn("UCE_LEGACY_WORLD_WRITER_FENCED",s)
+
+    def test_one_unified_scheduler_serves_mr_and_ordinary(self):
+        s=self.main
+        self.assertIn('function uceUnifiedServiceTick(){',s)
+        self.assertIn('    uceMrServiceTick();',s)
+        self.assertIn('    uceOrdinaryServiceTick();',s)
+        self.assertIn('executeUnifiedOrdinaryDeposit(args)',s)
+        self.assertIn('executeUnifiedOrdinaryWithdrawal(args)',s)
+        self.assertEqual(s.count('function logisticsTick() {'),1)
 
     def test_no_automatic_authority_install_or_second_bridge_writer(self):
         bridge=(ROOT/"candidates/uce/runtime_bridge.js").read_text()
