@@ -3,7 +3,7 @@
  * property setter, timer, block registration or native inventory mutation.
  *
  * Reuses PG26 face/neighbor/position API and the original Sorter filter/mode
- * registry. Rejects unloaded frontiers, ambiguous Receiver attachments,
+ * registry. Rejects unloaded frontiers, unregistered Receiver attachments,
  * unsupported inventory sources, redstone-paused pipe segments and
  * double-chest or cross-network input aliases. Every destination is reselected
  * immediately before a native writer changes custody.
@@ -23,9 +23,8 @@ function ucePipeRouteNetwork(receiver) {
         // Receiver power gates EGRESS, not discovery of connected sources.
         // Collector and pipe-source admission may continue while powered.
         if(!root)return undefined;
-        const rootKey=pg26PositionKey(root.location);
         const pending=[],seen=new Map(),endpoints=new Map(),
-            banks=new Map(),inputs=new Map();
+            banks=new Map(),inputs=new Map(),receiverIds=new Set([receiver.id]);
         for(const face of PG26_FACES) {
             const b=pg26Neighbor(root,face);
             if(!b)return undefined;
@@ -48,10 +47,18 @@ function ucePipeRouteNetwork(receiver) {
                 if(type===PG26_PIPE_ID){
                     if(!seen.has(pg26PositionKey(p)))pending.push(next);
                 } else if(type===RECEIVER_ID){
-                    // Exactly the one already-registered Receiver may supply
-                    // this graph. An unregistered or second Receiver is HOLD.
-                    if(pg26PositionKey(p)!==rootKey||
-                       next.dimension.id!==receiver.d)return undefined;
+                    // A shared network has ONE deterministic ingress owner.
+                    // Every attached Receiver must be registered, physically
+                    // loaded and anchored to this exact block. Unknown or
+                    // stale attachment means graph-wide HOLD.
+                    const id=logisticsId(next.dimension.id,p.x,p.y,p.z);
+                    const other=findReceiverById(id);
+                    if(!other||other.present===false||
+                       other.d!==next.dimension.id||
+                       other.x!==p.x||other.y!==p.y||other.z!==p.z||
+                       !receiverAt(other)||!ucePipeSameDimension(root,next))
+                        return undefined;
+                    receiverIds.add(id);
                 } else if(type===SORTER_ID){
                     if(face.name!=='down'||!ucePipeSameDimension(root,next))
                         return undefined;
@@ -112,8 +119,10 @@ function ucePipeRouteNetwork(receiver) {
         const sortedInputs=[...inputs.keys()].sort().map(
             key=>key+':'+inputs.get(key).typeId);
         const sortedBanks=[...banks.keys()].sort();
+        const sortedReceivers=[...receiverIds].sort();
         return {receiverId:receiver.id,
-            fingerprint:receiver.id+'|'+sortedPipes.join(';')+
+            receiverIds:sortedReceivers,leaderId:sortedReceivers[0],
+            fingerprint:sortedReceivers.join(';')+'|'+sortedPipes.join(';')+
               '->'+sortedOutputs.join(';')+
               '<-'+sortedInputs.join(';')+
               '#'+sortedBanks.join(';'),
@@ -149,7 +158,8 @@ function uceReadOnlyPipeInput(block,root){
 function ucePipeSourceStillConnected(receiver,source){
     if(!source||!source.block)return false;
     const graph=ucePipeRouteNetwork(receiver);
-    return !!graph&&typeof source.typeId==='string'&&
+    return !!graph&&graph.leaderId===receiver.id&&
+        typeof source.typeId==='string'&&
         graph.inputs.some(input=>
           input.typeId===source.typeId&&
           uceSameLoadedBlock(input.block,source.block))&&

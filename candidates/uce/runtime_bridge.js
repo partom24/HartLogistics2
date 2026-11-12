@@ -132,7 +132,8 @@ function uceReceiverHasNewMRInput(receiver){
     // The same Receiver may also admit metadata-rich stacks from any
     // verified pipe-attached native source without reconstruction.
     const pipe=ucePipeRouteNetwork(receiver);
-    for(const source of pipe?.inputs||[]){
+    for(const source of pipe?.leaderId===receiver.id?
+        pipe.inputs:[]){
         for(let slot=0;slot<source.container.size;slot++){
             let item;
             try{item=source.container.getItem(slot);}
@@ -239,7 +240,8 @@ function uceMrServiceTick(){
         // Transporter inputs use this exact same native port and carrier
         // ticket writer as Collector/Hopper ingress.
         const pipeNetwork=ucePipeRouteNetwork(receiver);
-        for(const src of pipeNetwork?.inputs||[]){
+        for(const src of pipeNetwork?.leaderId===receiver.id?
+            pipeNetwork.inputs:[]){
             const p=src.block.location;
             const id='pipe-input|'+src.block.dimension.id+'|'+
                 p.x+','+p.y+','+p.z;
@@ -648,14 +650,17 @@ function uceBulkOwnerId(block){
 }
 function uceBulkPlacementVerified(receiver,ownerId){
     const route=ucePipeRouteNetwork(receiver);
-    if(!route||!Array.isArray(route.banks))return false;
+    if(!route||route.leaderId!==receiver.id||
+       !Array.isArray(route.banks))return false;
     const matching=route.banks.filter(b=>uceBulkOwnerId(b)===ownerId);
     if(matching.length!==1)return false;
     const registered=logistics.receivers.filter(r=>
         r.id!==receiver.id&&r.present!==false);
     for(const other of registered){
         const competitor=ucePipeRouteNetwork(other);
-        if(competitor?.banks?.some(b=>uceBulkOwnerId(b)===ownerId))
+        if(competitor?.banks?.some(b=>uceBulkOwnerId(b)===ownerId)&&
+           (competitor.leaderId!==route.leaderId||
+            competitor.fingerprint!==route.fingerprint))
             return false;
     }
     return true;
@@ -692,7 +697,8 @@ function uceBulkGlobalUniqueness(ownerId,shardKey,authority){
  */
 function uceMaybeRegisterBulk(receiver,shardKey,authority){
     const network=ucePipeRouteNetwork(receiver);
-    if(!network?.banks?.length)return false;
+    if(!network?.banks?.length||
+       network.leaderId!==receiver.id)return false;
     const bankBlocks=[...network.banks].sort((a,b)=>
         uceBulkOwnerId(a)<uceBulkOwnerId(b)?-1:
         uceBulkOwnerId(a)>uceBulkOwnerId(b)?1:0);
@@ -791,7 +797,8 @@ function uceOrdinaryServiceTick(){
         // coordinator, so no second ordinary Transporter queue is created.
         if(!sourceRecord){
             const pipe=ucePipeRouteNetwork(receiver);
-            for(const input of pipe?.inputs||[]){
+            for(const input of pipe?.leaderId===receiver.id?
+                pipe.inputs:[]){
                 for(let i=0;i<input.container.size;i++){
                     let item;
                     try{item=input.container.getItem(i);}
@@ -836,7 +843,8 @@ function uceOrdinaryServiceTick(){
                 !!uceAuthoritySnapshot(),
             verifyInternalRoute:tx=>{
                 const graph=ucePipeRouteNetwork(receiver);
-                if(!graph||!Array.isArray(graph.banks))return false;
+                if(!graph||graph.leaderId!==receiver.id||
+                   !Array.isArray(graph.banks))return false;
                 const loaded=new Set(graph.banks.map(b=>uceBulkOwnerId(b)));
                 const other=tx.from===accountId?tx.to:
                     tx.to===accountId?tx.from:undefined;
@@ -867,7 +875,8 @@ function uceOrdinaryServiceTick(){
         if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
         const bankNetwork=ucePipeRouteNetwork(receiver);
         let preferredOutputReady=false;
-        if(bankNetwork?.banks?.length){
+        if(bankNetwork?.banks?.length&&
+           bankNetwork.leaderId===receiver.id){
             const members=[...new Set(bankNetwork.banks
                 .map(b=>uceBulkOwnerId(b)))].sort();
             const outputKeys=[],preferredKeys=[];
@@ -965,7 +974,8 @@ function uceOrdinaryServiceTick(){
                     if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
                     const route=outgoing?undefined:
                         uceChoosePipeDestination(receiver,item,
-                            !!bankNetwork?.banks?.length);
+                            !!bankNetwork?.banks?.length&&
+                            bankNetwork.leaderId===receiver.id);
                     if(!outgoing&&!route)continue;
                     if(outgoing&&uceNativeOutputSlot(outgoing.container)<0)
                         continue;

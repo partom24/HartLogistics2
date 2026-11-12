@@ -33,7 +33,8 @@ function fixture(){
       getComponent:()=>undefined
     };
   const receiverBlock=put('hartsorter:receiver',4,70,4);
-  const receiver={id:'R',d:dim.id,x:4,y:70,z:4,present:true};
+  const receiver={id:dim.id+'|4|70|4',d:dim.id,x:4,y:70,z:4,present:true};
+  const registeredReceivers=[receiver];
   const nearPipe=put('hartlogistics:transporter',3,70,4);
   const farPipe=put('hartlogistics:transporter',2,70,4);
   const nearerSorter=put('hartsorter:sorter',3,69,4);
@@ -53,7 +54,12 @@ function fixture(){
       a.typeId===b.typeId&&a.dimension.id===b.dimension.id&&
       k(a.location)===k(b.location),
     receiverOutputHopper:()=>undefined,
-    receiverAt:r=>r===receiver?receiverBlock:undefined,
+    receiverAt:r=>{
+      const b=dim.getBlock({x:r.x,y:r.y,z:r.z});
+      return b?.typeId==='hartsorter:receiver'?b:undefined;
+    },
+    logisticsId:(d,x,y,z)=>d+'|'+x+'|'+y+'|'+z,
+    findReceiverById:id=>registeredReceivers.find(r=>r.id===id),
     sorterAt:e=>e===filter?nearerSorter:e===fallback?fartherSorter:undefined,
     facingOffset:()=>({x:0,y:0,z:1}),
     sorterMode:e=>e.m,blockIsRedstonePowered:b=>!!b.powered,
@@ -61,7 +67,8 @@ function fixture(){
     enchantments:stack=>stack?.ench||[]
   };
   vm.runInNewContext(src,context);
-  return {context,dim,blocks,missing,k,put,receiver,receiverBlock,
+  return {context,dim,blocks,missing,k,put,receiver,registeredReceivers,
+    receiverBlock,
     nearPipe,farPipe,nearerSorter,fartherSorter,chestA,chestB,filter,
     fallback,inventories,FACES,
     choose:item=>context.uceChoosePipeDestination(receiver,item),
@@ -113,9 +120,49 @@ test('unloaded pipe boundary or unsupported foreign inventory HOLDS without rout
     f.chestA.getComponent('minecraft:inventory').container);
   assert.equal(f.network(),undefined);
 });
-test('second Receiver on graph refuses ambiguous source owner',()=>{
+test('unregistered second Receiver still refuses ambiguous shared graph',()=>{
   const f=fixture();
   f.put('hartsorter:receiver',1,70,4);
+  assert.equal(f.network(),undefined);
+});
+test('two registered Receivers share one graph with deterministic ingress leader',()=>{
+  const f=fixture();
+  const b=f.put('hartsorter:receiver',1,70,4);
+  const secondary={id:f.context.logisticsId(f.dim.id,1,70,4),
+    d:f.dim.id,x:1,y:70,z:4,present:true};
+  f.registeredReceivers.push(secondary);
+  const a=f.network(),c=f.context.ucePipeRouteNetwork(secondary);
+  assert.ok(a);assert.ok(c);
+  assert.equal(a.leaderId,secondary.id);
+  assert.equal(c.leaderId,secondary.id);
+  assert.equal(a.fingerprint,c.fingerprint);
+  assert.equal(a.receiverIds.length,2);
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+  f.put('minecraft:barrel',0,70,4,f.inventories[0]);
+  // The barrel touching the second Receiver only is not on a pipe.
+  // Add an input directly above the common connected pipe instead.
+  f.put('minecraft:barrel',3,71,4,f.inventories[1]);
+  const source=f.network().inputs[0];
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,source),false);
+  assert.equal(f.context.ucePipeSourceStillConnected(secondary,source),true);
+  b.typeId='minecraft:air';
+  assert.equal(f.network().leaderId,f.receiver.id);
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,source),true);
+});
+test('shared graph refuses stale, missing or mismatched Receiver block authority',()=>{
+  const f=fixture();
+  f.put('hartsorter:receiver',1,70,4);
+  const secondary={id:f.context.logisticsId(f.dim.id,1,70,4),
+    d:f.dim.id,x:1,y:70,z:4,present:true};
+  f.registeredReceivers.push(secondary);
+  assert.ok(f.network());
+  secondary.x=99;
+  assert.equal(f.network(),undefined);
+  secondary.x=1;
+  f.missing.add('1,70,4');
+  assert.equal(f.network(),undefined);
+  f.missing.clear();
+  secondary.present=false;
   assert.equal(f.network(),undefined);
 });
 test('double chest output is refused; no aliasing to same container',()=>{
