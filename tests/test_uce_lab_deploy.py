@@ -67,6 +67,28 @@ class UceLabGuardTests(unittest.TestCase):
         finally:
             intrusion.unlink()
 
+    def test_custom_commands_do_not_return_system_run_id(self):
+        # PG34 Bedrock runtime: returning the system.run task number from a
+        # custom-command callback violates CustomCommandResult | undefined.
+        # Check the actual generated Bedrock module, not a test-only handler.
+        compiled=(self.new/'behavior_pack/scripts/main.js').read_text(
+            encoding='utf-8')
+        expected={
+            'migration_preview':
+                '(origin) => { system.run(() => uceSendMigrationPreview(origin)); }',
+            'activate_empty_lab':
+                'origin => { system.run(() => uceActivateEmptyLabWorld(origin)); }',
+        }
+        for command,callback in expected.items():
+            with self.subTest(command=command):
+                marker="name: 'hartlogistics:"+command+"'"
+                self.assertEqual(compiled.count(marker),1)
+                start=compiled.index(marker)
+                end=compiled.index('    );',start)
+                handler=compiled[start:end]
+                self.assertIn(callback,handler)
+                self.assertNotRegex(handler,r'=>\\s*system\\.run\\(')
+
     def test_unapproved_apply_and_rollback_never_touch_actual_lab(self):
         self.assertEqual(deploy.main(['--apply']),2)
         self.assertEqual(deploy.main(['--rollback-tag','lab-abcdefabcdef']),2)
