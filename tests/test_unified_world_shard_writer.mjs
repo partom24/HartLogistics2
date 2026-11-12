@@ -55,7 +55,8 @@ function fixture(options={}){
     }
   };
   const writer=createUnifiedShardWriter({world,worldId,shardKey:key,
-    epoch,externalFence:options.externalFence??(()=>true)});
+    epoch,externalFence:options.externalFence??(()=>true),
+    verifyInternalRoute:options.verifyInternalRoute??(()=>true)});
   assert.equal(writer.ok,true,writer.reason);
   const req={operationId:'receipt-world11-rev3',from:'receiver:r1',
     to:'bulk:b1',key:itemKey,count:8,expectedRevision:initial.revision,
@@ -90,7 +91,8 @@ test('replayed old revision cannot spend twice even after process recreation',()
   assert.equal(f.writer.applyInternalTransfer(f.req).ok,true);
   holds(f.writer.applyInternalTransfer(f.req),'invalid_or_stale_internal_intent');
   const fresh=createUnifiedShardWriter({
-    world:f.world,shardKey:key,worldId,epoch,externalFence:()=>true});
+    world:f.world,shardKey:key,worldId,epoch,externalFence:()=>true,
+    verifyInternalRoute:()=>true});
   holds(fresh.applyInternalTransfer(f.req),'invalid_or_stale_internal_intent');
   assert.equal(f.writes,1);
 });
@@ -123,7 +125,7 @@ test('actual caller writer fence is mandatory and rechecked immediately prewrite
   let calls=0;
   const x=fixture({externalFence:()=>++calls===1});
   holds(x.writer.applyInternalTransfer(x.req),
-    'world_writer_fence_changed_prewrite');
+    'internal_route_or_writer_fence_changed_prewrite');
   assert.equal(x.writes,0);
 });
 test('read-only inspection rejects corrupt or changed ledger and never repairs it',()=>{
@@ -373,4 +375,17 @@ test('ambiguous Bulk registration write quarantines and preserves any resulting 
     'shard_session_quarantine:bulk_registration_write_ambiguous');
   assert.equal(f.writes,1);
   assert.equal(writer.inspect().snapshot.accounts.some(x=>x.id==='bulk:bank-new'),true);
+});
+
+test('internal receiver->bank transfer cannot commit without a live graph proof',()=>{
+  const f=fixture({verifyInternalRoute:()=>false});
+  holds(f.writer.applyInternalTransfer(f.req),'internal_bulk_route_unverified');
+  assert.equal(f.writes,0);
+});
+test('route changes after admission but before write refuse without changing balances',()=>{
+  let checks=0;
+  const f=fixture({verifyInternalRoute:()=>++checks===1});
+  holds(f.writer.applyInternalTransfer(f.req),
+    'internal_route_or_writer_fence_changed_prewrite');
+  assert.equal(f.writes,0);
 });
