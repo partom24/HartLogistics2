@@ -308,3 +308,69 @@ test('boundary withdraw decreases count once but leaves physical proof requireme
   assert.equal(a.writer.inspect().snapshot.total,7);
   assert.equal(a.writer.inspect().snapshot.accounts.find(a=>a.id==='receiver:r1').total,7);
 });
+
+
+test('new Bulk member is registered in existing Receiver shard as one revision and one readback',()=>{
+  const f=fixture();
+  const before=f.writer.inspect().snapshot;
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,
+    verifyGlobalBulkUniqueness:()=>true});
+  assert.equal(writer.ok,true);
+  const args={ownerId:'bank-new',operationId:'register-bulk-bank-new',
+    expectedRevision:before.revision,expectedEpoch:epoch};
+  const r=writer.registerBulkMember(args);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'BULK_ACCOUNT_REGISTERED_SAME_LEDGER');
+  assert.equal(r.accountId,'bulk:bank-new');
+  assert.equal(r.controllerOwnerId,'b1');
+  assert.equal(f.writes,1);
+  const after=writer.inspect();
+  assert.equal(after.snapshot.total,12);
+  assert.equal(after.snapshot.accounts.find(a=>a.id==='bulk:bank-new').total,0);
+  assert.equal(after.snapshot.accounts.find(a=>a.id==='bulk:bank-new').role,'member');
+  assert.equal(after.lastReceipt.kind,'REGISTER_BULK');
+  holds(writer.registerBulkMember(args),'stale_or_unanchored_bulk_registration');
+  assert.equal(f.writes,1);
+});
+test('unverified Bulk placement, stale revisions, or duplicate owner cannot register',()=>{
+  const f=fixture();
+  const before=f.writer.inspect().snapshot;
+  const noOwner=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>false,verifyGlobalBulkUniqueness:()=>true});
+  const req={ownerId:'bank-new',operationId:'bulk-1',
+    expectedRevision:before.revision,expectedEpoch:epoch};
+  holds(noOwner.registerBulkMember(req),'bulk_placement_or_global_identity_unproven');
+  assert.equal(f.writes,0);
+  const notUnique=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,verifyGlobalBulkUniqueness:()=>false});
+  holds(notUnique.registerBulkMember(req),'bulk_placement_or_global_identity_unproven');
+  assert.equal(f.writes,0);
+  const normal=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,verifyGlobalBulkUniqueness:()=>true});
+  holds(normal.registerBulkMember({...req,ownerId:'b1'}),'duplicate_account');
+  holds(normal.registerBulkMember({...req,expectedRevision:0}),
+    'stale_or_unanchored_bulk_registration');
+  assert.equal(f.writes,0);
+});
+test('ambiguous Bulk registration write quarantines and preserves any resulting account',()=>{
+  const f=fixture({onWrite:(k,v,values)=>{
+    values.set(k,v);
+    throw Error('BDS reported uncertain property persistence');
+  }});
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,verifyGlobalBulkUniqueness:()=>true});
+  const a=f.writer.inspect().snapshot;
+  const args={ownerId:'bank-new',operationId:'bulk-ambiguous',
+    expectedRevision:a.revision,expectedEpoch:epoch};
+  holds(writer.registerBulkMember(args),'bulk_registration_write_ambiguous');
+  holds(writer.registerBulkMember(args),
+    'shard_session_quarantine:bulk_registration_write_ambiguous');
+  assert.equal(f.writes,1);
+  assert.equal(writer.inspect().snapshot.accounts.some(x=>x.id==='bulk:bank-new'),true);
+});
