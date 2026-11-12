@@ -62,6 +62,22 @@ def compile_patch(source,bridge):
       "system.beforeEvents.startup.subscribe((event) => {",
       "system.beforeEvents.startup.subscribe((event) => {\n"+
       "    uceRegisterBulkComponent(event.blockComponentRegistry);")
+    source=once(source,
+      "    if (ev.block.typeId === COLLECTOR_ID) {\\n"+
+      "        const e = registerCollector(ev.block);",
+      "    if (ev.block.typeId === COLLECTOR_ID) {\\n"+
+      "        if (uceLegacyWriterBlocked()) {\\n"+
+      "            uceSelectCollectorForLink(ev.player,ev.block); return;\\n"+
+      "        }\\n"+
+      "        const e = registerCollector(ev.block);")
+    source=once(source,
+      "    if (ev.block.typeId === RECEIVER_ID) {\\n"+
+      "        registerReceiver(ev.block);",
+      "    if (ev.block.typeId === RECEIVER_ID) {\\n"+
+      "        if (uceLegacyWriterBlocked()) {\\n"+
+      "            ev.player?.sendMessage('§e[Receiver] New UCE Receiver requires registered sealed ownership; no Q4 writer activated.'); return;\\n"+
+      "        }\\n"+
+      "        registerReceiver(ev.block);")
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
       "    if (uceLegacyWriterBlocked()) return;")
@@ -73,9 +89,10 @@ def compile_patch(source,bridge):
       "enqueueFromEjectedEntity","dequeueToReceiver","pg20MoveOpaqueNative",
       "pg23CompactSourceHopper",
       # PG23 replaced the old unjournaled compactSourceHopper function.
-      "pg24VerifyEjectedCommit","giveOrDrop","setFilter",
-      "plantEmptyNativeFrame","eraseOwnedFrame",
-      "syncDisplay","reconcileDisplays"):
+      "pg24VerifyEjectedCommit"):
+        # Native-frame Sorter filters, renderers, refunds and controls use
+        # the proven 1.4.1 physical UI. Those functions are not Q4 writers,
+        # and only the strictly allowed sealed Sorter registry keys can save.
         ret="return 0;" if name in (
           "safeMovePartial","enqueueFromSource","enqueueFromEjectedEntity",
           "dequeueToReceiver","pg20MoveOpaqueNative","pg23CompactSourceHopper",
