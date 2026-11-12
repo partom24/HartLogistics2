@@ -94,6 +94,25 @@ function uceClassifyLiveStack(stack){
         return 'MR';
     }catch(_){return 'UNKNOWN';}
 }
+function uceReceiverHasNewMRInput(receiver){
+    const linked=logistics.collectors.filter(c=>
+      c.link===receiver.id&&c.present!==false);
+    for(const col of linked){
+        const cb=collectorAt(col);
+        if(!cb||blockIsRedstonePowered(cb))continue;
+        for(const source of collectorInputSources(col)){
+            if(source.kind!=='hopper'||source.locked===true||
+               !source.container?.isValid)continue;
+            for(let slot=0;slot<source.container.size;slot++){
+                let item;
+                try{item=source.container.getItem(slot);}
+                catch(_){return false;}
+                if(item && uceClassifyLiveStack(item)==='MR')return true;
+            }
+        }
+    }
+    return false;
+}
 function uceMrServiceTick(){
     const authority=uceAuthoritySnapshot();
     if(!authority){
@@ -129,6 +148,9 @@ function uceMrServiceTick(){
         if(!registry.ok){uceBridgeLog(registry.reason);continue;}
         let host=registry.inspectHost({ownerId,anchor});
         if(!host.ok && host.reason==='carrier_record_missing'){
+            // Do not create idle entities for hundreds of historical Receivers.
+            // First prove an actually loaded linked Collector has MR cargo.
+            if(!uceReceiverHasNewMRInput(receiver))continue;
             // New empty host ONLY; an already reserved or absent historical
             // host must HOLD. A fresh registration has no ItemStack to clone.
             const registered=registry.registerEmptyHost({ownerId,anchor});
