@@ -140,6 +140,8 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("network.leaderId!==receiver.id)return false;",self.main)
         self.assertIn("pipe?.leaderId===receiver.id?",self.main)
         self.assertIn("pipeNetwork?.leaderId===receiver.id?",self.main)
+        self.assertIn("!uceOrdinaryAccountSource(authority,receiver.id)",self.main)
+        self.assertIn("!uceOrdinaryAccountSource(authority,id)",self.main)
         self.assertIn("if(sourceRecord.kind==='pipe')",self.main)
         self.assertIn("preferredOutputKeys:preferredKeys",self.main)
         self.assertIn("preferredOutputReady=preferredKeys.length>0;",self.main)

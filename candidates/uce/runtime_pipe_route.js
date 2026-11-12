@@ -53,7 +53,10 @@ function ucePipeRouteNetwork(receiver) {
                     // stale attachment means graph-wide HOLD.
                     const id=logisticsId(next.dimension.id,p.x,p.y,p.z);
                     const other=findReceiverById(id);
-                    if(!other||other.present===false||
+                    const authority=uceAuthoritySnapshot();
+                    if(!authority||
+                       !uceOrdinaryAccountSource(authority,id)||
+                       !other||other.present===false||
                        other.d!==next.dimension.id||
                        other.x!==p.x||other.y!==p.y||other.z!==p.z||
                        !receiverAt(other)||!ucePipeSameDimension(root,next))

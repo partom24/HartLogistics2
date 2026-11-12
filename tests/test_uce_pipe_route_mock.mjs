@@ -60,6 +60,9 @@ function fixture(){
     },
     logisticsId:(d,x,y,z)=>d+'|'+x+'|'+y+'|'+z,
     findReceiverById:id=>registeredReceivers.find(r=>r.id===id),
+    uceAuthoritySnapshot:()=>({worldId:'w',epoch:9}),
+    uceOrdinaryAccountSource:(_,id)=>registeredReceivers.some(r=>r.id===id)?
+      'sealed-region':undefined,
     sorterAt:e=>e===filter?nearerSorter:e===fallback?fartherSorter:undefined,
     facingOffset:()=>({x:0,y:0,z:1}),
     sorterMode:e=>e.m,blockIsRedstonePowered:b=>!!b.powered,
@@ -163,6 +166,12 @@ test('shared graph refuses stale, missing or mismatched Receiver block authority
   assert.equal(f.network(),undefined);
   f.missing.clear();
   secondary.present=false;
+  assert.equal(f.network(),undefined);
+  secondary.present=true;
+  // Even a matching in-memory registry row cannot authorize a Receiver
+  // whose sealed account is unavailable/corrupt.
+  f.context.uceOrdinaryAccountSource=(_,id)=>
+    id===secondary.id?undefined:'sealed-region';
   assert.equal(f.network(),undefined);
 });
 test('double chest output is refused; no aliasing to same container',()=>{

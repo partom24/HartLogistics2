@@ -168,7 +168,11 @@ function uceMrServiceTick(){
     for(let step=0;step<receivers.length;step++){
         const ix=(uceMrCursor+step)%receivers.length;
         const receiver=receivers[ix];
-        if(receiver.present===false)continue;
+        // A historical/unexpected registry row is not custody authority.
+        // MR has no Q4 account bypass: the Receiver must be in the same
+        // readback-validated sealed UCE ledger as ordinary item ownership.
+        if(receiver.present===false||
+           !uceOrdinaryAccountSource(authority,receiver.id))continue;
         const rb=receiverAt(receiver);
         if(!rb)continue;
         const anchor={dimensionId:receiver.d,x:receiver.x,
