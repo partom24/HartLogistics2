@@ -90,7 +90,8 @@ def compile_patch(source,bridge):
       "world.beforeEvents.playerBreakBlock.subscribe(ev => {\n"+
       "    const block=ev.block;\n    if(!block)return;\n"+
       "    if (uceLegacyWriterBlocked() &&\n"+
-      "        (block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID)) {\n"+
+      "        (block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||\n"+
+      "         block.typeId === 'hartlogistics:bulk_storage')) {\n"+
       "        ev.cancel=true;\n"+
       "        ev.player?.sendMessage('§e[Hart Logistics] UCE owns this block. Remove through an explicit drained custody operation; breaking is blocked.');\n"+
       "        return;\n"+
