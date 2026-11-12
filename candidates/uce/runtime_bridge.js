@@ -13,6 +13,23 @@ let uceMrSequence=0;
 let uceMrBootNonce=undefined;
 let uceLastWarning='';
 const UCE_MAIN_AUTHORITY='hartlogistics:uce_authority_v1';
+/**
+ * Sorter native-frame filters and mode state are configuration, NOT item
+ * custody. Preserve the original two-generation registry commit protocol
+ * only after an ACTIVE sealed UCE world has been verified. No queue, journal
+ * or Collector/Receiver registry key is whitelisted.
+ */
+function uceAllowsSorterRegistryWrite(key){
+    if(key!==REGISTRY_META_KEY&&
+       !(typeof key==='string'&&/^hartsorter:r2_[01]_[0-9]+$/.test(key)))
+        return false;
+    const authority=uceAuthoritySnapshot();
+    if(!authority)return false;
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    return cold.ok===true;
+}
+
 function uceLegacyWriterBlocked(){
     try{
         const raw=world.getDynamicProperty(UCE_MAIN_AUTHORITY);
