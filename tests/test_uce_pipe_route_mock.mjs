@@ -138,3 +138,21 @@ test('existing Receiver output Hopper takes precedence over Transporter pipe',()
     block:f.put('minecraft:hopper',4,69,4)});
   assert.equal(f.network(),undefined);
 });
+
+test('Bulk member is discovered only on same connected Receiver pipe graph',()=>{
+  const f=fixture();
+  const bank=f.put('hartlogistics:bulk_storage',1,70,4);
+  const network=f.network();
+  assert.ok(network);
+  assert.equal(network.banks.length,1);
+  assert.equal(network.banks[0],bank);
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+});
+test('Bulk block touching a disconnected second pipe graph cannot claim ownership',()=>{
+  const f=fixture();
+  f.put('hartlogistics:bulk_storage',1,70,4);
+  // Existing pipe at (2,70,4), second disconnected pipe touching the bank.
+  f.put('hartlogistics:transporter',0,70,4);
+  // The second pipe is connected to the first through the bank only.
+  assert.equal(f.network(),undefined);
+});
