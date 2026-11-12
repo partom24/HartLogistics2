@@ -233,3 +233,267 @@ function uceMrServiceTick(){
     }
     uceMrCursor=(uceMrCursor+1)%receivers.length;
 }
+
+
+/* One scheduler, two storage representations. The existing logisticsTick
+ * invokes this function; neither representation registers its own timer.
+ */
+let uceOrdinaryCursor=0;
+function uceUnifiedServiceTick(){
+    uceMrServiceTick();
+    uceOrdinaryServiceTick();
+}
+function uceOrdinaryAccountSource(authority,ownerId){
+    let seal;
+    try{seal=JSON.parse(world.getDynamicProperty('hartlogistics:uce_cold_seal_v1'));}
+    catch(_){return undefined;}
+    if(!seal||!Array.isArray(seal.shards))return undefined;
+    const match=seal.shards.filter(s=>s.owner==='receiver:'+ownerId);
+    return match.length===1?match[0].key:undefined;
+}
+function ucePlainItemIdentity(stack){
+    if(uceClassifyLiveStack(stack)!=='ORDINARY')return undefined;
+    const def={typeId:stack.typeId,lore:[],ench:[],
+        canDestroy:[],canPlaceOn:[]};
+    const key=q5IdentityKey(def);
+    return typeof key==='string'?key:undefined;
+}
+function uceNativeOutputSlot(container){
+    if(!container||!Number.isInteger(container.size))return -1;
+    try{
+        for(let i=0;i<container.size;i++)
+            if(container.getItem(i)===undefined)return i;
+    }catch(_){return -1;}
+    return -1;
+}
+function uceOrdinaryServiceTick(){
+    const authority=uceAuthoritySnapshot();
+    if(!authority||!ready)return;
+    // A single missing custody receipt freezes ALL UCE physical/world writes;
+    // do not attempt per-Receiver replays on the next tick.
+    try{
+        if(world.getDynamicProperty('hartlogistics:uce_native_intent_v1')||
+           world.getDynamicProperty('hartlogistics:uce_boundary_intent_v1'))
+            return;
+    }catch(_){uceBridgeLog('ordinary journal unavailable');return;}
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold.ok){uceBridgeLog('ordinary cold authority '+cold.reason);return;}
+    const receivers=logistics.receivers;
+    if(!receivers.length)return;
+    // At most ONE ordinary Receiver service per scheduler tick. Not a source
+    // throughput limit: the same virtual account writer can transfer a bounded
+    // count batch internally without staging physical items.
+    for(let step=0;step<receivers.length;step++){
+        const index=(uceOrdinaryCursor+step)%receivers.length;
+        const receiver=receivers[index];
+        if(receiver.present===false||!receiverAt(receiver))continue;
+        const ownerId=receiver.id;
+        const accountId='receiver:'+ownerId;
+        const shardKey=uceOrdinaryAccountSource(authority,ownerId);
+        if(!shardKey)continue;
+        const anchor={dimensionId:receiver.d,
+            x:receiver.x,y:receiver.y,z:receiver.z};
+        const linked=logistics.collectors.filter(c=>
+            c.link===ownerId&&c.present!==false);
+        let sourceSlot=undefined,sourceRecord=undefined,sourceKey;
+        for(const collector of linked){
+            const cb=collectorAt(collector);
+            if(!cb||blockIsRedstonePowered(cb))continue;
+            for(const source of collectorInputSources(collector)){
+                if(source.kind!=='hopper'||source.locked||
+                   !source.container?.isValid)continue;
+                for(let i=0;i<source.container.size;i++){
+                    let item;
+                    try{item=source.container.getItem(i);}
+                    catch(_){continue;}
+                    const key=ucePlainItemIdentity(item);
+                    if(!key)continue;
+                    sourceSlot=i;
+                    sourceRecord=source;
+                    sourceKey=key;
+                    break;
+                }
+                if(sourceRecord)break;
+            }
+            if(sourceRecord)break;
+        }
+        const output=receiverOutputHopper(receiver);
+        const outgoing=output&&!output.locked&&
+            !blockIsRedstonePowered(receiverAt(receiver))?
+            output:undefined;
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:uceLiveReceiverOwner
+        });
+        if(!registry.ok){uceBridgeLog(registry.reason);continue;}
+        let host=registry.inspectHost({ownerId,anchor});
+        if(!host.ok&&host.reason==='carrier_record_missing'&&
+           (sourceRecord||outgoing)){
+            // New, empty host only; physical ownership changes are separately
+            // journaled, and a missing PREVIOUS host is never replaced.
+            const spawned=registry.registerEmptyHost({ownerId,anchor});
+            if(!spawned.ok){uceBridgeLog(spawned.reason);continue;}
+            host=registry.inspectHost({ownerId,anchor});
+        }
+        if(!host.ok){uceBridgeLog(host.reason);continue;}
+        const custody=registry.inspectCustody({ownerId,anchor});
+        if(!custody.ok){uceBridgeLog(custody.reason);continue;}
+        const shardWriter=createUnifiedShardWriter({
+            world,shardKey,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEscrowCustody:tx=>{
+                const current=registry.inspectCustody({ownerId,anchor});
+                if(!current.ok)return false;
+                for(const slot of current.slots){
+                    const s=host.container.getItem(slot);
+                    if(!s||ucePlainItemIdentity(s)!==tx.key||
+                       s.amount!==tx.count)continue;
+                    return true;
+                }
+                return false;
+            }
+        });
+        if(!shardWriter.ok){uceBridgeLog(shardWriter.reason);continue;}
+        const ledger=shardWriter.inspect();
+        if(!ledger.ok){uceBridgeLog(ledger.reason);continue;}
+        const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
+        if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
+        if(custody.free<1)continue;
+        const slot=uceNativeOutputSlot(host.container);
+        if(slot<0)continue;
+        let direction,physicalSlot,identityKey,amount,routeVerify;
+        const origin=sourceRecord?.block;
+        if(sourceRecord&&account.total<account.capacity){
+            const stack=sourceRecord.container.getItem(sourceSlot);
+            if(!stack)continue;
+            direction='deposit';identityKey=sourceKey;amount=stack.amount;
+            const p=origin.location;
+            const endpointId='input|'+origin.dimension.id+
+                '|'+p.x+','+p.y+','+p.z;
+            physicalSlot={ownerId:endpointId,
+                container:sourceRecord.container,slot:sourceSlot};
+            routeVerify=()=>{
+                const cb=linked.some(c=>{
+                    const b=collectorAt(c);
+                    return b && !blockIsRedstonePowered(b) &&
+                      collectorInputSources(c).some(x=>x.block===origin&&
+                        x.container===sourceRecord.container&&!x.locked);
+                });
+                return cb&&uceLiveHopperOwner({
+                    d:origin.dimension.id,x:p.x,y:p.y,z:p.z
+                });
+            };
+        }else if(outgoing&&account.total>0){
+            let bucket;
+            for(const entry of account.buckets){
+                try{
+                    const def=JSON.parse(entry.key);
+                    const candidate=new ItemStack(def.typeId,1);
+                    if(uceClassifyLiveStack(candidate)!=='ORDINARY')continue;
+                    bucket=entry;
+                    break;
+                }catch(_){}
+            }
+            if(!bucket)continue;
+            const outputIndex=uceNativeOutputSlot(outgoing.container);
+            if(outputIndex<0)continue;
+            direction='withdraw';identityKey=bucket.key;
+            amount=Math.min(bucket.count,64);
+            const p=outgoing.block.location;
+            const endpointId='output|'+outgoing.block.dimension.id+
+                '|'+p.x+','+p.y+','+p.z;
+            physicalSlot={ownerId:endpointId,
+                container:outgoing.container,slot:outputIndex};
+            routeVerify=()=>receiverOutputHopper(receiver)?.block===
+                outgoing.block&&!blockIsRedstonePowered(receiverAt(receiver))&&
+                !hopperIsRedstoneLocked(outgoing.block);
+        }else continue;
+        const operationId=uceNativeReceiptId();
+        if(!operationId){uceBridgeLog('ordinary receipt exhausted');return;}
+        const carrierSlot={ownerId,container:host.container,slot};
+        const scopedRegistry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:uceLiveReceiverOwner,
+            boundaryOperationId:operationId
+        });
+        const liveOwner=ref=>{
+            if(ref.ownerId===ownerId)
+                return uceLiveReceiverOwner(ownerId,anchor)&&
+                    scopedRegistry.inspectHost({ownerId,anchor}).ok;
+            if(ref.ownerId!==physicalSlot.ownerId)return false;
+            return routeVerify();
+        };
+        const receiptProof=meta=>{
+            const r=shardWriter.inspect(),raw=world.getDynamicProperty(
+                'hartlogistics:uce_boundary_intent_v1');
+            let tx;
+            try{tx=JSON.parse(raw);}catch(_){return false;}
+            const receipt=r?.lastReceipt;
+            return !!r?.ok&&tx?.operationId===operationId&&
+                tx.phase==='ESCROW_READY'&&
+                receipt?.kind==='BOUNDARY'&&
+                receipt.operationId===operationId&&
+                receipt.accountId===accountId&&
+                receipt.direction===meta.direction&&
+                receipt.key===identityKey&&
+                receipt.count===amount;
+        };
+        const ordinaryProof=(item,k,n)=>{
+            if(!item||item.amount!==n||k!==identityKey||
+               ucePlainItemIdentity(item)!==identityKey)return false;
+            return true;
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            boundaryOperationId:operationId,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:liveOwner,
+            durableOwnershipWitness:scopedRegistry.durableOwnershipWitness,
+            makeCertifiedOrdinaryItem:(key,count)=>{
+                if(key!==identityKey)return undefined;
+                try{
+                    const def=JSON.parse(key);
+                    const item=new ItemStack(def.typeId,count);
+                    return ordinaryProof(item,key,count)?item:undefined;
+                }catch(_){return undefined;}
+            },
+            certifyOrdinaryEscrow:ordinaryProof,
+            verifyLedgerBoundaryReceipt:receiptProof,
+            verifyLedgerWithdrawalReservation:meta=>{
+                const r=shardWriter.inspect(),raw=world.getDynamicProperty(
+                    'hartlogistics:uce_boundary_intent_v1');
+                let tx;
+                try{tx=JSON.parse(raw);}catch(_){return false;}
+                return !!r?.ok&&tx?.operationId===operationId&&
+                    tx.phase==='PREPARED'&&meta.direction==='withdraw'&&
+                    meta.operationId===operationId&&
+                    meta.accountId===accountId&&meta.key===identityKey&&
+                    meta.count===amount&&
+                    (r.snapshot.accounts.find(a=>a.id===accountId)
+                      ?.buckets.find(b=>b.key===identityKey)?.count||0)>=amount;
+            }
+        });
+        if(!port.ok){uceBridgeLog(port.reason);continue;}
+        const args={world,worldId:authority.worldId,epoch:authority.epoch,
+            operationId,accountId,key:identityKey,count:amount,
+            registry:scopedRegistry,port,writer:shardWriter,ownerId,anchor,
+            carrierSlot,physicalSlot,verifyRoute:routeVerify,
+            verifyOrdinary:meta=>meta.key===identityKey&&
+                meta.count===amount&&meta.accountId===accountId};
+        const result=direction==='deposit'?
+            executeUnifiedOrdinaryDeposit(args):
+            executeUnifiedOrdinaryWithdrawal(args);
+        if(!result.ok)uceBridgeLog('ordinary '+result.reason);
+        uceOrdinaryCursor=(index+1)%receivers.length;
+        // One transaction opportunity per tick, successful or blocked.
+        return;
+    }
+    uceOrdinaryCursor=(uceOrdinaryCursor+1)%receivers.length;
+}
