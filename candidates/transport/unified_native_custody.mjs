@@ -23,7 +23,7 @@ const nat=n=>Number.isSafeInteger(n)&&n>=0;
 const name=s=>typeof s==='string'&&s.length>0&&s.length<=256&&ASCII.test(s);
 const deny=reason=>({ok:false,status:'HOLD',reason,
   canReplay:false,canClearJournal:false,canMoveMore:false});
-const phases=new Set(['PREPARED','MOVED_INSPECTED']);
+const phases=new Set(['PREPARED','MOVED_INSPECTED','CONSUMED_INSPECTED']);
 function containerOK(c){
   if(!c||!nat(c.size)||c.size<1||
      typeof c.getItem!=='function'||typeof c.moveItem!=='function')return false;
@@ -78,6 +78,7 @@ function verifyEndpoint(value){
  */
 export function createUnifiedNativePort({world,worldId,epoch,externalFence,
     verifyEndpointOwner,durableOwnershipWitness,
+    certifyOrdinaryEscrow,verifyLedgerBoundaryReceipt,
     boundaryOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
@@ -235,6 +236,143 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
     return {ok:true,status:'NATIVE_CUSTODY_ACK_READBACK',
       operationId,canReplay:false};
   }
+
+  /**
+   * Terminal physical retirement of a CERTIFIED ordinary ItemStack already
+   * covered by a persisted ledger credit and a global outer boundary intent.
+   * This is the same native writer, not a destructive general-purpose helper.
+   * It must never be used on metadata-rich or uncertain live stacks.
+   */
+  function consumeCertifiedEscrow({operationId,from,accountId,key,count}={}){
+    if(quarantined)return deny('native_session_quarantined');
+    const gate=fence();
+    if(!gate.ok)return deny(gate.reason);
+    const pending=readJournal(world);
+    if(!pending.ok)return pending;
+    if(!pending.empty)return deny('native_intent_already_pending');
+    if(!name(operationId)||!verifyEndpoint(from)||
+       !name(accountId)||typeof key!=='string'||!pos(count)||
+       typeof from.container.setItem!=='function'||
+       typeof certifyOrdinaryEscrow!=='function'||
+       typeof verifyLedgerBoundaryReceipt!=='function')
+      return deny('invalid_ordinary_escrow_consumption');
+    let item;
+    try{item=from.container.getItem(from.slot);}
+    catch(_){return deny('escrow_item_unreadable');}
+    const before=witness(item);
+    let certified=false,credited=false,owned=false;
+    try{
+      certified=certifyOrdinaryEscrow(item,key,count)===true;
+      credited=verifyLedgerBoundaryReceipt({
+        operationId:boundaryOperationId,accountId,key,count,
+        direction:'deposit'
+      })===true;
+      owned=verifyEndpointOwner(from)===true;
+    }catch(_){}
+    if(!before||before.amount!==count||!certified||!credited||!owned)
+      return deny('ordinary_escrow_not_credited_or_certified');
+    const intent={schema:UCE_NATIVE_INTENT_SCHEMA,
+      phase:'PREPARED',kind:'CONSUME_ORDINARY_ESCROW',
+      operationId,worldId,epoch,
+      from:{ownerId:from.ownerId,slot:from.slot},
+      to:{ownerId:'ledger:'+accountId,slot:0},witness:before};
+    let raw=JSON.stringify(intent);
+    if(raw.length>12000)return deny('native_intent_oversized');
+    const again=fence();
+    let physical=false,receipt=false;
+    try{
+      physical=JSON.stringify(witness(from.container.getItem(from.slot)))===
+        JSON.stringify(before) && verifyEndpointOwner(from)===true;
+      receipt=verifyLedgerBoundaryReceipt({
+        operationId:boundaryOperationId,accountId,key,count,
+        direction:'deposit'
+      })===true;
+    }catch(_){}
+    if(!again.ok||!physical||!receipt)
+      return deny('escrow_prewrite_custody_changed');
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,raw);}
+    catch(_){
+      quarantined=true;
+      return deny('escrow_consumption_intent_ambiguous');
+    }
+    const prepared=readJournal(world);
+    if(!prepared.ok||prepared.empty||prepared.raw!==raw){
+      quarantined=true;
+      return deny('escrow_consumption_intent_readback_failed');
+    }
+    try{from.container.setItem(from.slot,undefined);}
+    catch(_){
+      quarantined=true;
+      return deny('escrow_consumption_outcome_ambiguous');
+    }
+    let empty=false;
+    try{empty=from.container.getItem(from.slot)===undefined;}
+    catch(_){}
+    if(!empty){
+      quarantined=true;
+      return deny('escrow_consumption_postwrite_mismatch');
+    }
+    intent.phase='CONSUMED_INSPECTED';
+    raw=JSON.stringify(intent);
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,raw);}
+    catch(_){
+      quarantined=true;
+      return deny('escrow_consumed_marker_ambiguous');
+    }
+    const posted=readJournal(world);
+    if(!posted.ok||posted.empty||posted.raw!==raw){
+      quarantined=true;
+      return deny('escrow_consumed_marker_readback_failed');
+    }
+    return {ok:true,status:'CERTIFIED_ORDINARY_ESCROW_CONSUMED_PENDING_ACK',
+      operationId,accountId,count,
+      canReplay:false,canClearJournal:false};
+  }
+  /**
+   * ACK only after carrier ticket was durably RELEASED, original slot is
+   * physically empty and the ledger credit receipt still matches. No replay
+   * or new ItemStack creation occurs in this method.
+   */
+  function ackCertifiedEscrow({operationId,from,accountId,key,count}={}){
+    if(quarantined)return deny('native_session_quarantined');
+    const gate=fence(operationId);
+    if(!gate.ok)return deny(gate.reason);
+    const j=readJournal(world);
+    if(!j.ok)return j;
+    if(j.empty||j.record.phase!=='CONSUMED_INSPECTED'||
+       j.record.kind!=='CONSUME_ORDINARY_ESCROW'||
+       j.record.operationId!==operationId||
+       j.record.from.ownerId!==from?.ownerId||
+       j.record.from.slot!==from?.slot||
+       j.record.to.ownerId!=='ledger:'+accountId||
+       j.record.witness.amount!==count)
+      return deny('escrow_ack_without_matching_consumption');
+    let valid=false;
+    try{
+      valid=verifyEndpointOwner(from)===true &&
+        from.container.getItem(from.slot)===undefined &&
+        durableOwnershipWitness(j.record)===true &&
+        verifyLedgerBoundaryReceipt({
+          operationId:boundaryOperationId,accountId,key,count,
+          direction:'deposit'
+        })===true;
+    }catch(_){}
+    if(!valid)return deny('escrow_ack_custody_proof_missing');
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,undefined);}
+    catch(_){
+      quarantined=true;
+      return deny('escrow_ack_clear_ambiguous');
+    }
+    const cleared=readJournal(world);
+    if(!cleared.ok||!cleared.empty){
+      quarantined=true;
+      return deny('escrow_ack_readback_failed');
+    }
+    return {ok:true,status:'CERTIFIED_ORDINARY_ESCROW_CLEARED',
+      operationId,canReplay:false};
+  }
+
   return {ok:true,inspectPending,moveWhole,ackWhole,
+    consumeCertifiedEscrow,ackCertifiedEscrow,
     getSessionQuarantine:()=>quarantined};
 }
