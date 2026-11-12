@@ -269,6 +269,10 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
      seal.q4Sources.length!==seal.receivers)
     return refuse('cold_seal_authority_mismatch');
   let total=0,ids=new Set(),keys=new Set();
+  const bankAccounts=new Map(),liveSources=new Map();
+  const sealedSources=new Map(seal.q4Sources.map(x=>[x.id,x]));
+  if(sealedSources.size!==seal.q4Sources.length)
+    return refuse('duplicate_sealed_receiver_source');
   for(const item of seal.shards){
     if(!item||!validId(item.owner)||!validId(item.key)||
        !nat(item.initialCount)||typeof item.initialHash!=='string'||
@@ -281,15 +285,44 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
       raw:raw.value,shardKey:item.key,worldId,epoch});
     if(!checked.ok)
       return refuse('cold_shard_unreadable:'+item.key+':'+checked.reason);
-    if(checked.snapshot.accounts.length!==1||
-       checked.snapshot.accounts[0].id!==item.owner)
+    const original=checked.snapshot.accounts.find(a=>a.id===item.owner);
+    if(!original||checked.snapshot.accounts.filter(a=>
+        a.id===item.owner).length!==1)
       return refuse('cold_shard_account_changed');
+    // New Bulk accounts may be appended to the original Receiver's one
+    // property. No new Receiver can be conjured without a separate witnessed
+    // registry/cold-import operation.
+    for(const account of checked.snapshot.accounts){
+      if(account.id!==item.owner&&account.kind!=='bulk')
+        return refuse('unsealed_receiver_account');
+      if(account.kind==='bulk'){
+        if(bankAccounts.has(account.ownerId))
+          return refuse('duplicate_bulk_owner_across_shards');
+        bankAccounts.set(account.ownerId,account);
+      }
+    }
+    for(const source of checked.snapshot.sourceReceivers){
+      const old=sealedSources.get(source.id);
+      if(!old||old.queueKey!==source.queueKey||
+         old.fingerprint!==source.fingerprint||
+         liveSources.has(source.id))
+        return refuse('changed_or_repeated_q4_provenance');
+      liveSources.set(source.id,source);
+    }
     if(checked.snapshot.revision===0 &&
        hash(raw.value)!==item.initialHash)
       return refuse('cold_genesis_shard_mismatch');
     total+=checked.snapshot.total;
     if(!nat(total))return refuse('cold_current_total_overflow');
   }
+  if(liveSources.size!==sealedSources.size)
+    return refuse('cold_q4_provenance_missing');
+  const controllers=[...bankAccounts.values()].filter(x=>
+    x.role==='controller');
+  if(bankAccounts.size && (controllers.length!==1 ||
+      [...bankAccounts.values()].some(x=>
+        x.controllerOwnerId!==controllers[0].ownerId)))
+    return refuse('cold_bulk_controller_conflict');
   if(!seal.shards.length&&active.initialItemCount!==0)
     return refuse('cold_empty_shards_with_items');
   return {ok:true,status:'COLD_UCE_AUTHORITY_AND_SHARDS_VERIFIED',
