@@ -96,7 +96,8 @@ function ucePipeRouteNetwork(receiver) {
         }
         const sortedPipes=[...seen.keys()].sort();
         const sortedOutputs=[...endpoints.keys()].sort();
-        const sortedInputs=[...inputs.keys()].sort();
+        const sortedInputs=[...inputs.keys()].sort().map(
+            key=>key+':'+inputs.get(key).typeId);
         const sortedBanks=[...banks.keys()].sort();
         return {receiverId:receiver.id,
             fingerprint:receiver.id+'|'+sortedPipes.join(';')+
@@ -129,14 +130,17 @@ function uceReadOnlyPipeInput(block,root){
         const container=block.getComponent('minecraft:inventory')?.container;
         if(!container||!container.isValid||container.size!==27)
             return undefined;
-        return {block,container};
+        return {block,container,typeId:block.typeId};
     }catch(_){return undefined;}
 }
 function ucePipeSourceStillConnected(receiver,source){
     if(!source||!source.block)return false;
     const graph=ucePipeRouteNetwork(receiver);
-    return !!graph&&graph.inputs.some(input=>
-        uceSameLoadedBlock(input.block,source.block));
+    return !!graph&&typeof source.typeId==='string'&&
+        graph.inputs.some(input=>
+          input.typeId===source.typeId&&
+          uceSameLoadedBlock(input.block,source.block))&&
+        source.container?.isValid===true;
 }
 function uceReadOnlySorterDestination(entry,root) {
     try{
