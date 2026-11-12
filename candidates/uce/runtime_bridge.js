@@ -129,6 +129,17 @@ function uceReceiverHasNewMRInput(receiver){
             }
         }
     }
+    // The same Receiver may also admit metadata-rich stacks from any
+    // verified pipe-attached native source without reconstruction.
+    const pipe=ucePipeRouteNetwork(receiver);
+    for(const source of pipe?.inputs||[]){
+        for(let slot=0;slot<source.container.size;slot++){
+            let item;
+            try{item=source.container.getItem(slot);}
+            catch(_){return false;}
+            if(item&&uceClassifyLiveStack(item)==='MR')return true;
+        }
+    }
     return false;
 }
 function uceMrServiceTick(){
@@ -224,6 +235,18 @@ function uceMrServiceTick(){
                     locked:false,blockVerified:true
                 });
             }
+        }
+        // Transporter inputs use this exact same native port and carrier
+        // ticket writer as Collector/Hopper ingress.
+        const pipeNetwork=ucePipeRouteNetwork(receiver);
+        for(const src of pipeNetwork?.inputs||[]){
+            const p=src.block.location;
+            const id='pipe-input|'+src.block.dimension.id+'|'+
+                p.x+','+p.y+','+p.z;
+            endpoints.set(id,{verify:()=>
+                ucePipeSourceStillConnected(receiver,src)});
+            sources.push({container:src.container,ownerId:id,
+                locked:false,blockVerified:true});
         }
         const output=receiverOutputHopper(receiver);
         let outputNative=output && !output.locked ?
