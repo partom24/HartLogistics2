@@ -78,8 +78,9 @@ class UceBuildTests(unittest.TestCase):
           "safeMovePartial","enqueueFromSource","enqueueFromEjectedEntity",
           "dequeueToReceiver","pg20MoveOpaqueNative","pg23CompactSourceHopper",
           "pg24VerifyEjectedCommit",
-          "setFilter","giveOrDrop","syncDisplay","reconcileDisplays",
-          "plantEmptyNativeFrame","eraseOwnedFrame",
+          "registerCollector","registerReceiver",
+          "markLogisticsAbsent","allocateQueueKey",
+          "selectCollector","useReceiver",
           "loadReceiverQueue","recoverJournal","recoverQueueJournal",
           "flushLogistics"):
             start=s.index("function "+name+"(")
@@ -91,6 +92,16 @@ class UceBuildTests(unittest.TestCase):
           "if (uceLegacyWriterBlocked()) { uceUnifiedServiceTick(); return; }",s)
         self.assertIn("if (uceLegacyWriterBlocked()) return;",s)
         self.assertIn("UCE_LEGACY_WORLD_WRITER_FENCED",s)
+        # Original physical native-frame filter configuration stays operable
+        # and cannot accidentally become a second Q4 item storage writer.
+        for name in ("setFilter","giveOrDrop","syncDisplay",
+                     "plantEmptyNativeFrame","eraseOwnedFrame"):
+            start=s.index("function "+name+"(")
+            brace=s.find("{",start)
+            self.assertNotIn("if (uceLegacyWriterBlocked())",
+                             s[brace:brace+165],name)
+        self.assertIn("uceSelectCollectorForLink(ev.player,ev.block); return;",s)
+        self.assertIn("New UCE Receiver requires registered sealed ownership",s)
 
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
