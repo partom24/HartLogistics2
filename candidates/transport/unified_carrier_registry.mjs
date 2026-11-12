@@ -86,7 +86,7 @@ function near(dim,anchor){
  * block, registered ID and anchor before authorizing host creation/use.
  */
 export function createUnifiedCarrierRegistry({world,worldId,epoch,
-    externalFence,ownerVerifier}={}){
+    externalFence,ownerVerifier,boundaryOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      typeof world.getDimension!=='function'||
@@ -96,7 +96,8 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     return hold('invalid_carrier_registry_binding');
   const fence=(operationId=null)=>verifyUnifiedMutationFence(
     world,worldId,epoch,externalFence,
-    {allowedNativeOperationId:operationId});
+    {allowedNativeOperationId:operationId,
+     allowedBoundaryOperationId:boundaryOperationId});
   let quarantined=false;
   function inspectHost({ownerId,anchor}={}){
     const key=hostKey(ownerId);
