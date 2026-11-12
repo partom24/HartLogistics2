@@ -98,7 +98,7 @@ class UceBuildTests(unittest.TestCase):
                           "saveQueueJournal("):
             self.assertNotIn(forbidden,bridge)
         self.assertNotIn("setDynamicProperty(UCE_MAIN_AUTHORITY",self.main)
-        self.assertIn("Q4 cutover",(
+        self.assertIn("Q4 cold cutover",(
           self.path/"NOT_APPROVED_FOR_INSTALL.txt").read_text())
 
     def test_node_full_pack_script_syntax(self):
