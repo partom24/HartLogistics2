@@ -58,9 +58,9 @@ def compile_patch(source,bridge):
       "function logisticsTick() {\n"+
       "    if (uceLegacyWriterBlocked()) { uceUnifiedServiceTick(); return; }")
     source=once(source,
-      "system.beforeEvents.startup.subscribe((ev) => {",
-      "system.beforeEvents.startup.subscribe((ev) => {\n"+
-      "    uceRegisterBulkComponent(ev.blockComponentRegistry);")
+      "system.beforeEvents.startup.subscribe((event) => {",
+      "system.beforeEvents.startup.subscribe((event) => {\n"+
+      "    uceRegisterBulkComponent(event.blockComponentRegistry);")
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
       "    if (uceLegacyWriterBlocked()) return;")
