@@ -356,7 +356,8 @@ function uceOrdinaryServiceTick(){
         if(!registry.ok){uceBridgeLog(registry.reason);continue;}
         let host=registry.inspectHost({ownerId,anchor});
         if(!host.ok&&host.reason==='carrier_record_missing'&&
-           (sourceRecord||outgoing)){
+           (sourceRecord||outgoing||
+            (!output&&ucePipeRouteNetwork(receiver)))){
             // New, empty host only; physical ownership changes are separately
             // journaled, and a missing PREVIOUS host is never replaced.
             const spawned=registry.registerEmptyHost({ownerId,anchor});
@@ -412,32 +413,50 @@ function uceOrdinaryServiceTick(){
                     d:origin.dimension.id,x:p.x,y:p.y,z:p.z
                 });
             };
-        }else if(outgoing&&account.total>0){
-            let bucket;
+        }else if(account.total>0 && (outgoing ||
+                  (!output&&ucePipeRouteNetwork(receiver)))){
+            let bucket,selectedRoute,selectedItem;
+            // Search all available item buckets; a Filter can accept one type
+            // while another bucket must HOLD or wait for Wildcard. Do not
+            // discard or reclassify any unselected ledger identity.
             for(const entry of account.buckets){
                 try{
                     const def=JSON.parse(entry.key);
-                    const candidate=new ItemStack(def.typeId,1);
-                    if(uceClassifyLiveStack(candidate)!=='ORDINARY')continue;
-                    bucket=entry;
+                    const item=new ItemStack(def.typeId,1);
+                    if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
+                    const route=outgoing?undefined:
+                        uceChoosePipeDestination(receiver,item);
+                    if(!outgoing&&!route)continue;
+                    if(outgoing&&uceNativeOutputSlot(outgoing.container)<0)
+                        continue;
+                    bucket=entry;selectedRoute=route;selectedItem=item;
                     break;
                 }catch(_){}
             }
             if(!bucket)continue;
-            const outputIndex=uceNativeOutputSlot(outgoing.container);
-            if(outputIndex<0)continue;
             direction='withdraw';identityKey=bucket.key;
-            amount=Math.min(bucket.count,64,
-                new ItemStack(JSON.parse(bucket.key).typeId,1).maxAmount);
-            const p=outgoing.block.location;
-            const endpointId='output|'+outgoing.block.dimension.id+
-                '|'+p.x+','+p.y+','+p.z;
-            physicalSlot={ownerId:endpointId,
-                container:outgoing.container,slot:outputIndex};
-            routeVerify=()=>uceSameLoadedBlock(
-                receiverOutputHopper(receiver)?.block,outgoing.block)&&
-                !blockIsRedstonePowered(receiverAt(receiver))&&
-                !hopperIsRedstoneLocked(outgoing.block);
+            amount=Math.min(bucket.count,64,selectedItem.maxAmount);
+            if(selectedRoute){
+                physicalSlot={ownerId:selectedRoute.ownerId,
+                    container:selectedRoute.dest.container,
+                    slot:selectedRoute.slot};
+                routeVerify=()=>!receiverOutputHopper(receiver)&&
+                    !blockIsRedstonePowered(receiverAt(receiver))&&
+                    ucePipeDestinationStillValid(
+                        receiver,selectedItem,selectedRoute);
+            }else{
+                const outputIndex=uceNativeOutputSlot(outgoing.container);
+                if(outputIndex<0)continue;
+                const p=outgoing.block.location;
+                const endpointId='output|'+outgoing.block.dimension.id+
+                    '|'+p.x+','+p.y+','+p.z;
+                physicalSlot={ownerId:endpointId,
+                    container:outgoing.container,slot:outputIndex};
+                routeVerify=()=>uceSameLoadedBlock(
+                    receiverOutputHopper(receiver)?.block,outgoing.block)&&
+                    !blockIsRedstonePowered(receiverAt(receiver))&&
+                    !hopperIsRedstoneLocked(outgoing.block);
+            }
         }else continue;
         const operationId=uceNativeReceiptId();
         if(!operationId){uceBridgeLog('ordinary receipt exhausted');return;}
