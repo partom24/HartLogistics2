@@ -457,6 +457,20 @@ function uceOrdinaryServiceTick(){
             world,shardKey,worldId:authority.worldId,epoch:authority.epoch,
             externalFence:()=>uceLegacyWriterBlocked()&&
                 !!uceAuthoritySnapshot(),
+            verifyInternalRoute:tx=>{
+                const graph=ucePipeRouteNetwork(receiver);
+                if(!graph||!Array.isArray(graph.banks))return false;
+                const loaded=new Set(graph.banks.map(b=>uceBulkOwnerId(b)));
+                const other=tx.from===accountId?tx.to:
+                    tx.to===accountId?tx.from:undefined;
+                if(!other||!other.startsWith('bulk:')||
+                   !loaded.has(other.slice(5)))return false;
+                const current=shardWriter.inspect();
+                if(!current.ok)return false;
+                const bank=current.snapshot.accounts.find(a=>a.id===other);
+                if(!bank||bank.kind!=='bulk')return false;
+                return loaded.has(bank.controllerOwnerId);
+            },
             verifyEscrowCustody:tx=>{
                 const current=registry.inspectCustody({ownerId,anchor});
                 if(!current.ok)return false;
@@ -474,6 +488,55 @@ function uceOrdinaryServiceTick(){
         if(!ledger.ok){uceBridgeLog(ledger.reason);continue;}
         const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
         if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
+        const bankNetwork=ucePipeRouteNetwork(receiver);
+        if(bankNetwork?.banks?.length){
+            const members=[...new Set(bankNetwork.banks
+                .map(b=>uceBulkOwnerId(b)))].sort();
+            const outputKeys=[];
+            if(!sourceRecord && account.total===0 &&
+               !blockIsRedstonePowered(receiverAt(receiver))){
+                for(const bank of ledger.snapshot.accounts){
+                    if(bank.kind!=='bulk'||!members.includes(bank.ownerId))
+                        continue;
+                    for(const entry of bank.buckets){
+                        try{
+                            const def=JSON.parse(entry.key);
+                            const liveItem=new ItemStack(def.typeId,1);
+                            const accepted=uceClassifyLiveStack(liveItem)==='ORDINARY'&&
+                                (outgoing ||
+                                  (!output&&uceChoosePipeDestination(
+                                      receiver,liveItem)));
+                            if(accepted)outputKeys.push(entry.key);
+                        }catch(_){}
+                    }
+                }
+            }
+            const plan=planUnifiedBulkService({
+                snapshot:ledger.snapshot,receiverOwnerId:ownerId,
+                connectedBankOwnerIds:members,
+                sourceWaiting:!!sourceRecord,
+                outputEligibleKeys:outputKeys
+            });
+            if(!plan.ok){
+                uceBridgeLog('Bulk planner '+plan.reason);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+            if(plan.status==='TRANSFER_DRAFT_ONLY'){
+                const op=uceNativeReceiptId();
+                if(!op){uceBridgeLog('Bulk receipt exhausted');return;}
+                const changed=shardWriter.applyInternalTransfer({
+                    operationId:op,from:plan.from,to:plan.to,
+                    key:plan.key,count:plan.count,
+                    expectedRevision:plan.expectedRevision,
+                    expectedEpoch:plan.expectedEpoch
+                });
+                if(!changed.ok)
+                    uceBridgeLog('Bulk transfer '+changed.reason);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+        }
         if(custody.free<1)continue;
         const slot=uceNativeOutputSlot(host.container);
         if(slot<0)continue;
