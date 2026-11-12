@@ -131,7 +131,8 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
       verifyEndpointOwner(to)===true;}catch(_){}
     if(!second.ok||!verified)return deny('native_prewrite_fence_changed');
     try{
-      if(from.container.getItem(from.slot)!==source ||
+      if(JSON.stringify(witness(from.container.getItem(from.slot)))!==
+           JSON.stringify(before) ||
          to.container.getItem(to.slot)!==undefined)
         return deny('native_slots_changed_prewrite');
     }catch(_){return deny('native_prewrite_slot_read_failed');}
