@@ -160,6 +160,10 @@ jobs:
           node --check candidates/uce/runtime_pipe_route.js
           node --check tests/test_uce_pipe_route_mock.mjs
           node --test tests/test_uce_pipe_route_mock.mjs
+      - name: UCE sealed Sorter noncustody configuration gate, legacy link freeze
+        run: |
+          node --check tests/test_uce_sorter_config_fence.mjs
+          node --test tests/test_uce_sorter_config_fence.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
