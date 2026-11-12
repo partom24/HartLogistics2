@@ -861,7 +861,7 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
           }
-pg33-python312-launcher-windows:
+  pg33-python312-launcher-windows:
     runs-on: windows-latest
     steps:
       - name: Check out source
