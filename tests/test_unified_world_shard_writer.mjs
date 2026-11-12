@@ -205,3 +205,18 @@ test('missing shipment source and native move remain out of scope of this writer
   assert.equal(f.writes,0);
   assert.equal(f.writer.canMoveNative,undefined);
 });
+
+test('unresolved native MR intent blocks all ordinary Receiver/Bulk spends under one writer fence',()=>{
+  const f=fixture();
+  f.values.set('hartlogistics:uce_native_intent_v1',JSON.stringify({
+    schema:'hart-uce-native-intent-v1',worldId,epoch,
+    operationId:'native-op-1',phase:'MOVED_INSPECTED'
+  }));
+  holds(f.writer.applyInternalTransfer(f.req),'native_intent_pending_global');
+  assert.equal(f.writes,0);
+  const inspect=f.writer.inspect();
+  assert.equal(inspect.ok,true); // Read-only inspection remains available.
+  f.values.delete('hartlogistics:uce_native_intent_v1');
+  assert.equal(f.writer.applyInternalTransfer(f.req).ok,true);
+  assert.equal(f.writes,1);
+});
