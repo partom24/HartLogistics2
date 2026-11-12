@@ -49,6 +49,9 @@ function fixture(){
     SORTER_ID:'hartsorter:sorter',COLLECTOR_ID:'hartsorter:collector',
     pg26PositionKey:k,pg26Neighbor:(b,face)=>dim.getBlock({
       x:b.location.x+face.x,y:b.location.y+face.y,z:b.location.z+face.z}),
+    uceSameLoadedBlock:(a,b)=>!!a&&!!b&&
+      a.typeId===b.typeId&&a.dimension.id===b.dimension.id&&
+      k(a.location)===k(b.location),
     receiverOutputHopper:()=>undefined,
     receiverAt:r=>r===receiver?receiverBlock:undefined,
     sorterAt:e=>e===filter?nearerSorter:e===fallback?fartherSorter:undefined,
@@ -159,4 +162,60 @@ test('Bulk block touching a disconnected second pipe graph cannot claim ownershi
   f.put('hartlogistics:transporter',0,70,4);
   // The second pipe is connected to the first through the bank only.
   assert.equal(f.network(),undefined);
+});
+
+
+test('Transporter admits loaded 27-slot barrel input without becoming a second output writer',()=>{
+  const f=fixture();
+  const barrel=f.put('minecraft:barrel',1,70,4,f.inventories[0]);
+  const network=f.network();
+  assert.ok(network);
+  assert.equal(network.inputs.length,1);
+  assert.equal(network.inputs[0].block,barrel);
+  assert.equal(network.entries.length,2);
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,
+    network.inputs[0]),true);
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+});
+test('multiple chest/barrel inputs are deduplicated and sorted deterministically',()=>{
+  const f=fixture();
+  const source1=f.put('minecraft:barrel',1,70,4,f.inventories[0]);
+  const source2=f.put('minecraft:chest',3,71,4,f.inventories[1]);
+  const graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.inputs.length,2);
+  assert.deepEqual(graph.inputs.map(x=>f.k(x.block.location)),
+    ['1,70,4','3,71,4']);
+  assert.equal(graph.inputs[0].block,source1);
+  assert.equal(graph.inputs[1].block,source2);
+});
+test('a source below Receiver level and double-chest aliases fail the entire graph',()=>{
+  const f=fixture();
+  f.put('minecraft:barrel',1,70,4,f.inventories[0]);
+  f.put('minecraft:chest',1,69,4,f.inventories[1]);
+  assert.equal(f.network(),undefined);
+  f.put('minecraft:air',1,69,4);
+  const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
+  f.put('minecraft:chest',1,70,5,f.inventories[0]);
+  assert.equal(f.network(),undefined);
+  assert.equal(chest.typeId,'minecraft:chest');
+});
+test('source removal, unloaded frontier or changed input source identity revokes admission',()=>{
+  const f=fixture();
+  const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
+  const initial=f.network().inputs[0];
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,initial),true);
+  chest.typeId='minecraft:barrel';
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,initial),false);
+  chest.typeId='minecraft:chest';
+  f.missing.add('1,70,3');
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,initial),false);
+});
+test('pipe output is refused if it aliases a connected input container',()=>{
+  const f=fixture();
+  const source=f.put('minecraft:barrel',1,70,4,f.inventories[0]);
+  // Overlapping wrappers would only be considered the same if both
+  // represent the very same world block, never merely the same item type.
+  assert.ok(f.network());
+  assert.notEqual(f.choose(COBBLE)?.dest.block,source);
 });
