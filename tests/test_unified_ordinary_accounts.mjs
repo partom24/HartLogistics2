@@ -98,6 +98,7 @@ test('real Q4 structure -> shared Receiver/Bulk account draft; exact counters an
   assert.equal(r.snapshot.accounts[1].capacity,UCE_RECEIVER_CAPACITY);
   assert.equal(r.snapshot.accounts[1].legacyQ4.received,27);
   assert.equal(r.snapshot.accounts[1].legacyQ4.delivered,7);
+  assert.deepEqual(r.snapshot.accounts[1].lifetime,{received:27,delivered:7});
   assert.equal(inspectUnifiedOrdinaryLedger(r.snapshot).total,36);
   assert.equal(r.hasAuthenticatedFreeze,false);
   assert.equal(r.hasAtomicBedrockSaveProof,false);
@@ -336,4 +337,49 @@ test('boundary refuses unauthenticated identity, stale epoch and over-capacity',
     count:100}),'boundary_insufficient_balance');
   hold(transitionUnifiedOrdinaryBoundary(s,{...base,direction:'withdraw',
     accountId:'bulk:bank-b1'}),'boundary_insufficient_balance');
+});
+
+
+test('original Q4 lifetime counters remain immutable while UCE Receiver delivery counts grow',()=>{
+  const f=fixture();
+  const s=stage(f).snapshot;
+  const receiver='receiver:minecraft:overworld|0,70,-40';
+  const key=q5IdentityKey(item());
+  const before=s.accounts.find(a=>a.id===receiver);
+  assert.deepEqual(before.lifetime,{received:27,delivered:7});
+  const moved=move(s,receiver,'bulk:bank-b1',key,4);
+  assert.equal(moved.ok,true,moved.reason);
+  const after=moved.next.accounts.find(a=>a.id===receiver);
+  assert.equal(after.lifetime.delivered,11);
+  assert.equal(after.lifetime.received,27);
+  assert.equal(after.legacyQ4.delivered,7);
+  assert.equal(after.legacyQ4.received,27);
+  const back=move(moved.next,'bulk:bank-b1',receiver,key,3,'return');
+  assert.equal(back.ok,true,back.reason);
+  const r=back.next.accounts.find(a=>a.id===receiver);
+  assert.deepEqual(r.lifetime,{received:30,delivered:11});
+  assert.equal(inspectUnifiedOrdinaryLedger(back.next).ok,true);
+});
+test('ordinary physical-boundary transfer advances Receiver lifetime counters once',()=>{
+  const s=stage(fixture()).snapshot;
+  const receiver='receiver:minecraft:overworld|0,70,-40';
+  const key=q5IdentityKey(item());
+  const inwards=transitionUnifiedOrdinaryBoundary(s,{
+    operationId:'new-received',accountId:receiver,key,count:5,
+    direction:'deposit',expectedRevision:s.revision,expectedEpoch:s.epoch
+  });
+  assert.equal(inwards.ok,true,inwards.reason);
+  const after=inwards.next.accounts.find(a=>a.id===receiver);
+  assert.deepEqual(after.lifetime,{received:32,delivered:7});
+  const outgoing=transitionUnifiedOrdinaryBoundary(inwards.next,{
+    operationId:'new-delivered',accountId:receiver,key,count:6,
+    direction:'withdraw',expectedRevision:inwards.next.revision,expectedEpoch:s.epoch
+  });
+  assert.equal(outgoing.ok,true,outgoing.reason);
+  const final=outgoing.next.accounts.find(a=>a.id===receiver);
+  assert.deepEqual(final.lifetime,{received:32,delivered:13});
+  assert.deepEqual(final.legacyQ4,{
+    queueKey:'q1',fingerprint:after.legacyQ4.fingerprint,
+    head:1,tail:2,next:3,received:27,delivered:7
+  });
 });
