@@ -5,7 +5,8 @@ import {
   previewUnifiedColdQ4Import,executeUnifiedColdQ4Import,
   inspectUnifiedActiveColdImport,UCE_COLD_SEAL_KEY
 } from '../candidates/transport/unified_cold_q4_importer.mjs';
-import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA}
+import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
+  createUnifiedShardWriter}
   from '../candidates/transport/unified_world_shard_writer.mjs';
 
 const worldId='minecraft:overworld:archived-141-test',epoch=77;
@@ -220,4 +221,45 @@ test('35 Receiver synthetic archive scales into individually sealed read-only sh
   assert.equal(p.shards.length,35);
   assert.equal(p.itemCount,35*1000+34*35/2);
   assert.equal(f.writes,0);
+});
+
+
+test('cold-sealed Receiver accepts newly registered Bulk member with unchanged Q4 source',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const sealed=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
+  const shardKey=sealed.shards[0].key;
+  const writer=createUnifiedShardWriter({world:f.world,shardKey,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,
+    verifyGlobalBulkUniqueness:()=>true});
+  const initial=writer.inspect();
+  assert.equal(initial.ok,true);
+  const r=writer.registerBulkMember({ownerId:'world-bank-a',
+    operationId:'world-bank-register-1',expectedRevision:initial.snapshot.revision,
+    expectedEpoch:epoch});
+  assert.equal(r.ok,true,r.reason);
+  const valid=inspectUnifiedActiveColdImport({world:f.world,worldId,epoch});
+  assert.equal(valid.ok,true,valid.reason);
+  assert.equal(valid.currentLedgerTotal,184);
+  assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
+    f.source);
+});
+test('globally competing Bulk controllers in two sealed shards refuse startup',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const sealed=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
+  for(let i=0;i<2;i++){
+    const shardKey=sealed.shards[i].key;
+    const writer=createUnifiedShardWriter({world:f.world,shardKey,
+      worldId,epoch,externalFence:()=>true,
+      verifyBulkPlacement:()=>true,
+      verifyGlobalBulkUniqueness:()=>true});
+    const before=writer.inspect().snapshot;
+    assert.equal(writer.registerBulkMember({
+      ownerId:'forged-bank-'+i,operationId:'faked-live-claim-'+i,
+      expectedRevision:before.revision,expectedEpoch:epoch}).ok,true);
+  }
+  fail(inspectUnifiedActiveColdImport({world:f.world,worldId,epoch}),
+    'cold_bulk_controller_conflict');
+  assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
+    f.source);
 });
