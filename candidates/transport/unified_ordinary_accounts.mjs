@@ -63,10 +63,10 @@ function inspectAccount(account) {
   if (total !== account.total) return denied('account_total_mismatch');
   if (account.kind === 'receiver') {
     const q=account.legacyQ4;
-    if (!q || !/^q[1-9][0-9]*$/.test(q.queueKey) ||
+    if (q !== undefined && (!q || !/^q[1-9][0-9]*$/.test(q.queueKey) ||
         !/^fnv32:[0-9a-f]{8}$/.test(q.fingerprint) ||
         !nat(q.head) || !nat(q.tail) || !pos(q.next) ||
-        !nat(q.received) || !nat(q.delivered)) {
+        !nat(q.received) || !nat(q.delivered))) {
       return denied('invalid_receiver_legacy_provenance');
     }
   } else if (account.legacyQ4 !== undefined) {
@@ -99,13 +99,17 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
     if (!nat(total)) return denied('ledger_total_overflow');
     if (a.kind === 'receiver') {
       receivers++;
-      if (seenQueueKeys.has(a.legacyQ4.queueKey))
-        return denied('duplicate_legacy_queue_key');
-      seenQueueKeys.add(a.legacyQ4.queueKey);
+      if (a.legacyQ4 !== undefined) {
+        if (seenQueueKeys.has(a.legacyQ4.queueKey))
+          return denied('duplicate_legacy_queue_key');
+        seenQueueKeys.add(a.legacyQ4.queueKey);
+      }
     }
   }
-  if (total!==snapshot.total || receivers!==snapshot.sourceReceivers.length)
+  if (total!==snapshot.total)
     return denied('ledger_conservation_mismatch');
+  if (seenQueueKeys.size!==snapshot.sourceReceivers.length)
+    return denied('source_provenance_count_mismatch');
   let sourcePrev=null;
   for (const source of snapshot.sourceReceivers) {
     if (!source || !idOK(source.id) ||
@@ -115,7 +119,8 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
       return denied('invalid_source_census');
     sourcePrev=source.id;
     const account=snapshot.accounts.find(a=>a.id==='receiver:'+source.id);
-    if (!account || account.legacyQ4.queueKey!==source.queueKey ||
+    if (!account || !account.legacyQ4 ||
+        account.legacyQ4.queueKey!==source.queueKey ||
         account.legacyQ4.fingerprint!==source.fingerprint ||
         (snapshot.revision===0 && account.total!==source.itemCount))
       return denied('source_account_mismatch');
@@ -123,6 +128,51 @@ export function inspectUnifiedOrdinaryLedger(snapshot) {
   return {ok:true,status:'LEDGER_CONSISTENT_SOURCE_ONLY',
     accountCount:snapshot.accounts.length,receiverCount:receivers,total,
     ...noAuthority};
+}
+
+/**
+ * Create an empty world ledger for a brand-new world. No Q4 linkage or
+ * migration-mode assertion is implied by constructing this source value.
+ */
+export function createEmptyUnifiedOrdinaryLedger({worldId,epoch}={}) {
+  if (!idOK(worldId) || !pos(epoch)) return denied('invalid_new_world_identity');
+  const snapshot={
+    schema:UCE_LEDGER_SCHEMA,worldId,epoch,revision:0,total:0,
+    accounts:[],sourceReceivers:[]
+  };
+  return {ok:true,status:'EMPTY_ORDINARY_LEDGER_DRAFT_ONLY',
+    snapshot,...noAuthority};
+}
+
+/**
+ * Register a genuinely new empty Receiver or Bulk member; a legacy imported
+ * Receiver is NEVER re-created under another account ID. No item mutation.
+ * Physical placement and authoritative identity are checked by the caller.
+ */
+export function registerUnifiedEmptyAccount(snapshot,{kind,ownerId,
+    expectedRevision,expectedEpoch}={}) {
+  const valid=inspectUnifiedOrdinaryLedger(snapshot);
+  if (!valid.ok) return valid;
+  if (!['receiver','bulk'].includes(kind) || !idOK(ownerId) ||
+      !nat(expectedRevision) || snapshot.revision!==expectedRevision ||
+      expectedEpoch!==snapshot.epoch) {
+    return denied('invalid_or_stale_registration');
+  }
+  const id=kind+':'+ownerId;
+  if (snapshot.accounts.some(a=>a.id===id)) return denied('duplicate_account');
+  if (!nat(snapshot.revision+1)) return denied('ledger_version_overflow');
+  const next=JSON.parse(JSON.stringify(snapshot));
+  next.accounts.push({
+    id,kind,ownerId,
+    capacity:kind==='receiver'?UCE_RECEIVER_CAPACITY:UCE_BULK_MEMBER_CAPACITY,
+    total:0,buckets:[]
+  });
+  next.accounts.sort((a,b)=>order(a.id,b.id));
+  next.revision++;
+  const check=inspectUnifiedOrdinaryLedger(next);
+  if (!check.ok) return check;
+  return {ok:true,status:'EMPTY_ACCOUNT_REGISTRATION_DRAFT_ONLY',
+    next,registeredId:id,hasWorldIdentityProof:false,...noAuthority};
 }
 
 /**
