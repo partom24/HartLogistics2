@@ -15,7 +15,8 @@ assert.ok(first>=0&&last>first,'unified scheduler must have stable bounds');
 const actual=bridge.slice(first,last);
 
 function fixture({ready=true,active=true,sealed=true,
-                  thrown=false,journals={},afterMR=null}={}){
+                  thrown=false,journals={},afterMR=null,
+                  dirty=false,topologyFails=false}={}){
   const calls=[],messages=[],reads=[];
   const authority=active?{worldId:'restored-lab-copy',epoch:41}:undefined;
   const world={
@@ -26,7 +27,11 @@ function fixture({ready=true,active=true,sealed=true,
     }
   };
   const context={
-    world,ready,
+    world,ready,dirty,
+    rebuildTopology:()=>{
+      calls.push('topology');
+      if(topologyFails)throw Error('topology observation failed');
+    },
     uceAuthoritySnapshot:()=>{calls.push('authority');return authority;},
     inspectUnifiedActiveColdImport:args=>{
       calls.push('cold');
@@ -97,4 +102,12 @@ test('MR clears its own acknowledged journal before ordinary lane starts',()=>{
     j['hartlogistics:uce_native_intent_v1']=undefined;
   }});
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY']);
+});
+
+test('dirty legacy Sorter topology is refreshed inside unified tick only',()=>{
+  const r=fixture({dirty:true});
+  assert.deepEqual(r.calls,['authority','cold','topology','MR','ORDINARY']);
+  const held=fixture({dirty:true,topologyFails:true});
+  assert.deepEqual(held.calls,['authority','cold','topology']);
+  assert.equal(held.messages.some(x=>x.includes('topology')),true);
 });
