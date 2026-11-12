@@ -96,6 +96,7 @@ def compile_patch(source,bridge):
       'import {executeUnifiedOrdinaryDeposit,executeUnifiedOrdinaryWithdrawal} from "./uce/unified_ordinary_service.js";\n'
       'import {createUnifiedShardWriter} from "./uce/unified_world_shard_writer.js";\n'
       'import {q5IdentityKey} from "./uce/q5_bucket_core.js";\n'
+      'import {inspectQ4OrdinaryDefinitionShape} from "./uce/q5_ordinary_shape_gate.js";\n'
       'import {inspectUnifiedActiveColdImport} from "./uce/unified_cold_q4_importer.js";\n'
     )
     source=once(source,"import {\n    world,\n    system,",
