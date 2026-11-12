@@ -83,10 +83,14 @@ function uceClassifyLiveStack(stack){
         if(!Array.isArray(dyn)||!Array.isArray(lore))return 'UNKNOWN';
         if(stack.maxAmount!==64 || stack.nameTag ||
            dyn.length || lore.length)return 'MR';
-        // Stack identity can still have unenumerated opaque metadata. The
-        // ordinary classifier is intentionally NOT admitted from this
-        // simple shape check. Let the native lane handle it safely until
-        // the common certified ordinary classifier is wired.
+        // Ordinary classification is only a refusal decision for THIS MR
+        // service. It never creates/credits a virtual balance. Compare both
+        // native directions against a fresh one-item canonical stack; a
+        // differing/unknown stack remains native, preserving original bytes.
+        const plain=new ItemStack(stack.typeId,1);
+        if(plain.maxAmount===stack.maxAmount &&
+           stack.isStackableWith(plain)===true &&
+           plain.isStackableWith(stack)===true)return 'ORDINARY';
         return 'MR';
     }catch(_){return 'UNKNOWN';}
 }
