@@ -30,6 +30,11 @@ spec=importlib.util.spec_from_file_location(
 pg33=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pg33)
 
+bulk_spec=importlib.util.spec_from_file_location(
+    'uce_bulk_assets',ROOT/'candidates/uce/bulk_assets.py')
+bulk_assets=importlib.util.module_from_spec(bulk_spec)
+bulk_spec.loader.exec_module(bulk_assets)
+
 def once(s,old,new):
     if s.count(old)!=1:
         raise ValueError("UCE REFUSED uncertain exact source anchor: "+old[:90])
@@ -139,6 +144,7 @@ def prepare(target):
                   "Unified custody integration source. No Q4 migration "
                   "or live UCE authority installed. NOT release ready.")
                 p.write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8")
+            bulk_assets.add_bulk_assets(target)
             bp=target/"behavior_pack"
             lib=bp/"scripts/uce"
             lib.mkdir(parents=True,exist_ok=False)
