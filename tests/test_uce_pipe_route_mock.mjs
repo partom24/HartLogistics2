@@ -136,7 +136,8 @@ test('selected destination must be identical after priority or topology changes'
 test('existing Receiver output Hopper takes precedence over Transporter pipe',()=>{
   const f=fixture();f.context.receiverOutputHopper=()=>({
     block:f.put('minecraft:hopper',4,69,4)});
-  assert.equal(f.network(),undefined);
+  assert.ok(f.network()); // Bank graph remains readable without a pipe egress.
+  assert.equal(f.choose(COBBLE),undefined);
 });
 
 test('Bulk member is discovered only on same connected Receiver pipe graph',()=>{
