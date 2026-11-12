@@ -23,6 +23,7 @@ MODULES=(
     "unified_receiver_mr_service","unified_ordinary_service",
     "unified_bulk_policy","unified_link_registry",
     "unified_cold_q4_importer","unified_migration_preflight",
+    "unified_new_world_activation",
     "q5_world_receiver_census","q5_q4_read_adapter",
     "q5_q4_readonly_snapshot","q5_bucket_core",
     "q5_ordinary_shape_gate","ordinary_network_core"
@@ -109,6 +110,15 @@ def compile_patch(source,bridge):
       "            cheatsRequired: false\n"+
       "        },\n"+
       "        (origin) => system.run(() => uceSendMigrationPreview(origin))\n"+
+      "    );\n"+
+      "    event.customCommandRegistry.registerCommand(\n"+
+      "        {\n"+
+      "            name: 'hartlogistics:activate_empty_lab',\n"+
+      "            description: 'Explicitly activate UCE in an EMPTY logistics LAB world only.',\n"+
+      "            permissionLevel: CommandPermissionLevel.GameDirectors,\n"+
+      "            cheatsRequired: false\n"+
+      "        },\n"+
+      "        origin => system.run(() => uceActivateEmptyLabWorld(origin))\n"+
       "    );")
     source=once(source,
       "    system.runTimeout(() => processEjectedItemEntity(ev.entity, 0, spawnLoc), 1);",
@@ -178,6 +188,7 @@ def compile_patch(source,bridge):
       'import {inspectQ4OrdinaryDefinitionShape} from "./uce/q5_ordinary_shape_gate.js";\n'
       'import {inspectUnifiedActiveColdImport} from "./uce/unified_cold_q4_importer.js";\n'
       'import {previewUnifiedMigrationPreflight} from "./uce/unified_migration_preflight.js";\n'
+      'import {activateUnifiedEmptyWorld} from "./uce/unified_new_world_activation.js";\n'
     )
     source=once(source,"import {\n    world,\n    system,",
       imports+"\nimport {\n    world,\n    system,")

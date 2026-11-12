@@ -1567,3 +1567,46 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
         operationId:op,entity,sourceOwnerId,to});
     if(!ack.ok)uceBridgeLog('ejected item ACK HOLD '+ack.reason);
 }
+
+/*
+ * Explicit empty-LAB-world bootstrap to enable BDS integration acceptance
+ * WITHOUT endangering the archived 1.4.1 baseline. Any Q4 history, legacy
+ * Collector/Receiver, journal or preexisting UCE authority refuses before
+ * writing. No archived-world migration is performed or approved here.
+ */
+function uceActivateEmptyLabWorld(origin){
+    const entity=origin?.sourceEntity;
+    const say=message=>{
+        if(entity&&typeof entity.sendMessage==='function')
+            entity.sendMessage(message);
+        else log(message.replace(/§./g,''));
+    };
+    if(!ready){
+        say('§c[UCE] Startup incomplete; empty-LAB activation HOLD.');
+        return;
+    }
+    const receipt=uceNativeReceiptId();
+    if(!receipt){
+        say('§c[UCE] No safe world ID available; HOLD.');
+        return;
+    }
+    const worldId='minecraft:overworld:uce-empty-'+receipt;
+    const result=activateUnifiedEmptyWorld({
+        world,logistics,worldId,epoch:1,
+        operatorAuthorized:true,
+        actualWorldFence:()=>uceLegacyWriterBlocked()
+    });
+    if(!result.ok){
+        say('§c[UCE] Empty-LAB activation HOLD: '+result.reason);
+        return;
+    }
+    const checked=inspectUnifiedActiveColdImport({
+        world,worldId:result.worldId,epoch:result.epoch});
+    if(!checked.ok||!uceHydrateNewReceivers()){
+        say('§c[UCE] Readback/refresh ambiguous. Preserve LAB world; no automatic retry.');
+        return;
+    }
+    say('§a[UCE] EMPTY LAB world activated with '+result.shardCount+
+        ' sealed new-Receiver reservations. No Q4 items were moved.');
+    say('§7SOURCE CANDIDATE ONLY: BDS gameplay acceptance and release approval still required.');
+}
