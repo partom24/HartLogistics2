@@ -76,11 +76,18 @@ def compile_patch(source,bridge):
     source=guard_function(source,"flushLogistics")
     source=once(source,"    migrateLegacyCollectorsIfNeeded();",
       "    if (!uceLegacyWriterBlocked()) migrateLegacyCollectorsIfNeeded();")
-    source=once(source,
-      "    for (const receiver of logistics.receivers) {\n"+
-      "        if (!receiver.queueKey) receiver.queueKey = allocateQueueKey();",
-      "    if (!uceLegacyWriterBlocked()) for (const receiver of logistics.receivers) {\n"+
-      "        if (!receiver.queueKey) receiver.queueKey = allocateQueueKey();")
+    # PG25 rewrote the original Receiver-startup loop; do not assume its
+    # inner statements still match frozen 1.4.1. Fence the complete marked
+    # startup region including migration and queue initialization instead.
+    start=source.find("    // Load every Receiver queue once at startup.")
+    end=source.find("    recoverJournal();",start)
+    if start<0 or end<=start or end-start>3000:
+        raise ValueError("UCE REFUSED unknown startup queue writer region")
+    segment=source[start:end]
+    if "for (const receiver of logistics.receivers)" not in segment:
+        raise ValueError("UCE REFUSED Receiver startup structure drift")
+    source=source[:start]+"    if (!uceLegacyWriterBlocked()) {\n"+(
+        segment)+"    }\n"+source[end:]
     imports=(
       'import {createUnifiedCarrierRegistry} from "./uce/unified_carrier_registry.js";\n'
       'import {createUnifiedNativePort} from "./uce/unified_native_custody.js";\n'
