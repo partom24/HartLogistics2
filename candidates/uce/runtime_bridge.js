@@ -710,6 +710,7 @@ function uceOrdinaryServiceTick(){
         const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
         if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
         const bankNetwork=ucePipeRouteNetwork(receiver);
+        let preferredOutputReady=false;
         if(bankNetwork?.banks?.length){
             const members=[...new Set(bankNetwork.banks
                 .map(b=>uceBulkOwnerId(b)))].sort();
@@ -739,6 +740,7 @@ function uceOrdinaryServiceTick(){
                     }
                 }
             }
+            preferredOutputReady=preferredKeys.length>0;
             const plan=planUnifiedBulkService({
                 snapshot:ledger.snapshot,receiverOwnerId:ownerId,
                 connectedBankOwnerIds:members,
@@ -771,7 +773,8 @@ function uceOrdinaryServiceTick(){
         if(slot<0)continue;
         let direction,physicalSlot,identityKey,amount,routeVerify;
         const origin=sourceRecord?.block;
-        if(sourceRecord&&account.total<account.capacity){
+        if(sourceRecord&&account.total<account.capacity&&
+           !preferredOutputReady){
             const stack=sourceRecord.container.getItem(sourceSlot);
             if(!stack)continue;
             direction='deposit';identityKey=sourceKey;amount=stack.amount;
