@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const text=fs.readFileSync(new URL(
   '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
-const marker=text.indexOf('let uceSorterDirectCursor=0;');
+const marker=text.indexOf('function uceDirectStorageOwnerBlock(block){');
 assert.ok(marker>=0,'the shipped native direct Sorter executor must exist');
 const runtime=text.slice(marker);
 function fixture({locked=false,occupied=false}={}){
