@@ -143,25 +143,10 @@ function uceReceiverHasNewMRInput(receiver){
     }
     return false;
 }
-function uceMrServiceTick(){
-    const authority=uceAuthoritySnapshot();
-    if(!authority){
-        uceBridgeLog('authority not ACTIVE; original writers remain frozen');
-        return;
-    }
-    if(!ready)return;
-    const cold=inspectUnifiedActiveColdImport({world,
-      worldId:authority.worldId,epoch:authority.epoch});
-    if(!cold.ok){
-        uceBridgeLog('incomplete cold authority: '+cold.reason);
-        return;
-    }
-    // A shared journal means at most one unresolved native ownership transfer
-    // can exist across the entire engine. No auto-clear or retry on restart.
-    if(world.getDynamicProperty('hartlogistics:uce_native_intent_v1')){
-        uceBridgeLog('native ownership intent pending: reconciliation HOLD');
-        return;
-    }
+function uceMrServiceTick(authority){
+    // uceUnifiedServiceTick is the only caller. It has already validated
+    // world-wide cold authority and all native/ordinary/legacy journals.
+    // Each physical writer still performs its own fresh mutation fence.
     const receivers=logistics.receivers;
     if(!receivers.length)return;
     let considered=0;
@@ -305,8 +290,40 @@ function uceMrServiceTick(){
  */
 let uceOrdinaryCursor=0;
 function uceUnifiedServiceTick(){
-    uceMrServiceTick();
-    uceOrdinaryServiceTick();
+    // One scheduler and one global custody/recovery authority. Do not
+    // advance EITHER lane when ANY saved transaction might own an item.
+    // Fail closed on unknown journal data; no auto-replay or auto-clear.
+    const authority=uceAuthoritySnapshot();
+    if(!authority||!ready){
+        if(!authority)uceBridgeLog(
+            'authority not ACTIVE; original writers remain frozen');
+        return;
+    }
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold.ok){
+        uceBridgeLog('incomplete cold authority: '+cold.reason);
+        return;
+    }
+    try{
+        for(const key of [
+            'hartsorter:journal_v1',
+            'hartsorter:queue_journal_v1',
+            'hartlogistics:uce_native_intent_v1',
+            'hartlogistics:uce_boundary_intent_v1'
+        ]){
+            const value=world.getDynamicProperty(key);
+            if(value!==undefined&&value!==null&&value!==''){
+                uceBridgeLog('global custody HOLD: pending '+key);
+                return;
+            }
+        }
+    }catch(_){
+        uceBridgeLog('global custody HOLD: journal unreadable');
+        return;
+    }
+    uceMrServiceTick(authority);
+    uceOrdinaryServiceTick(authority);
 }
 /**
  * Read the immutable cold seal, not an additional Receiver registry. Original
@@ -743,19 +760,9 @@ function uceSameLoadedBlock(a,b){
     const x=a.location,y=b.location;
     return !!x&&!!y&&x.x===y.x&&x.y===y.y&&x.z===y.z;
 }
-function uceOrdinaryServiceTick(){
-    const authority=uceAuthoritySnapshot();
-    if(!authority||!ready)return;
-    // A single missing custody receipt freezes ALL UCE physical/world writes;
-    // do not attempt per-Receiver replays on the next tick.
-    try{
-        if(world.getDynamicProperty('hartlogistics:uce_native_intent_v1')||
-           world.getDynamicProperty('hartlogistics:uce_boundary_intent_v1'))
-            return;
-    }catch(_){uceBridgeLog('ordinary journal unavailable');return;}
-    const cold=inspectUnifiedActiveColdImport({
-        world,worldId:authority.worldId,epoch:authority.epoch});
-    if(!cold.ok){uceBridgeLog('ordinary cold authority '+cold.reason);return;}
+function uceOrdinaryServiceTick(authority){
+    // This lane shares the MR lane's global preflight. Every later ledger
+    // credit/debit and native move rechecks its own mutation fence.
     const receivers=logistics.receivers;
     if(!receivers.length)return;
     // At most ONE ordinary Receiver service per scheduler tick. Not a source

@@ -115,8 +115,10 @@ class UceBuildTests(unittest.TestCase):
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
         self.assertIn('function uceUnifiedServiceTick(){',s)
-        self.assertIn('    uceMrServiceTick();',s)
-        self.assertIn('    uceOrdinaryServiceTick();',s)
+        self.assertIn('    uceMrServiceTick(authority);',s)
+        self.assertIn('    uceOrdinaryServiceTick(authority);',s)
+        self.assertIn("global custody HOLD: journal unreadable",s)
+        self.assertIn("hartsorter:queue_journal_v1",s)
         self.assertIn('executeUnifiedOrdinaryDeposit(args)',s)
         self.assertIn('executeUnifiedOrdinaryWithdrawal(args)',s)
         self.assertEqual(s.count('function logisticsTick() {'),1)
