@@ -519,7 +519,150 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
       operationId,canReplay:false};
   }
 
+
+  /*
+   * A vanilla dropper/dispenser does not expose its ejected item through a
+   * Container. Copy the LIVE ItemStack into the existing native carrier under
+   * the same UCE intent and ticket protocol; remove its entity ONLY after
+   * registry.stageMovedTicket has independently persisted destination custody.
+   * The intermediate source entity intentionally remains present. On crash,
+   * partial placement or uncertain entity.remove, the journal HOLDS and never
+   * replays/clears automatically. This is NOT BDS disk-atomicity.
+   */
+  function entityValid(entity){
+    try{
+      return !!entity&&entity.typeId==='minecraft:item'&&
+        (typeof entity.isValid==='function'
+          ? entity.isValid()===true : entity.isValid===true);
+    }catch(_){return false;}
+  }
+  function entityStack(entity){
+    try{return entity?.getComponent('minecraft:item')?.itemStack;}
+    catch(_){return undefined;}
+  }
+  function entitySourceRef(entity,sourceOwnerId){
+    return {ownerId:sourceOwnerId,slot:0,entity};
+  }
+  function stageEjectedItem({operationId,entity,sourceOwnerId,to}={}){
+    if(quarantined)return deny('native_session_quarantined');
+    const gate=fence();
+    if(!gate.ok)return deny(gate.reason);
+    const pending=readJournal(world);
+    if(!pending.ok)return pending;
+    if(!pending.empty)return deny('native_intent_already_pending');
+    if(!name(operationId)||!name(sourceOwnerId)||
+       !entityValid(entity)||!name(entity.id)||!verifyEndpoint(to)||
+       sourceOwnerId===to.ownerId||
+       typeof to.container.setItem!=='function')
+      return deny('entity_ingress_invalid_endpoints');
+    const from=entitySourceRef(entity,sourceOwnerId);
+    let admitted=false;
+    try{admitted=verifyEndpointOwner(from)===true&&
+      verifyEndpointOwner(to)===true;}catch(_){}
+    if(!admitted)return deny('entity_ingress_owner_unverified');
+    const stack=entityStack(entity),before=witness(stack);
+    if(!before)return deny('entity_ingress_item_unreadable');
+    try{if(to.container.getItem(to.slot)!==undefined)
+      return deny('entity_ingress_target_occupied');}
+    catch(_){return deny('entity_ingress_target_unreadable');}
+    const intent={schema:UCE_NATIVE_INTENT_SCHEMA,
+      kind:'ENTITY_TO_NATIVE',phase:'PREPARED',
+      operationId,worldId,epoch,entityId:entity.id,
+      from:{ownerId:sourceOwnerId,slot:0},
+      to:{ownerId:to.ownerId,slot:to.slot},witness:before};
+    let raw=JSON.stringify(intent);
+    if(raw.length>12000)return deny('entity_ingress_intent_oversized');
+    const again=fence();
+    let valid=false;
+    try{
+      valid=again.ok&&entityValid(entity)&&
+        verifyEndpointOwner(from)===true&&
+        verifyEndpointOwner(to)===true&&
+        JSON.stringify(witness(entityStack(entity)))===
+          JSON.stringify(before)&&
+        to.container.getItem(to.slot)===undefined;
+    }catch(_){}
+    if(!valid)return deny('entity_ingress_changed_prewrite');
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,raw);}
+    catch(_){quarantined=true;return deny('entity_prepare_write_ambiguous');}
+    const posted=readJournal(world);
+    if(!posted.ok||posted.empty||posted.raw!==raw){
+      quarantined=true;return deny('entity_prepare_readback_failed');
+    }
+    // This uses the ItemStack returned by the native item component
+    // directly, not JSON/def reconstruction or a guessed new ItemStack.
+    try{to.container.setItem(to.slot,stack);}
+    catch(_){quarantined=true;return deny('entity_copy_outcome_ambiguous');}
+    let copied=false;
+    try{
+      copied=entityValid(entity)&&
+        JSON.stringify(witness(entityStack(entity)))===
+          JSON.stringify(before)&&
+        JSON.stringify(witness(to.container.getItem(to.slot)))===
+          JSON.stringify(before);
+    }catch(_){}
+    if(!copied){quarantined=true;
+      return deny('entity_copy_readback_mismatch');}
+    intent.phase='MOVED_INSPECTED';
+    raw=JSON.stringify(intent);
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,raw);}
+    catch(_){quarantined=true;
+      return deny('entity_moved_marker_write_ambiguous');}
+    const marked=readJournal(world);
+    if(!marked.ok||marked.empty||marked.raw!==raw){
+      quarantined=true;
+      return deny('entity_moved_marker_readback_failed');
+    }
+    return {ok:true,status:'ENTITY_COPIED_PENDING_TICKET_AND_REMOVAL',
+      operationId,originalEntityIntact:true,
+      canReplay:false,canClearJournal:false};
+  }
+  function ackEjectedItem({operationId,entity,sourceOwnerId,to}={}){
+    if(quarantined)return deny('native_session_quarantined');
+    const gate=fence(operationId);
+    if(!gate.ok)return deny(gate.reason);
+    const pending=readJournal(world);
+    if(!pending.ok)return pending;
+    const j=pending.record;
+    if(pending.empty||j?.kind!=='ENTITY_TO_NATIVE'||
+       j.phase!=='MOVED_INSPECTED'||
+       j.operationId!==operationId||j.entityId!==entity?.id||
+       j.from.ownerId!==sourceOwnerId||
+       j.to.ownerId!==to?.ownerId||j.to.slot!==to?.slot||
+       !verifyEndpoint(to))
+      return deny('entity_ack_without_exact_copied_intent');
+    const from=entitySourceRef(entity,sourceOwnerId);
+    let confirmed=false;
+    try{
+      confirmed=entityValid(entity)&&
+        verifyEndpointOwner(from)===true&&
+        verifyEndpointOwner(to)===true&&
+        durableOwnershipWitness(j)===true&&
+        JSON.stringify(witness(entityStack(entity)))===
+          JSON.stringify(j.witness)&&
+        JSON.stringify(witness(to.container.getItem(to.slot)))===
+          JSON.stringify(j.witness);
+    }catch(_){}
+    if(!confirmed)return deny('entity_ack_owner_or_ticket_unverified');
+    // The carrier ticket is already durably saved. If source removal is
+    // ambiguous, never attempt another removal or automatic settlement.
+    try{entity.remove();}
+    catch(_){quarantined=true;return deny('entity_remove_outcome_ambiguous');}
+    if(entityValid(entity)){
+      quarantined=true;return deny('entity_remove_not_observed');
+    }
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,undefined);}
+    catch(_){quarantined=true;return deny('entity_ack_clear_ambiguous');}
+    const cleared=readJournal(world);
+    if(!cleared.ok||!cleared.empty){
+      quarantined=true;return deny('entity_ack_clear_readback_failed');
+    }
+    return {ok:true,status:'ENTITY_NATIVE_CUSTODY_ACK_READBACK',
+      operationId,canReplay:false};
+  }
+
   return {ok:true,inspectPending,moveWhole,ackWhole,
+    stageEjectedItem,ackEjectedItem,
     consumeCertifiedEscrow,ackCertifiedEscrow,
     materializeCertifiedOrdinary,ackMaterializedOrdinary,
     getSessionQuarantine:()=>quarantined};
