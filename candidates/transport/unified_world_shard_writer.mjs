@@ -169,7 +169,7 @@ export function previewUnifiedShard({snapshot,shardKey}={}){
  * callback proves algorithm behavior only, not actual writer exclusion.
  */
 export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
-    externalFence,verifyEscrowCustody,
+    externalFence,verifyEscrowCustody,verifyInternalRoute,
     verifyBulkPlacement,verifyGlobalBulkUniqueness}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
@@ -197,6 +197,8 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
   }
   function applyInternalTransfer(args){
     if(quarantine)return hold('shard_session_quarantine:'+quarantine);
+    if(typeof verifyInternalRoute!=='function')
+      return hold('internal_route_proof_adapter_missing');
     const gate=fence();
     if(!gate.ok)return gate;
     const a=read(world,shardKey);
@@ -210,6 +212,9 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
        typeof args.operationId!=='string'||!args.operationId||
        args.operationId.length>256||!ASCII.test(args.operationId))
       return hold('invalid_or_stale_internal_intent');
+    let liveRoute=false;
+    try{liveRoute=verifyInternalRoute(args)===true;}catch(_){}
+    if(!liveRoute)return hold('internal_bulk_route_unverified');
     const step=transitionUnifiedOrdinaryAccounts(before,args);
     if(!step.ok)return hold(step.reason);
     const receipt={operationId:args.operationId,epoch,
@@ -221,7 +226,10 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
     if(!b.ok)return b;
     if(b.value!==a.value)return hold('world_shard_changed_prewrite');
     const gate2=fence();
-    if(!gate2.ok)return hold('world_writer_fence_changed_prewrite');
+    let stillRouted=false;
+    try{stillRouted=verifyInternalRoute(args)===true;}catch(_){}
+    if(!gate2.ok||!stillRouted)
+      return hold('internal_route_or_writer_fence_changed_prewrite');
     try{world.setDynamicProperty(shardKey,after.raw);}
     catch(_){
       quarantine='write_outcome_ambiguous';
