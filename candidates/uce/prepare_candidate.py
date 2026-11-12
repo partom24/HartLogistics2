@@ -249,9 +249,11 @@ def prepare(target):
               BRIDGE.read_text(encoding="utf-8")+"\n"+
               PIPE_ROUTE.read_text(encoding="utf-8")),encoding="utf-8")
             (target/"NOT_APPROVED_FOR_INSTALL.txt").write_text(
-              "UCE integrated SOURCE build ONLY. Do not install in LAB or PROD.\n"
-              "Complete unified ordinary scheduler, verified Q4 cold cutover, "
-              "native slot recovery and full product acceptance first.\n",
+              "UCE integrated SOURCE build ONLY by default. NO manual install.\n"
+              "For owner-approved stopped-LAB acceptance, use ONLY the exact-SHA\n"
+              "guarded UCE LAB installer with backups and rollback. PROD forbidden.\n"
+              "Q4 cold cutover from archived worlds remains unverified and disabled.\n"
+              "Source/CI results are not BDS gameplay or production approval.\n",
               encoding="utf-8")
         except Exception:
             shutil.rmtree(target,ignore_errors=True)
