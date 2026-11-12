@@ -78,6 +78,9 @@ def compile_patch(source,bridge):
       "            ev.player?.sendMessage('§e[Receiver] New UCE Receiver requires registered sealed ownership; no Q4 writer activated.'); return;\n"+
       "        }\n"+
       "        registerReceiver(ev.block);")
+    source=once(source,"function sendDiagnostics(origin) {",
+      "function sendDiagnostics(origin) {\n"+
+      "    if (uceLegacyWriterBlocked()) { uceSendDiagnostics(origin); return; }")
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
       "    if (uceLegacyWriterBlocked()) return;")
