@@ -109,7 +109,7 @@ def compile_patch(source,bridge):
       "            permissionLevel: CommandPermissionLevel.GameDirectors,\n"+
       "            cheatsRequired: false\n"+
       "        },\n"+
-      "        (origin) => system.run(() => uceSendMigrationPreview(origin))\n"+
+      "        (origin) => { system.run(() => uceSendMigrationPreview(origin)); }\n"+
       "    );\n"+
       "    event.customCommandRegistry.registerCommand(\n"+
       "        {\n"+
@@ -118,7 +118,7 @@ def compile_patch(source,bridge):
       "            permissionLevel: CommandPermissionLevel.GameDirectors,\n"+
       "            cheatsRequired: false\n"+
       "        },\n"+
-      "        origin => system.run(() => uceActivateEmptyLabWorld(origin))\n"+
+      "        origin => { system.run(() => uceActivateEmptyLabWorld(origin)); }\n"+
       "    );")
     source=once(source,
       "    system.runTimeout(() => processEjectedItemEntity(ev.entity, 0, spawnLoc), 1);",
