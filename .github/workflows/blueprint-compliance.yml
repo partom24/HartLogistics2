@@ -136,6 +136,11 @@ jobs:
           node --check candidates/transport/unified_native_custody.mjs
           node --check tests/test_unified_native_custody.mjs
           node --test tests/test_unified_native_custody.mjs
+      - name: UCE persistent native carrier host, no-respawn and nonexperimental entity asset
+        run: |
+          node --check candidates/transport/unified_carrier_registry.mjs
+          node --check tests/test_unified_carrier_registry.mjs
+          node --test tests/test_unified_carrier_registry.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
