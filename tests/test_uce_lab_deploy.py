@@ -87,7 +87,7 @@ class UceLabGuardTests(unittest.TestCase):
                 end=compiled.index('    );',start)
                 handler=compiled[start:end]
                 self.assertIn(callback,handler)
-                self.assertNotRegex(handler,r'=>\\s*system\\.run\\(')
+                self.assertNotRegex(handler,r'=>\s*system\.run\(')
 
     def test_unapproved_apply_and_rollback_never_touch_actual_lab(self):
         self.assertEqual(deploy.main(['--apply']),2)
