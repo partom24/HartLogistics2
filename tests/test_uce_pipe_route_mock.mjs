@@ -124,11 +124,20 @@ test('double chest output is refused; no aliasing to same container',()=>{
   f.put('minecraft:chest',2,69,6);
   assert.equal(f.choose(COBBLE),undefined);
 });
-test('redstone-paused Receiver or pipes refuse route',()=>{
+test('powered Receiver pauses only output; Transporter inputs remain discoverable',()=>{
   const f=fixture();f.receiverBlock.powered=true;
+  f.put('minecraft:barrel',1,70,4,f.inventories[0]);
+  const graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.inputs.length,1);
+  assert.equal(f.choose(COBBLE),undefined);
+  assert.equal(f.context.ucePipeSourceStillConnected(
+    f.receiver,graph.inputs[0]),true);
+  f.receiverBlock.powered=false;
+  assert.ok(f.choose(COBBLE));
+  f.farPipe.powered=true;
   assert.equal(f.network(),undefined);
-  f.receiverBlock.powered=false;f.farPipe.powered=true;
-  assert.equal(f.network(),undefined);
+  assert.equal(f.choose(COBBLE),undefined);
 });
 test('selected destination must be identical after priority or topology changes',()=>{
   const f=fixture(),choice=f.choose(COBBLE);
