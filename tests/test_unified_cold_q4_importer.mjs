@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {q5IdentityKey} from '../candidates/transport/q5_bucket_core.mjs';
 import {
   previewUnifiedColdQ4Import,executeUnifiedColdQ4Import,
-  inspectUnifiedActiveColdImport,UCE_COLD_SEAL_KEY
+  inspectUnifiedActiveColdImport,UCE_COLD_SEAL_KEY,
+  UCE_NEW_RECEIVER_RESERVES
 } from '../candidates/transport/unified_cold_q4_importer.mjs';
 import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
   createUnifiedShardWriter}
@@ -76,7 +77,8 @@ test('cold Q4 plan with actual paged/defined source is deterministic and read-on
   assert.equal(p.status,'COLD_Q4_IMPORT_PLAN_ONLY');
   assert.equal(p.itemCount,184);
   assert.equal(p.receiverCount,2);
-  assert.equal(p.shards.length,2);
+  assert.equal(p.shards.length,2+UCE_NEW_RECEIVER_RESERVES);
+  assert.equal(p.reservedReceiverSlots,UCE_NEW_RECEIVER_RESERVES);
   assert.equal(p.shards.reduce((n,x)=>n+x.itemCount,0),184);
   assert.equal(f.writes,0);
   assert.equal(p.canModifyWorld,false);
@@ -88,7 +90,7 @@ test('successful modeled cold cutover preserves every Q4 byte and seals all new 
   const f=fixture(),r=run(f);
   assert.equal(r.ok,true,r.reason);
   assert.equal(r.status,'COLD_Q4_IMPORT_ACTIVE_READBACK');
-  assert.equal(r.shardCount,2);
+  assert.equal(r.shardCount,2+UCE_NEW_RECEIVER_RESERVES);
   assert.equal(r.itemCount,184);
   assert.equal(r.originalQ4Retained,true);
   assert.equal(r.releaseApproved,false);
@@ -218,7 +220,7 @@ test('35 Receiver synthetic archive scales into individually sealed read-only sh
   const p=previewUnifiedColdQ4Import(f.params);
   assert.equal(p.ok,true,p.reason);
   assert.equal(p.receiverCount,35);
-  assert.equal(p.shards.length,35);
+  assert.equal(p.shards.length,35+UCE_NEW_RECEIVER_RESERVES);
   assert.equal(p.itemCount,35*1000+34*35/2);
   assert.equal(f.writes,0);
 });
@@ -286,4 +288,55 @@ test('duplicate Bulk owner across disconnected shards refuses global startup',()
     'duplicate_bulk_owner_across_shards');
   assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
     f.source);
+});
+
+test('reserved shard atomically registers an empty NEW Receiver without Q4 registry edits',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const seal=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
+  const region=seal.shards.find(x=>x.owner.startsWith('reserve:'));
+  assert.ok(region);
+  const beforeQ4=[...f.values].filter(([key])=>key.startsWith('hartsorter:'));
+  const writer=createUnifiedShardWriter({
+    world:f.world,shardKey:region.key,worldId,epoch,
+    externalFence:()=>true,
+    verifyReceiverReserveShard:key=>key===region.key,
+    verifyReceiverPlacement:()=>true,
+    verifyGlobalReceiverUniqueness:()=>true
+  });
+  const anchor={dimensionId:'minecraft:overworld',x:50,y:74,z:21};
+  const ownerId='minecraft:overworld|50|74|21';
+  const revision=writer.inspect().snapshot.revision;
+  const registered=writer.registerNewReceiver({ownerId,anchor,
+    operationId:'new-receiver-1',expectedEpoch:epoch,
+    expectedRevision:revision});
+  assert.equal(registered.ok,true,registered.reason);
+  assert.equal(registered.status,'RECEIVER_REGISTERED_SAME_LEDGER');
+  const active=inspectUnifiedActiveColdImport({world:f.world,worldId,epoch});
+  assert.equal(active.ok,true,active.reason);
+  assert.equal(active.newReceiverCount,1);
+  assert.equal(active.currentLedgerTotal,184);
+  assert.equal(writer.inspect().snapshot.accounts[0].uceAnchor.x,50);
+  assert.deepEqual([...f.values].filter(([key])=>key.startsWith('hartsorter:')),
+    beforeQ4);
+  assert.equal(writer.registerNewReceiver({ownerId,anchor,
+    operationId:'replayed-registration',expectedEpoch:epoch,
+    expectedRevision:revision}).ok,false);
+});
+test('new Receiver registration fails closed without a valid live identity and reserve',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const region=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY)).shards
+    .find(x=>x.owner.startsWith('reserve:'));
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:region.key,
+    worldId,epoch,externalFence:()=>true,
+    verifyReceiverReserveShard:()=>true,
+    verifyReceiverPlacement:()=>false,
+    verifyGlobalReceiverUniqueness:()=>true});
+  const before=f.writes;
+  const out=writer.registerNewReceiver({
+    ownerId:'minecraft:overworld|2|3|4',
+    anchor:{dimensionId:'minecraft:overworld',x:2,y:3,z:4},
+    operationId:'unverified-receiver',expectedEpoch:epoch,
+    expectedRevision:0});
+  fail(out,'receiver_placement_or_uniqueness_unproven');
+  assert.equal(f.writes,before);
 });

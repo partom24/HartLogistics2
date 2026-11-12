@@ -170,7 +170,9 @@ export function previewUnifiedShard({snapshot,shardKey}={}){
  */
 export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
     externalFence,verifyEscrowCustody,verifyInternalRoute,
-    verifyBulkPlacement,verifyGlobalBulkUniqueness}={}){
+    verifyBulkPlacement,verifyGlobalBulkUniqueness,
+    verifyReceiverPlacement,verifyGlobalReceiverUniqueness,
+    verifyReceiverReserveShard}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !KEY.test(shardKey||'')||typeof worldId!=='string'||
@@ -342,8 +344,8 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
   /**
    * Register a NEW physically verified Bulk Storage member inside one
    * pre-sealed Receiver shard. The member has zero balance and no separate
-   * virtual queue. The first local bank becomes controller; a bank in a
-   * competing world shard must not elect another controller.
+   * virtual queue. The first local bank becomes controller; independent
+   * sealed Receiver regions may have independent controllers.
    *
    * The two callbacks must inspect the real loaded block and every sealed
    * shard, respectively. Source-only mocks do not prove live ownership.
@@ -412,6 +414,84 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       receipt,canMoveNative:false,canClearQ4:false};
   }
 
+
+  /**
+   * Atomic empty-Receiver ownership registration in a pre-sealed reserve.
+   * The ONLY persisted mutation is this existing UCE shard property. No new
+   * Q4 queue, link writer, second index, item movement, or automatic retry.
+   * Runtime rehydrates identities from the shard after each server restart.
+   */
+  function registerNewReceiver({ownerId,anchor,operationId,
+      expectedRevision,expectedEpoch}={}){
+    if(quarantine)return hold('shard_session_quarantine:'+quarantine);
+    if(typeof verifyReceiverPlacement!=='function'||
+       typeof verifyGlobalReceiverUniqueness!=='function'||
+       typeof verifyReceiverReserveShard!=='function')
+      return hold('receiver_world_verification_unbound');
+    if(!anchor||typeof anchor.dimensionId!=='string'||
+       !anchor.dimensionId||!ASCII.test(anchor.dimensionId)||
+       !Number.isSafeInteger(anchor.x)||
+       !Number.isSafeInteger(anchor.y)||
+       !Number.isSafeInteger(anchor.z)||
+       ownerId!==anchor.dimensionId+'|'+anchor.x+'|'+anchor.y+'|'+anchor.z||
+       typeof operationId!=='string'||!operationId||
+       operationId.length>256||!ASCII.test(operationId)||
+       !nat(expectedRevision)||expectedEpoch!==epoch)
+      return hold('invalid_new_receiver_registration_request');
+    const gate=fence();
+    if(!gate.ok)return gate;
+    const old=read(world,shardKey);
+    if(!old.ok)return old;
+    const parsed=unpack(old.value,shardKey,worldId,epoch);
+    if(!parsed.ok)return parsed;
+    const before=parsed.value.snapshot;
+    if(before.revision!==expectedRevision||before.accounts.length!==0||
+       before.sourceReceivers.length!==0||before.total!==0)
+      return hold('receiver_reserve_not_empty');
+    const proved=()=>{
+      try{return verifyReceiverReserveShard(shardKey)===true&&
+        verifyReceiverPlacement(ownerId,anchor)===true&&
+        verifyGlobalReceiverUniqueness(ownerId)===true;}
+      catch(_){return false;}
+    };
+    if(!proved())return hold('receiver_placement_or_uniqueness_unproven');
+    const step=registerUnifiedEmptyAccount(before,{
+      kind:'receiver',ownerId,expectedRevision,expectedEpoch:epoch});
+    if(!step.ok)return hold(step.reason);
+    const account=step.next.accounts.find(a=>a.id==='receiver:'+ownerId);
+    if(!account)return hold('new_receiver_account_missing');
+    account.uceAnchor={dimensionId:anchor.dimensionId,
+      x:anchor.x,y:anchor.y,z:anchor.z};
+    const valid=inspectUnifiedOrdinaryLedger(step.next);
+    if(!valid.ok)return hold(valid.reason);
+    const receipt={kind:'REGISTER_RECEIVER',operationId,epoch,
+      revision:step.next.revision,beforeRevision:before.revision,
+      accountId:account.id,shardKey};
+    const updated=pack(shardKey,step.next,receipt);
+    if(!updated.ok)return updated;
+    const last=read(world,shardKey);
+    if(!last.ok)return last;
+    if(last.value!==old.value)return hold('receiver_reserve_changed_prewrite');
+    const still=fence();
+    if(!still.ok||!proved())
+      return hold('receiver_owner_or_fence_changed_prewrite');
+    try{world.setDynamicProperty(shardKey,updated.raw);}
+    catch(_){
+      quarantine='receiver_registration_write_ambiguous';
+      return hold('receiver_registration_write_ambiguous');
+    }
+    const saved=read(world,shardKey);
+    if(!saved.ok||saved.value!==updated.raw||
+       !unpack(saved.value,shardKey,worldId,epoch).ok){
+      quarantine='receiver_registration_readback_mismatch';
+      return hold('receiver_registration_readback_mismatch');
+    }
+    return {ok:true,status:'RECEIVER_REGISTERED_SAME_LEDGER',
+      accountId:account.id,shardKey,revision:step.next.revision,
+      receipt,canWriteQueue:false,canClearQ4:false};
+  }
+
   return {ok:true,inspect,applyInternalTransfer,applyBoundaryCommit,
-    registerBulkMember,getSessionQuarantine:()=>quarantine};
+    registerBulkMember,registerNewReceiver,
+    getSessionQuarantine:()=>quarantine};
 }

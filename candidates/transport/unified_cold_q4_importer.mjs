@@ -23,6 +23,9 @@ import {previewUnifiedShard,inspectUnifiedWorldShard,UCE_AUTHORITY_KEY,
 export const UCE_COLD_SEAL_KEY='hartlogistics:uce_cold_seal_v1';
 export const UCE_COLD_SEAL_SCHEMA='hart-uce-cold-seal-v1';
 const maxReceivers=512,maxShards=512,maxSeal=28000;
+// Presealed, empty one-record locations for future Receivers. No extra queue
+// or journal and no mutation of the immutable cold seal after activation.
+export const UCE_NEW_RECEIVER_RESERVES=32;
 const validId=s=>typeof s==='string'&&s.length>0&&s.length<=256;
 const positive=n=>Number.isSafeInteger(n)&&n>0;
 const nat=n=>Number.isSafeInteger(n)&&n>=0;
@@ -126,6 +129,19 @@ function planInput({world,worldId,epoch,receivers,proofs,
     shards.push({key:shardKey,raw:envelope.raw,
       itemCount:account.total,owner:account.id});
   }
+  // A new Receiver gets one independently sealed, initially empty shard.
+  // Reservation is cold and non-destructive; unused slots own zero items.
+  const free=Math.min(UCE_NEW_RECEIVER_RESERVES,maxShards-shards.length);
+  for(let i=0;i<free;i++){
+    const ix=shards.length;
+    const key='hartlogistics:uce_shard_'+String(ix).padStart(4,'0')+'_v1';
+    const snapshot={...sourceSnapshot,
+      accounts:[],sourceReceivers:[],total:0};
+    const envelope=previewUnifiedShard({snapshot,shardKey:key});
+    if(!envelope.ok)return refuse('invalid_empty_receiver_reserve:'+envelope.reason);
+    shards.push({key,raw:envelope.raw,itemCount:0,
+      owner:'reserve:'+String(i).padStart(4,'0')});
+  }
   const seal={schema:UCE_COLD_SEAL_SCHEMA,worldId,epoch,
     receivers:receivers.length,initialItemCount:staged.itemCount,
     shards:shards.map(s=>({key:s.key,owner:s.owner,
@@ -139,6 +155,7 @@ function planInput({world,worldId,epoch,receivers,proofs,
   return {ok:true,status:'COLD_Q4_IMPORT_PLAN_ONLY',
     worldId,epoch,receiverCount:receivers.length,
     itemCount:staged.itemCount,shards,seal,rawSeal,
+    reservedReceiverSlots:free,
     censusSignature:JSON.stringify(census.receivers),
     canRoute:false,canModifyWorld:false,canDeleteQ4:false};
 }
@@ -269,7 +286,7 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
      seal.q4Sources.length!==seal.receivers)
     return refuse('cold_seal_authority_mismatch');
   let total=0,ids=new Set(),keys=new Set();
-  const bankAccounts=new Map(),liveSources=new Map();
+  const bankAccounts=new Map(),liveSources=new Map(),newReceivers=new Set();
   const sealedSources=new Map(seal.q4Sources.map(x=>[x.id,x]));
   if(sealedSources.size!==seal.q4Sources.length)
     return refuse('duplicate_sealed_receiver_source');
@@ -285,10 +302,16 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
       raw:raw.value,shardKey:item.key,worldId,epoch});
     if(!checked.ok)
       return refuse('cold_shard_unreadable:'+item.key+':'+checked.reason);
+    const reserve=/^reserve:[0-9]{4}$/.test(item.owner);
     const original=checked.snapshot.accounts.find(a=>a.id===item.owner);
-    if(!original||checked.snapshot.accounts.filter(a=>
-        a.id===item.owner).length!==1)
+    if(!reserve&&(!original||checked.snapshot.accounts.filter(a=>
+        a.id===item.owner).length!==1))
       return refuse('cold_shard_account_changed');
+    const newAccounts=checked.snapshot.accounts.filter(a=>a.kind==='receiver');
+    if(reserve&&(checked.snapshot.sourceReceivers.length!==0||
+       newAccounts.length>1||(newAccounts.length===0&&
+       checked.snapshot.accounts.length!==0)))
+      return refuse('invalid_reserved_receiver_shard');
     // A physically disconnected Receiver shard may have its own controller.
     // One shard may not simultaneously bind its members to different owners.
     const localBanks=checked.snapshot.accounts.filter(a=>a.kind==='bulk');
@@ -297,12 +320,23 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
        (localControllers.length===1 && localBanks.some(a=>
          a.controllerOwnerId!==localControllers[0].ownerId)))
       return refuse('cold_bulk_controller_conflict');
-    // New Bulk accounts may be appended to the original Receiver's one
-    // property. No new Receiver can be conjured without a separate witnessed
-    // registry/cold-import operation.
+    // Original Receiver ownership remains sealed to its immutable Q4 source.
+    // A reserved shard may acquire exactly one freshly anchored Receiver,
+    // with no synthetic legacy queue and no second saved ownership registry.
     for(const account of checked.snapshot.accounts){
-      if(account.id!==item.owner&&account.kind!=='bulk')
+      if(account.kind==='receiver'&&reserve){
+        const at=account.uceAnchor;
+        if(account.legacyQ4!==undefined||!at||
+           !validId(at.dimensionId)||!Number.isSafeInteger(at.x)||
+           !Number.isSafeInteger(at.y)||!Number.isSafeInteger(at.z)||
+           account.ownerId!==at.dimensionId+'|'+at.x+'|'+at.y+'|'+at.z||
+           sealedSources.has(account.ownerId)||
+           newReceivers.has(account.ownerId))
+          return refuse('invalid_or_duplicate_new_receiver_owner');
+        newReceivers.add(account.ownerId);
+      }else if(account.id!==item.owner&&account.kind!=='bulk'){
         return refuse('unsealed_receiver_account');
+      }
       if(account.kind==='bulk'){
         if(bankAccounts.has(account.ownerId))
           return refuse('duplicate_bulk_owner_across_shards');
@@ -336,7 +370,8 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
     return refuse('cold_empty_shards_with_items');
   return {ok:true,status:'COLD_UCE_AUTHORITY_AND_SHARDS_VERIFIED',
     currentLedgerTotal:total,initialItemCount:active.initialItemCount,
-    receiverCount:seal.receivers,shardCount:keys.size,
+    receiverCount:seal.receivers+newReceivers.size,
+    newReceiverCount:newReceivers.size,shardCount:keys.size,
     canDeleteQ4:false,canMoveNative:false,
     hasCrashAtomicityProof:false};
 }
