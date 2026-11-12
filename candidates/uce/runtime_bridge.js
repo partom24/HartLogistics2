@@ -333,16 +333,20 @@ function uceInspectReceiverRegion(authority,shardKey){
 function uceOrdinaryAccountSource(authority,ownerId){
     const regions=uceSealedRegions(authority);
     if(!regions)return undefined;
+    // Original Q4 Receivers are indexed directly by the immutable seal.
+    // The global cold inspector, called before every custody service, already
+    // refuses any new account duplicating their historical owner identity.
+    // Avoid O(receivers * reserved-shards) JSON reads every tick.
+    const source=regions.filter(s=>s.owner==='receiver:'+ownerId);
+    if(source.length>1)return undefined;
+    if(source.length===1)return source[0].key;
     let found=undefined;
     for(const region of regions){
-        let claimed=region.owner==='receiver:'+ownerId;
-        if(region.owner.startsWith('reserve:')){
-            const view=uceInspectReceiverRegion(authority,region.key);
-            if(!view.ok)return undefined;
-            claimed=view.snapshot.accounts.some(a=>
-                a.id==='receiver:'+ownerId&&a.kind==='receiver');
-        }
-        if(claimed){
+        if(!region.owner.startsWith('reserve:'))continue;
+        const view=uceInspectReceiverRegion(authority,region.key);
+        if(!view.ok)return undefined;
+        if(view.snapshot.accounts.some(a=>
+           a.id==='receiver:'+ownerId&&a.kind==='receiver')){
             if(found!==undefined)return undefined;
             found=region.key;
         }
