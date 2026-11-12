@@ -205,6 +205,13 @@ jobs:
         run: |
           node --check tests/test_uce_unified_tick_gate.mjs
           node --test tests/test_uce_unified_tick_gate.mjs
+      - name: UCE PG37 bounded sealed Receiver owner census and guarded same-version patch
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
+          node --check tests/test_uce_diagnostics_mock.mjs
+          node --test tests/test_uce_diagnostics_mock.mjs
+          python -m py_compile candidates/uce/pg37_lab_patch.py
+          python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v
       - name: UCE PG36 exact old-to-new same-version patch source and synthetic refusal
         run: |
           git fetch --quiet --no-tags --depth=1 origin 6e02f29b168caecff5d379795fcd9b5b714ab0be
@@ -723,6 +730,10 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: UCE PG37 read-only owner census exact-source patch synthetic Windows
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
+          python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v
       - name: UCE PG36 guarded in-place UCE patch synthetic Windows
         run: |
           git fetch --quiet --no-tags --depth=1 origin 6e02f29b168caecff5d379795fcd9b5b714ab0be

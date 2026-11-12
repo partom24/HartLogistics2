@@ -61,3 +61,73 @@ test('absent or unverified authority reports HOLD without pretending a playable 
   const corrupt=fixture({sealed:false});corrupt.run();
   assert.match(corrupt.lines.join('|'),/COLD AUTHORITY HOLD/);
 });
+
+function owner(x,y=131,z=-90){
+  const dimensionId='minecraft:overworld';
+  const id=dimensionId+'|'+x+'|'+y+'|'+z;
+  return {id:'receiver:'+id,kind:'receiver',ownerId:id,
+    uceAnchor:{dimensionId,x,y,z},total:0};
+}
+test('PG37 owner census enumerates all four sealed Receiver anchors after PG36 restart',()=>{
+  const lines=[],writes=[];
+  const ids=[-78,-74,-82,-86];
+  const accounts=ids.map(x=>owner(x));
+  const world={
+    getDynamicProperty(key){
+      if(key==='hartlogistics:uce_cold_seal_v1')
+        return JSON.stringify({shards:[{key:'hartlogistics:uce_shard_0000_v1'}]});
+      return undefined;
+    },
+    setDynamicProperty(...args){writes.push(args);throw Error('read-only');}
+  };
+  const ctx={
+    world,uceAuthoritySnapshot:()=>({worldId:'new',epoch:1}),
+    inspectUnifiedActiveColdImport:()=>({ok:true}),
+    createUnifiedShardWriter:()=>({ok:true,inspect:()=>({ok:true,
+      snapshot:{accounts}})}),
+    log:m=>lines.push(String(m))
+  };
+  vm.runInNewContext(fn,ctx);
+  ctx.uceSendDiagnostics({sourceEntity:{sendMessage:m=>lines.push(m)}});
+  const joined=lines.join('\n');
+  assert.match(joined,/Receivers:.*4/);
+  assert.match(joined,/Sealed Receiver owners \(read-only\):.*4 listed/);
+  for(const x of ids)assert.match(joined,new RegExp(
+    'minecraft:overworld\\|'+x+'\\|131\\|-90'));
+  assert.equal(writes.length,0,'diagnostic must not mutate Bedrock');
+  assert.doesNotMatch(joined,/Receiver owner census HOLD/);
+});
+test('PG37 duplicate or malformed sealed owner remains visible and triggers census HOLD',()=>{
+  const lines=[];
+  const good=owner(-78);
+  const malformed={...owner(-74),uceAnchor:{dimensionId:'minecraft:overworld',x:-999,y:131,z:-90}};
+  const world={getDynamicProperty:k=>k==='hartlogistics:uce_cold_seal_v1'
+    ?JSON.stringify({shards:[{key:'hartlogistics:uce_shard_0000_v1'}]})
+    :undefined,
+    setDynamicProperty(){throw Error('never write diagnostics');}};
+  const ctx={world,uceAuthoritySnapshot:()=>({worldId:'w',epoch:1}),
+    inspectUnifiedActiveColdImport:()=>({ok:true}),
+    createUnifiedShardWriter:()=>({ok:true,inspect:()=>({ok:true,
+      snapshot:{accounts:[good,good,malformed]}})}),
+    log:s=>lines.push(s)};
+  vm.runInNewContext(fn,ctx);
+  ctx.uceSendDiagnostics({sourceEntity:{sendMessage:s=>lines.push(s)}});
+  assert.match(lines.join('\n'),/Receiver owner census HOLD: invalid 1 \| duplicate 1/);
+});
+test('PG37 bounded receiver listing refuses to dump an unbounded registry to chat',()=>{
+  const accounts=Array.from({length:20},(_,i)=>owner(i,131,-90));
+  const lines=[];
+  const world={getDynamicProperty:k=>k==='hartlogistics:uce_cold_seal_v1'
+    ?JSON.stringify({shards:[{key:'hartlogistics:uce_shard_0000_v1'}]})
+    :undefined};
+  const ctx={world,uceAuthoritySnapshot:()=>({worldId:'w',epoch:1}),
+    inspectUnifiedActiveColdImport:()=>({ok:true}),
+    createUnifiedShardWriter:()=>({ok:true,inspect:()=>({ok:true,
+      snapshot:{accounts}})}),
+    log:s=>lines.push(s)};
+  vm.runInNewContext(fn,ctx);
+  ctx.uceSendDiagnostics({sourceEntity:{sendMessage:s=>lines.push(s)}});
+  const receiverLines=lines.filter(x=>x.startsWith('§7R §f'));
+  assert.equal(receiverLines.length,12);
+  assert.match(lines.join('\n'),/20 listed, first 12 shown/);
+});

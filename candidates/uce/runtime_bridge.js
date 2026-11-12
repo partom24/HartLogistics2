@@ -1309,6 +1309,8 @@ function uceSendDiagnostics(origin){
         }else{
             let ordinary=0,receiverCount=0,bankCount=0,bulkTotal=0,
                 bankCapacity=0,unreadable=0,controllerCount=0;
+            const receiverOwners=[],seenReceiverOwners=new Set();
+            let duplicateReceiverOwners=0,invalidReceiverOwners=0;
             try{
                 const seal=JSON.parse(world.getDynamicProperty(
                     'hartlogistics:uce_cold_seal_v1'));
@@ -1323,6 +1325,26 @@ function uceSendDiagnostics(origin){
                     for(const account of v.snapshot.accounts){
                         if(account.kind==='receiver'){
                             receiverCount++;ordinary+=account.total;
+                            // Read-only ledger census. A count alone cannot
+                            // distinguish extra physical placements from
+                            // ambiguous duplicate Receiver ownership.
+                            const id=account.ownerId,at=account.uceAnchor;
+                            if(typeof id!=='string'||!id||
+                               typeof account.total!=='number'||
+                               !Number.isSafeInteger(account.total)||
+                               !at||typeof at.dimensionId!=='string'||
+                               !Number.isInteger(at.x)||
+                               !Number.isInteger(at.y)||
+                               !Number.isInteger(at.z)||
+                               id!==at.dimensionId+'|'+at.x+'|'+at.y+'|'+at.z)
+                                invalidReceiverOwners++;
+                            else{
+                                if(seenReceiverOwners.has(id))
+                                    duplicateReceiverOwners++;
+                                else seenReceiverOwners.add(id);
+                                receiverOwners.push({id,total:account.total,
+                                    shardKey:region.key});
+                            }
                         }else if(account.kind==='bulk'){
                             bankCount++;bulkTotal+=account.total;
                             bankCapacity+=account.capacity;
@@ -1337,6 +1359,20 @@ function uceSendDiagnostics(origin){
                 ' in '+bankCount+' members | controllers '+controllerCount);
             lines.push('§7Shard/authority: §f'+
                 (unreadable===0?'verified':'HOLD '+unreadable+' unreadable'));
+            // Never guess the two unaccounted PG36 owners. Report their
+            // exact sealed IDs, in a deterministic bounded view; read only.
+            receiverOwners.sort((a,b)=>a.id.localeCompare(b.id));
+            const maxOwners=12;
+            lines.push('§7Sealed Receiver owners (read-only): §f'+
+                receiverOwners.length+' listed'+
+                (receiverOwners.length>maxOwners?
+                    ', first '+maxOwners+' shown':''));
+            for(const a of receiverOwners.slice(0,maxOwners))
+                lines.push('§7R §f'+a.id+' §7stored '+a.total+
+                    ' §8['+a.shardKey+']');
+            if(invalidReceiverOwners||duplicateReceiverOwners)
+                lines.push('§cReceiver owner census HOLD: invalid '+
+                    invalidReceiverOwners+' | duplicate '+duplicateReceiverOwners);
             lines.push('§7Q4 archive: §fretained unchanged; items migrated only by verified seal');
         }
     }
