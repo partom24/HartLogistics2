@@ -22,7 +22,7 @@ function ucePipeRouteNetwork(receiver) {
         if(!root||blockIsRedstonePowered(root))return undefined;
         const rootKey=pg26PositionKey(root.location);
         const pending=[],seen=new Map(),endpoints=new Map(),
-            banks=new Map();
+            banks=new Map(),inputs=new Map();
         for(const face of PG26_FACES) {
             const b=pg26Neighbor(root,face);
             if(!b)return undefined;
@@ -64,15 +64,24 @@ function ucePipeRouteNetwork(receiver) {
                 } else if(type==='hartlogistics:bulk_storage'){
                     if(!ucePipeSameChunk(root,next))return undefined;
                     banks.set(pg26PositionKey(p),next);
+                } else if(type==='minecraft:chest'||
+                          type==='minecraft:barrel'){
+                    // As in PG26, a vanilla container touching the pipe at
+                    // or above its input level is a SOURCE, never an output.
+                    // Destination containers are exclusively behind Sorters.
+                    if(p.y<root.location.y||
+                       !ucePipeSameChunk(root,next))return undefined;
+                    const source=uceReadOnlyPipeInput(next,root);
+                    if(!source)return undefined;
+                    inputs.set(pg26PositionKey(p),source);
                 } else if(type===COLLECTOR_ID ||
                           next.getComponent('minecraft:inventory')?.container){
-                    // No silent ingress from a foreign inventory touching
-                    // an unverified pipe graph.
+                    // No unverified foreign inventory may claim pipe custody.
                     return undefined;
                 }
             }
         }
-        if(!endpoints.size&&!banks.size)return undefined;
+        if(!endpoints.size&&!banks.size&&!inputs.size)return undefined;
         // A Bulk block touching TWO disconnected pipe graphs would create
         // ambiguous bank ownership. Only one connected loaded component
         // can authorize its registration.
@@ -87,12 +96,47 @@ function ucePipeRouteNetwork(receiver) {
         }
         const sortedPipes=[...seen.keys()].sort();
         const sortedOutputs=[...endpoints.keys()].sort();
+        const sortedInputs=[...inputs.keys()].sort();
+        const sortedBanks=[...banks.keys()].sort();
         return {receiverId:receiver.id,
             fingerprint:receiver.id+'|'+sortedPipes.join(';')+
-              '->'+sortedOutputs.join(';'),
+              '->'+sortedOutputs.join(';')+
+              '<-'+sortedInputs.join(';')+
+              '#'+sortedBanks.join(';'),
             entries:[...endpoints.values()],
-            banks:[...banks.values()]};
+            banks:[...banks.values()],
+            inputs:[...inputs.values()].sort((a,b)=>
+                pg26PositionKey(a.block.location).localeCompare(
+                  pg26PositionKey(b.block.location)))};
     }catch(_){return undefined;}
+}
+function uceReadOnlyPipeInput(block,root){
+    try{
+        if(!block||!['minecraft:chest','minecraft:barrel']
+            .includes(block.typeId)||!ucePipeSameChunk(root,block)||
+           block.location.y<root.location.y)return undefined;
+        // A double chest may expose the same mutable 54-slot inventory
+        // through two block wrappers. Until native alias identity is
+        // established, refuse the entire affected graph.
+        if(block.typeId==='minecraft:chest'){
+            for(const side of PG26_FACES){
+                if(side.y!==0)continue;
+                const neighbor=pg26Neighbor(block,side);
+                if(!neighbor||neighbor.typeId==='minecraft:chest')
+                    return undefined;
+            }
+        }
+        const container=block.getComponent('minecraft:inventory')?.container;
+        if(!container||!container.isValid||container.size!==27)
+            return undefined;
+        return {block,container};
+    }catch(_){return undefined;}
+}
+function ucePipeSourceStillConnected(receiver,source){
+    if(!source||!source.block)return false;
+    const graph=ucePipeRouteNetwork(receiver);
+    return !!graph&&graph.inputs.some(input=>
+        uceSameLoadedBlock(input.block,source.block));
 }
 function uceReadOnlySorterDestination(entry,root) {
     try{
@@ -152,7 +196,8 @@ function uceChoosePipeDestination(receiver,item) {
         const mode=sorterMode(entry);
         if(mode==='bypass'||(mode==='filter'&&!entry.f))continue;
         const dest=uceReadOnlySorterDestination(entry,root);
-        if(!dest)continue;
+        if(!dest||graph.inputs.some(input=>
+            uceSameLoadedBlock(input.block,dest.block)))continue;
         const empty=ucePipeEmptySlot(dest.container);
         if(empty<0)continue;
         let priority=-1;
