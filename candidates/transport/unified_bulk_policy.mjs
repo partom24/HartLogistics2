@@ -13,14 +13,17 @@ const hold=reason=>({ok:false,status:'HOLD',reason,canWriteWorld:false});
 const idle=reason=>({ok:true,status:'IDLE',reason,canWriteWorld:false});
 export function planUnifiedBulkService({snapshot,receiverOwnerId,
     connectedBankOwnerIds=[],sourceWaiting=false,
-    outputEligibleKeys=[]}={}){
+    outputEligibleKeys=[],preferredOutputKeys=[]}={}){
   const checked=inspectUnifiedOrdinaryLedger(snapshot);
   if(!checked.ok)return hold('invalid_ledger:'+checked.reason);
   if(typeof receiverOwnerId!=='string'||!receiverOwnerId||
      !Array.isArray(connectedBankOwnerIds)||
      connectedBankOwnerIds.some(x=>typeof x!=='string'||!x)||
      new Set(connectedBankOwnerIds).size!==connectedBankOwnerIds.length||
-     !Array.isArray(outputEligibleKeys))
+     !Array.isArray(outputEligibleKeys)||
+     !Array.isArray(preferredOutputKeys)||
+     outputEligibleKeys.some(k=>typeof k!=='string')||
+     preferredOutputKeys.some(k=>typeof k!=='string'))
     return hold('invalid_bulk_route_membership');
   const recv=snapshot.accounts.find(a=>
     a.id==='receiver:'+receiverOwnerId);
@@ -36,11 +39,20 @@ export function planUnifiedBulkService({snapshot,receiverOwnerId,
      banks.some(x=>x.controllerOwnerId!==leaders[0].ownerId))
     return hold('bulk_controller_not_on_same_verified_network');
   banks.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
-  // Overflow only near Receiver's high-water mark; bank is not a separate
-  // competing queue. This reserves ingress headroom and handles backpressure.
-  if(recv.total>=recv.capacity-UCE_BULK_RECEIVER_RESERVE &&
-     recv.buckets.length){
+  // Receiver→Bulk obeys the same routing authority. A *usable*
+  // filtered/seeded-Auto destination wins even when Bulk has room. Items
+  // without such a destination may be retained in Bulk rather than sent to
+  // Wildcard. Do not keep a low-water Receiver in an endless spill loop
+  // against a continuously active Collector; allow native admission first,
+  // then spill after ingress pauses or high-water backpressure is reached.
+  const preferred=new Set(preferredOutputKeys);
+  if(recv.buckets.length &&
+     (!sourceWaiting ||
+       recv.total>=recv.capacity-UCE_BULK_RECEIVER_RESERVE)){
+    let unserved=false;
     for(const entry of recv.buckets){
+      if(preferred.has(entry.key))continue;
+      unserved=true;
       for(const bank of banks){
         const free=bank.capacity-bank.total;
         if(free<=0)continue;
@@ -51,11 +63,11 @@ export function planUnifiedBulkService({snapshot,receiverOwnerId,
           expectedEpoch:snapshot.epoch,canWriteWorld:false};
       }
     }
-    return idle('all_connected_banks_full');
+    if(unserved)return idle('all_connected_banks_full');
   }
-  // Refill a drained Receiver only when there is a verified actual output
-  // for the offered item and no new Collector input waiting. The output
-  // itself still follows the existing Filter/Auto/Wildcard priority.
+  // Refill a drained Receiver only when there is a verified Filter or
+  // seeded-Auto output for the item and no new Collector input waiting.
+  // Bulk is never drained into Wildcard as a bypass of storage policy.
   if(recv.total===0 && !sourceWaiting && outputEligibleKeys.length){
     const eligible=new Set(outputEligibleKeys);
     for(const bank of banks){
