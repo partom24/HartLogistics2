@@ -266,6 +266,12 @@ function uceNativeOutputSlot(container){
     }catch(_){return -1;}
     return -1;
 }
+function uceSameLoadedBlock(a,b){
+    if(!a||!b||a.typeId!==b.typeId||
+       a.dimension?.id!==b.dimension?.id)return false;
+    const x=a.location,y=b.location;
+    return !!x&&!!y&&x.x===y.x&&x.y===y.y&&x.z===y.z;
+}
 function uceOrdinaryServiceTick(){
     const authority=uceAuthoritySnapshot();
     if(!authority||!ready)return;
@@ -380,8 +386,8 @@ function uceOrdinaryServiceTick(){
                 const cb=linked.some(c=>{
                     const b=collectorAt(c);
                     return b && !blockIsRedstonePowered(b) &&
-                      collectorInputSources(c).some(x=>x.block===origin&&
-                        x.container===sourceRecord.container&&!x.locked);
+                      collectorInputSources(c).some(x=>
+                        uceSameLoadedBlock(x.block,origin)&&!x.locked);
                 });
                 return cb&&uceLiveHopperOwner({
                     d:origin.dimension.id,x:p.x,y:p.y,z:p.z
@@ -408,8 +414,9 @@ function uceOrdinaryServiceTick(){
                 '|'+p.x+','+p.y+','+p.z;
             physicalSlot={ownerId:endpointId,
                 container:outgoing.container,slot:outputIndex};
-            routeVerify=()=>receiverOutputHopper(receiver)?.block===
-                outgoing.block&&!blockIsRedstonePowered(receiverAt(receiver))&&
+            routeVerify=()=>uceSameLoadedBlock(
+                receiverOutputHopper(receiver)?.block,outgoing.block)&&
+                !blockIsRedstonePowered(receiverAt(receiver))&&
                 !hopperIsRedstoneLocked(outgoing.block);
         }else continue;
         const operationId=uceNativeReceiptId();
@@ -446,8 +453,15 @@ function uceOrdinaryServiceTick(){
         };
         const ordinaryProof=(item,k,n)=>{
             if(!item||item.amount!==n||k!==identityKey||
-               ucePlainItemIdentity(item)!==identityKey)return false;
-            return true;
+               uceClassifyLiveStack(item)!=='ORDINARY')return false;
+            // Original Q4 may encode empty optional fields differently
+            // from newly admitted item definitions. Refuse metadata-bearing
+            // saved types but do not invent a different delivered item.
+            try{
+                const def=JSON.parse(k);
+                return inspectQ4OrdinaryDefinitionShape(def).ok===true &&
+                    def.typeId===item.typeId;
+            }catch(_){return false;}
         };
         const port=createUnifiedNativePort({
             world,worldId:authority.worldId,epoch:authority.epoch,
