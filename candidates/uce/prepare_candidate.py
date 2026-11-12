@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"build/uce-integrated"
 BRIDGE=ROOT/"candidates/uce/runtime_bridge.js"
+PIPE_ROUTE=ROOT/"candidates/uce/runtime_pipe_route.js"
 ASSET=ROOT/"candidates/uce/assets/entities/uce_native_carrier.json"
 VERSION=[1,5,16]
 MODULES=(
@@ -164,7 +165,8 @@ def prepare(target):
             main=bp/"scripts/main.js"
             main.write_text(compile_patch(
               main.read_text(encoding="utf-8"),
-              BRIDGE.read_text(encoding="utf-8")),encoding="utf-8")
+              BRIDGE.read_text(encoding="utf-8")+"\n"+
+              PIPE_ROUTE.read_text(encoding="utf-8")),encoding="utf-8")
             (target/"NOT_APPROVED_FOR_INSTALL.txt").write_text(
               "UCE integrated SOURCE build ONLY. Do not install in LAB or PROD.\n"
               "Complete unified ordinary scheduler, verified Q4 cold cutover, "
