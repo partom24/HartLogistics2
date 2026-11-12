@@ -232,6 +232,8 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
    * Each native transfer must have one MOVED_INSPECTED global journal intent.
    */
   const ticketSchema='hart-uce-native-host-tickets-v1';
+  const ticketJson=v=>JSON.stringify(v).replace(/[\u007f-\uffff]/g,
+    ch=>'\\u'+ch.charCodeAt(0).toString(16).padStart(4,'0'));
   const journalKey='hartlogistics:uce_native_intent_v1';
   function ticketKey(owner){
     const hk=hostKey(owner);
@@ -391,7 +393,7 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
         revision:previous.revision+1}};
     if(!Number.isSafeInteger(updated.revision))
       return hold('native_ticket_revision_overflow');
-    const raw=JSON.stringify(updated);
+    const raw=ticketJson(updated);
     if(raw.length>12000||!ASCII.test(raw))
       return hold('native_ticket_capacity_exceeded');
     const key=ticketKey(ownerId);
@@ -399,7 +401,7 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     if(!r.ok)return r;
     if((r.raw===undefined||r.raw===null||r.raw==='')!==tickets.empty)
       return hold('native_ticket_changed_prewrite');
-    if(!tickets.empty&&JSON.stringify(previous)!==r.raw)
+    if(!tickets.empty&&ticketJson(previous)!==r.raw)
       return hold('native_ticket_changed_prewrite');
     if(!fence().ok)return hold('native_ticket_fence_changed_prewrite');
     try{world.setDynamicProperty(key,raw);}
