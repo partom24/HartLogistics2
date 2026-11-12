@@ -67,7 +67,7 @@ def compile_patch(source,bridge):
       "    if (uceLegacyWriterBlocked()) return;")
     source=once(source,"function setWorldDynamic(key, value) {",
       "function setWorldDynamic(key, value) {\n"+
-      "    if (uceLegacyWriterBlocked())\n"+
+      "    if (uceLegacyWriterBlocked() && !uceAllowsSorterRegistryWrite(key))\n"+
       "        throw new Error('UCE_LEGACY_WORLD_WRITER_FENCED');")
     for name in ("safeMovePartial","enqueueFromSource",
       "enqueueFromEjectedEntity","dequeueToReceiver","pg20MoveOpaqueNative",
