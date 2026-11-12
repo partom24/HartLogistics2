@@ -104,6 +104,19 @@ export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence){
   return {ok:true};
 }
 
+/** Read-only inspection of any existing one-property UCE shard, for
+ * cold-import startup validation without assuming receipt GENESIS after moves.
+ */
+export function inspectUnifiedWorldShard({raw,shardKey,worldId,epoch}={}){
+  if(!KEY.test(shardKey||'')||typeof worldId!=='string'||!pos(epoch))
+    return hold('invalid_world_shard_inspection');
+  const r=unpack(raw,shardKey,worldId,epoch);
+  if(!r.ok)return r;
+  return {ok:true,status:'WORLD_SHARD_INTEGRITY_VERIFIED',
+    snapshot:r.value.snapshot,receipt:r.value.receipt,
+    canMoveNative:false,canClearQ4:false,canCommitMigration:false};
+}
+
 /** Build an importable source value. Never writes a world or grants cutover. */
 export function previewUnifiedShard({snapshot,shardKey}={}){
   if(!KEY.test(shardKey||''))return hold('invalid_world_shard_key');
