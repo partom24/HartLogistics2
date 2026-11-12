@@ -81,7 +81,8 @@ function uceClassifyLiveStack(stack){
           ? stack.getDynamicPropertyIds():[];
         const lore=typeof stack.getLore==='function'?stack.getLore():[];
         if(!Array.isArray(dyn)||!Array.isArray(lore))return 'UNKNOWN';
-        if(stack.maxAmount!==64 || stack.nameTag ||
+        if(!Number.isSafeInteger(stack.maxAmount)||
+           stack.maxAmount<=1 || stack.maxAmount>64 || stack.nameTag ||
            dyn.length || lore.length)return 'MR';
         // Ordinary classification is only a refusal decision for THIS MR
         // service. It never creates/credits a virtual balance. Compare both
@@ -408,7 +409,8 @@ function uceOrdinaryServiceTick(){
             const outputIndex=uceNativeOutputSlot(outgoing.container);
             if(outputIndex<0)continue;
             direction='withdraw';identityKey=bucket.key;
-            amount=Math.min(bucket.count,64);
+            amount=Math.min(bucket.count,64,
+                new ItemStack(JSON.parse(bucket.key).typeId,1).maxAmount);
             const p=outgoing.block.location;
             const endpointId='output|'+outgoing.block.dimension.id+
                 '|'+p.x+','+p.y+','+p.z;
