@@ -88,6 +88,15 @@ export function serviceUnifiedReceiverMR({registry,port,ownerId,anchor,
         catch(_){return denied('collector_item_identity_unreadable');}
         if(kind==='ORDINARY')continue;
         if(kind!=='MR')return denied('uncertified_item_class');
+        // A Sorter may share its source Hopper with other destinations.
+        // The caller's read-only route selector owns priority and rechecks
+        // the winner through the same native port before the move/ACK.
+        if(typeof source.eligibleSlot==='function'){
+          let eligible=false;
+          try{eligible=source.eligibleSlot(slot,stack)===true;}
+          catch(_){return denied('source_route_selection_unreadable');}
+          if(!eligible)continue;
+        }
         const from={ownerId:source.ownerId,container:source.container,slot};
         const to={ownerId,container:host.container,slot:dstSlot};
         return moveAndClaim({port,registry,ownerId,anchor,

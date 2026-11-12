@@ -110,6 +110,7 @@ test('changed priority or source inventory revokes source authorization',()=>{
   const f=fixture();f.storage.inventory.slots.fill({typeId:'minecraft:stone'});
   const record=f.ctx.uceSorterCollectorSources(f.receiver)[0];
   assert.equal(record.eligibleSlot(0,f.stone),true);
+  assert.equal(record.stillSelected(f.stone),true);
   f.filter.m='bypass';
   assert.equal(record.eligibleSlot(0,f.stone),true);
   f.filter.m='filter';
@@ -118,4 +119,41 @@ test('changed priority or source inventory revokes source authorization',()=>{
   f.storage.inventory.slots.fill({typeId:'minecraft:stone'});
   f.hopper.inventory.setItem(0,undefined);
   assert.equal(record.eligibleSlot(0,f.stone),false);
+  // Once port.moveWhole moved the item, route identity remains provable
+  // for the ACK; checking the emptied source slot here would deadlock it.
+  assert.equal(record.stillSelected(f.stone),true);
+});
+
+test('MR service skips a Sorter item without a winning Collector route',async()=>{
+  const {serviceUnifiedReceiverMR}=await import(
+    '../candidates/transport/unified_receiver_mr_service.mjs');
+  const first={typeId:'minecraft:enchanted_book',amount:1};
+  const second={typeId:'minecraft:diamond_pickaxe',amount:1};
+  const container={size:2,isValid:true,getItem:i=>i===0?first:second};
+  const host={size:1,isValid:true,getItem:()=>undefined};
+  const moved=[];
+  const registry={
+    inspectCustody:()=>({ok:true,free:1,occupied:0}),
+    inspectHost:()=>({ok:true,container:host}),
+    stageMovedTicket:()=>({ok:true,status:'NATIVE_TICKET_STAGED_FOR_ACK'})
+  };
+  const port={
+    moveWhole:({from})=>{
+      moved.push(from.slot);
+      return {ok:true,status:'NATIVE_MOVED_PENDING_OWNERSHIP_ACK',
+        destinationWitness:{amount:1}};
+    },
+    ackWhole:()=>({ok:true,status:'NATIVE_CUSTODY_ACK_READBACK'})
+  };
+  const result=serviceUnifiedReceiverMR({
+    registry,port,ownerId:'receiver-1',
+    anchor:{dimensionId:'minecraft:overworld',x:1,y:2,z:3},
+    direction:'ingress',operationId:'sorter-mr-1',
+    identify:()=> 'MR',
+    inputSources:[{ownerId:'sorter-input-1',container,
+      locked:false,blockVerified:true,
+      eligibleSlot:slot=>slot===1}]
+  });
+  assert.equal(result.ok,true,result.reason);
+  assert.deepEqual(moved,[1]);
 });

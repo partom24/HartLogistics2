@@ -364,11 +364,19 @@ function uceSorterCollectorSources(receiver){
             seen.add(key);
             records.push({kind:'sorter-collector',block:source,container,
                 locked:false,
+                stillSelected:item=>{
+                    try{
+                        const selected=uceSorterColumnWinner(col,item);
+                        return !!selected&&selected.kind==='collector'&&
+                           selected.receiver.id===receiver.id&&
+                           uceSameLoadedBlock(selected.source.block,source);
+                    }catch(_){return false;}
+                },
                 eligibleSlot:(slot,item)=>{
                     try{
                         if(!Number.isSafeInteger(slot)||slot<0||
-                           slot>=container.size||
-                           !item||container.getItem(slot)===undefined)
+                           slot>=container.size||!item||
+                           container.getItem(slot)===undefined)
                             return false;
                         const selected=uceSorterColumnWinner(col,item);
                         return !!selected&&selected.kind==='collector'&&
