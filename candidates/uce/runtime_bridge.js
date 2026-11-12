@@ -141,6 +141,18 @@ function uceReceiverHasNewMRInput(receiver){
             if(item&&uceClassifyLiveStack(item)==='MR')return true;
         }
     }
+    // Preserve the 1.4.1 Sorter->Collector input path without letting the
+    // obsolete Q4 writer run. Only a loaded, winning Sorter destination is
+    // eligible to move into the Receiver's existing native carrier.
+    for(const source of uceSorterCollectorSources(receiver)){
+        for(let slot=0;slot<source.container.size;slot++){
+            let item;
+            try{item=source.container.getItem(slot);}
+            catch(_){return false;}
+            if(item&&uceClassifyLiveStack(item)==='MR'&&
+               source.eligibleSlot(slot,item))return true;
+        }
+    }
     return false;
 }
 function uceMrServiceTick(authority){
@@ -205,7 +217,7 @@ function uceMrServiceTick(authority){
                         registry.inspectHost({ownerId,anchor}).ok;
                 const e=endpoints.get(ref.ownerId);
                 return !!e&&(typeof e.verify==='function'
-                    ? e.verify():uceLiveHopperOwner(e));
+                    ? e.verify(ref):uceLiveHopperOwner(e));
             },
             durableOwnershipWitness:registry.durableOwnershipWitness
         });
@@ -238,6 +250,29 @@ function uceMrServiceTick(authority){
                 ucePipeSourceStillConnected(receiver,src)});
             sources.push({container:src.container,ownerId:id,
                 locked:false,blockVerified:true});
+        }
+        // A Sorter column facing a linked Collector uses the SAME native
+        // carrier port and receipt. Only the winner for that exact stack may
+        // claim the source Hopper; other Sorter destinations retain priority.
+        for(const source of uceSorterCollectorSources(receiver)){
+            const p=source.block.location;
+            const id='sorter-input|'+source.block.dimension.id+
+                '|'+p.x+','+p.y+','+p.z;
+            const selected=new Map();
+            endpoints.set(id,{verify:ref=>{
+                const witness=selected.get(ref.slot);
+                return !!witness&&ref.container===source.container&&
+                    uceLiveHopperOwner({d:source.block.dimension.id,
+                      x:p.x,y:p.y,z:p.z})&&
+                    source.stillSelected(witness);
+            }});
+            sources.push({container:source.container,ownerId:id,
+                locked:false,blockVerified:true,
+                eligibleSlot:(slot,item)=>{
+                    const chosen=source.eligibleSlot(slot,item);
+                    if(chosen)selected.set(slot,item);
+                    return chosen;
+                }});
         }
         const output=receiverOutputHopper(receiver);
         let outputNative=output && !output.locked ?
@@ -325,6 +360,10 @@ function uceUnifiedServiceTick(){
         return;
     }
     if(uceUnifiedJournalHold())return;
+    // The original scheduler is fenced in ACTIVE UCE. Reuse its read-only
+    // source-column census in this ONE unified scheduler; no legacy writer.
+    try{if(dirty)rebuildTopology();}
+    catch(_){uceBridgeLog('Sorter topology reconstruction HOLD');return;}
     uceMrServiceTick(authority);
     // MR may have left an uncertain PREPARED intent in this same tick.
     // The ordinary lane must not even start until its recovery is resolved.
@@ -834,6 +873,26 @@ function uceOrdinaryServiceTick(authority){
                 if(sourceRecord)break;
             }
         }
+        // Sorter->Collector uses the same one physical escrow/ordinary
+        // ledger credit path as a direct Collector Hopper or pipe source.
+        // Storage sorters retain priority even when their separate direct
+        // native output executor is not yet enabled.
+        if(!sourceRecord){
+            for(const source of uceSorterCollectorSources(receiver)){
+                for(let i=0;i<source.container.size;i++){
+                    let item;
+                    try{item=source.container.getItem(i);}
+                    catch(_){continue;}
+                    const key=ucePlainItemIdentity(item);
+                    if(!key||!source.eligibleSlot(i,item))continue;
+                    sourceRecord=source;
+                    sourceSlot=i;
+                    sourceKey=key;
+                    break;
+                }
+                if(sourceRecord)break;
+            }
+        }
         const output=receiverOutputHopper(receiver);
         const outgoing=output&&!output.locked&&
             !blockIsRedstonePowered(receiverAt(receiver))?
@@ -963,6 +1022,10 @@ function uceOrdinaryServiceTick(authority){
            !preferredOutputReady){
             const stack=sourceRecord.container.getItem(sourceSlot);
             if(!stack)continue;
+            // Snapshot for route-proof ACK after native move empties source.
+            // The native port separately verifies exact ItemStack identity.
+            const sorterWitness=sourceRecord.kind==='sorter-collector'?
+                stack:undefined;
             direction='deposit';identityKey=sourceKey;amount=stack.amount;
             const p=origin.location;
             const endpointId='input|'+origin.dimension.id+
@@ -972,6 +1035,11 @@ function uceOrdinaryServiceTick(authority){
             routeVerify=()=>{
                 if(sourceRecord.kind==='pipe')
                     return ucePipeSourceStillConnected(receiver,sourceRecord);
+                if(sourceRecord.kind==='sorter-collector')
+                    return !!sorterWitness&&
+                        uceLiveHopperOwner({d:origin.dimension.id,
+                            x:p.x,y:p.y,z:p.z})&&
+                        sourceRecord.stillSelected(sorterWitness);
                 const cb=linked.some(c=>{
                     const b=collectorAt(c);
                     return b && !blockIsRedstonePowered(b) &&
