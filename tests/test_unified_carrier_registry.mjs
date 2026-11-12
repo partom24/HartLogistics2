@@ -1,0 +1,194 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {
+  createUnifiedCarrierRegistry,UCE_CARRIER_TYPE,UCE_CARRIER_SCHEMA,
+  UCE_CARRIER_SLOTS
+} from '../candidates/transport/unified_carrier_registry.mjs';
+import {
+  UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA
+} from '../candidates/transport/unified_world_shard_writer.mjs';
+
+const worldId='minecraft:overworld:restore-141',epoch=18;
+const ownerId='minecraft:overworld|-952,70,-791';
+const anchor={dimensionId:'minecraft:overworld',x:-952,y:70,z:-791};
+function fakeContainer(){
+  const slots=Array.from({length:UCE_CARRIER_SLOTS},()=>undefined);
+  return {size:UCE_CARRIER_SLOTS,isValid:true,
+    getItem:i=>slots[i]===undefined?undefined:structuredClone(slots[i]),
+    inject:(i,v)=>{slots[i]=structuredClone(v);}};
+}
+function fixture(opts={}){
+  const records=new Map();
+  if(opts.active!==false)records.set(UCE_AUTHORITY_KEY,JSON.stringify({
+    schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',worldId,epoch,
+    writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
+    migrationReconciled:true
+  }));
+  const spawned=[];
+  let verified=opts.verified!==false,writes=0,queries=0;
+  const dim={
+    id:'minecraft:overworld',
+    getEntities({type}){
+      queries++;
+      return spawned.filter(x=>x.typeId===type&&x.loaded!==false);
+    },
+    spawnEntity(type,pos){
+      const c=fakeContainer();
+      const entity={
+        id:'native-entity-'+(spawned.length+1),typeId:type,
+        location:pos,loaded:true,
+        getComponent:()=>({
+          inventorySize:UCE_CARRIER_SLOTS,canBeSiphonedFrom:false,
+          container:c
+        })
+      };
+      spawned.push(entity);
+      if(opts.spawnThrows){
+        throw Error('entity may have spawned before exception');
+      }
+      return entity;
+    }
+  };
+  const world={
+    getDynamicProperty:key=>records.get(key),
+    setDynamicProperty(key,v){
+      writes++;
+      if(opts.onWrite)return opts.onWrite(key,v,records,writes);
+      if(v===undefined)records.delete(key);
+      else records.set(key,v);
+    },
+    getDimension:id=>id===dim.id?dim:undefined
+  };
+  const make=()=>createUnifiedCarrierRegistry({
+    world,worldId,epoch,externalFence:opts.externalFence??(()=>true),
+    ownerVerifier:()=>verified
+  });
+  const mgr=make();
+  assert.equal(mgr.ok,true,mgr.reason);
+  return {mgr,make,world,records,dim,spawned,
+    setVerified:v=>{verified=v;},
+    get writes(){return writes;},
+    get queries(){return queries}};
+}
+const failed=(r,reason)=>{
+  assert.equal(r.ok,false,JSON.stringify(r));
+  assert.equal(r.status,'HOLD');
+  assert.equal(r.canSpawn,false);
+  if(reason)assert.equal(r.reason,reason);
+};
+const register=f=>f.mgr.registerEmptyHost({ownerId,anchor});
+const inspect=f=>f.mgr.inspectHost({ownerId,anchor});
+test('asset defines stable nonexperimental persistent 9-slot native inventory, damage protection and no hopper siphon',()=>{
+  const raw=readFileSync(new URL('../candidates/uce/assets/entities/uce_native_carrier.json',import.meta.url),'utf8');
+  const def=JSON.parse(raw)['minecraft:entity'];
+  assert.equal(def.description.identifier,UCE_CARRIER_TYPE);
+  assert.equal(def.description.is_experimental,false);
+  assert.equal(def.components['minecraft:inventory'].inventory_size,9);
+  assert.equal(def.components['minecraft:inventory'].can_be_siphoned_from,false);
+  assert.ok(def.components['minecraft:persistent']);
+  assert.equal(def.components['minecraft:damage_sensor'].triggers.deals_damage,'no');
+});
+test('one empty carrier reserved then spawned, recorded ACTIVE and inspected by exact native entity identity',()=>{
+  const f=fixture(),r=register(f);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'EMPTY_NATIVE_HOST_REGISTERED');
+  assert.equal(f.writes,2);
+  assert.equal(f.spawned.length,1);
+  const v=inspect(f);
+  assert.equal(v.ok,true,v.reason);
+  assert.equal(v.entityId,f.spawned[0].id);
+  assert.equal(v.capacitySlots,9);
+  assert.equal(v.occupiedSlots,0);
+  assert.equal(v.canDestroy,false);
+  assert.equal(v.canSpawn,false);
+  assert.equal(JSON.parse([...f.records.values()].find(x=>typeof x==='string'&&x.includes(UCE_CARRIER_SCHEMA))).state,'ACTIVE');
+});
+test('registration is idempotency-safe: an existing host is never respawned',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  failed(register(f),'carrier_record_already_reserved_or_active');
+  assert.equal(f.spawned.length,1);
+});
+test('unloaded host returns HOLD, later same entity/item survives mock restart reobservation',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  const sample={typeId:'minecraft:enchanted_book',amount:1,
+    nameTag:'Hart R5 evidence based',lore:['original native item'],
+    hidden:{enchants:['mending'],opaqueExtra:true}};
+  f.spawned[0].getComponent().container.inject(0,sample);
+  f.spawned[0].loaded=false;
+  failed(inspect(f),'carrier_missing_or_duplicated');
+  const newManager=f.make();
+  failed(newManager.inspectHost({ownerId,anchor}),'carrier_missing_or_duplicated');
+  assert.equal(f.spawned.length,1);
+  f.spawned[0].loaded=true;
+  const view=newManager.inspectHost({ownerId,anchor});
+  assert.equal(view.ok,true,view.reason);
+  assert.equal(view.occupiedSlots,1);
+  assert.deepEqual(view.container.getItem(0),sample);
+  assert.equal(f.spawned.length,1);
+});
+test('reserved record after ambiguous spawn is HOLD and never automatically spawned again',()=>{
+  const f=fixture({spawnThrows:true});
+  failed(register(f),'carrier_spawn_outcome_ambiguous');
+  assert.equal(f.spawned.length,1);
+  const state=[...f.records.values()].map(x=>{
+    try{return JSON.parse(x);}catch(_){return null;}
+  }).find(x=>x?.schema===UCE_CARRIER_SCHEMA);
+  assert.equal(state.state,'RESERVED');
+  failed(inspect(f),'carrier_reserved_requires_manual_reconciliation');
+  failed(register(f),'carrier_session_quarantined');
+  const restarted=f.make();
+  failed(restarted.registerEmptyHost({ownerId,anchor}),
+    'carrier_record_already_reserved_or_active');
+  assert.equal(f.spawned.length,1);
+});
+test('empty source record with an orphan near anchor refuses duplicate creation',()=>{
+  const f=fixture();
+  f.dim.spawnEntity(UCE_CARRIER_TYPE,{x:anchor.x+.5,y:anchor.y+.2,z:anchor.z+.5});
+  failed(register(f),'orphan_or_duplicate_carrier_near_anchor');
+  assert.equal(f.writes,0);
+  assert.equal(f.spawned.length,1);
+});
+test('duplicate visible carriers at the same anchor trigger HOLD, not election',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  f.dim.spawnEntity(UCE_CARRIER_TYPE,{x:anchor.x+.5,y:anchor.y+.2,z:anchor.z+.5});
+  failed(inspect(f),'carrier_missing_or_duplicated');
+});
+test('changed owner identity or wrong anchor prevents custody',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  f.setVerified(false);
+  failed(inspect(f),'carrier_owner_block_unverified');
+  f.setVerified(true);
+  failed(f.mgr.inspectHost({ownerId,
+    anchor:{...anchor,x:anchor.x+1}}),'carrier_anchor_changed');
+});
+test('no ACTIVE single-writer authority means no carrier reservation and no spawn',()=>{
+  const f=fixture({active:false});
+  failed(register(f),'world_ue_authority_missing');
+  assert.equal(f.writes,0);
+  assert.equal(f.spawned.length,0);
+});
+test('legacy journal or external writer fence prevents carrier creation',()=>{
+  const f=fixture();f.records.set('hartsorter:queue_journal_v1','pending');
+  failed(register(f),'legacy_journal_pending');
+  const g=fixture({externalFence:()=>false});
+  failed(register(g),'legacy_writer_exclusion_unproven');
+  assert.equal(g.spawned.length,0);
+});
+test('reservation write that throws after effect HOLDS before entity spawn',()=>{
+  const f=fixture({onWrite:(key,v,records)=>{
+    records.set(key,v);
+    throw Error('unknown persistence');
+  }});
+  failed(register(f),'carrier_reservation_write_ambiguous');
+  assert.equal(f.spawned.length,0);
+  assert.equal(f.mgr.getSessionQuarantine(),true);
+});
+test('entity ID substitution in persisted record is a HOLD, never a new host',()=>{
+  const f=fixture();assert.equal(register(f).ok,true);
+  const key=[...f.records.keys()].find(x=>x.includes('uce_native_host_'));
+  const r=JSON.parse(f.records.get(key));
+  r.entityId='invented-other-entity';
+  f.records.set(key,JSON.stringify(r));
+  failed(inspect(f),'carrier_entity_id_changed');
+});
