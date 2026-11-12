@@ -41,7 +41,11 @@ function container(size=9,item=undefined){
         throw Error('native-move-unsafe');
       to.put(j,slots[i]);slots[i]=undefined;
     },
-    setItem(i,v){slots[i]=v===undefined?undefined:structuredClone(v);},
+    setItem(i,v){
+      if(v===undefined){slots[i]=undefined;return;}
+      const {getLore,...data}=v; // Bedrock stores native item state, not API methods.
+      slots[i]=structuredClone(data);
+    },
     peek:i=>slots[i],
     put:(i,v)=>{slots[i]=structuredClone(v);}
   };
