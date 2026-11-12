@@ -39,8 +39,13 @@ class UceBuildTests(unittest.TestCase):
         self.assertEqual(bp["header"]["uuid"],old["header"]["uuid"])
         self.assertEqual(bp["header"]["version"],[1,5,16])
         self.assertEqual(rp["header"]["version"],[1,5,16])
-        self.assertEqual(bp["dependencies"][0]["version"],
-                         old["dependencies"][0]["version"])
+        # BP-to-RP dependency version follows the upgraded pack pair; UUID
+        # remains original so a saved world does not register a new addon.
+        old_packs={d["uuid"] for d in old["dependencies"] if "uuid" in d}
+        new_packs={d["uuid"] for d in bp["dependencies"] if "uuid" in d}
+        self.assertEqual(old_packs,new_packs)
+        for dep in bp["dependencies"]:
+            if "uuid" in dep:self.assertEqual(dep["version"],[1,5,16])
         entity=json.loads((self.bp/"entities/uce_native_carrier.json").read_text())
         self.assertFalse(entity["minecraft:entity"]["description"]["is_experimental"])
         self.assertTrue((self.path/"NOT_APPROVED_FOR_INSTALL.txt").exists())
