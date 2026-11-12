@@ -252,3 +252,34 @@ test('governed Bulk still allows Filter then seeded Auto, not an unseeded Auto',
   assert.equal(f.context.ucePipeDestinationStillValid(
     f.receiver,COBBLE,seeded),false);
 });
+
+test('one loaded cross-chunk Transporter network retains existing Sorter priority',()=>{
+  const f=fixture();
+  for(const x of [1,0,-1,-2,-3])f.put(
+    'hartlogistics:transporter',x,70,4);
+  const network=f.network();
+  assert.ok(network);
+  assert.equal(network.entries.length,2);
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+  assert.equal(network.fingerprint.includes('-3,70,4'),true);
+});
+test('an unloaded block on the other side of a chunk boundary freezes graph-wide custody',()=>{
+  const f=fixture();
+  for(const x of [1,0,-1])f.put('hartlogistics:transporter',x,70,4);
+  assert.ok(f.network());
+  f.missing.add('-1,70,3');
+  assert.equal(f.network(),undefined);
+  assert.equal(f.choose(COBBLE),undefined);
+});
+test('a long loop cannot exceed bounded 128-pipe discovery budget',()=>{
+  const f=fixture();
+  // Initial two pipes at x=2,3. Add 127 more contiguous pipes.
+  for(let x=1;x>=-125;x--)f.put('hartlogistics:transporter',x,70,4);
+  assert.equal(f.network(),undefined);
+});
+test('a loaded downward bend can reach a lower Sorter without Q4 routing',()=>{
+  const f=fixture();
+  f.put('hartlogistics:transporter',1,70,4);
+  f.put('hartlogistics:transporter',1,69,4);
+  assert.ok(f.network());
+});
