@@ -593,11 +593,8 @@ function uceShowBulkStatus(player,block){
         '\\nOwner: '+state.ownerId) :
        ('Not registered. No verified UCE network account is spendable.'+
         '\\nConnect a verified Receiver before service is enabled.');
-    const form=new ActionFormData()
-       .title('Hart Bulk Storage')
-       .body(status.replaceAll('\\\\n','\\n'))
-       .button('Close');
-    form.show(player).catch(_=>{});
+    // Existing chat/status UI avoids an undeclared server-ui dependency.
+    player.sendMessage('§6[Hart Bulk Storage] §7'+status);
 }
 function uceRegisterBulkComponent(registry){
     registry.registerCustomComponent('hartlogistics:bulk_storage_surface',{
