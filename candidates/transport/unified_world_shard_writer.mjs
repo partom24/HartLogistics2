@@ -153,7 +153,7 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
        args.operationId.length>256||!ASCII.test(args.operationId))
       return hold('invalid_or_stale_internal_intent');
     const step=transitionUnifiedOrdinaryAccounts(before,args);
-    if(!step.ok)return step;
+    if(!step.ok)return hold(step.reason);
     const receipt={operationId:args.operationId,epoch,
       revision:step.next.revision,beforeRevision:before.revision,
       from:args.from,to:args.to,key:args.key,count:args.count};
