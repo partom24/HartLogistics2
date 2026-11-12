@@ -187,7 +187,7 @@ test('changed shard between planning and write refuses without overwriting anoth
 });
 test('bounded property prevents arbitrary 250k-item world expansion into huge string',()=>{
   let s=createEmptyUnifiedOrdinaryLedger({worldId,epoch}).snapshot;
-  for(let i=0;i<250;i++){
+  for(let i=0;i<500;i++){
     const r=registerUnifiedEmptyAccount(s,{
       kind:'bulk',ownerId:'member-'+String(i).padStart(4,'0'),
       expectedRevision:s.revision,expectedEpoch:epoch});
