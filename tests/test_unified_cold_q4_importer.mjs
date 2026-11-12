@@ -244,7 +244,7 @@ test('cold-sealed Receiver accepts newly registered Bulk member with unchanged Q
   assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
     f.source);
 });
-test('globally competing Bulk controllers in two sealed shards refuse startup',()=>{
+test('disconnected Receiver shards each accept a distinct Bulk controller',()=>{
   const f=fixture();assert.equal(run(f).ok,true);
   const sealed=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
   for(let i=0;i<2;i++){
@@ -254,12 +254,36 @@ test('globally competing Bulk controllers in two sealed shards refuse startup',(
       verifyBulkPlacement:()=>true,
       verifyGlobalBulkUniqueness:()=>true});
     const before=writer.inspect().snapshot;
+    const registered=writer.registerBulkMember({
+      ownerId:'disconnected-bank-'+i,operationId:'register-bank-'+i,
+      expectedRevision:before.revision,expectedEpoch:epoch});
+    assert.equal(registered.ok,true,registered.reason);
+    assert.equal(registered.controllerOwnerId,'disconnected-bank-'+i);
+  }
+  const valid=inspectUnifiedActiveColdImport({world:f.world,worldId,epoch});
+  assert.equal(valid.ok,true,valid.reason);
+  assert.equal(valid.currentLedgerTotal,184);
+  assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
+    f.source);
+});
+test('duplicate Bulk owner across disconnected shards refuses global startup',()=>{
+  const f=fixture();assert.equal(run(f).ok,true);
+  const sealed=JSON.parse(f.values.get(UCE_COLD_SEAL_KEY));
+  for(let i=0;i<2;i++){
+    const shardKey=sealed.shards[i].key;
+    // Deliberately forged callbacks: global startup still must refuse
+    // duplicated physical ownership without trusting this registration.
+    const writer=createUnifiedShardWriter({world:f.world,shardKey,
+      worldId,epoch,externalFence:()=>true,
+      verifyBulkPlacement:()=>true,
+      verifyGlobalBulkUniqueness:()=>true});
+    const before=writer.inspect().snapshot;
     assert.equal(writer.registerBulkMember({
-      ownerId:'forged-bank-'+i,operationId:'faked-live-claim-'+i,
+      ownerId:'same-physical-bank',operationId:'forged-claim-'+i,
       expectedRevision:before.revision,expectedEpoch:epoch}).ok,true);
   }
   fail(inspectUnifiedActiveColdImport({world:f.world,worldId,epoch}),
-    'cold_bulk_controller_conflict');
+    'duplicate_bulk_owner_across_shards');
   assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
     f.source);
 });

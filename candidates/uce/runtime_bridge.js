@@ -520,9 +520,9 @@ function uceBulkGlobalUniqueness(ownerId,shardKey,authority){
             if(!state.ok)return false;
             for(const member of state.snapshot.accounts){
                 if(member.kind!=='bulk')continue;
+                // Controllers are per verified network, not global singleton.
+                // The same physical bank still cannot join two shards.
                 if(member.ownerId===ownerId)return false;
-                if(member.role==='controller'&&region.key!==shardKey)
-                    return false;
             }
         }
         return matchedRegion===1;

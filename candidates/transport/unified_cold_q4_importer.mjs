@@ -289,6 +289,14 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
     if(!original||checked.snapshot.accounts.filter(a=>
         a.id===item.owner).length!==1)
       return refuse('cold_shard_account_changed');
+    // A physically disconnected Receiver shard may have its own controller.
+    // One shard may not simultaneously bind its members to different owners.
+    const localBanks=checked.snapshot.accounts.filter(a=>a.kind==='bulk');
+    const localControllers=localBanks.filter(a=>a.role==='controller');
+    if(localControllers.length>1 ||
+       (localControllers.length===1 && localBanks.some(a=>
+         a.controllerOwnerId!==localControllers[0].ownerId)))
+      return refuse('cold_bulk_controller_conflict');
     // New Bulk accounts may be appended to the original Receiver's one
     // property. No new Receiver can be conjured without a separate witnessed
     // registry/cold-import operation.
@@ -317,11 +325,12 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
   }
   if(liveSources.size!==sealedSources.size)
     return refuse('cold_q4_provenance_missing');
-  const controllers=[...bankAccounts.values()].filter(x=>
-    x.role==='controller');
-  if(bankAccounts.size && (controllers.length!==1 ||
-      [...bankAccounts.values()].some(x=>
-        x.controllerOwnerId!==controllers[0].ownerId)))
+  // Distinct network controllers are valid, but every member's pointer must
+  // resolve to a sealed controller. Never permit a dangling owner claim.
+  const controllers=new Set([...bankAccounts.values()]
+    .filter(x=>x.role==='controller').map(x=>x.ownerId));
+  if([...bankAccounts.values()].some(x=>
+      !controllers.has(x.controllerOwnerId)))
     return refuse('cold_bulk_controller_conflict');
   if(!seal.shards.length&&active.initialItemCount!==0)
     return refuse('cold_empty_shards_with_items');
