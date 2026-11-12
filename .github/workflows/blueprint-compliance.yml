@@ -155,6 +155,10 @@ jobs:
         run: |
           node --check tests/test_unified_ordinary_escrow.mjs
           node --test tests/test_unified_ordinary_escrow.mjs
+      - name: UCE read-only legacy Sorter to Collector winner selection and source ownership
+        run: |
+          node --check tests/test_uce_sorter_collector_route_mock.mjs
+          node --test tests/test_uce_sorter_collector_route_mock.mjs
       - name: UCE single-writer Transporter and Sorter route graph, priority and revalidation
         run: |
           node --check candidates/uce/runtime_pipe_route.js

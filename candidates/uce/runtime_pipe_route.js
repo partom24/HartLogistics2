@@ -258,3 +258,128 @@ function ucePipeDestinationStillValid(receiver,item,admitted) {
     return !!current&&current.routeId===admitted.routeId &&
         current.slot===admitted.slot;
 }
+
+/*
+ * Read-only legacy Hopper->Sorter->Collector route admission for UCE.
+ * The original sorter column is the routing authority: exact Filter,
+ * destination-seeded Auto, then Wildcard, bottom-to-top within priority.
+ * No old Q4 queue writer or auto-registration via destinationFor() is used.
+ * A storage Sorter that would win still wins the selection (the UCE storage
+ * executor must handle it); an unavailable higher-priority target HOLDS.
+ */
+function uceSorterColumnWinner(column,item){
+    try{
+        if(!column||!item||!Array.isArray(column.sorters))
+            return undefined;
+        const dim=getDimension(column.d);
+        if(!dim)return undefined;
+        const source=dim.getBlock(column.source);
+        if(!source||source.typeId!=='minecraft:hopper'||
+           hopperIsRedstoneLocked(source))return undefined;
+        const container=blockContainer(source);
+        if(!container||!container.isValid)return undefined;
+        const eligible=[];
+        for(const entry of column.sorters){
+            const b=sorterAt(entry);
+            if(!b||entry.nativeQuarantine||blockIsRedstonePowered(b))
+                continue;
+            const mode=sorterMode(entry);
+            if(mode==='bypass'||(mode==='filter'&&
+                (!entry.f||!matchesFilter(item,entry.f))))continue;
+            const priority=mode==='filter'?0:
+                mode==='auto'?1:mode==='wildcard'?2:-1;
+            if(priority<0)continue;
+            const face=facingOffset(b);
+            if(!face)return undefined;
+            const p=b.location;
+            const target=b.dimension.getBlock({
+                x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+            // Unknown loaded state cannot permit a fallback to skip a
+            // possibly higher priority destination.
+            if(!target)return undefined;
+            if(target.typeId===COLLECTOR_ID){
+                if(mode==='auto')continue;
+                const q=target.location;
+                const id=logisticsId(target.dimension.id,q.x,q.y,q.z);
+                const collector=findCollectorById(id);
+                if(!collector||collector.present===false||
+                   collector.link===null||!collector.link||
+                   !collectorAt(collector)||
+                   blockIsRedstonePowered(target))continue;
+                const receiver=findReceiverById(collector.link);
+                const authority=uceAuthoritySnapshot();
+                if(!receiver||receiver.present===false||
+                   !receiverAt(receiver)||!authority||
+                   !uceOrdinaryAccountSource(authority,receiver.id))
+                    continue;
+                eligible.push({entry,priority,kind:'collector',
+                    collector,receiver});
+            }else if(supportedStorage(target)){
+                const dest=blockContainer(target);
+                if(!dest||!dest.isValid)return undefined;
+                // autoSorterMatches calls the old destinationFor() ONLY for
+                // verified storage, where it never registers a Collector.
+                if(mode==='auto'&&!autoSorterMatches(item,entry))
+                    continue;
+                if(!findAcceptSlot(dest,item))continue;
+                eligible.push({entry,priority,kind:'storage',
+                    block:target,container:dest});
+            }
+        }
+        eligible.sort((a,b)=>a.priority-b.priority||
+            a.entry.y-b.entry.y||a.entry.x-b.entry.x||
+            a.entry.z-b.entry.z);
+        const winner=eligible[0];
+        return winner?{...winner,source:{block:source,container}}:
+            undefined;
+    }catch(_){return undefined;}
+}
+function uceSorterCollectorSources(receiver){
+    if(!receiver||!Array.isArray(columns))return [];
+    const records=[],seen=new Set();
+    for(const col of columns){
+        let touches=false;
+        try{
+            for(const entry of col.sorters){
+                const sorter=sorterAt(entry),face=facingOffset(sorter);
+                if(!sorter||!face)continue;
+                const p=sorter.location;
+                const target=sorter.dimension.getBlock({
+                    x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+                if(!target||target.typeId!==COLLECTOR_ID)continue;
+                const q=target.location;
+                const collector=findCollectorById(
+                    logisticsId(target.dimension.id,q.x,q.y,q.z));
+                if(collector?.link===receiver.id){touches=true;break;}
+            }
+            if(!touches)continue;
+            const dim=getDimension(col.d),source=dim?.getBlock(col.source);
+            if(!source||source.typeId!=='minecraft:hopper'||
+               hopperIsRedstoneLocked(source))continue;
+            const container=blockContainer(source);
+            if(!container||!container.isValid)continue;
+            const p=source.location;
+            const key=source.dimension.id+'|'+p.x+','+p.y+','+p.z;
+            if(seen.has(key))continue;
+            seen.add(key);
+            records.push({kind:'sorter-collector',block:source,container,
+                locked:false,
+                eligibleSlot:(slot,item)=>{
+                    try{
+                        if(!Number.isSafeInteger(slot)||slot<0||
+                           slot>=container.size||
+                           !item||container.getItem(slot)===undefined)
+                            return false;
+                        const selected=uceSorterColumnWinner(col,item);
+                        return !!selected&&selected.kind==='collector'&&
+                           selected.receiver.id===receiver.id&&
+                           uceSameLoadedBlock(selected.source.block,source);
+                    }catch(_){return false;}
+                }});
+        }catch(_){continue;}
+    }
+    return records.sort((a,b)=>{
+        const p=a.block.location,q=b.block.location;
+        return p.y-q.y||p.x-q.x||p.z-q.z;
+    });
+}
