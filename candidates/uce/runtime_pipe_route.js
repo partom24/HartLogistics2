@@ -51,8 +51,10 @@ function ucePipeRouteNetwork(receiver) {
                     if(pg26PositionKey(p)!==rootKey||
                        next.dimension.id!==receiver.d)return undefined;
                 } else if(type===SORTER_ID){
-                    if(face.name!=='down'||!ucePipeSameChunk(root,next)||
-                       blockIsRedstonePowered(next))return undefined;
+                    if(face.name!=='down'||!ucePipeSameChunk(root,next))
+                        return undefined;
+                    // A powered Sorter pauses only that endpoint. Other
+                    // Sorters on the same verified pipe must keep routing.
                     const entry=registry.find(e=>e.d===receiver.d&&
                         e.x===p.x&&e.y===p.y&&e.z===p.z);
                     const live=entry&&sorterAt(entry);
