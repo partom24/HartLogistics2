@@ -302,6 +302,73 @@ function uceNativeOutputSlot(container){
     }catch(_){return -1;}
     return -1;
 }
+/* Read-only status for already linked 1.4.1 Collector/Receiver entries.
+ * No implicit registration or Q4 migration from a player interaction.
+ */
+function uceShowCollectorLinkedStatus(player,block){
+    if(!player||!block)return;
+    const p=block.location;
+    const id=logisticsId(block.dimension.id,p.x,p.y,p.z);
+    const collector=findCollectorById(id);
+    if(!collector){
+        player.sendMessage('§e[Collector] Not registered with the sealed UCE network. Original Q4 registration is paused.');
+        return;
+    }
+    const receiver=collector.link&&findReceiverById(collector.link);
+    const linked=receiver&&receiverAt(receiver);
+    player.sendMessage('§7[Collector] §f'+
+        (linked?'Linked Receiver: '+receiver.id:
+         'Linked Receiver unavailable; custody is on HOLD')+
+        '§7 | redstone '+(blockIsRedstonePowered(block)?'paused':'active'));
+}
+function uceShowReceiverLinkedStatus(player,block){
+    if(!player||!block)return;
+    const p=block.location;
+    const id=logisticsId(block.dimension.id,p.x,p.y,p.z);
+    const receiver=findReceiverById(id);
+    if(!receiver){
+        player.sendMessage('§e[Receiver] Not registered in the sealed UCE world. No queue or new link was created.');
+        return;
+    }
+    const authority=uceAuthoritySnapshot(),shardKey=authority&&
+        uceOrdinaryAccountSource(authority,id);
+    if(!shardKey){
+        player.sendMessage('§c[Receiver] No sealed ordinary account. Q4 evidence held; do not remove this block.');
+        return;
+    }
+    const writer=createUnifiedShardWriter({world,shardKey,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false});
+    const inspected=writer.ok&&writer.inspect();
+    if(!inspected?.ok){
+        player.sendMessage('§c[Receiver] Account unreadable; ownership HOLD.');
+        return;
+    }
+    const own=inspected.snapshot.accounts.find(a=>
+        a.id==='receiver:'+id);
+    if(!own){
+        player.sendMessage('§c[Receiver] Sealed source account missing; HOLD.');
+        return;
+    }
+    const banks=inspected.snapshot.accounts.filter(x=>x.kind==='bulk');
+    const bulkTotal=banks.reduce((n,a)=>n+a.total,0);
+    const totalCapacity=banks.reduce((n,a)=>n+a.capacity,0);
+    const registry=createUnifiedCarrierRegistry({world,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false,ownerVerifier:uceLiveReceiverOwner});
+    const claims=registry.ok?registry.inspectCustody({
+        ownerId:id,anchor:{dimensionId:receiver.d,
+            x:receiver.x,y:receiver.y,z:receiver.z}}):undefined;
+    const mrText=claims?.ok?
+        claims.occupied+' / '+claims.occupied+claims.free+' native slots':
+        'native custody '+(claims?.reason||'not registered');
+    player.sendMessage('§7[Receiver] §fOrdinary '+
+        own.total+'/250000 | Bulk '+bulkTotal+'/'+totalCapacity+
+        ' ('+banks.length+' banks) | MR '+mrText+
+        ' | Lifetime '+own.lifetime.received+'/'+own.lifetime.delivered+
+        ' | output '+(blockIsRedstonePowered(block)?'PAUSED':'active'));
+}
+
 function uceBulkOwnerId(block){
     if(!block||block.typeId!=='hartlogistics:bulk_storage')return undefined;
     const p=block.location;
