@@ -1,0 +1,56 @@
+{
+  "format_version": "1.26.10",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "hartlogistics:uce_native_carrier",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "hartlogistics",
+          "uce_native_carrier"
+        ]
+      },
+      "minecraft:inventory": {
+        "inventory_size": 9,
+        "container_type": "inventory",
+        "private": false,
+        "can_be_siphoned_from": false,
+        "restrict_to_owner": false
+      },
+      "minecraft:persistent": {},
+      "minecraft:damage_sensor": {
+        "triggers": {
+          "cause": "all",
+          "deals_damage": "no"
+        }
+      },
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": false
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:collision_box": {
+        "width": 0.1,
+        "height": 0.1
+      },
+      "minecraft:health": {
+        "value": 1000,
+        "max": 1000
+      },
+      "minecraft:scale": {
+        "value": 0.05
+      },
+      "minecraft:nameable": {
+        "allow_name_tag_renaming": false,
+        "always_show": false
+      }
+    }
+  }
+}
