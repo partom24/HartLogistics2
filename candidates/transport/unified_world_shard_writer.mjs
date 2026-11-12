@@ -91,7 +91,7 @@ function noLegacyJournal(world){
  * synchronous runtime writer exclusion inspection before enabling ACTIVE.
  */
 export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
-    {allowedNativeOperationId=null}={}){
+    {allowedNativeOperationId=null,allowedBoundaryOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
       typeof externalFence!=='function')
     return hold('invalid_unified_mutation_fence');
@@ -114,8 +114,21 @@ export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
        intent.operationId!==allowedNativeOperationId)
       return hold('native_intent_pending_global');
   }
+  const boundary=read(world,'hartlogistics:uce_boundary_intent_v1');
+  if(!boundary.ok)return boundary;
+  if(boundary.value!==undefined && boundary.value!==null &&
+     boundary.value!==''){
+    let tx;
+    try{tx=JSON.parse(boundary.value);}
+    catch(_){return hold('boundary_intent_invalid_for_unified_fence');}
+    if(!tx||tx.schema!=='hart-uce-ordinary-boundary-v1' ||
+       tx.worldId!==worldId||tx.epoch!==epoch ||
+       typeof tx.operationId!=='string'||!tx.operationId ||
+       tx.operationId!==allowedBoundaryOperationId)
+      return hold('ordinary_boundary_pending_global');
+  }
   let exclusive=false;
-  try{exclusive=externalFence()===true;}catch(_){}
+  try{exclusive=externalFence()===true;}catch(_){};
   if(!exclusive)return hold('legacy_writer_exclusion_unproven');
   return {ok:true};
 }
