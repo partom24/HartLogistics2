@@ -20,7 +20,9 @@ function ucePipeRouteNetwork(receiver) {
     try{
         if(!receiver||receiver.present===false)return undefined;
         const root=receiverAt(receiver);
-        if(!root||blockIsRedstonePowered(root))return undefined;
+        // Receiver power gates EGRESS, not discovery of connected sources.
+        // Collector and pipe-source admission may continue while powered.
+        if(!root)return undefined;
         const rootKey=pg26PositionKey(root.location);
         const pending=[],seen=new Map(),endpoints=new Map(),
             banks=new Map(),inputs=new Map();
@@ -191,7 +193,8 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false) {
     // The old Receiver output Hopper retains first claim to physical egress.
     // Bulk account discovery on the SAME graph may still occur, because
     // moving virtual balances is not a second physical output writer.
-    if(!item||!item.typeId||receiverOutputHopper(receiver))
+    if(!item||!item.typeId||receiverOutputHopper(receiver)||
+       blockIsRedstonePowered(receiverAt(receiver)))
         return undefined;
     const graph=ucePipeRouteNetwork(receiver),root=receiverAt(receiver);
     if(!graph||!root)return undefined;
