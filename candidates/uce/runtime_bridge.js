@@ -302,6 +302,99 @@ function uceNativeOutputSlot(container){
     }catch(_){return -1;}
     return -1;
 }
+const ucePendingLinkBlocks=new Map();
+function uceSelectCollectorForLink(player,block){
+    if(!player||!block||block.typeId!==COLLECTOR_ID)return;
+    const authority=uceAuthoritySnapshot();
+    const cold=authority&&inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold?.ok){
+        player.sendMessage('§c[Collector] UCE ownership authority is not sealed.');
+        return;
+    }
+    const p=block.location;
+    const selected={id:logisticsId(block.dimension.id,p.x,p.y,p.z),
+        d:block.dimension.id,x:p.x,y:p.y,z:p.z};
+    ucePendingLinkBlocks.set(player.id,selected);
+    uceShowCollectorLinkedStatus(player,block);
+    player.sendMessage('§b[Collector] Selected for UCE linkage. Interact with a registered Receiver to commit the relationship.');
+}
+function uceUseReceiverLinkOrStatus(player,block){
+    if(!player||!block||block.typeId!==RECEIVER_ID)return;
+    const pending=ucePendingLinkBlocks.get(player.id);
+    if(!pending){
+        uceShowReceiverLinkedStatus(player,block);
+        return;
+    }
+    const p=block.location;
+    const receiverId=logisticsId(block.dimension.id,p.x,p.y,p.z);
+    const receiver=findReceiverById(receiverId);
+    const authority=uceAuthoritySnapshot();
+    const cold=authority&&inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    const shardKey=authority&&uceOrdinaryAccountSource(authority,receiverId);
+    if(!receiver||!cold?.ok||!shardKey||!receiverAt(receiver)){
+        player.sendMessage('§c[Receiver] Target not sealed/registered; no Collector link changed.');
+        return;
+    }
+    const candidate=()=>{
+        const at=collectorAt(pending);
+        return !!at&&at.typeId===COLLECTOR_ID&&
+            at.dimension.id===pending.d&&
+            at.location.x===pending.x&&
+            at.location.y===pending.y&&at.location.z===pending.z;
+    };
+    const receiverVerified=rid=>{
+        if(rid!==receiverId||!receiverAt(receiver))return false;
+        const proof=inspectUnifiedActiveColdImport({world,
+            worldId:authority.worldId,epoch:authority.epoch});
+        if(!proof.ok)return false;
+        const shard=createUnifiedShardWriter({world,shardKey,
+            worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>false});
+        if(!shard.ok)return false;
+        const view=shard.inspect();
+        return view.ok&&view.snapshot.accounts.some(a=>
+            a.id==='receiver:'+receiverId);
+    };
+    const editor=createUnifiedLinkRegistry({world,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        verifyCollectorBlock:c=>c.id===pending.id&&candidate(),
+        verifySealedReceiver:receiverVerified
+    });
+    if(!editor.ok){
+        player.sendMessage('§c[Collector] Link authority unavailable: '+editor.reason);
+        return;
+    }
+    const old=editor.inspect();
+    if(!old.ok){
+        player.sendMessage('§c[Collector] Registry HOLD: '+old.reason);
+        return;
+    }
+    const operationId=uceNativeReceiptId();
+    const linked=editor.linkCollector({operationId,
+        collector:pending,receiverId,expectedRevision:old.revision});
+    if(!linked.ok){
+        player.sendMessage('§c[Collector] UCE link HOLD: '+linked.reason);
+        return;
+    }
+    try{
+        const updated=safeJsonParse(world.getDynamicProperty(LOGISTICS_KEY),undefined);
+        if(!updated||!Array.isArray(updated.collectors)||
+           !Array.isArray(updated.receivers))
+            throw new Error('registry readback not parseable');
+        logistics=updated;
+    }catch(_){
+        player.sendMessage('§c[Collector] Link record committed but live refresh is ambiguous; stop routing and restart for reconciliation.');
+        return;
+    }
+    ucePendingLinkBlocks.delete(player.id);
+    player.sendMessage('§a[Collector] UCE linked to sealed Receiver '+receiverId+'.');
+    uceShowReceiverLinkedStatus(player,block);
+}
+
 /* Read-only status for already linked 1.4.1 Collector/Receiver entries.
  * No implicit registration or Q4 migration from a player interaction.
  */
