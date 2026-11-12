@@ -343,3 +343,62 @@ export function transitionUnifiedOrdinaryAccounts(snapshot,{
     hasDurableReceipt:false,hasAtomicBedrockSaveProof:false,...noAuthority
   };
 }
+
+
+/**
+ * One physical-boundary accounting proposal. The only two legal changes to
+ * the global ordinary total are: depositing a certified native ordinary
+ * ItemStack (credit), and creating a certified native outbound ItemStack
+ * (debit). This pure operation does NOT prove the physical side occurred.
+ *
+ * The unified boundary coordinator must own the prepared native escrow,
+ * reserve exclusive writer authority, and commit one durable boundary journal
+ * before this returned ledger value is ever written. An ordinary internal
+ * Receiver↔Bulk transfer must use transitionUnifiedOrdinaryAccounts instead.
+ */
+export function transitionUnifiedOrdinaryBoundary(snapshot,{
+  operationId,accountId,key,count,direction,expectedRevision,expectedEpoch
+}={}){
+  const valid=inspectUnifiedOrdinaryLedger(snapshot);
+  if(!valid.ok)return valid;
+  if(!idOK(operationId)||!idOK(accountId)||!keyCheck(key)||
+     !pos(count)||!['deposit','withdraw'].includes(direction)||
+     !nat(expectedRevision)||expectedRevision!==snapshot.revision||
+     expectedEpoch!==snapshot.epoch)
+    return denied('invalid_or_stale_boundary_request');
+  const current=snapshot.accounts.find(a=>a.id===accountId);
+  if(!current)return denied('unknown_boundary_account');
+  if(direction==='deposit' && current.total+count>current.capacity)
+    return denied('boundary_account_full');
+  if(direction==='withdraw' &&
+     (current.buckets.find(x=>x.key===key)?.count||0)<count)
+    return denied('boundary_insufficient_balance');
+  if(!nat(snapshot.revision+1))return denied('ledger_version_overflow');
+  const next=JSON.parse(JSON.stringify(snapshot));
+  const account=next.accounts.find(a=>a.id===accountId);
+  const existing=account.buckets.find(x=>x.key===key);
+  if(direction==='deposit'){
+    if(existing)existing.count+=count;
+    else account.buckets.push({key,count});
+    account.total+=count;
+    next.total+=count;
+  }else{
+    existing.count-=count;
+    if(existing.count===0)
+      account.buckets=account.buckets.filter(x=>x.key!==key);
+    account.total-=count;
+    next.total-=count;
+  }
+  account.buckets.sort((a,b)=>order(a.key,b.key));
+  next.revision++;
+  const checked=inspectUnifiedOrdinaryLedger(next);
+  if(!checked.ok)return denied('boundary_ledger_conservation_failure');
+  return {ok:true,status:'PHYSICAL_BOUNDARY_ACCOUNT_DRAFT_ONLY',
+    next,receipt:{operationId,direction,accountId,key,count,
+      epoch:snapshot.epoch,beforeRevision:snapshot.revision,
+      afterRevision:next.revision},
+    totalBefore:snapshot.total,totalAfter:next.total,
+    externalCustodyProofRequired:true,
+    hasDurableBoundaryIntent:false,canWriteWorld:false,
+    canMoveItems:false,canCommitMigration:false,canClearQ4:false};
+}
