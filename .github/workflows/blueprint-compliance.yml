@@ -169,6 +169,10 @@ jobs:
           node --check candidates/transport/unified_link_registry.mjs
           node --check tests/test_unified_link_registry.mjs
           node --test tests/test_unified_link_registry.mjs
+      - name: UCE unified readonly product status and custody journal alerts
+        run: |
+          node --check tests/test_uce_diagnostics_mock.mjs
+          node --test tests/test_uce_diagnostics_mock.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
