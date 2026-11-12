@@ -13,7 +13,8 @@
  * install an ACTIVE marker before a validated cold Q4 import/cutover.
  */
 import {inspectUnifiedOrdinaryLedger,
-  transitionUnifiedOrdinaryAccounts} from './unified_ordinary_accounts.mjs';
+  transitionUnifiedOrdinaryAccounts,
+  transitionUnifiedOrdinaryBoundary} from './unified_ordinary_accounts.mjs';
 
 export const UCE_SHARD_SCHEMA='hart-uce-world-shard-v1';
 export const UCE_AUTHORITY_SCHEMA='hart-uce-world-authority-v1';
@@ -167,7 +168,7 @@ export function previewUnifiedShard({snapshot,shardKey}={}){
  * callback proves algorithm behavior only, not actual writer exclusion.
  */
 export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
-    externalFence}={}){
+    externalFence,verifyEscrowCustody}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !KEY.test(shardKey||'')||typeof worldId!=='string'||
@@ -188,8 +189,9 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       lastReceipt:parsed.value.receipt,
       canMoveNative:false,canClearQ4:false,canCommitMigration:false};
   }
-  function fence(){
-    return verifyUnifiedMutationFence(world,worldId,epoch,externalFence);
+  function fence(boundaryOperationId=null){
+    return verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
+      {allowedBoundaryOperationId:boundaryOperationId});
   }
   function applyInternalTransfer(args){
     if(quarantine)return hold('shard_session_quarantine:'+quarantine);
@@ -241,6 +243,92 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       itemCount:step.next.total,canMoveNative:false,canClearQ4:false,
       canCommitMigration:false,hasHardCrashDiskProof:false};
   }
-  return {ok:true,inspect,applyInternalTransfer,
+  /**
+   * One account credit/debit from a held NATIVE ESCROW. Never execute against
+   * a physical Hopper/chest alone. The same global boundary journal must
+   * have been prepared before source moved to escrow or destination produced.
+   * A matching durable receipt makes retries idempotent (read-only).
+   *
+   * This is part of the ONE UCE ledger writer, not another custody engine.
+   */
+  function applyBoundaryCommit(args){
+    if(quarantine)return hold('shard_session_quarantine:'+quarantine);
+    if(typeof verifyEscrowCustody!=='function')
+      return hold('physical_escrow_proof_adapter_missing');
+    if(!args||typeof args.operationId!=='string'||
+       !args.operationId||args.operationId.length>256||
+       !ASCII.test(args.operationId))
+      return hold('invalid_boundary_commit_request');
+    const gate=fence(args.operationId);
+    if(!gate.ok)return gate;
+    const outer=read(world,'hartlogistics:uce_boundary_intent_v1');
+    if(!outer.ok)return outer;
+    let tx;
+    try{tx=JSON.parse(outer.value);}
+    catch(_){return hold('boundary_intent_unreadable');}
+    if(!tx||tx.schema!=='hart-uce-ordinary-boundary-v1'||
+       tx.phase!=='ESCROW_READY'||tx.worldId!==worldId||
+       tx.epoch!==epoch||tx.operationId!==args.operationId||
+       tx.direction!==args.direction||tx.accountId!==args.accountId||
+       tx.key!==args.key||tx.count!==args.count||
+       tx.expectedRevision!==args.expectedRevision)
+      return hold('boundary_intent_not_commit_ready');
+    const a=read(world,shardKey);
+    if(!a.ok)return a;
+    const parsed=unpack(a.value,shardKey,worldId,epoch);
+    if(!parsed.ok)return parsed;
+    const previous=parsed.value;
+    // A write may have succeeded before a BDS callback threw or crashed.
+    // Recognize the SAME receipt; never credit/debit twice.
+    if(previous.receipt?.operationId===args.operationId){
+      if(previous.receipt.kind!=='BOUNDARY'||
+         previous.receipt.direction!==args.direction||
+         previous.receipt.accountId!==args.accountId||
+         previous.receipt.key!==args.key||
+         previous.receipt.count!==args.count)
+        return hold('boundary_receipt_identity_conflict');
+      return {ok:true,status:'BOUNDARY_ACCOUNT_ALREADY_COMMITTED',
+        receipt:previous.receipt,canMoveNative:false,
+        hasHardCrashDiskProof:false};
+    }
+    if(previous.snapshot.revision!==args.expectedRevision||
+       args.expectedEpoch!==epoch)
+      return hold('stale_boundary_account_revision');
+    let escrow=false;
+    try{escrow=verifyEscrowCustody(tx)===true;}catch(_){}
+    if(!escrow)return hold('native_escrow_custody_unverified');
+    const step=transitionUnifiedOrdinaryBoundary(previous.snapshot,args);
+    if(!step.ok)return hold(step.reason);
+    const receipt={kind:'BOUNDARY',operationId:args.operationId,epoch,
+      revision:step.next.revision,beforeRevision:previous.snapshot.revision,
+      direction:args.direction,accountId:args.accountId,
+      key:args.key,count:args.count};
+    const after=pack(shardKey,step.next,receipt);
+    if(!after.ok)return after;
+    const check=read(world,shardKey);
+    if(!check.ok)return check;
+    if(check.value!==a.value)return hold('boundary_account_changed_prewrite');
+    const gate2=fence(args.operationId);
+    let stillHeld=false;
+    try{stillHeld=verifyEscrowCustody(tx)===true;}catch(_){}
+    if(!gate2.ok||!stillHeld)
+      return hold('boundary_escrow_or_fence_changed_prewrite');
+    try{world.setDynamicProperty(shardKey,after.raw);}
+    catch(_){
+      quarantine='boundary_write_outcome_ambiguous';
+      return hold('boundary_account_write_ambiguous');
+    }
+    const readback=read(world,shardKey);
+    if(!readback.ok||readback.value!==after.raw ||
+       !unpack(readback.value,shardKey,worldId,epoch).ok){
+      quarantine='boundary_account_readback_mismatch';
+      return hold('boundary_account_postwrite_mismatch');
+    }
+    return {ok:true,status:'BOUNDARY_ACCOUNT_WRITE_READBACK',
+      receipt,accountTotal:step.next.total,
+      hasHardCrashDiskProof:false,canMoveNative:false};
+  }
+
+  return {ok:true,inspect,applyInternalTransfer,applyBoundaryCommit,
     getSessionQuarantine:()=>quarantine};
 }
