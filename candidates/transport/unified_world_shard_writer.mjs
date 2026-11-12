@@ -85,6 +85,25 @@ function noLegacyJournal(world){
   return {ok:true};
 }
 
+/**
+ * Shared UCE-only mutation fence for the ordinary and native storage ports.
+ * Never infer exclusivity from a marker alone: the caller must wire a real
+ * synchronous runtime writer exclusion inspection before enabling ACTIVE.
+ */
+export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence){
+  if(!world||typeof world.getDynamicProperty!=='function'||
+      typeof externalFence!=='function')
+    return hold('invalid_unified_mutation_fence');
+  const a=authority(world,worldId,epoch);
+  if(!a.ok)return a;
+  const j=noLegacyJournal(world);
+  if(!j.ok)return j;
+  let exclusive=false;
+  try{exclusive=externalFence()===true;}catch(_){}
+  if(!exclusive)return hold('legacy_writer_exclusion_unproven');
+  return {ok:true};
+}
+
 /** Build an importable source value. Never writes a world or grants cutover. */
 export function previewUnifiedShard({snapshot,shardKey}={}){
   if(!KEY.test(shardKey||''))return hold('invalid_world_shard_key');
@@ -128,14 +147,7 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       canMoveNative:false,canClearQ4:false,canCommitMigration:false};
   }
   function fence(){
-    const r=authority(world,worldId,epoch);
-    if(!r.ok)return r;
-    const j=noLegacyJournal(world);
-    if(!j.ok)return j;
-    let exclusive=false;
-    try{exclusive=externalFence()===true;}catch(_){}
-    if(!exclusive)return hold('legacy_writer_exclusion_unproven');
-    return {ok:true};
+    return verifyUnifiedMutationFence(world,worldId,epoch,externalFence);
   }
   function applyInternalTransfer(args){
     if(quarantine)return hold('shard_session_quarantine:'+quarantine);
