@@ -261,10 +261,11 @@ function uceMrServiceTick(authority){
             const selected=new Map();
             endpoints.set(id,{verify:ref=>{
                 const witness=selected.get(ref.slot);
-                return !!witness&&ref.container===source.container&&
+                return !!witness&&
                     uceLiveHopperOwner({d:source.block.dimension.id,
                       x:p.x,y:p.y,z:p.z})&&
-                    source.stillSelected(witness);
+                    uceSorterSourceStillValid(
+                        source,ref,witness,uceClassifyLiveStack);
             }});
             sources.push({container:source.container,ownerId:id,
                 locked:false,blockVerified:true,

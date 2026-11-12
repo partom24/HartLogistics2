@@ -146,6 +146,7 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("uceSorterCollectorSources(receiver)",self.main)
         self.assertIn("source.eligibleSlot(i,item)",self.main)
         self.assertIn("sourceRecord.stillSelected(sorterWitness)",self.main)
+        self.assertIn("uceSorterSourceStillValid(",self.main)
         self.assertIn("source.stillSelected(witness)",self.main)
         self.assertIn("if(dirty)rebuildTopology();",self.main)
         self.assertIn("sourceRecord={...input,kind:'pipe',locked:false};",self.main)

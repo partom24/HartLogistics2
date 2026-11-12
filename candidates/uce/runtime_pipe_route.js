@@ -391,3 +391,23 @@ function uceSorterCollectorSources(receiver){
         return p.y-q.y||p.x-q.x||p.z-q.z;
     });
 }
+
+/**
+ * Source-selection check across PREPARED -> MOVED -> ACK. Before the native
+ * move, route/filter/metadata classification must apply to the ACTUAL slot
+ * being moved, not an earlier cached stack. After the move, the source slot
+ * is legitimately empty; the ticketed destination and native journal prove
+ * exact movement, while this function still checks stable route ownership.
+ */
+function uceSorterSourceStillValid(source,ref,witness,identify){
+    try{
+        if(!source||!ref||ref.container!==source.container||
+           !Number.isSafeInteger(ref.slot)||ref.slot<0||
+           ref.slot>=source.container.size||
+           typeof identify!=='function'||!witness)return false;
+        const current=source.container.getItem(ref.slot);
+        if(current===undefined)return source.stillSelected(witness)===true;
+        return identify(current)==='MR'&&
+            source.eligibleSlot(ref.slot,current)===true;
+    }catch(_){return false;}
+}

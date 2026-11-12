@@ -157,3 +157,22 @@ test('MR service skips a Sorter item without a winning Collector route',async()=
   assert.equal(result.ok,true,result.reason);
   assert.deepEqual(moved,[1]);
 });
+
+test('native Sorter owner revalidates ACTUAL slot before move, route after ACK',()=>{
+  const f=fixture();
+  f.storage.inventory.slots.fill({typeId:'minecraft:stone'});
+  const source=f.ctx.uceSorterCollectorSources(f.receiver)[0];
+  const ref={container:source.container,slot:0};
+  const identify=x=>x.typeId==='minecraft:stone'?'MR':'ORDINARY';
+  assert.equal(f.ctx.uceSorterSourceStillValid(
+    source,ref,f.stone,identify),true);
+  source.container.setItem(0,{typeId:'minecraft:dirt',amount:1});
+  assert.equal(f.ctx.uceSorterSourceStillValid(
+    source,ref,f.stone,identify),false);
+  source.container.setItem(0,undefined);
+  assert.equal(f.ctx.uceSorterSourceStillValid(
+    source,ref,f.stone,identify),true);
+  f.collectorBlock.powered=true;
+  assert.equal(f.ctx.uceSorterSourceStillValid(
+    source,ref,f.stone,identify),false);
+});
