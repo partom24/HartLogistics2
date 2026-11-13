@@ -70,6 +70,49 @@ Sorter and was a compatibility defect.
   Sorter discovery alone does not establish the requested multi-region
   cohesive logical storage system. No LAB install or world mutation occurred.
 
+## 2026-11-13 source compatibility correction (not product acceptance)
+
+The original requirements are not new planning tasks: the base storage whitelist,
+Sorter-column geometry, Collector handoff, unloaded queue behavior and
+multi-bank controller routing are in the protected 1.4.1 source and existing
+architecture/evidence documents.
+
+- **Runtime correction in PR #79:** `runtime_pipe_route.js` uses the exact
+  1.4.1 `supportedStorage` whitelist and existing `uceDirectStorageOwnerBlock`
+  proof for Sorter output. Single chests, trapped chests, barrels and all
+  Shulker variants are eligible; only verified reciprocal 54-slot double-chest
+  aliases are accepted, with one canonical native owner ID for both halves.
+  Changed/unloaded companion blocks HOLD instead of reusing the old route.
+- **Input correction:** a verified single 27-slot vanilla source may feed a
+  loaded connected Transporter at any vertical position; the former
+  `source.y >= receiver.y` restriction incorrectly rejected legitimate
+  descending pipes. Double-chest source aliases still HOLD until unique
+  cross-component source ownership is proven. Supported source classes now
+  match the original vanilla storage whitelist (27-slot safe shapes only).
+- **Missing-forwarding safety fence:** a matching Collector-facing Sorter is
+  *not* silently skipped in favor of a later Wildcard or weaker local route.
+  An unloaded or unverifiable higher-priority output also HOLDs. This
+  prevents known misrouting; **it does not implement the missing
+  Transporter→Sorter→Collector→next-bank transfer**.
+- **Enforced regressions:** `tests/test_uce_pipe_route_mock.mjs` exercises
+  exact original `supportedStorage`/`blockContainer` and live HL2
+  `uceDirectStorageOwnerBlock`, including canonical double-chest identity,
+  modes, output precedence, Collector hold, source types/elevation and
+  two independent 48-pipe banks with **1,536 stacked Sorters total**.
+  `tests/test_uce_candidate_build.py` now reruns the same behavioral
+  regressions on the routing function bodies extracted from the *assembled*
+  `main.js`. These are modeled loaded blocks, not a BDS observation.
+- **Evidence boundary:** `a7991368` achieved a completed successful source
+  workflow [43443267166](https://github.com/partom24/HartLogistics2/actions/runs/43443267166).
+  Later commits change runtime/tests; their *own* exact-head CI must finish
+  before describing them as PASS. New 1,536-Sorter geometry is not a 200k
+  throughput, 1,400 production-world census, or interbank delivery result.
+
+**OPEN:** logical interbank Filter/Auto/Bulk/Wildcard policy and custody,
+safe MR forwarding, unloaded Receiver ingress, full nonempty Q4 migration,
+incremental >128-pipe discovery, real performance and integrated BDS acceptance.
+No owner world, LAB/PG35/PG42 archive, native item or production pack was touched.
+
 ## Owner's current LAB boundary
 
 The authorized LAB host remains `C:\Servers\Thomas_MCBedrock - Copy (2)`; production `C:\Servers\Thomas_MCBedrock` is prohibited. Owner observations progressed beyond PG27 through PG35 and PG42. The active LAB world `HartUCECarrierLabPG42` has an installed temporary PG42 carrier probe and a persistent named/lore carrier witness. PG35 and earlier ThomasServer LevelDB remain preserved. **Do not run the older PG33-specific UCE installer against this LAB, clear PG42 world records, delete PG42 provenance, or replay unresolved custody.** Historical PG40/PG42 pack-reconstruction and rollback tools are retained because removing them before safe LAB cleanup would strand installed-state rollback. They must not be in the integrated runtime/release archive.
