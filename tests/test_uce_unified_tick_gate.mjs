@@ -15,7 +15,8 @@ assert.ok(first>=0&&last>first,'unified scheduler must have stable bounds');
 const actual=bridge.slice(first,last);
 
 function fixture({ready=true,active=true,sealed=true,
-                  thrown=false,journals={},afterMR=null,afterOrdinary=null,
+                  thrown=false,journals={},afterCollector=null,
+                  afterMR=null,afterOrdinary=null,
                   ordinaryBudget=0,dirty=false,topologyFails=false}={}){
   const calls=[],messages=[],reads=[];
   const authority=active?{worldId:'restored-lab-copy',epoch:41}:undefined;
@@ -41,6 +42,13 @@ function fixture({ready=true,active=true,sealed=true,
       return sealed?{ok:true}:{ok:false,reason:'stale_sealed_shard'};
     },
     uceBridgeLog:msg=>messages.push(msg),
+    uceCollectorMrBufferTick:a=>{
+      assert.equal(a,authority);
+      if(typeof afterCollector==='function'){
+        calls.push('COLLECTOR');
+        afterCollector(journals);
+      }
+    },
     uceMrServiceTick:a=>{
       assert.equal(a,authority);calls.push('MR');
       if(typeof afterMR==='function')afterMR(journals);
@@ -62,8 +70,8 @@ function fixture({ready=true,active=true,sealed=true,
 test('valid ACTIVE sealed world services both lanes under a single authority proof',()=>{
   const f=fixture();
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
-  assert.equal(f.reads.length,20,
-    'five global journals read at each of four safe lane boundaries');
+  assert.equal(f.reads.length,25,
+    'five global journals read at each of five safe lane boundaries');
 });
 test('missing authority or failed cold seal never invokes either lane',()=>{
   assert.deepEqual(fixture({active:false}).calls,['authority']);
@@ -98,6 +106,18 @@ test('world property throw is global HOLD, not legacy fallback or a write',()=>{
   assert.equal(f.messages.some(x=>x.includes('unreadable')),true);
 });
 
+test('Collector-native unloaded Receiver waiting must settle before MR or ordinary lanes',()=>{
+  const f=fixture({afterCollector:j=>{
+    j['hartlogistics:uce_native_intent_v1']='MOVED_INSPECTED';
+  }});
+  assert.deepEqual(f.calls,['authority','cold','COLLECTOR']);
+  assert.equal(f.messages.some(x=>x.includes('uce_native_intent_v1')),true);
+  const clear=fixture({afterCollector:j=>{
+    j['hartlogistics:uce_native_intent_v1']=undefined;
+  }});
+  assert.deepEqual(clear.calls,
+    ['authority','cold','COLLECTOR','MR','ORDINARY','SORTER']);
+});
 test('MR PREPARED in this tick prevents any later ordinary service start',()=>{
   const f=fixture({afterMR:j=>{
     j['hartlogistics:uce_native_intent_v1']='PREPARED';
@@ -133,8 +153,8 @@ test('multiple successful ordinary Receiver operations are bounded to four per t
     'ORDINARY','ORDINARY','ORDINARY','ORDINARY','SORTER']);
   assert.equal(f.calls.filter(x=>x==='MR').length,1);
   assert.equal(f.calls.filter(x=>x==='SORTER').length,1);
-  assert.equal(f.reads.length,35,
-    'seven five-key global custody journal censuses');
+  assert.equal(f.reads.length,40,
+    'eight five-key global custody journal censuses');
 });
 test('ordinary batch stops on no work without spinning the scheduler',()=>{
   const f=fixture({ordinaryBudget:2});
