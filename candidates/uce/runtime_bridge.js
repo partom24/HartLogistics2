@@ -1031,6 +1031,22 @@ function uceOrdinaryServiceTick(authority){
         const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
         if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
         const bankNetwork=ucePipeRouteNetwork(receiver);
+        // Wildcard is lawful only when every connected bank in the SAME
+        // sealed shard is verified full. A nonleader Receiver cannot borrow
+        // authority from a different shard or assume unknown banks are full.
+        const governedBanks=bankNetwork?.banks?.length?
+            [...new Set(bankNetwork.banks.map(b=>uceBulkOwnerId(b)))].sort():[];
+        let wildcardPermitted=governedBanks.length===0;
+        if(governedBanks.length){
+            const proof=inspectUnifiedWildcardCapacity({
+                snapshot:ledger.snapshot,receiverOwnerId:ownerId,
+                connectedBankOwnerIds:governedBanks
+            });
+            wildcardPermitted=proof.ok===true&&
+                proof.allowWildcard===true&&
+                bankNetwork.leaderId===receiver.id;
+        }
+        const onlyPreferred=!wildcardPermitted;
         let preferredOutputReady=false;
         if(bankNetwork?.banks?.length&&
            bankNetwork.leaderId===receiver.id){
@@ -1110,9 +1126,7 @@ function uceOrdinaryServiceTick(authority){
                         }else if(!output){
                             canWithdraw=!!uceChoosePipeDestination(
                                 receiver,item,
-                                !!bankNetwork?.banks?.length&&
-                                bankNetwork.leaderId===receiver.id,
-                                undefined,true);
+                                onlyPreferred,undefined,true);
                         }
                         if(canWithdraw)break;
                     }
@@ -1188,9 +1202,7 @@ function uceOrdinaryServiceTick(authority){
                     if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
                     const route=outgoing?undefined:
                         uceChoosePipeDestination(receiver,item,
-                            !!bankNetwork?.banks?.length&&
-                            bankNetwork.leaderId===receiver.id,
-                            undefined,true);
+                            onlyPreferred,undefined,true);
                     if(!outgoing&&!route)continue;
                     if(outgoing&&uceNativeOutputSlot(outgoing.container)<0)
                         continue;

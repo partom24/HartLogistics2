@@ -88,3 +88,24 @@ export function planUnifiedBulkService({snapshot,receiverOwnerId,
   }
   return idle('bulk_retains_custody_or_no_output');
 }
+
+/**
+ * Wildcard is allowed only after the SAME validated bank/controller ledger
+ * proves every connected Bulk member is full. A missing/shadow/stale member
+ * is UNKNOWN, not full. This read-only proof must be recomputed on each
+ * physical route choice; another Receiver's ledger cannot certify it.
+ */
+export function inspectUnifiedWildcardCapacity({snapshot,receiverOwnerId,
+    connectedBankOwnerIds=[]}={}){
+  const plan=planUnifiedBulkService({snapshot,receiverOwnerId,
+    connectedBankOwnerIds,sourceWaiting:false,
+    preferredOutputKeys:[],outputEligibleKeys:[]});
+  if(!plan.ok)return {ok:false,status:'HOLD',reason:plan.reason,
+    allowWildcard:false,canWriteWorld:false};
+  if(plan.status==='IDLE'&&plan.reason==='all_connected_banks_full')
+    return {ok:true,status:'BULK_CAPACITY_EXHAUSTED_READ_ONLY',
+      allowWildcard:true,canWriteWorld:false};
+  return {ok:true,status:'BULK_CAPACITY_NOT_PROVEN_EXHAUSTED',
+    reason:plan.reason||plan.status,allowWildcard:false,
+    canWriteWorld:false};
+}
