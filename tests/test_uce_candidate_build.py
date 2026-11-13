@@ -306,6 +306,16 @@ class UceBuildTests(unittest.TestCase):
                             "\\n// TEMP_TEST:PG42-CARRIER\\n",encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"Temporary LAB diagnostic"):
                 package.validate_pair(source,is_uce=True)
+            main.write_text(self.main,encoding="utf-8")
+            stray=source/"behavior_pack/scripts/uce/unneeded_pg42_probe.js"
+            stray.write_text("// TEMP_TEST:PG42-CARRIER\\n",encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"temporary probe file"):
+                package.validate_pair(source,is_uce=True)
+            stray.unlink()
+            unrelated=source/"behavior_pack/scripts/uce/stray_runtime.js"
+            unrelated.write_text("// PG40 FORENSIC HOLD\\n",encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"Temporary LAB diagnostic"):
+                package.validate_pair(source,is_uce=True)
 
 if __name__=="__main__":
     unittest.main()
