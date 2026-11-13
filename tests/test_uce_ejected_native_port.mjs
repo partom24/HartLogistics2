@@ -360,14 +360,17 @@ test('ejected ordinary entry survives REAL carrier registry ticket binding under
   assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
   assert.equal(f.run().ok,false,'original entity cannot be debited twice');
 });
-test('real carrier tickets cannot clear a boundary with changed link after entity ACK',()=>{
+test('real carrier tickets refuse changed block owner after entity ACK without ordinary credit',()=>{
   const f=ordinaryEntityFixture({
     realRegistry:true,revokeAfterEntityRemoval:true});
   const result=f.run();
   assert.equal(result.ok,false);
-  assert.equal(result.reason,'ejected_route_changed_after_native_ack');
+  assert.equal(result.reason,'carrier_claims:carrier_owner_block_unverified',
+    'real carrier ownership refusal is stronger than the later route check');
   assert.equal(f.entity.isValid,false);
   assert.equal(f.host.getItem(0).amount,32);
   assert.equal(f.view().snapshot.total,0);
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
   assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),true);
+  assert.equal(f.run().ok,false,'pending outer boundary cannot be replayed');
 });
