@@ -165,7 +165,13 @@ function ucePipeRouteNetwork(receiver) {
                     if(!ucePipeSameDimension(root,next))return undefined;
                     const source=uceReadOnlyPipeInput(next,root);
                     if(!source)return undefined;
-                    inputs.set(pg26PositionKey(p),source);
+                    // Two Bedrock 54-slot double-chest halves are ONE
+                    // physical inventory owner. Preserve a single canonical
+                    // source and never debit both aliases independently.
+                    const prior=inputs.get(source.ownerId);
+                    if(prior&&!uceSameLoadedBlock(
+                        prior.block,source.block))return undefined;
+                    inputs.set(source.ownerId,source);
                 } else if(type===COLLECTOR_ID ||
                           next.getComponent('minecraft:inventory')?.container){
                     // No unverified foreign inventory may claim pipe custody.
@@ -189,12 +195,17 @@ function ucePipeRouteNetwork(receiver) {
         // One physical chest may touch multiple pipes in the SAME graph.
         // A different disconnected pipe component cannot also own it.
         for(const source of inputs.values()){
-            for(const face of PG26_FACES){
-                const neighbor=pg26Neighbor(source.block,face);
-                if(!neighbor)return undefined;
-                if(neighbor.typeId===PG26_PIPE_ID&&
-                   !seen.has(pg26PositionKey(neighbor.location)))
-                    return undefined;
+            // Check ALL aliases of a verified 54-slot double chest. Another
+            // disconnected pipe touching its far half must not withdraw
+            // through a second source identity or bypass the owner leader.
+            for(const alias of source.aliases){
+                for(const face of PG26_FACES){
+                    const neighbor=pg26Neighbor(alias,face);
+                    if(!neighbor)return undefined;
+                    if(neighbor.typeId===PG26_PIPE_ID&&
+                       !seen.has(pg26PositionKey(neighbor.location)))
+                        return undefined;
+                }
             }
         }
         const sortedPipes=[...seen.keys()].sort();
@@ -222,15 +233,42 @@ function uceReadOnlyPipeInput(block,root){
     try{
         if(!block||!supportedStorage(block)||
            !ucePipeSameDimension(root,block))return undefined;
-        // Same original storage whitelist as the Sorter, but source
-        // ownership remains deliberately narrower: only single 27-slot
-        // inventories. Two aliases of a 54-slot double chest cannot be
-        // extracted until cross-component input ownership is certified.
-        // Never silently treat an aliased chest as an independent source.
+        // The already certified output owner proof checks the reciprocal
+        // Bedrock double chest and 54-slot view from BOTH live halves.
+        // Use that SAME physical identity for input instead of treating
+        // the two block faces as independent mutable inventories.
         if(!uceDirectStorageOwnerBlock(block))return undefined;
-        const container=blockContainer(block);
-        if(!container?.isValid||container.size!==27)return undefined;
-        return {block,container,typeId:block.typeId};
+        const original=blockContainer(block);
+        if(!original?.isValid)return undefined;
+        const ownerId=ucePipeStorageOwnerId(block);
+        if(!ownerId)return undefined;
+        let canonical=block,aliases=[block],container=original;
+        if(original.size===54){
+            if(block.typeId!=='minecraft:chest'&&
+               block.typeId!=='minecraft:trapped_chest')
+                return undefined;
+            const companions=[];
+            for(const face of PG26_FACES){
+                if(face.y!==0)continue;
+                const other=pg26Neighbor(block,face);
+                if(!other)return undefined;
+                if(other.typeId===block.typeId)
+                    companions.push(other);
+            }
+            if(companions.length!==1)return undefined;
+            const mate=companions[0];
+            if(ucePipeStorageOwnerId(mate)!==ownerId)return undefined;
+            aliases=[block,mate];
+            if(pg26PositionKey(mate.location)<
+               pg26PositionKey(block.location)){
+                canonical=mate;
+                container=blockContainer(mate);
+            }
+            if(!container?.isValid||container.size!==54)
+                return undefined;
+        }else if(original.size!==27)return undefined;
+        return {block:canonical,container,typeId:block.typeId,
+            ownerId,aliases};
     }catch(_){return undefined;}
 }
 function ucePipeSourceStillConnected(receiver,source){
