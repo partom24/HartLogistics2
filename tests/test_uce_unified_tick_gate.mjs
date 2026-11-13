@@ -135,6 +135,7 @@ test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',(
   let total=0,registrations=0;
   const logs=[];
   const ctx={
+    world:{},
     logistics:{receivers:[receiver],collectors:[]},
     receiverAt:()=>receiverBlock,blockIsRedstonePowered:()=>false,
     receiverOutputHopper:()=>({block:sourceBlock,locked:false,
