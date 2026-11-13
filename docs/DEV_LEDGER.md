@@ -550,3 +550,10 @@ Owner executed `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` from thei
 - Owner confirms east/west corrected and visual connections to chests, barrels and double chests pass; accompanying screenshots support container connection rendering. **Scoped visual checks CLOSED / SUCCESS.** No repeat rendering session. Name feedback and explicit remove/replace sequence not separately confirmed; no item-transfer acceptance inferred.
 - Receiver endpoint remains unimplemented. Double-chest physical extraction remains deliberately rejected despite visual arms. Ordinary single chest/barrel → pipe → Sorter route/redstone checkpoint remains pending.
 - Next: finish that bounded route checkpoint, then develop safe Receiver queue extraction after writer/recovery/backpressure/unload review and offline fault checks. Shared double-chest inventory identity is separate remaining work. No new installation, experiments, forced crash, runtime probe, release or production operation for documentation closeout.
+
+## 2026-11-13 — owner supplies exact historical 1.4.1 production-scale startup counts (HL-E-075)
+
+- Owner quoted a **2026-11-06 14:44:50:283** Hart Logistics **1.4.1** script `ready` line: `sorters=1386, collectors=54, receivers=33, registry=v2 9 shards / 194902 chars`. Supersedes the prior *approximately 1,400 Sorters* estimate in [owner layout reference](OWNER_LAYOUT_REFERENCE.md).
+- Classify as **OWNER-PROVIDED RUNTIME LOG EXCERPT — HISTORICAL CONFIGURATION SNAPSHOT**. This supports reported startup registration counts only, not a measured item queue, current live topology, number of linked Collectors, performance benchmark, HL2 scaled runtime acceptance, or full-log verification. Registry figures are data footprint, not inventory.
+- Do not confuse this original 1.4.1 owner-supplied snapshot with later **LAB 664 Sorters / 56 Collectors / 35 Receivers** PG27 results; world, version and observation time differ.
+- Documentation-only evidence clarification; no game source, registry data, test, release or deployment change and no reason to repeat prior bounded LAB checks solely for this count update.
