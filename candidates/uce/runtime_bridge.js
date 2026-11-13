@@ -2324,6 +2324,27 @@ function uceOrdinaryServiceTick(authority){
             }
         }
 
+        // Remote Bulk remains governed by its original bank controller.
+        // When the local account is empty, a verified Hopper/Filter/Auto
+        // may draw ordinary counts from a linked bank through the SAME
+        // globally prepared two-shard journal; no Wildcard Bulk drain.
+        if(account.total===0&&!sourceRecord&&bankNetwork&&
+           !blockIsRedstonePowered(receiverAt(receiver))){
+            const refilled=uceTryRemoteBulkRefill(
+                authority,receiver,shardKey,shardWriter,account);
+            if(!refilled.ok){
+                uceBridgeLog('remote Bulk refill HOLD '+
+                    refilled.reason,ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+            if(refilled.status==='REMOTE_BULK_REFILL_COMMITTED'){
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                ucePerfRecordMove('ordinary',refilled.count);
+                return true;
+            }
+        }
+
         // Initialize an empty native host only for actual eligible work.
         // Mere presence of an output Hopper or pipe is NOT a transfer.
         host=registry.inspectHost({ownerId,anchor});

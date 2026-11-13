@@ -537,9 +537,10 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
  * This is usable ONLY after a separately verified network-wide proof that
  * no accepting Filter/seeded Auto exists. It is NOT a wildcard grant.
  */
-function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph){
+function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph,
+                                 requireNoPreferred=true){
     try{
-        if(!receiver||!item?.typeId||!authority||
+        if(!receiver||(requireNoPreferred&&!item?.typeId)||!authority||
            !Array.isArray(logistics.receivers))return undefined;
         const rootGraph=sourceGraph||ucePipeRouteNetwork(receiver);
         if(!rootGraph||rootGraph.receiverId!==receiver.id||
@@ -550,7 +551,7 @@ function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph){
         // large 1.4.1 multi-bank layouts; the actual transfer writer ALWAYS
         // re-runs this complete proof before each global journal mutation.
         const inspectedGraphs=new Map();
-        if(!uceVerifiedNoReachablePreferredOutput(
+        if(requireNoPreferred&&!uceVerifiedNoReachablePreferredOutput(
             receiver,item,authority,rootGraph,inspectedGraphs))
             return undefined;
         const visited=new Set(),pending=[{
@@ -591,7 +592,8 @@ function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph){
                 const mode=sorterMode(entry);
                 if(mode==='bypass'||mode==='auto')continue;
                 if(mode==='filter'&&(!entry.f||
-                   !matchesFilter(item,entry.f)))continue;
+                   (item?.typeId&&!matchesFilter(item,entry.f))))
+                    continue;
                 if(mode!=='filter'&&mode!=='wildcard')continue;
                 const sorter=sorterAt(entry);
                 if(!sorter)return undefined;

@@ -65,13 +65,14 @@ function makeLedger(owners,counts={}){
 }
 function fixture({remoteFull=false,badController=false,
                  revokeOnPrepared=false,invalidPath=false,
-                 sourceWaiting=false,hopperAccepts=null}={}){
-  const a=makeLedger([['receiver',src.id]],{
-    ['receiver:'+src.id]:128
-  });
+                 sourceWaiting=false,hopperAccepts=null,
+                 sourceEmpty=false,remoteSeeded=false}={}){
+  const a=makeLedger([['receiver',src.id]],
+    sourceEmpty?{}:{['receiver:'+src.id]:128});
   const b=makeLedger([
     ['receiver',dst.id],['bulk',bankOwnerId]
-  ],remoteFull?{['bulk:'+bankOwnerId]:200000}:{});
+  ],remoteSeeded?{['bulk:'+bankOwnerId]:128}:
+    remoteFull?{['bulk:'+bankOwnerId]:200000}:{});
   if(badController){
     const bank=b.accounts.find(x=>x.kind==='bulk');
     bank.controllerOwnerId='missing-controller';
@@ -137,7 +138,9 @@ function fixture({remoteFull=false,badController=false,
     receiverOutputHopper:()=>hopperAccepts===null?undefined:{
       container:{isValid:true,size:5},locked:false},
     uceOrdinaryHopperCandidate:()=>hopperAccepts===true,
-    receiverAt:()=>({typeId:'hartsorter:receiver'}),
+    receiverAt:()=>({typeId:'hartsorter:receiver',
+      location:{x:4,y:70,z:4},
+      dimension:{getBlock:()=>({typeId:'minecraft:air'})}}),
     blockIsRedstonePowered:()=>false,
     uceChoosePipeDestination:()=>undefined
   };
@@ -154,10 +157,12 @@ function fixture({remoteFull=false,badController=false,
     x=>x.id==='receiver:'+src.id);
   const run=()=>context.uceTryRemoteBulkTransfer(
     authority,src,srcShard,sourceWriter,account,sourceWaiting);
+  const refill=()=>context.uceTryRemoteBulkRefill(
+    authority,src,srcShard,sourceWriter,account,sourceWaiting);
   const view=shardKey=>createUnifiedShardWriter({
     world,worldId,epoch,shardKey,externalFence:()=>false
   }).inspect();
-  return {run,view,saved,world,srcAccount:account,
+  return {run,refill,view,saved,world,srcAccount:account,
     set routeActive(v){routeActive=v;},
     get writes(){return writes},
     get operationNumber(){return operationNumber}};
@@ -227,4 +232,43 @@ test('newly accepting original output Hopper takes priority over remote Bulk wit
   assert.equal(f.writes,0);
   assert.equal(f.view(srcShard).snapshot.total,128);
   assert.equal(f.view(dstShard).snapshot.total,0);
+});
+
+test('remote Bulk refills an empty Receiver for a verified original Hopper with one global two-shard journal',()=>{
+  const f=fixture({sourceEmpty:true,remoteSeeded:true,
+    hopperAccepts:true}),r=f.refill();
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'REMOTE_BULK_REFILL_COMMITTED');
+  assert.equal(r.count,64);
+  assert.equal(f.view(srcShard).snapshot.total,64);
+  assert.equal(f.view(dstShard).snapshot.total,64);
+  assert.equal(f.view(srcShard).snapshot.total+
+    f.view(dstShard).snapshot.total,128);
+  assert.equal(f.view(srcShard).lastReceipt.kind,'FEDERATED_CREDIT');
+  assert.equal(f.view(dstShard).lastReceipt.kind,'FEDERATED_DEBIT');
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),false);
+  assert.equal(f.writes,6);
+});
+test('remote Bulk cannot refill an unaccepting native output or bypass Bulk into Wildcard',()=>{
+  const f=fixture({sourceEmpty:true,remoteSeeded:true,
+    hopperAccepts:false}),r=f.refill();
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'REMOTE_BULK_REFILL_NO_PREFERRED_OUTPUT');
+  assert.equal(f.writes,0);
+  assert.equal(f.view(srcShard).snapshot.total,0);
+  assert.equal(f.view(dstShard).snapshot.total,128);
+});
+test('remote Bulk refill route lost after PREPARED remains globally held with zero shard writes',()=>{
+  const f=fixture({sourceEmpty:true,remoteSeeded:true,
+    hopperAccepts:true,revokeOnPrepared:true}),r=f.refill();
+  assert.equal(r.ok,false);
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),true);
+  assert.equal(f.view(srcShard).snapshot.total,0);
+  assert.equal(f.view(dstShard).snapshot.total,128);
+});
+test('remote Bulk never refills a Receiver that still owns ordinary items',()=>{
+  const f=fixture({remoteSeeded:true,hopperAccepts:true}),r=f.refill();
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'REMOTE_BULK_REFILL_RECEIVER_BUSY');
+  assert.equal(f.writes,0);
 });
