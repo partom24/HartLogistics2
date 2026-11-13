@@ -119,3 +119,80 @@ function ucePlanInterbankBulkTransfer(authority,receiver,shardKey,entry){
         return {ok:true,status:'NO_VERIFIED_REMOTE_BULK_CAPACITY'};
     }catch(_){return hold('interbank_bulk_planner_ambiguous');}
 }
+
+/*
+ * Called ONLY by uceOrdinaryServiceTick, after the local/physical-shared
+ * Bulk planner has had first claim. One successful remote transaction uses
+ * the SAME source shard, global federated intent, destination shard and
+ * exact readback/receipt protocol as every other ordinary ledger transfer.
+ */
+function uceTryRemoteBulkTransfer(authority,receiver,shardKey,
+                                  shardWriter,account,sourceWaiting=false){
+    const hold=reason=>({ok:false,status:'HOLD',reason});
+    try{
+        if(!authority||!receiver||!shardKey||!shardWriter||
+           !account||!Array.isArray(account.buckets))
+            return hold('remote_bulk_binding_invalid');
+        if(account.total<=0||!account.buckets.length)
+            return {ok:true,status:'REMOTE_BULK_IDLE_EMPTY'};
+        if(sourceWaiting&&account.total<account.capacity-512)
+            return {ok:true,status:'REMOTE_BULK_SOURCE_PRIORITY'};
+        if(receiverOutputHopper(receiver)||
+           blockIsRedstonePowered(receiverAt(receiver)))
+            return {ok:true,status:'REMOTE_BULK_LEGACY_OUTPUT_PRIORITY'};
+        for(const entry of account.buckets){
+            let item;
+            try{
+                const def=JSON.parse(entry.key);
+                if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+                    continue;
+                item=new ItemStack(def.typeId,1);
+                if(uceClassifyLiveStack(item)!=='ORDINARY')
+                    continue;
+            }catch(_){continue;}
+            // An actually selected local preferred destination must retain
+            // first claim, including when this Receiver has no Bulk member.
+            if(uceChoosePipeDestination(receiver,item,true,
+                                        undefined,true))
+                continue;
+            const planned=ucePlanInterbankBulkTransfer(
+                authority,receiver,shardKey,entry);
+            if(!planned.ok)
+                return hold('remote_bulk_plan:'+planned.reason);
+            if(planned.status!=='REMOTE_BULK_TRANSFER_DRAFT')
+                continue;
+            const operationId=uceNativeReceiptId();
+            if(!operationId)return hold('remote_bulk_receipt_exhausted');
+            const externalFence=()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot();
+            const proof=(tx,direction)=>
+                uceInterbankBulkRouteVerified(
+                    authority,receiver,tx,direction);
+            const targetWriter=createUnifiedShardWriter({
+                world,shardKey:planned.toShard,
+                worldId:authority.worldId,epoch:authority.epoch,
+                externalFence,verifyFederatedRoute:proof
+            });
+            if(!targetWriter.ok)
+                return hold('remote_bulk_destination_writer:'+
+                    targetWriter.reason);
+            const result=ucePerfTimedOperation('federated',()=>
+                executeUnifiedFederatedTransfer({
+                    world,worldId:authority.worldId,epoch:authority.epoch,
+                    operationId,routeWitness:planned.witness,
+                    sourceWriter:shardWriter,
+                    destinationWriter:targetWriter,
+                    fromShard:shardKey,toShard:planned.toShard,
+                    fromAccount:planned.from,toAccount:planned.to,
+                    key:planned.key,count:planned.count,
+                    externalFence,verifyRoute:tx=>proof(tx,'withdraw')
+                }));
+            if(!result.ok)
+                return hold('remote_bulk_federated:'+result.reason);
+            return {ok:true,status:'REMOTE_BULK_TRANSFER_COMMITTED',
+                count:planned.count,toAccount:planned.to,
+                operationId,canReplay:false};
+        }
+        return {ok:true,status:'REMOTE_BULK_NO_SPENDABLE_ROUTE'};
+    }catch(_){return hold('remote_bulk_transfer_unexpected');}
+}
