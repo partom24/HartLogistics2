@@ -353,6 +353,12 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority){
             const block=sorter.dimension.getBlock({
                 x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
             if(!block)return undefined;
+            // An uncertain local Filter may outrank this handoff. Never
+            // infer a route to the next bank from a failed native ownership
+            // check on a matching local filtered storage destination.
+            if(priority===0&&supportedStorage(block)&&
+               !uceReadOnlySorterDestination(
+                   entry,receiverAt(receiver)))return undefined;
             if(block.typeId!==COLLECTOR_ID)continue;
             if(blockIsRedstonePowered(block))continue;
             const q=block.location;
