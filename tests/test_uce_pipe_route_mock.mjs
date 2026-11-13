@@ -385,6 +385,13 @@ test('one-hop Collector handoff selects a different sealed Receiver with a real 
   f.collectors[0].link=remote.id;
   f.filter.m='filter';
   assert.equal(select(),undefined,'accepting local Filter takes priority');
+  // Even if a local filtered chest exists but its native alias is
+  // inconsistent, do not forward past that unresolved higher-priority
+  // original 1.4.1 destination.
+  f.chestA.typeId='minecraft:chest';
+  f.put('minecraft:chest',4,69,5,f.newContainer());
+  assert.equal(select(),undefined,
+    'uncertified local Filter cannot be bypassed by remote link');
 });
 test('unloaded, overfull or relinked remote bank cannot receive a virtual handoff',()=>{
   const f=fixture();f.filter.m='bypass';
