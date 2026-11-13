@@ -37,6 +37,7 @@ const routeFunctions=[
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding',
+  'uceVerifiedNoReachablePreferredOutput',
   'uceSelectInterbankFilteredRoute',
   'uceChoosePipeDestination','ucePipeDestinationStillValid',
   'uceSorterColumnWinner','uceSorterCollectorSources',
@@ -310,6 +311,49 @@ test('all independent bank graph reads reuse one original Sorter index per verif
   f.entries.push({d:f.dim.id,x:500,y:69,z:4,m:'bypass',f:null});
   assert.ok(f.network());
   assert.equal(scans,4,'registration change invalidates same-tick census');
+});
+test('local Bulk spill requires verified absence of preferred output across linked banks',()=>{
+  const f=fixture();
+  f.filter.m='wildcard';f.filter.f=null;
+  f.chestA.typeId='hartsorter:collector';
+  const remote={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  f.registeredReceivers.push(remote);
+  f.context.logistics={receivers:f.registeredReceivers,
+    collectors:[{id:f.context.logisticsId(f.dim.id,3,69,5),
+      d:f.dim.id,x:3,y:69,z:5,present:true,link:remote.id}]};
+  f.context.findCollectorById=id=>
+    f.context.logistics.collectors.find(c=>c.id===id);
+  f.context.collectorAt=c=>{
+    const b=f.dim.getBlock({x:c.x,y:c.y,z:c.z});
+    return b?.typeId==='hartsorter:collector'?b:undefined;
+  };
+  f.put('hartsorter:receiver',remote.x,70,4);
+  f.put('hartlogistics:transporter',remote.x-1,70,4);
+  f.put('hartsorter:sorter',remote.x-1,69,4);
+  const output=f.put('minecraft:barrel',remote.x-1,69,5,
+    f.newContainer());
+  const entry={d:f.dim.id,x:remote.x-1,y:69,z:4,
+    m:'wildcard',f:null};
+  f.entries.push(entry);
+  const authority={worldId:'mock',epoch:7};
+  const proof=()=>f.context.uceVerifiedNoReachablePreferredOutput(
+    f.receiver,COBBLE,authority);
+  assert.equal(proof(),true,'all loaded banks known, no preferred Sorter');
+  entry.m='filter';entry.f={match:{typeId:'minecraft:cobblestone'}};
+  assert.equal(proof(),false,'remote accepting Filter forbids Bulk spill');
+  output.getComponent('minecraft:inventory').container.fill({
+    typeId:'minecraft:stone',amount:64,maxAmount:64});
+  assert.equal(proof(),true,'verified full remote Filter allows Bulk');
+  f.missing.add((remote.x-1)+',69,5');
+  assert.equal(proof(),false,'unknown Filter availability cannot spill');
+  f.missing.clear();
+  entry.m='wildcard';entry.f=null;
+  f.missing.add(remote.x+',70,4');
+  assert.equal(proof(),false,'unloaded Receiver cannot certify route');
+  f.missing.clear();
+  f.context.logistics.collectors[0].link=f.receiver.id;
+  assert.equal(proof(),true,'verified loop adds no unseen preferred output');
 });
 test('remote Filter can be discovered through second verified Collector bank branch',()=>{
   const f=fixture();
