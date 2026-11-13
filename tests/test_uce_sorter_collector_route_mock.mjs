@@ -228,3 +228,88 @@ test('a 1.4.1 Sorter-column candidate census is indexed once per safe tick witho
   assert.equal(reads-dirtyNext,dirtyFirst,
     'dirty topology must be rediscovered rather than cached');
 });
+
+test('production-sized 1386 Sorters / 54 Collectors / 33 Receivers do not multiply full column reads per Collector',()=>{
+  const dim={id:'minecraft:overworld'},blocks=new Map(),
+    sorters=new Map(),collectors=new Map(),columns=[],
+    links=[];
+  const key=p=>p.x+','+p.y+','+p.z;
+  let reads=0,sorterReads=0,totalSorters=0;
+  function put(typeId,x,y,z,inventory=undefined){
+    const b={typeId,dimension:dim,location:{x,y,z},inventory,
+      getComponent:()=>inventory?{container:inventory}:undefined};
+    blocks.set(key(b.location),b);
+    return b;
+  }
+  dim.getBlock=p=>{
+    reads++;
+    return blocks.get(key(p))||{
+      typeId:'minecraft:air',dimension:dim,
+      location:{...p},getComponent:()=>undefined};
+  };
+  const hopperInventory=()=>({
+    size:5,isValid:true,getItem:()=>undefined
+  });
+  for(let i=0;i<54;i++){
+    const x=i*4,rows=i<36?26:25,entries=[];
+    const receiver={id:'receiver-'+(i%33)};
+    const hopper=put('minecraft:hopper',x,70,0,hopperInventory());
+    for(let j=0;j<rows;j++){
+      const y=69-j,block=put('hartsorter:sorter',x,y,0);
+      const entry={d:dim.id,x,y,z:0,m:j===rows-1?
+        'wildcard':'bypass',f:null};
+      entries.push(entry);
+      sorters.set(entry,block);
+      totalSorters++;
+    }
+    const cy=70-rows,collectorBlock=put(
+      'hartsorter:collector',x+1,cy,0);
+    const collector={id:dim.id+'|'+(x+1)+'|'+cy+'|0',
+      d:dim.id,x:x+1,y:cy,z:0,
+      present:true,link:receiver.id};
+    collectors.set(collector.id,collector);
+    columns.push({d:dim.id,source:hopper.location,sorters:entries});
+    links.push({collector,collectorBlock,receiver,hopper});
+  }
+  assert.equal(totalSorters,1386);
+  assert.equal(collectors.size,54);
+  assert.equal(new Set(links.map(x=>x.receiver.id)).size,33);
+  const ctx={columns,COLLECTOR_ID:'hartsorter:collector',
+    system:{currentTick:910},dirty:false,
+    sorterAt:e=>{sorterReads++;return sorters.get(e);},
+    facingOffset:()=>({x:1,y:0,z:0}),
+    logisticsId:(d,x,y,z)=>d+'|'+x+'|'+y+'|'+z,
+    findCollectorById:id=>collectors.get(id),
+    collectorAt:c=>blocks.get(key(c)),
+    getDimension:()=>dim,blockContainer:b=>b.inventory,
+    hopperIsRedstoneLocked:b=>!!b.locked,
+    uceSameLoadedBlock:(a,b)=>!!a&&!!b&&
+      a.typeId===b.typeId&&key(a.location)===key(b.location)
+  };
+  vm.runInNewContext(code,ctx);
+  for(const {collector,receiver} of links){
+    const available=ctx.uceSorterCollectorSources(
+      receiver,collector.id);
+    assert.equal(available.length,1,
+      'each independently linked Collector retains exactly one source');
+  }
+  assert.ok(reads<3500,
+    'one safe-tick census must not repeat 1386 physical Sorter reads 54 times: '+reads);
+  assert.ok(sorterReads<3500,
+    'registered Sorters must not be polled 54 full times: '+sorterReads);
+  const first=links[0];
+  first.collector.link='other-receiver';
+  assert.equal(ctx.uceSorterCollectorSources(
+    first.receiver,first.collector.id).length,0,
+    'relink invalidates ownership during cached tick');
+  first.collector.link=first.receiver.id;
+  first.hopper.locked=true;
+  assert.equal(ctx.uceSorterCollectorSources(
+    first.receiver,first.collector.id).length,0,
+    'source redstone lock is inspected live, not cached');
+  first.hopper.locked=false;
+  blocks.delete(key(first.collectorBlock.location));
+  assert.equal(ctx.uceSorterCollectorSources(
+    first.receiver,first.collector.id).length,0,
+    'removed physical Collector cannot use stale candidate index');
+});
