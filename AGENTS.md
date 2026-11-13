@@ -40,13 +40,27 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 
 ## Deployment boundary
 
-- LAB: `C:\Servers\Thomas_MCBedrock - Copy (2)` is the **only authorized Minecraft integration and release-testing server**; disposable, may be rebuilt from an owner's ZIP. Future updater must use exact canonical allowlist.
+- LAB: `C:\Servers\Thomas_MCBedrock - Copy (2)` is the **only authorized Minecraft integration and release-testing server**. Its existing ThomasServer, PG35 and PG42 world evidence are **not disposable**; create a fresh separately named test world using an exact, guarded stopped-BDS workflow instead of overwriting or rebuilding those worlds. Future updater must use the exact canonical allowlist.
 - PRODUCTION: `C:\Servers\Thomas_MCBedrock` is a **hard deny for all test activity**. No production edits until a release candidate has been nominated. **Import of a production updater script is permitted, execution (including dry-run) is not permitted before nomination; nomination does not itself authorize a production apply.**
 - Treat [updater deployment design](docs/UPDATER_DEPLOYMENT_DESIGN.md) as mandatory for any build/install/deploy work. HartBots scripts in the uploaded ZIP are references, not authorized executable HartLogistics tools.
 
-## Preliminary go/no-go tests
+## Historical PG test evidence and current integration acceptance
 
-Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before undertaking each major subsystem. **Bundle only the owner's hands-on BDS checks, 2–3 per rig/session**. No such cap applies to automated/offline/CI verification, or fully automated BDS checks within a separately authorized LAB scope; run even 100+ tests without needless user stops. Reuse accepted prior work, start manual BDS requests with a plain-language purpose, prepare a full READY rig card before owner setup, and stop dependent features on NO-GO. **Owner accepted this preliminary test plan only with strict [temporary instrumentation cleanup](docs/TEMPORARY_INSTRUMENTATION_POLICY.md): remove probes, test parameters, hooks and associated registry entries as soon as their last test dependency ends, before task acceptance—not only at release.** Track and tag temporary runtime helpers, keep any shared probe only for explicitly active dependent checks, and run the release gate before RC. PG-01/02 passed at their scoped baseline/offline gates; PG-03 NO-GO, PG-04/05 blocked, PG-06–11 NOT RUN. Bundle 1 temporary testing code has been removed after owner-confirmed LAB cleanup. Plan acceptance alone does not authorize further gameplay changes, experiments or deployment.
+The [PG-01–PG-11 preliminary plan](docs/PRELIMINARY_GO_NO_GO.md) is historical
+bounded evidence, **not a requirement to rerun isolated probes or obtain
+permission for each implementation slice**. Reuse previously accepted
+unaffected visual, native MR, carrier, custody and journal findings. Continue
+automated fault, source and integration tests without interruption. The
+owner's current mandate limits additional hands-on BDS work to **two meaningful
+product-level sessions**: integrated custody/network routing, then archived 1.4.1
+cold migration/full acceptance, except a material unresolved compatibility
+safety issue. A manual session requires a complete [READY test card](docs/TEST_RIG_CONTRACT.md)
+explaining purpose, exact setup, actions, pass/fail and rollback; no unexplained
+micro-rigs. Retain the [temporary instrumentation cleanup policy](docs/TEMPORARY_INSTRUMENTATION_POLICY.md):
+a historical PG probe remains only while its installed LAB rollback/evidence
+requires it, never in the released runtime. PG-01/02 passed scoped gates,
+PG-03 NO-GO, PG-04/05 blocked; do not imply PG-06–11 acceptance or
+experiment authorization from the older plan.
 
 ## Accepted implementation defaults (2026-11-07)
 
@@ -79,8 +93,8 @@ Owner-selected UI design: explicit **Link / Relink Receiver** button inside the 
 ## Owner-required LAB patch instructions: complete copy-paste bootstrap
 
 - **Always provide the owner with complete executable PowerShell commands to obtain any newly introduced Git-tracked launcher** before asking them to invoke it. Never assume a new `Start-HartLogistics-PGxxLab.ps1` file already exists in Downloads or that an earlier `$pg15` variable now points to PG20. A plain repository link, path, or command against an undownloaded local script is **not sufficient**.
-- The documented source path is `https://raw.githubusercontent.com/partom24/HartLogistics2/main/candidates/pgNN/Start-HartLogistics-PGNNLab.ps1`. Show `Invoke-WebRequest -OutFile` with a concrete local filename, `Test-Path`, the version-correct `$pgNN` variable, and the **source-only/read-only** and **explicit -Apply** command sequence. Be precise that the launcher clones/fetches the full clean pinned Git checkout internally; there is no manual pack copying, separate full-repo pull or mcpack distribution.
-- Separate one-time in-game cleanup while the *old* pack is available, normal LAB BDS stop, source-only Plan if useful, `-Mode CheckLab`, explicit `-Mode Install -Apply`, backup-tag retention, normal LAB restart and `/hartlogistics:status`. If the owner already completed a step, **do not instruct repeating it**. Confirm exact pre/post versions and both journals before physical item testing. The launcher must never silently enable cheats/experiments or touch production.
+- Select the **exact Git-tracked launcher matching the actual candidate**. For integrated HL2 the current source is `candidates/uce/Start-HartLogistics-FullProductLab.ps1` on draft PR #79, **not** the old PG33 or an assumed `main/candidates/pgNN` path. Only after all source checks pass, supply `Invoke-WebRequest -OutFile` from the exact validated Git SHA, `Test-Path`, an explicit SHA pin, `-Mode Plan`/appropriate read-only checks, backup tags and exact `-Apply` commands. The launcher checks out its pinned clean repository internally; no manual pack copying or free-form world edits.
+- The integrated handoff uses **CheckStage → Stage → owner BDS-generated new world → CheckBind → Bind → CheckInstall → Install** under stopped-BDS and exact-source controls. Prior BDS observations and historical PG42 carrier world are preserved; never apply the PG33-only `CheckLab` path to the current PG42 environment. Show rollback/restore order so PG42 is never loaded with the UCE product pack. Reuse completed owner steps rather than repeating them. The launcher must never enable cheats/experiments, auto-restart BDS, clear custody or touch production.
 - When a user reports an install/restart without available readable status data, record **owner-reported install/restart**, not an invented runtime status PASS. The next instruction is only the remaining status/changed-path validation, not reinstallation.
 
 ## Owner-preferred LAB test distribution
