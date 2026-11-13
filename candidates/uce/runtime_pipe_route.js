@@ -19,6 +19,52 @@ function ucePipeSameDimension(root,block) {
     return !!root&&!!block&&
         root.dimension.id===block.dimension.id;
 }
+/*
+ * Source-only cache for the ORIGINAL Sorter registry's position index.
+ *
+ * A 1,400-Sorter world with dozens of independent bank segments previously
+ * rebuilt the ENTIRE registry map on every graph traversal/revalidation,
+ * including each link in a multi-bank path. Reuse that immutable coordinate
+ * index only within ONE Bedrock server tick and only after the established
+ * topology-dirty flag is clear. Entries are referenced (not copied), so
+ * live Filter/mode/redstone checks still inspect their current values.
+ *
+ * No pipe graph, inventory, neighbor, link or native destination is cached:
+ * each custody operation revalidates physical topology and item capacity.
+ * Unknown tick authority or any pending Sorter topology rebuild disables
+ * the optimization completely.
+ */
+let ucePipeSorterIndexCache;
+function ucePipeSorterRegistryIndex(){
+    let tick;
+    try{tick=system.currentTick;}catch(_){}
+    const safeTick=Number.isSafeInteger(tick)&&tick>=0&&
+        typeof dirty!=='undefined'&&dirty===false;
+    if(safeTick&&ucePipeSorterIndexCache&&
+       ucePipeSorterIndexCache.tick===tick&&
+       ucePipeSorterIndexCache.owner===registry&&
+       ucePipeSorterIndexCache.length===registry.length)
+        return ucePipeSorterIndexCache.index;
+    const positions=new Map(),duplicates=new Map();
+    for(const entry of registry){
+        if(!entry||typeof entry.d!=='string')continue;
+        let members=positions.get(entry.d);
+        if(!members){
+            members=new Map();
+            positions.set(entry.d,members);
+        }
+        const key=pg26PositionKey(entry);
+        if(members.has(key)){
+            let dupe=duplicates.get(entry.d);
+            if(!dupe){dupe=new Set();duplicates.set(entry.d,dupe);}
+            dupe.add(key);
+        }else members.set(key,entry);
+    }
+    const index={positions,duplicates};
+    ucePipeSorterIndexCache=safeTick?{
+        tick,owner:registry,length:registry.length,index}:undefined;
+    return index;
+}
 function ucePipeRouteNetwork(receiver) {
     try{
         if(!receiver||receiver.present===false)return undefined;
@@ -35,16 +81,13 @@ function ucePipeRouteNetwork(receiver) {
             if(b.typeId===PG26_PIPE_ID)pending.push(b);
         }
         if(!pending.length)return undefined;
-        // Index registered Sorters once per discovery. A 128-segment pipe
-        // could legitimately serve 1,000+ stacked Sorters; linear registry
-        // scans for every row would grow quadratically with the layout.
-        const registeredSorters=new Map(),duplicateSorters=new Set();
-        for(const entry of registry){
-            if(!entry||entry.d!==receiver.d)continue;
-            const pos=pg26PositionKey(entry);
-            if(registeredSorters.has(pos))duplicateSorters.add(pos);
-            else registeredSorters.set(pos,entry);
-        }
+        // One original registry index per server tick, regardless of
+        // how many independently verified linked banks need it.
+        const sorterIndex=ucePipeSorterRegistryIndex();
+        const registeredSorters=sorterIndex.positions.get(receiver.d)||
+            new Map();
+        const duplicateSorters=sorterIndex.duplicates.get(receiver.d)||
+            new Set();
         const downFace=PG26_FACES.find(face=>face.name==='down');
         if(!downFace)return undefined;
         while(pending.length) {
