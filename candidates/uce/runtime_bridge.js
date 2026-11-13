@@ -3086,17 +3086,48 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
         return;
     }
     const receiver=findReceiverById(found.collector.link);
-    if(!receiver||receiver.present===false||!receiverAt(receiver)||
+    if(!receiver||receiver.present===false||
        !uceOrdinaryAccountSource(authority,receiver.id))return;
     const stack=itemEntityStack(entity);
     if(!stack||stack.amount<1)return;
-    const ownerId=receiver.id,anchor={dimensionId:receiver.d,
-        x:receiver.x,y:receiver.y,z:receiver.z};
+    const receiverLoaded=!!receiverAt(receiver);
+    // The original Dropper/Dispenser path must not discard a native MR
+    // stack just because the linked Receiver chunk is unloaded. The
+    // physically loaded Collector already owns a journaled native carrier
+    // waiting lane; ejected MR uses that SAME host/ticket/port, then the
+    // existing Collector->Receiver drain on chunk return.
+    //
+    // Ordinary entities cannot use this waiting host: its drain accepts
+    // only native MR. Leave them as vanilla item entities rather than
+    // creating stranded ordinary custody or a second Q4 queue.
+    if(!receiverLoaded&&uceClassifyLiveStack(stack)!=='MR')return;
+    const owner=receiverLoaded?receiver:found.collector;
+    const ownerId=owner.id,anchor={dimensionId:owner.d,
+        x:owner.x,y:owner.y,z:owner.z};
+    // Every registration and native-ticket mutation must re-prove that
+    // the same loaded Collector still points to the sealed Receiver, and
+    // that the target chunk has not changed load state mid-transaction.
+    // Either transition during a prepared operation HOLDS the journal.
+    const liveCollectorWaiting=()=> {
+        if(receiverLoaded)return false;
+        const col=findCollectorById(found.collector.id);
+        return !!col&&col.present!==false&&
+            col.link===receiver.id&&!receiverAt(receiver)&&
+            !!uceOrdinaryAccountSource(authority,receiver.id)&&
+            uceLiveCollectorOwner(ownerId,anchor)&&
+            !blockIsRedstonePowered(collectorAt(col));
+    };
+    if(!receiverLoaded&&!liveCollectorWaiting())return;
+    const verifyHost=(id,at)=>receiverLoaded?
+        uceLiveReceiverOwner(id,at)&&!!receiverAt(receiver):
+        id===ownerId&&at.dimensionId===anchor.dimensionId&&
+        at.x===anchor.x&&at.y===anchor.y&&at.z===anchor.z&&
+        liveCollectorWaiting();
     const registry=createUnifiedCarrierRegistry({
         world,worldId:authority.worldId,epoch:authority.epoch,
         externalFence:()=>uceLegacyWriterBlocked()&&
             !!uceAuthoritySnapshot(),
-        ownerVerifier:uceLiveReceiverOwner
+        ownerVerifier:verifyHost
     });
     if(!registry.ok){uceBridgeLog('ejected registry '+registry.reason);return;}
     let host=registry.inspectHost({ownerId,anchor});
@@ -3116,7 +3147,7 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
     const to={ownerId,container:host.container,slot};
     const verifyEndpointOwner=ref=>{
         if(ref.ownerId===ownerId)
-            return uceLiveReceiverOwner(ownerId,anchor)&&
+            return verifyHost(ownerId,anchor)&&
                 registry.inspectHost({ownerId,anchor}).ok;
         if(ref.ownerId!==sourceOwnerId||ref.entity!==entity||
            !entity.isValid||entity.typeId!=='minecraft:item')
@@ -3125,7 +3156,9 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
         return !!current&&
             current.collector.id===found.collector.id&&
             uceSameLoadedBlock(current.source,found.source)&&
-            current.collector.link===ownerId;
+            current.collector.link===receiver.id&&
+            (receiverLoaded?!!receiverAt(receiver):
+                liveCollectorWaiting());
     };
     const op=uceNativeReceiptId();
     if(!op){uceBridgeLog('ejected native receipt exhausted');return;}
