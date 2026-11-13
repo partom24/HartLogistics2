@@ -107,7 +107,7 @@ function ledger(owner,total){
   return snap;
 }
 function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
-                 destinationTotal=0}={}){
+                 destinationTotal=0,remoteMode='filter'}={}){
   const saved=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
     schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',
     worldId,epoch,writer:'UCE_EXCLUSIVE',
@@ -146,9 +146,13 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
   put('hartsorter:sorter',23,69,4);
   const collectorBlock=put('hartsorter:collector',3,69,5);
   const destination=put('minecraft:barrel',23,69,5,newContainer());
+  if(remoteMode==='auto')
+    destination.getComponent('minecraft:inventory').container.setItem(
+      2,{typeId:'minecraft:cobblestone',amount:12,maxAmount:64});
   entries.push({d:dimensionId,x:3,y:69,z:4,m:'wildcard',f:null},
-    {d:dimensionId,x:23,y:69,z:4,m:'filter',
-      f:{match:{typeId:'minecraft:cobblestone'}}});
+    {d:dimensionId,x:23,y:69,z:4,m:remoteMode,
+      f:remoteMode==='filter'?
+        {match:{typeId:'minecraft:cobblestone'}}:null});
   const collector={id:id(3,69,5),d:dimensionId,
     x:3,y:69,z:5,present:true,link:last.id};
   const logistics={receivers:[first,last],collectors:[collector]};
@@ -271,6 +275,27 @@ test('integrated UCE scheduler journals a real Filter-directed interbank handoff
   assert.equal(f.read(shardB).lastReceipt.kind,'FEDERATED_CREDIT');
   assert.equal(f.destination.getComponent('minecraft:inventory').container
     .getItem(0),undefined,'virtual transfer did not duplicate physical output');
+});
+test('integrated UCE scheduler conserves custody through seeded remote Auto fallback',()=>{
+  const f=fixture({remoteMode:'auto'});
+  const item=new f.ctx.ItemStack('minecraft:cobblestone',1);
+  const route=f.ctx.uceSelectInterbankFilteredRoute(
+    f.first,f.ctx.ucePipeRouteNetwork(f.first),item,{worldId,epoch});
+  assert.equal(route?.remote.mode,'auto');
+  assert.equal(route?.remote.priority,1);
+  assert.ok(route.witness.endsWith('|A'));
+  const transferred=f.ctx.uceOrdinaryServiceTick({worldId,epoch});
+  assert.equal(transferred,true,'same global two-shard custody writer');
+  assert.equal(f.read(shardA).snapshot.total,36);
+  assert.equal(f.read(shardB).snapshot.total,64);
+  assert.equal(f.read(shardA).snapshot.total+
+               f.read(shardB).snapshot.total,100);
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),false);
+  assert.equal(f.read(shardA).lastReceipt.kind,'FEDERATED_DEBIT');
+  assert.equal(f.read(shardB).lastReceipt.kind,'FEDERATED_CREDIT');
+  assert.equal(f.destination.getComponent('minecraft:inventory').container
+    .getItem(2).amount,12,
+    'Auto seed remains physical: virtual forwarding creates no duplicate');
 });
 test('interbank mid-transaction Collector relink preserves PREPARED and neither shard debits',()=>{
   const f=fixture({afterPreparedLinkChange:true});
