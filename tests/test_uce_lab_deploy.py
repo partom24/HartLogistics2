@@ -78,6 +78,12 @@ class UceLabGuardTests(unittest.TestCase):
                 '(origin) => { system.run(() => uceSendMigrationPreview(origin)); }',
             'activate_empty_lab':
                 'origin => { system.run(() => uceActivateEmptyLabWorld(origin)); }',
+            'perf':
+                "origin => { system.run(() => ucePerformancePanel(origin,'status')); }",
+            'perf_on':
+                "origin => { system.run(() => ucePerformancePanel(origin,'on')); }",
+            'perf_off':
+                "origin => { system.run(() => ucePerformancePanel(origin,'off')); }",
         }
         for command,callback in expected.items():
             with self.subTest(command=command):
@@ -87,6 +93,7 @@ class UceLabGuardTests(unittest.TestCase):
                 end=compiled.index('    );',start)
                 handler=compiled[start:end]
                 self.assertIn(callback,handler)
+                self.assertIn('permissionLevel: CommandPermissionLevel.GameDirectors',handler)
                 self.assertNotRegex(handler,r'=>\s*system\.run\(')
 
     def test_unapproved_apply_and_rollback_never_touch_actual_lab(self):
