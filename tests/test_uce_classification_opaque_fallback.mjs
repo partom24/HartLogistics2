@@ -22,7 +22,16 @@ class PlainItem {
     !this.nameTag&&!other?.nameTag;}
 }
 function fixture(){
-  const ctx={ItemStack:PlainItem,inspectQ4OrdinaryDefinitionShape};
+  // VM emits objects in a different realm. Recreate the Q4 shape inside
+  // the real native kernel realm so its strict prototype check is valid.
+  const ctx={ItemStack:PlainItem,
+    inspectQ4OrdinaryDefinitionShape:candidate=>
+      inspectQ4OrdinaryDefinitionShape({
+        typeId:candidate.typeId,
+        lore:[...candidate.lore],ench:[...candidate.ench],
+        canDestroy:[...candidate.canDestroy],
+        canPlaceOn:[...candidate.canPlaceOn]
+      })};
   vm.runInNewContext(actual,ctx);
   return x=>ctx.uceClassifyLiveStack(x);
 }
