@@ -548,8 +548,13 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
                 unresolved.push({entry,priority:eligiblePriority});
             continue;
         }
-        if(graph.inputs.some(input=>
-            uceSameLoadedBlock(input.block,dest.block))){
+        // A Sorter may face one half of the very same double chest
+        // that a pipe reaches through the OTHER half. Block coordinates
+        // are not native inventory identities; compare canonical owners
+        // or one 54-slot source could also be its own destination.
+        const targetOwner=ucePipeStorageOwnerId(dest.block);
+        if(!targetOwner||graph.inputs.some(input=>
+            input.ownerId===targetOwner)){
             unresolved.push({entry,priority:eligiblePriority});
             continue;
         }
