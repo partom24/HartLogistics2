@@ -527,8 +527,12 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
                blockIsRedstonePowered(receiverAt(current)))
                 return undefined;
             expanded.add(current.id);
+            // This graph was just proved in this same synchronous stack.
+            // Reuse its topology for the local Filter check; every live
+            // native destination and item slot is still read independently.
+            // The commit-time journal proof runs a NEW full graph discovery.
             const local=uceChoosePipeDestination(
-                current,item,true,undefined,allowPlainMerge);
+                current,item,true,undefined,allowPlainMerge,network);
             if(local?.priority===0){
                 // Local Filter still takes priority when it physically
                 // wins this original Sorter column, even at the source.
@@ -605,15 +609,25 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
 }
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
                                   settledDestination=undefined,
-                                  allowPlainMerge=false) {
+                                  allowPlainMerge=false,
+                                  justVerifiedGraph=undefined) {
     // The old Receiver output Hopper retains first claim to physical egress.
     // Bulk account discovery on the SAME graph may still occur, because
     // moving virtual balances is not a second physical output writer.
     if(!item||!item.typeId||receiverOutputHopper(receiver)||
        blockIsRedstonePowered(receiverAt(receiver)))
         return undefined;
-    const graph=ucePipeRouteNetwork(receiver),root=receiverAt(receiver);
-    if(!graph||!root)return undefined;
+    // Interbank traversal passes ONLY the graph it just freshly inspected
+    // in this synchronous call. Never cache it across ticks, ACK, or writes.
+    // Without a supplied graph (all regular ingress/egress paths), discover
+    // afresh. Physical destinations and their available slots are always
+    // re-read even when the immutable graph was just verified.
+    const graph=justVerifiedGraph||ucePipeRouteNetwork(receiver);
+    const root=receiverAt(receiver);
+    if(!graph||!root||
+       (justVerifiedGraph&&(
+           graph.receiverId!==receiver.id||
+           !graph.receiverIds?.includes(receiver.id))))return undefined;
     const candidates=[],unresolved=[];
     const routeOrder=(a,b)=>a.priority-b.priority ||
         a.entry.y-b.entry.y||a.entry.x-b.entry.x||
