@@ -11,7 +11,9 @@
 let uceMrCursor=0;
 let uceMrSequence=0;
 let uceMrBootNonce=undefined;
-let uceLastWarning='';
+// Bounded reason/owner keyed suppression. A second alternating warning must
+// not reset suppression for the first (the PG39 failure mode).
+const uceWarningCounts=new Map();
 const UCE_MAIN_AUTHORITY='hartlogistics:uce_authority_v1';
 /**
  * Sorter native-frame filters and mode state are configuration, NOT item
@@ -51,11 +53,20 @@ function uceAuthoritySnapshot(){
        !Number.isSafeInteger(value.epoch)||value.epoch<1)return undefined;
     return value;
 }
-function uceBridgeLog(reason){
-    if(reason!==uceLastWarning){
-        uceLastWarning=reason;
-        log('[UCE unified service] '+reason);
-    }
+function uceBridgeLog(reason,ownerId=undefined){
+    const owner=typeof ownerId==='string'&&ownerId?
+        ownerId:'global';
+    const key=owner+'|'+String(reason);
+    const count=uceWarningCounts.get(key)||0;
+    if(count<Number.MAX_SAFE_INTEGER)
+        uceWarningCounts.set(key,count+1);
+    // First warning always visible. Exponential summaries bound per-tick
+    // noise without erasing the underlying HOLD or the affected owner.
+    if(count===0 || count===16 || count===256 ||
+       (count>0 && count%8192===0))
+        log('[UCE unified service] '+reason+
+            (ownerId?' owner='+owner:'')+
+            (count?' repeated='+count:''));
 }
 function uceNativeReceiptId(){
     // This is a bounded per-process uniqueness witness, not a durable
@@ -192,12 +203,12 @@ function uceMrServiceTick(authority){
             // host must HOLD. A fresh registration has no ItemStack to clone.
             const registered=registry.registerEmptyHost({ownerId,anchor});
             if(!registered.ok){
-                uceBridgeLog(registered.reason);
+                uceBridgeLog(registered.reason,ownerId);
                 continue;
             }
             host=registry.inspectHost({ownerId,anchor});
         }
-        if(!host.ok){uceBridgeLog(host.reason);continue;}
+        if(!host.ok){uceBridgeLog(host.reason,ownerId);continue;}
         const hopperOwner=(block,prefix)=>{
             const p=block.location;
             const owner={
@@ -313,7 +324,7 @@ function uceMrServiceTick(authority){
             collectorPowered:false
         });
         if(!result.ok){
-            uceBridgeLog(result.reason);
+            uceBridgeLog(result.reason,ownerId);
         }else if(result.moved>0){
             considered++;
         }
@@ -950,19 +961,7 @@ function uceOrdinaryServiceTick(authority){
             ownerVerifier:uceLiveReceiverOwner
         });
         if(!registry.ok){uceBridgeLog(registry.reason);continue;}
-        let host=registry.inspectHost({ownerId,anchor});
-        if(!host.ok&&host.reason==='carrier_record_missing'&&
-           (sourceRecord||outgoing||
-            (!output&&ucePipeRouteNetwork(receiver)))){
-            // New, empty host only; physical ownership changes are separately
-            // journaled, and a missing PREVIOUS host is never replaced.
-            const spawned=registry.registerEmptyHost({ownerId,anchor});
-            if(!spawned.ok){uceBridgeLog(spawned.reason);continue;}
-            host=registry.inspectHost({ownerId,anchor});
-        }
-        if(!host.ok){uceBridgeLog(host.reason);continue;}
-        const custody=registry.inspectCustody({ownerId,anchor});
-        if(!custody.ok){uceBridgeLog(custody.reason);continue;}
+        let host;
         const shardWriter=createUnifiedShardWriter({
             world,shardKey,worldId:authority.worldId,epoch:authority.epoch,
             externalFence:()=>uceLegacyWriterBlocked()&&
@@ -1058,6 +1057,53 @@ function uceOrdinaryServiceTick(authority){
                 uceOrdinaryCursor=(index+1)%receivers.length;
                 return;
             }
+        }
+
+        // Initialize an empty native host only for actual eligible work.
+        // Mere presence of an output Hopper or pipe is NOT a transfer.
+        host=registry.inspectHost({ownerId,anchor});
+        if(!host.ok&&host.reason==='carrier_record_missing'){
+            let canDeposit=false,canWithdraw=false;
+            try{
+                const source=sourceRecord?.container?.getItem(sourceSlot);
+                canDeposit=!!source&&!preferredOutputReady&&
+                    account.total+source.amount<=account.capacity;
+                if(account.total>0&&!blockIsRedstonePowered(receiverAt(receiver))){
+                    for(const entry of account.buckets){
+                        const itemDef=JSON.parse(entry.key);
+                        const item=new ItemStack(itemDef.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
+                        if(outgoing){
+                            canWithdraw=uceNativeOutputSlot(outgoing.container)>=0;
+                        }else if(!output){
+                            canWithdraw=!!uceChoosePipeDestination(
+                                receiver,item,
+                                !!bankNetwork?.banks?.length&&
+                                bankNetwork.leaderId===receiver.id);
+                        }
+                        if(canWithdraw)break;
+                    }
+                }
+            }catch(_){
+                // Unknown route/item identity remains unadmitted; do not
+                // reserve a native entity for an unprovable transfer.
+            }
+            if(!canDeposit&&!canWithdraw)continue;
+            const created=registry.registerEmptyHost({ownerId,anchor});
+            if(!created.ok){
+                uceBridgeLog(created.reason,ownerId);
+                continue;
+            }
+            host=registry.inspectHost({ownerId,anchor});
+        }
+        if(!host.ok){
+            uceBridgeLog(host.reason,ownerId);
+            continue;
+        }
+        const custody=registry.inspectCustody({ownerId,anchor});
+        if(!custody.ok){
+            uceBridgeLog(custody.reason,ownerId);
+            continue;
         }
         if(custody.free<1)continue;
         const slot=uceNativeOutputSlot(host.container);

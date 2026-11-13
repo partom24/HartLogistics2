@@ -290,6 +290,75 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
       return hold('native_ticket_invalid_last_receipt');
     return {ok:true,record:rec,empty:false};
   }
+
+  /**
+   * Bounded read-only PG39 evidence. A RESERVED record is deliberately
+   * NOT repaired or promoted by this observer. ItemStacks never leave their
+   * native slots; only slot counts and entity identities are reported.
+   */
+  function inspectHostEvidence({ownerId,anchor}={}){
+    const key=hostKey(ownerId);
+    if(!key||!anchorOK(anchor))return hold('invalid_carrier_owner_or_anchor');
+    const raw=read(world,key);
+    if(!raw.ok)return raw;
+    let record={state:'MISSING',entityId:null};
+    if(raw.raw!==undefined&&raw.raw!==null&&raw.raw!==''){
+      const decoded=decode(raw.raw,ownerId,worldId,epoch);
+      if(!decoded.ok)return decoded;
+      if(!anchorEquals(decoded.record.anchor,anchor))
+        return hold('carrier_anchor_changed');
+      record=decoded.record;
+    }
+    let ownerVerified=false;
+    try{ownerVerified=ownerVerifier(ownerId,anchor)===true;}catch(_){}
+    const dim=dimension(world,anchor);
+    if(!dim)return hold('carrier_dimension_unloaded');
+    const nearby=near(dim,anchor);
+    if(!nearby)return hold('carrier_entity_query_failed');
+    const entities=[];
+    for(const entity of nearby.slice(0,8)){
+      const inv=inventory(entity);
+      let occupied=0;
+      if(inv.ok){
+        try{
+          for(let i=0;i<inv.container.size;i++)
+            if(inv.container.getItem(i)!==undefined)occupied++;
+        }catch(_){return hold('carrier_evidence_slot_read_failed');}
+      }
+      entities.push({id:entity.id,
+        occupied:inv.ok?occupied:null,
+        inventoryStatus:inv.ok?'VERIFIED':inv.reason});
+    }
+    const tickets=readTickets(ownerId);
+    if(!tickets.ok)return tickets;
+    const intent=read(world,'hartlogistics:uce_native_intent_v1');
+    if(!intent.ok)return intent;
+    let nativeIntentPhase='CLEAR';
+    if(intent.raw!==undefined&&intent.raw!==null&&intent.raw!==''){
+      try{
+        const parsed=JSON.parse(intent.raw);
+        nativeIntentPhase=typeof parsed.phase==='string'?
+          parsed.phase:'INVALID';
+      }catch(_){nativeIntentPhase='INVALID';}
+    }
+    let custodyState;
+    if(record.state==='ACTIVE'){
+      const custody=inspectCustody({ownerId,anchor});
+      custodyState=custody.ok?'VERIFIED':'HOLD:'+custody.reason;
+    }else if(record.state==='RESERVED'){
+      custodyState='HOLD:RESERVED';
+    }else{
+      custodyState=nearby.length===0&&tickets.record.slots.length===0?
+        'UNINITIALIZED':'HOLD:UNCLAIMED_PHYSICAL_CUSTODY';
+    }
+    return {ok:true,status:'HOST_EVIDENCE_READ_ONLY',ownerId,anchor,
+      recordState:record.state,recordEntityId:record.entityId??null,
+      ownerVerified,liveEntityCount:nearby.length,entities,
+      ticketRevision:tickets.record.revision,
+      ticketSlotCount:tickets.record.slots.length,
+      nativeIntentPhase,custodyState,canSpawn:false,canTransfer:false,
+      canRepair:false,canClearJournal:false};
+  }
   function currentJournal(){
     const r=read(world,journalKey);
     if(!r.ok)return r;
@@ -454,7 +523,7 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     return false;
   }
 
-  return {ok:true,inspectHost,registerEmptyHost,inspectCustody,
-    stageMovedTicket,durableOwnershipWitness,
+  return {ok:true,inspectHost,inspectHostEvidence,registerEmptyHost,
+    inspectCustody,stageMovedTicket,durableOwnershipWitness,
     getSessionQuarantine:()=>quarantined};
 }
