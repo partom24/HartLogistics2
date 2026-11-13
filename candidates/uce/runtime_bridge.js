@@ -266,6 +266,17 @@ function uceLiveReceiverOwner(ownerId,anchor){
         return !!b&&b.typeId===RECEIVER_ID;
     }catch(_){return false;}
 }
+function uceLiveCollectorOwner(ownerId,anchor){
+    try{
+        const collector=findCollectorById(ownerId);
+        if(!collector||collector.present===false||
+           collector.d!==anchor.dimensionId||
+           collector.x!==anchor.x||collector.y!==anchor.y||
+           collector.z!==anchor.z)return false;
+        const b=collectorAt(collector);
+        return !!b&&b.typeId===COLLECTOR_ID;
+    }catch(_){return false;}
+}
 function uceLiveHopperOwner(owner){
     try{
         const block=getBlock(owner.d,owner.x,owner.y,owner.z);
@@ -364,21 +375,41 @@ function uceReceiverHasNewMRInput(receiver){
  * MUST NOT be replaced by a weaker Wildcard output.
  */
 function uceTryInterbankMrHandoff(authority,receiver,registry,host,
-                                  sourceAnchor,sourceSlot,item){
+                                  sourceAnchor,sourceSlot,item,
+                                  bufferedCollectorRoute=undefined){
     try{
         if(!authority||!receiver||!registry||!host?.container||
            !Number.isSafeInteger(sourceSlot)||sourceSlot<0||
            sourceSlot>=host.container.size||
            !item||uceClassifyLiveStack(item)!=='MR')
             return undefined;
-        const network=ucePipeRouteNetwork(receiver);
-        const selected=uceSelectInterbankFilteredRoute(
-            receiver,network,item,authority,false);
+        const buffered=bufferedCollectorRoute!==undefined;
+        if(buffered&&
+           (!bufferedCollectorRoute||
+            !bufferedCollectorRoute.witness?.startsWith('CB1|')||
+            typeof bufferedCollectorRoute.verify!=='function'||
+            !bufferedCollectorRoute.receiver))
+            return {ok:false,status:'HOLD',
+                reason:'collector_buffer_route_invalid'};
+        const network=buffered?undefined:ucePipeRouteNetwork(receiver);
+        const selected=buffered?{
+            receiver:bufferedCollectorRoute.receiver,
+            witness:bufferedCollectorRoute.witness,hops:0}:
+            uceSelectInterbankFilteredRoute(
+                receiver,network,item,authority,false);
         if(!selected)return undefined;
         const target=selected.receiver;
         const targetAnchor={dimensionId:target.d,
             x:target.x,y:target.y,z:target.z};
         const checked=()=> {
+            if(buffered){
+                let verified=false;
+                try{verified=bufferedCollectorRoute.verify()===true;}
+                catch(_){}
+                return verified&&
+                    uceLiveCollectorOwner(receiver.id,sourceAnchor)&&
+                    uceLiveReceiverOwner(target.id,targetAnchor);
+            }
             const fresh=uceSelectInterbankFilteredRoute(
                 receiver,ucePipeRouteNetwork(receiver),
                 item,authority,false);
