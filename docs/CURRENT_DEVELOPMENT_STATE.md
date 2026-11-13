@@ -38,6 +38,33 @@ does not add a scheduler, queue, persistence key or custody writer:
   and exact-head CI must pass before BDS validation; no release approval is
   implied by implementation.
 
+## Transporter-fed legacy vertical Sorter columns (source integrated; BDS unverified)
+
+The original 1.4.1 design has multiple stacked Sorters beneath one input Hopper,
+and the integrated Transporter must feed that same vertical column, **not** a
+single Sorter per pipe. The former UCE pipe reader registered only the top
+Sorter and was a compatibility defect.
+
+- Draft PR #79 now traverses each physically contiguous, registered Sorter
+  column beneath a loaded Transporter. Every row remains subject to the
+  original Filter > seeded Auto > Wildcard precedence, bottom-to-top
+  deterministic tie-breaking, native destination availability and power
+  gates. Route selection is revalidated before committing item custody.
+- Unknown/unloaded or unregistered lower Sorters, duplicate registry ownership,
+  and graphs beyond the existing **128 connected Transporter** budget HOLD
+  conservatively; neither unknown destinations nor bank capacity are treated
+  as verified. This is not a 128-Sorter limit. Transporter segments and
+  Sorters in columns are counted separately.
+- The registry is indexed once for each graph inspection, avoiding a repeated
+  linear scan of all registered Sorters for every stacked row. Source mock
+  regressions include eight-level columns, blocked/unavailable rows, and
+  **128 pipes with 1,024 stacked Sorters**. These are modeled geometry and
+  routing checks, **not** Bedrock throughput/TPS or full-system acceptance.
+- **Still not done:** complete controller-to-controller cross-bank forwarding
+  over Collector→Receiver links and product-scale BDS integration. Stacked
+  Sorter discovery alone does not establish the requested multi-region
+  cohesive logical storage system. No LAB install or world mutation occurred.
+
 ## Owner's current LAB boundary
 
 The authorized LAB host remains `C:\Servers\Thomas_MCBedrock - Copy (2)`; production `C:\Servers\Thomas_MCBedrock` is prohibited. Owner observations progressed beyond PG27 through PG35 and PG42. The active LAB world `HartUCECarrierLabPG42` has an installed temporary PG42 carrier probe and a persistent named/lore carrier witness. PG35 and earlier ThomasServer LevelDB remain preserved. **Do not run the older PG33-specific UCE installer against this LAB, clear PG42 world records, delete PG42 provenance, or replay unresolved custody.** Historical PG40/PG42 pack-reconstruction and rollback tools are retained because removing them before safe LAB cleanup would strand installed-state rollback. They must not be in the integrated runtime/release archive.
