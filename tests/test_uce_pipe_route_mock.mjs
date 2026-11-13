@@ -161,6 +161,35 @@ test('two Sorters share one read-only pipe network; Filter precedes Wildcard',()
   assert.equal(choice.dest.block,f.chestA);
   assert.equal(choice.ownerId.startsWith('uce-pipe-output|'),true);
 });
+test('fresh interbank graph reuse skips duplicate topology scan but rechecks native output',()=>{
+  const f=fixture(),fresh=f.network();
+  assert.ok(fresh);
+  const original=f.context.ucePipeRouteNetwork;
+  let scans=0;
+  f.context.ucePipeRouteNetwork=(receiver)=>{
+    scans++;
+    return original(receiver);
+  };
+  const fromFresh=()=>f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true,undefined,false,fresh);
+  assert.equal(fromFresh()?.entry,f.filter);
+  assert.equal(scans,0,'same-stack verified graph must not be scanned twice');
+  const normal=f.context.uceChoosePipeDestination(f.receiver,COBBLE,true);
+  assert.equal(normal?.entry,f.filter);
+  assert.equal(scans,1,'normal egress revalidates the live full graph');
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true,undefined,false,
+    {...fresh,receiverId:'wrong-owner'}),undefined,
+    'borrowed/foreign Receiver topology cannot be reused');
+  f.chestA.typeId='minecraft:furnace';
+  assert.equal(fromFresh(),undefined,
+    'physical destination mutation still revokes source selection');
+  f.chestA.typeId='minecraft:barrel';
+  f.nearerSorter.powered=true;
+  assert.equal(fromFresh(),undefined,
+    'a same-stack graph never bypasses current Sorter redstone');
+  assert.equal(scans,1);
+});
 test('one Transporter discovers an eight-Sorter 1.4.1 column and a filtered bottom row wins',()=>{
   const f=fixture();
   f.filter.m='wildcard';f.filter.f=null;
