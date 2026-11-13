@@ -35,6 +35,7 @@ const routeFunctions=[
   'ucePipeSameDimension','ucePipeRouteNetwork','uceReadOnlyPipeInput',
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
+  'ucePipeHasUnresolvedForwarding',
   'uceChoosePipeDestination','ucePipeDestinationStillValid',
   'uceSorterColumnWinner','uceSorterCollectorSources',
   'uceSorterSourceStillValid'
@@ -302,6 +303,32 @@ test('matching Transporter-fed Collector Filter HOLDS instead of silently routin
   f.filter.f={match:{typeId:'minecraft:cobblestone'}};
   f.chestA.typeId='minecraft:barrel';
   assert.equal(f.choose(COBBLE)?.entry,f.filter);
+});
+test('Bulk cannot spill past a Collector forwarding frontier or unknown filtered storage',()=>{
+  const f=fixture(),graph=f.network();
+  assert.equal(f.context.ucePipeHasUnresolvedForwarding(
+    f.receiver,graph,COBBLE),false,
+    'verified local Filter and Wildcard outputs need no HOLD');
+  f.chestA.typeId='hartsorter:collector';
+  assert.equal(f.context.ucePipeHasUnresolvedForwarding(
+    f.receiver,f.network(),COBBLE),true,
+    'matching Collector Filter must protect downstream bank priority');
+  f.filter.f={match:{typeId:'minecraft:stone'}};
+  assert.equal(f.context.ucePipeHasUnresolvedForwarding(
+    f.receiver,f.network(),COBBLE),false,
+    'non-matching Collector Filter is not a route for this item');
+  f.filter.f={match:{typeId:'minecraft:cobblestone'}};
+  f.chestA.typeId='minecraft:barrel';
+  f.missing.add('3,69,5');
+  assert.equal(f.context.ucePipeHasUnresolvedForwarding(
+    f.receiver,f.network(),COBBLE),true,
+    'unloaded filtered target cannot be declared unavailable');
+  f.missing.clear();
+  f.chestA.getComponent('minecraft:inventory').container.fill({
+    typeId:'minecraft:stone',amount:64,maxAmount:64});
+  assert.equal(f.context.ucePipeHasUnresolvedForwarding(
+    f.receiver,f.network(),COBBLE),false,
+    'a known full native output may safely be considered for Bulk');
 });
 test('unloaded or uncertified preferred output HOLDS rather than using Wildcard',()=>{
   const f=fixture();
