@@ -16,8 +16,10 @@ import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
  * bridge handoff function. Only the Bedrock entity/container APIs are mocks.
  * This does not certify real BDS hard-crash save-ordering.
  */
-const bridge=fs.readFileSync(new URL(
-  '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
+const bridge=process.env.UCE_GENERATED_MAIN?
+  fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):
+  fs.readFileSync(new URL(
+    '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
 function extract(name){
   const at=bridge.indexOf('function '+name+'(');
   assert.ok(at>=0,'missing exact bridge function '+name);
