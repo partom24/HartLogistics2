@@ -181,6 +181,7 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
     findCollectorById:i=>logistics.collectors.find(c=>c.id===i),
     uceOrdinaryAccountSource:(_,owner)=>
       owner===first.id?shardA:owner===last.id?shardB:undefined,
+    uceLiveReceiverOwner:()=>true,
     uceAuthoritySnapshot:()=>({worldId,epoch}),
     uceLegacyWriterBlocked:()=>true,
     uceMaybeRegisterBulk:()=>false,
