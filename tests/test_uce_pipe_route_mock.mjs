@@ -355,6 +355,11 @@ test('remote Filter can be discovered through second verified Collector bank bra
   assert.equal(f.context.uceSelectInterbankFilteredRoute(
     f.receiver,f.network(),COBBLE,authority,true)?.witness,
     direct.witness,'witness must be deterministic at commit');
+  collectors[0].link=f.receiver.id; // Verified directed cycle, no Filter
+  assert.equal(f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,authority,true)?.receiver.id,b.id,
+    'an already visited bank is not a new custody route');
+  collectors[0].link=a.id;
   // A possibly earlier, stronger but unloaded Collector branch is not
   // permission to silently route via a second bank.
   f.missing.add('24,70,4');
