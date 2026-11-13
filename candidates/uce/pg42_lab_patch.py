@@ -62,7 +62,7 @@ def make_plan(root: Path,current: Path,previous: Path,wanted,before,
     records=lab.discover_plan(ROOT,root)
     if len(records)!=2:
         raise lab.UnsafeLab("PG42 expected two Hart pack records")
-    backup=pg35_backup=root/"_HartLogisticsDeployBackups"/(backup_tag or "")
+    backup=root/"_HartLogisticsDeployBackups"/(backup_tag or "")
     if backup_tag:
         lab.assert_no_link(backup)
         if not backup.is_dir():
@@ -84,8 +84,8 @@ def make_plan(root: Path,current: Path,previous: Path,wanted,before,
                                 kind+" "+repr(drift[:8]))
         dest=(previous if backup_tag else current)/kind
         if backup_tag:
-            saved=lab.assert_no_link(backup/f"pack-{i}")
             saved=backup/f"pack-{i}"
+            lab.assert_no_link(saved)
             origreg=backup/f"registry-{i}.bin"
             lab.assert_no_link(origreg)
             if (not saved.is_dir() or not origreg.is_file() or

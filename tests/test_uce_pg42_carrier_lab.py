@@ -170,7 +170,7 @@ class PG42SyntheticSafety(unittest.TestCase):
 
     def assert_preserved_except_old_registry(self):
         for name,contents in self.readonly_before.items():
-            if name.endswith(pg35.NEW_WORLD+"/"+pg35.REGISTRY_FILES[0]):
+            if Path(name).parts[-2:] == (pg35.NEW_WORLD,pg35.REGISTRY_FILES[0]):
                 continue
             self.assertEqual((self.root/name).read_bytes(),contents)
 
