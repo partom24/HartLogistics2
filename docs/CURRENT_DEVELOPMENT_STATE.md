@@ -127,6 +127,52 @@ safe MR forwarding, unloaded Receiver ingress, full nonempty Q4 migration,
 incremental >128-pipe discovery, real performance and integrated BDS acceptance.
 No owner world, LAB/PG35/PG42 archive, native item or production pack was touched.
 
+## 2026-11-13 linked-bank ordinary/MR forwarding (source integrated, no BDS acceptance)
+
+- **Ordinary:** `unified_federated_service.mjs` now supports a proved
+  Receiver→Receiver count boundary in addition to prior Receiver↔Bulk. A
+  new `IB1|` route-witness kind fence prevents these transfers from being
+  confused with a Bulk transfer. The existing prepared/debit/credit/receipt
+  global journal, epoch/revision fence, and no-auto-replay HOLD are reused.
+  `runtime_bridge.js::uceOrdinaryServiceTick` finds a physically verified
+  Sorter→Collector link through one or more connected banks to a live final
+  Filter, then transfers up to 64 counts **directly from source to final
+  Receiver sealed shards**. Every intermediate bank is read-only; no
+  additional intermediate queue, writer or item reconstruction is created.
+- **Route:** `uceSelectInterbankFilteredRoute` walks the registered directed
+  bank chain, using original Sorter modes/priority, Collector linkage,
+  redstone, loaded Receiver evidence and a physically accepting filtered
+  destination. Deterministic witness includes the chosen path and output
+  owner and is re-evaluated by the shard writer before each side. Cycles,
+  unavailable first links and unknown stronger destinations HOLD. A mock
+  physical fixture traverses **36 banks / 1,440 stacked Sorters**; this
+  does not measure actual Bedrock TPS or the owner's existing world census.
+- **MR:** `uceTryInterbankMrHandoff` uses the SAME path with ordinary merge
+  disabled and the SAME existing native ItemStack custody writer to transfer
+  the original native payload from the source Receiver carrier to the
+  final bank Receiver carrier. Both original carrier ticket records are
+  staged and independently reconciled before native ACK; interruption
+  preserves the global native intent and never clones/rebuilds opaque data.
+  Initial empty native host registration is restricted to a real item and
+  presently verified link; preexisting RESERVED/ambiguous host still HOLDS.
+- **Source test evidence:** real-shard Receiver conservation/interrupt
+  `tests/test_uce_federated_real_shards.mjs`; exact route mocks and 1,440
+  Sorters `tests/test_uce_pipe_route_mock.mjs`; real production scheduler +
+  shards `tests/test_uce_interbank_integrated_runtime.mjs`; native MR
+  ticket-order/error mocks and **real registry+native port** tests in
+  `tests/test_uce_interbank_mr_mock.mjs` and
+  `tests/test_uce_interbank_mr_real_port.mjs`.
+  The generated Bedrock `main.js` test executes these functions as well.
+  The *earlier* interbank ordinary-only `1b1b324c` had successful
+  13-job Actions [run 43500772651](https://github.com/partom24/HartLogistics2/actions/runs/43500772651).
+  **Newer MR commits have separate CI; no result is inferred.**
+- **Open:** directed-chain-only destination selection (no alternative path
+  search, cross-controller Filter/Bulk advertisements, remote Bulk fallback,
+  safely bounded graph scans above 128 physical Transporter segments),
+  unloaded Receiver and Collector-side MR waiting, full Q4 migration, true
+  Bedrock native move/save verification and 200k-item sustained throughput.
+  No production/LAB/world/backup mutation or owner BDS request.
+
 ## Owner's current LAB boundary
 
 The authorized LAB host remains `C:\Servers\Thomas_MCBedrock - Copy (2)`; production `C:\Servers\Thomas_MCBedrock` is prohibited. Owner observations progressed beyond PG27 through PG35 and PG42. The active LAB world `HartUCECarrierLabPG42` has an installed temporary PG42 carrier probe and a persistent named/lore carrier witness. PG35 and earlier ThomasServer LevelDB remain preserved. **Do not run the older PG33-specific UCE installer against this LAB, clear PG42 world records, delete PG42 provenance, or replay unresolved custody.** Historical PG40/PG42 pack-reconstruction and rollback tools are retained because removing them before safe LAB cleanup would strand installed-state rollback. They must not be in the integrated runtime/release archive.
