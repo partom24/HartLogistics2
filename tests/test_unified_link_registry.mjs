@@ -198,3 +198,51 @@ test('PG36 fresh origin proof must remain valid immediately before first write',
   assert.equal(f.writes,0);
   assert.equal(f.values.has(UCE_LINKS_KEY),false);
 });
+
+test('UCE unlink writes one revisioned null link without losing legacy receivers or Q4',()=>{
+  const f=fixture(),oldQ4=f.values.get('hartsorter:q4m_q1');
+  assert.equal(f.writer.linkCollector(req()).ok,true);
+  const removed=f.writer.unlinkCollector({
+    operationId:'unlink-op-2',collector,expectedRevision:1});
+  assert.equal(removed.ok,true,removed.reason);
+  assert.equal(f.writes,2);
+  const data=JSON.parse(f.values.get(UCE_LINKS_KEY));
+  assert.equal(data.collectors.length,1);
+  assert.equal(data.collectors[0].link,null);
+  assert.equal(data.collectors[0].accepted,0);
+  assert.equal(data.receivers[0].queueKey,'q1');
+  assert.equal(data.uceLinkRevision,2);
+  assert.equal(data.uceLastLinkReceipt.receiverId,null);
+  assert.equal(data.uceLastLinkReceipt.operationId,'unlink-op-2');
+  assert.equal(f.values.get('hartsorter:q4m_q1'),oldQ4);
+  assert.equal(f.writer.inspect().revision,2,
+    'fresh readback must accept a null Receiver link receipt');
+});
+test('UCE unlink must have an existing linked Collector and current revision',()=>{
+  const f=fixture();
+  hold(f.writer.unlinkCollector({
+    operationId:'unlink-op',collector,expectedRevision:0}),
+    'collector_not_linked');
+  assert.equal(f.writer.linkCollector(req()).ok,true);
+  hold(f.writer.unlinkCollector({
+    operationId:'unlink-op',collector,expectedRevision:0}),
+    'stale_link_registry_revision');
+  hold(f.writer.unlinkCollector({
+    operationId:'unlink-op',collector:{...collector,x:99},
+    expectedRevision:1}),'collector_identity_collision');
+  assert.equal(f.writes,1);
+});
+test('UCE unlink preserves HOLD on active native custody and changed block owner',()=>{
+  const f=fixture();
+  assert.equal(f.writer.linkCollector(req()).ok,true);
+  f.values.set('hartlogistics:uce_native_intent_v1',
+    JSON.stringify({phase:'PREPARED'}));
+  hold(f.writer.unlinkCollector({
+    operationId:'unlink-op',collector,expectedRevision:1}));
+  f.values.delete('hartlogistics:uce_native_intent_v1');
+  f.setValid(false);
+  hold(f.writer.unlinkCollector({
+    operationId:'unlink-op',collector,expectedRevision:1}),
+    'collector_or_sealed_receiver_unverified');
+  assert.equal(f.writes,1);
+});
