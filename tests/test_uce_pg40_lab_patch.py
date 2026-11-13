@@ -103,6 +103,21 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
                       "no other draft runtime changes in diagnostics patch")
 
 
+    def test_pinned_pg40_diagnostics_do_not_absorb_later_draft_reader_changes(self):
+        current=(self.current/"behavior_pack/scripts/main.js").read_text(
+            encoding="utf-8")
+        self.assertNotIn("others≤16",current,
+            "the installed PG40 status must remain byte-stable")
+        self.assertNotIn("uceCarrierRegistrationReason",current,
+            "no later draft gameplay can enter PG40 forensic pack")
+        observer=(self.current/"behavior_pack/scripts/uce/unified_carrier_registry.js").read_text(
+            encoding="utf-8")
+        self.assertNotIn("vicinityStatus",observer,
+            "new draft status fields require a separate exact-predecessor patch")
+        self.assertNotIn("spawnFailureClass(",observer,
+            "new draft spawn-error capture is not deployed by PG40")
+
+
     def test_runtime_forensic_hold_blocks_every_uce_write_entrypoint(self):
         from subprocess import run
         script=(self.current/"behavior_pack/scripts/main.js").read_text(

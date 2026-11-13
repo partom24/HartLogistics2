@@ -207,7 +207,7 @@ jobs:
           node --test tests/test_uce_unified_tick_gate.mjs
       - name: UCE PG40 pinned PG37-only read-only PG39 native carrier forensic census
         run: |
-          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
           python -m py_compile candidates/uce/pg40_lab_patch.py
           python -m unittest discover -s tests -p 'test_uce_pg40_lab_patch.py' -v
       - name: UCE PG37 bounded sealed Receiver owner census and guarded same-version patch
@@ -746,7 +746,7 @@ jobs:
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
       - name: UCE PG40 read-only forensic census exact PG37 predecessor on synthetic Windows
         run: |
-          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
           python -m unittest discover -s tests -p 'test_uce_pg40_lab_patch.py' -v
       - name: UCE PG37 read-only owner census exact-source patch synthetic Windows
         run: |

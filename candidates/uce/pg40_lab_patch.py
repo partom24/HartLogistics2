@@ -1,7 +1,7 @@
 """PG40 read-only PG39 native-carrier forensic census on exact installed PG37.
 
-Recreate original PG37 from its pinned Git source, install a permanent
-read-only /hartlogistics:status native owner census, and suspend all UCE
+Recreate original PG37 from its pinned Git source and the EXACT historical
+PG40 forensic source; suspend all runtime UCE
 mutation entrypoints with a tracked, temporary PG40 maintenance freeze.
 Preserve the legacy-writer fence: no Q4 writer reactivation. Never bring later
 draft custody, routing or partial-merge logic into the held LAB world.
@@ -29,6 +29,9 @@ pg33=uce_deploy.pg33
 uce=uce_deploy.uce
 ROOT=uce_deploy.ROOT
 BASE_SHA="22637cae8b988b19e6ecadb1280c34f7dbf1c617"
+# Installed PG40 diagnostic content is immutable even while draft gameplay
+# and future forensic readers evolve. This pin is NOT the PG37 predecessor.
+PG40_SOURCE_SHA="91389e6bfbc72e1d88e147c507fd473bfc9aef7e"
 CHANGED_BP={"scripts/main.js","scripts/uce/unified_carrier_registry.js"}
 PINNED_BUILDER_INPUTS=(
     "candidates/uce/prepare_candidate.py",
@@ -48,6 +51,19 @@ def historical(path: str) -> str:
         check=True,text=True,encoding="utf-8",errors="strict",
         capture_output=True)
     return result.stdout
+
+def pinned_pg40(path: str) -> str:
+    """Only source of installed PG40 diagnostics; never build draft gameplay."""
+    allowed={"candidates/uce/runtime_bridge.js",
+             "candidates/transport/unified_carrier_registry.mjs"}
+    if path not in allowed:
+        raise lab.UnsafeLab("PG40 immutable diagnostic path not allowed: "+path)
+    result=subprocess.run(
+        ["git","-C",str(ROOT),"show",PG40_SOURCE_SHA+":"+path],
+        check=True,text=True,encoding="utf-8",errors="strict",
+        capture_output=True)
+    return result.stdout
+
 
 def blob_identity(ref: str,path: str) -> str:
     if ref not in ("HEAD",BASE_SHA) or path not in PINNED_BUILDER_INPUTS:
@@ -132,7 +148,7 @@ def frozen_maintenance_bridge(base: str) -> str:
 
 def diagnostic_only_bridge() -> tuple[str,str]:
     prior=historical("candidates/uce/runtime_bridge.js")
-    new=uce.BRIDGE.read_text(encoding="utf-8")
+    new=pinned_pg40("candidates/uce/runtime_bridge.js")
     original_method=diagnostic_method(prior)
     wanted_method=diagnostic_method(new)
     if "inspectHostEvidence({" not in wanted_method or "Native hosts (read-only" not in wanted_method:
@@ -146,8 +162,7 @@ def diagnostic_only_bridge() -> tuple[str,str]:
 
 def read_only_registry() -> tuple[str,str]:
     prior=historical("candidates/transport/unified_carrier_registry.mjs")
-    draft=(ROOT/"candidates/transport/unified_carrier_registry.mjs").read_text(
-        encoding="utf-8")
+    draft=pinned_pg40("candidates/transport/unified_carrier_registry.mjs")
     marker="\n  /**\n   * Permanent read-only native carrier health"
     start=draft.find(marker)
     end=draft.find("  function currentJournal(){",start)
@@ -167,8 +182,8 @@ def read_only_registry() -> tuple[str,str]:
         "    stageMovedTicket,durableOwnershipWitness,",
         "return {ok:true,inspectHost,inspectHostEvidence,registerEmptyHost,\n"
         "    inspectCustody,stageMovedTicket,durableOwnershipWitness,")
-    # The current registry must differ from the actual installed PG37 version
-    # in exactly this read-only observer and exported method; refuse drift.
+    # The immutable PG40 registry may differ from installed PG37 ONLY in
+    # this read-only observer and exported method; refuse other drift.
     if modified!=draft:
         raise lab.UnsafeLab("PG40 carrier registry contains unrelated source drift")
     return prior,modified
