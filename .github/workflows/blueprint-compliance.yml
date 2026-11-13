@@ -205,6 +205,11 @@ jobs:
         run: |
           node --check tests/test_uce_unified_tick_gate.mjs
           node --test tests/test_uce_unified_tick_gate.mjs
+      - name: UCE PG40 pinned PG37-only read-only PG39 native carrier forensic census
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          python -m py_compile candidates/uce/pg40_lab_patch.py
+          python -m unittest discover -s tests -p 'test_uce_pg40_lab_patch.py' -v
       - name: UCE PG37 bounded sealed Receiver owner census and guarded same-version patch
         run: |
           node --check tests/test_uce_diagnostics_mock.mjs
@@ -739,6 +744,10 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: UCE PG40 read-only forensic census exact PG37 predecessor on synthetic Windows
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          python -m unittest discover -s tests -p 'test_uce_pg40_lab_patch.py' -v
       - name: UCE PG37 read-only owner census exact-source patch synthetic Windows
         run: |
           git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
