@@ -56,6 +56,7 @@ function fixture({properties={},spawnThrows=false,abortWriteAt=0}={}){
     constructor(typeId,amount){this.typeId=typeId;this.amount=amount;
       this.nameTag='';this.lore=[];}
     setLore(s){this.lore=[...s];}
+    getLore(){return [...this.lore];}
   }
   const componentSample=()=>{
     const original=entities[0].getComponent();
