@@ -16,6 +16,7 @@ OUT=ROOT/"build/uce-integrated"
 BRIDGE=ROOT/"candidates/uce/runtime_bridge.js"
 PIPE_ROUTE=ROOT/"candidates/uce/runtime_pipe_route.js"
 LINK_MENU=ROOT/"candidates/uce/runtime_link_menu.js"
+REMOTE_BULK=ROOT/"candidates/uce/runtime_remote_bulk_bridge.js"
 ASSET=ROOT/"candidates/uce/assets/entities/uce_native_carrier.json"
 VERSION=[1,5,16]
 MODULES=(
@@ -261,7 +262,8 @@ def prepare(target):
               main.read_text(encoding="utf-8"),
               BRIDGE.read_text(encoding="utf-8")+"\n"+
               PIPE_ROUTE.read_text(encoding="utf-8")+"\n"+
-              LINK_MENU.read_text(encoding="utf-8")),encoding="utf-8")
+              LINK_MENU.read_text(encoding="utf-8")+"\n"+
+              REMOTE_BULK.read_text(encoding="utf-8")),encoding="utf-8")
             (target/"NOT_APPROVED_FOR_INSTALL.txt").write_text(
               "UCE integrated SOURCE build ONLY by default. NO manual install.\n"
               "For owner-approved stopped-LAB acceptance, use ONLY the exact-SHA\n"
