@@ -148,7 +148,7 @@ test('an unloaded linked Receiver is credited through existing ordinary boundary
   const f=fixture({sourceIsMR:false,sourceIsOrdinary:true});
   f.tick();
   assert.deepEqual(f.actions,[
-    'REGISTER_COLLECTOR','ORDINARY','METRIC:ordinary:undefined']);
+    'REGISTER_COLLECTOR','ORDINARY','METRIC:ordinary:64']);
   assert.equal(f.input.getItem(0),undefined,
     'one verified ordinary stack is admitted to the sealed Receiver ledger');
   assert.equal(f.hasHost,true,
