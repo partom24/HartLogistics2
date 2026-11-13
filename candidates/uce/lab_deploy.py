@@ -81,6 +81,15 @@ def check_candidate(generated,old,*,historical_modules=None):
                    for d in bp.get("dependencies",[])):
             raise lab.UnsafeLab("UCE Script API experiment/dependency drift")
     compiled=(generated/"behavior_pack/scripts/main.js").read_text()
+    # The exact PG40/41/42 frozen builder must retain its ORIGINAL entrypoint
+    # marker. Do not project new product instrumentation onto historical packs.
+    # Current candidates, conversely, must use the new opt-in wrapper.
+    scheduler_marker=(
+        "if (uceLegacyWriterBlocked()) { "
+        + ("uceUnifiedServiceTick();" if historical_modules is not None
+           else "ucePerformanceTick();")
+        + " return; }"
+    )
     for marker in (
         'const VERSION = "1.5.16-DEV-UCE";',
         "function uceUnifiedServiceTick(){",
@@ -92,13 +101,22 @@ def check_candidate(generated,old,*,historical_modules=None):
         "function uceOrdinaryAccountSource(",
         "function ucePipeRouteNetwork(",
         "function uceNativeReceiptId(",
-        "if (uceLegacyWriterBlocked()) { ucePerformanceTick(); return; }",
+        scheduler_marker,
         "UCE_LEGACY_WORLD_WRITER_FENCED",
         "hartlogistics:activate_empty_lab",
         "hartlogistics:migration_preview"
     ):
         if marker not in compiled:
             raise lab.UnsafeLab("UCE missing integrated safety route: "+marker)
+    if historical_modules is None:
+        # An old uninstrumented scheduler is never a current HL2 candidate.
+        for marker in ("function ucePerformancePanel(",
+                       "function ucePerformanceTick()",
+                       "hartlogistics:perf_on",
+                       "hartlogistics:perf_off",
+                       "hartlogistics:perf"):
+            if marker not in compiled:
+                raise lab.UnsafeLab("UCE missing optional monitoring control: "+marker)
     if compiled.count("function logisticsTick() {")!=1:
         raise lab.UnsafeLab("UCE introduced another scheduler")
     result={}
