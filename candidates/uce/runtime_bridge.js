@@ -144,6 +144,14 @@ function uceClassifyLiveStack(stack){
         if(!Number.isSafeInteger(stack.maxAmount)||
            stack.maxAmount<=1 || stack.maxAmount>64 || stack.nameTag ||
            dyn.length || lore.length)return 'MR';
+        // Q4's ordinary-account key contract is intentionally narrower
+        // than runtime stackability. Unknown namespaces, opaque variants
+        // and metadata-risk item types MUST use the native MR lane instead
+        // of entering a virtual bucket the ledger can never validate.
+        const candidate={typeId:stack.typeId,lore:[],ench:[],
+            canDestroy:[],canPlaceOn:[]};
+        if(inspectQ4OrdinaryDefinitionShape(candidate).ok!==true)
+            return 'MR';
         // Ordinary classification is only a refusal decision for THIS MR
         // service. It never creates/credits a virtual balance. Compare both
         // native directions against a fresh one-item canonical stack; a
