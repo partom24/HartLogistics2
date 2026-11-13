@@ -160,7 +160,8 @@ class UceBuildTests(unittest.TestCase):
         env=os.environ.copy()
         env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
         for name in ("test_uce_pipe_route_mock.mjs",
-                     "test_uce_interbank_integrated_runtime.mjs"):
+                     "test_uce_interbank_integrated_runtime.mjs",
+                     "test_uce_interbank_mr_mock.mjs"):
             result=subprocess.run(
                 ["node","--test",str(ROOT/"tests"/name)],
                 cwd=ROOT,env=env,stdout=subprocess.PIPE,
@@ -182,6 +183,10 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("function ucePipeHasUnresolvedForwarding(receiver,graph,item)",s)
         self.assertIn("function uceSelectInterbankFilteredRoute(receiver,graph,item,authority)",s)
         self.assertIn("function uceInterbankRouteVerified(authority,receiver,tx,direction)",s)
+        self.assertIn("function uceTryInterbankMrHandoff(authority,receiver,registry,host,",s)
+        self.assertIn("registry.stageMovedTicket({",s)
+        self.assertIn("reason:'interbank_mr_two_owner_custody_unverified'",s)
+        self.assertIn("uceTryInterbankMrHandoff(",s)
         self.assertIn("tx?.routeWitness?.startsWith('IB1|')?",s)
         self.assertIn("executeUnifiedFederatedTransfer({",s)
         self.assertIn("fromAccount:accountId,toAccount,",s)
