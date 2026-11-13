@@ -1,6 +1,7 @@
 """UCE integrated pack compilation and preservation tests (no server needed)."""
 import importlib.util
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -151,6 +152,20 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("UCE owns this block. Remove through an explicit drained custody operation",s)
         self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||",s)
         self.assertIn("block.typeId === 'hartlogistics:bulk_storage'",s)
+
+    def test_generated_pipe_route_executes_same_behavior_as_source(self):
+        # Run the very same runtime behavior fixtures against helper functions
+        # extracted from the assembled, unapproved Bedrock main.js. This is
+        # an OFFLINE test of generated code, NOT a BDS engine integration pass.
+        env=os.environ.copy()
+        env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
+        result=subprocess.run(
+            ["node","--test",str(ROOT/"tests/test_uce_pipe_route_mock.mjs")],
+            cwd=ROOT,env=env,stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,text=True,timeout=60)
+        self.assertEqual(result.returncode,0,
+                         "generated HL2 runtime Sorter compatibility failed:\\n"+
+                         result.stdout[-14000:])
 
     def test_transporter_sorter_preserves_original_storage_destinations(self):
         # This assertion runs against the ACTUAL generated gameplay main.js,
