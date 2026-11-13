@@ -12,6 +12,9 @@
 // unloaded frontier remains a graph-wide HOLD. This UCE reader does not
 // enlarge PG26's unchanged legacy single-chunk Transporter implementation.
 const UCE_MAX_LOADED_PIPES=128;
+// A column fits within Bedrock's 384-block build height. Unlike the pipe
+// budget, this counts Sorters vertically, never as additional pipes.
+const UCE_MAX_SORTER_COLUMN_HEIGHT=384;
 function ucePipeSameDimension(root,block) {
     return !!root&&!!block&&
         root.dimension.id===block.dimension.id;
@@ -65,14 +68,31 @@ function ucePipeRouteNetwork(receiver) {
                 } else if(type===SORTER_ID){
                     if(face.name!=='down'||!ucePipeSameDimension(root,next))
                         return undefined;
-                    // A powered Sorter pauses only that endpoint. Other
-                    // Sorters on the same verified pipe must keep routing.
-                    const entry=registry.find(e=>e.d===receiver.d&&
-                        e.x===p.x&&e.y===p.y&&e.z===p.z);
-                    const live=entry&&sorterAt(entry);
-                    if(!entry||!live||live.typeId!==SORTER_ID||
-                       entry.nativeQuarantine)return undefined;
-                    endpoints.set(pg26PositionKey(p),entry);
+                    // A Transporter feeds the entire original 1.4.1
+                    // vertical Sorter column, not just its top Sorter.
+                    // Each row keeps its own Filter/Auto/Wildcard/redstone
+                    // policy. Unknown or unregistered lower rows HOLD the
+                    // graph; they must not be skipped for a weaker output.
+                    let sorter=next,complete=false;
+                    for(let depth=0;depth<UCE_MAX_SORTER_COLUMN_HEIGHT;depth++){
+                        const q=sorter.location;
+                        const entry=registry.find(e=>
+                            e.d===sorter.dimension.id&&
+                            e.x===q.x&&e.y===q.y&&e.z===q.z);
+                        const live=entry&&sorterAt(entry);
+                        if(!entry||!live||live.typeId!==SORTER_ID||
+                           !ucePipeSameDimension(root,live)||
+                           !uceSameLoadedBlock(sorter,live)||
+                           entry.nativeQuarantine)return undefined;
+                        endpoints.set(pg26PositionKey(q),entry);
+                        const below=pg26Neighbor(sorter,PG26_FACES.find(
+                            f=>f.name==='down'));
+                        if(!below)return undefined;
+                        if(below.typeId!==SORTER_ID){complete=true;break;}
+                        if(!ucePipeSameDimension(root,below))return undefined;
+                        sorter=below;
+                    }
+                    if(!complete)return undefined;
                 } else if(type==='hartlogistics:bulk_storage'){
                     if(!ucePipeSameDimension(root,next))return undefined;
                     banks.set(pg26PositionKey(p),next);
