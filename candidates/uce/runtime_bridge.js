@@ -1554,8 +1554,18 @@ function uceSorterDirectServiceTick(authority){
                    !uceDirectStorageOwnerBlock(selected.block))continue;
                 const dest=selected.container;
                 if(!dest?.isValid||dest===input)continue;
-                const destSlot=uceNativeOutputSlot(dest);
+                // Preserve 1.4.1 ordinary stack merges without ever
+                // reconstructing opaque/MR ItemStacks. MR still uses the
+                // strict whole-stack native move to an empty slot.
+                const ordinaryKey=ucePlainItemIdentity(stack);
+                const accepting=ordinaryKey?findAcceptSlot(dest,stack):undefined;
+                const partial=!!accepting&&accepting.before>0&&
+                    accepting.room>0&&
+                    ucePlainItemIdentity(accepting.existing)===ordinaryKey;
+                const destSlot=partial?accepting.slot:uceNativeOutputSlot(dest);
                 if(destSlot<0)continue;
+                const mergeCount=partial?
+                    Math.min(stack.amount,accepting.room):0;
                 const p=source.location,q=selected.block.location;
                 const fromId='sorter-native-in|'+source.dimension.id+
                     '|'+p.x+','+p.y+','+p.z;
@@ -1606,12 +1616,19 @@ function uceSorterDirectServiceTick(authority){
                     durableOwnershipWitness:j=>
                         j.operationId===operationId&&
                         j.from.ownerId===fromId&&j.to.ownerId===toId&&
-                        routeStillSelected(stack)
+                        routeStillSelected(stack),
+                    certifyOrdinaryEscrow:(item,key,count)=>
+                        !!item&&item.amount===count&&
+                        ucePlainItemIdentity(item)===key&&
+                        uceClassifyLiveStack(item)==='ORDINARY'
                 });
                 if(!port.ok){uceBridgeLog('direct sorter port '+port.reason);return;}
                 const from={ownerId:fromId,container:input,slot};
                 const to={ownerId:toId,container:dest,slot:destSlot};
-                const moved=port.moveWhole({operationId,from,to});
+                const moved=partial?
+                    port.moveCertifiedPartial({operationId,from,to,
+                        key:ordinaryKey,count:mergeCount}):
+                    port.moveWhole({operationId,from,to});
                 if(!moved.ok){
                     uceBridgeLog('direct sorter move HOLD '+moved.reason);
                     return;
@@ -1619,7 +1636,10 @@ function uceSorterDirectServiceTick(authority){
                 if(moved.status!=='NATIVE_MOVED_PENDING_OWNERSHIP_ACK'){
                     uceBridgeLog('direct sorter unexpected move receipt');return;
                 }
-                const ack=port.ackWhole({operationId,from,to});
+                const ack=partial?
+                    port.ackCertifiedPartial({operationId,from,to,
+                        key:ordinaryKey,count:mergeCount}):
+                    port.ackWhole({operationId,from,to});
                 if(!ack.ok){
                     uceBridgeLog('direct sorter ACK HOLD '+ack.reason);
                     return;

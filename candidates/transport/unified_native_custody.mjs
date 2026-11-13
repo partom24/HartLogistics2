@@ -520,6 +520,164 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
   }
 
 
+
+  /**
+   * Direct Sorter ordinary-only partial merge. This is NOT available to MR
+   * stacks or the Receiver virtual ledger. Both physical slot writes run
+   * under one UCE native intent and a global HOLD if either outcome is
+   * ambiguous. Never replay or clear a partial journal on startup.
+   */
+  function moveCertifiedPartial({operationId,from,to,key,count}={}){
+    if(quarantined)return deny('native_session_quarantined');
+    const gate=fence();
+    if(!gate.ok)return deny(gate.reason);
+    const pending=readJournal(world);
+    if(!pending.ok)return pending;
+    if(!pending.empty)return deny('native_intent_already_pending');
+    if(!name(operationId)||!verifyEndpoint(from)||!verifyEndpoint(to)||
+       from.ownerId===to.ownerId||from.container===to.container||
+       typeof key!=='string'||!key||!pos(count)||
+       typeof certifyOrdinaryEscrow!=='function'||
+       typeof from.container.setItem!=='function'||
+       typeof to.container.setItem!=='function')
+      return deny('invalid_plain_partial_endpoints');
+    let verified=false,source,target;
+    try{
+      verified=verifyEndpointOwner(from)===true&&
+        verifyEndpointOwner(to)===true;
+      source=from.container.getItem(from.slot);
+      target=to.container.getItem(to.slot);
+    }catch(_){return deny('plain_partial_endpoint_unreadable');}
+    if(!verified||!source||!target||!pos(source.amount)||
+       !pos(target.amount)||!pos(source.maxAmount)||
+       source.maxAmount!==target.maxAmount||
+       count>source.amount||target.amount+count>target.maxAmount)
+      return deny('plain_partial_capacity_or_owner_unverified');
+    const sourceBefore=witness(source),targetBefore=witness(target);
+    let certified=false,sourceAfter=source.amount-count,
+        targetAfter=target.amount+count,newSource,newTarget;
+    try{
+      certified=certifyOrdinaryEscrow(source,key,source.amount)===true&&
+        certifyOrdinaryEscrow(target,key,target.amount)===true&&
+        source.isStackableWith(target)===true&&
+        target.isStackableWith(source)===true;
+      if(certified){
+        newSource=sourceAfter?source.clone():undefined;
+        if(newSource)newSource.amount=sourceAfter;
+        newTarget=target.clone();
+        newTarget.amount=targetAfter;
+        certified=(!newSource||certifyOrdinaryEscrow(
+          newSource,key,sourceAfter)===true)&&
+          certifyOrdinaryEscrow(newTarget,key,targetAfter)===true;
+      }
+    }catch(_){certified=false;}
+    if(!certified||!sourceBefore||!targetBefore)
+      return deny('plain_partial_item_not_certified');
+    const intent={schema:UCE_NATIVE_INTENT_SCHEMA,kind:'DIRECT_PLAIN_PARTIAL',
+      phase:'PREPARED',operationId,worldId,epoch,
+      from:{ownerId:from.ownerId,slot:from.slot},
+      to:{ownerId:to.ownerId,slot:to.slot},
+      witness:sourceBefore,targetWitness:targetBefore,
+      key,count,sourceAfter,targetAfter};
+    let raw=JSON.stringify(intent);
+    if(raw.length>12000||!ASCII.test(raw))
+      return deny('plain_partial_intent_oversized');
+    const second=fence();
+    let stable=false;
+    try{
+      stable=verifyEndpointOwner(from)===true&&
+        verifyEndpointOwner(to)===true&&
+        JSON.stringify(witness(from.container.getItem(from.slot)))===
+          JSON.stringify(sourceBefore)&&
+        JSON.stringify(witness(to.container.getItem(to.slot)))===
+          JSON.stringify(targetBefore);
+    }catch(_){}
+    if(!second.ok||!stable)return deny('plain_partial_prewrite_changed');
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,raw);}
+    catch(_){quarantined=true;return deny('plain_partial_prepare_ambiguous');}
+    const prepared=readJournal(world);
+    if(!prepared.ok||prepared.empty||prepared.raw!==raw){
+      quarantined=true;return deny('plain_partial_prepare_readback_failed');
+    }
+    // Credit destination first. Any interrupted source debit leaves both
+    // physical observations and the retained PREPARED intent for manual audit.
+    try{to.container.setItem(to.slot,newTarget);}
+    catch(_){quarantined=true;return deny('plain_partial_credit_ambiguous');}
+    let destinationCredited=false;
+    try{
+      destinationCredited=JSON.stringify(
+        witness(to.container.getItem(to.slot)))===
+        JSON.stringify(witness(newTarget))&&
+        JSON.stringify(witness(from.container.getItem(from.slot)))===
+        JSON.stringify(sourceBefore);
+    }catch(_){}
+    if(!destinationCredited){
+      quarantined=true;return deny('plain_partial_credit_readback_mismatch');
+    }
+    try{from.container.setItem(from.slot,newSource);}
+    catch(_){quarantined=true;return deny('plain_partial_debit_ambiguous');}
+    let reconciled=false;
+    try{
+      reconciled=JSON.stringify(
+        witness(to.container.getItem(to.slot)))===
+        JSON.stringify(witness(newTarget))&&
+        JSON.stringify(witness(from.container.getItem(from.slot)))===
+        JSON.stringify(witness(newSource));
+    }catch(_){}
+    if(!reconciled){
+      quarantined=true;return deny('plain_partial_postmove_mismatch');
+    }
+    intent.phase='MOVED_INSPECTED';
+    raw=JSON.stringify(intent);
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,raw);}
+    catch(_){quarantined=true;return deny('plain_partial_moved_marker_ambiguous');}
+    const posted=readJournal(world);
+    if(!posted.ok||posted.empty||posted.raw!==raw){
+      quarantined=true;return deny('plain_partial_moved_readback_failed');
+    }
+    return {ok:true,status:'NATIVE_MOVED_PENDING_OWNERSHIP_ACK',
+      movedCount:count,canReplay:false,canClearJournal:false};
+  }
+  function ackCertifiedPartial({operationId,from,to,key,count}={}){
+    if(quarantined)return deny('native_session_quarantined');
+    const gate=fence(operationId);
+    if(!gate.ok)return deny(gate.reason);
+    const journal=readJournal(world);
+    if(!journal.ok)return journal;
+    const j=journal.record;
+    if(journal.empty||j?.phase!=='MOVED_INSPECTED'||
+       j.kind!=='DIRECT_PLAIN_PARTIAL'||j.operationId!==operationId||
+       j.worldId!==worldId||j.epoch!==epoch||j.key!==key||
+       j.count!==count||!verifyEndpoint(from)||!verifyEndpoint(to)||
+       j.from.ownerId!==from.ownerId||j.from.slot!==from.slot||
+       j.to.ownerId!==to.ownerId||j.to.slot!==to.slot)
+      return deny('plain_partial_ack_intent_mismatch');
+    let physical=false,ownership=false;
+    try{
+      const source=from.container.getItem(from.slot);
+      const target=to.container.getItem(to.slot);
+      physical=verifyEndpointOwner(from)===true&&
+        verifyEndpointOwner(to)===true&&
+        ((j.sourceAfter===0&&source===undefined)||
+          (source?.amount===j.sourceAfter&&
+           certifyOrdinaryEscrow(source,key,j.sourceAfter)===true))&&
+        target?.amount===j.targetAfter&&
+        certifyOrdinaryEscrow(target,key,j.targetAfter)===true&&
+        target.maxAmount>=j.targetAfter;
+      ownership=durableOwnershipWitness(j)===true;
+    }catch(_){}
+    if(!physical||!ownership)
+      return deny('plain_partial_ack_physical_or_owner_unverified');
+    try{world.setDynamicProperty(UCE_NATIVE_INTENT_KEY,undefined);}
+    catch(_){quarantined=true;return deny('plain_partial_ack_clear_ambiguous');}
+    const cleared=readJournal(world);
+    if(!cleared.ok||!cleared.empty){
+      quarantined=true;return deny('plain_partial_ack_readback_failed');
+    }
+    return {ok:true,status:'NATIVE_CUSTODY_ACK_READBACK',
+      movedCount:count,canReplay:false};
+  }
+
   /*
    * A vanilla dropper/dispenser does not expose its ejected item through a
    * Container. Copy the LIVE ItemStack into the existing native carrier under
@@ -662,6 +820,7 @@ export function createUnifiedNativePort({world,worldId,epoch,externalFence,
   }
 
   return {ok:true,inspectPending,moveWhole,ackWhole,
+    moveCertifiedPartial,ackCertifiedPartial,
     stageEjectedItem,ackEjectedItem,
     consumeCertifiedEscrow,ackCertifiedEscrow,
     materializeCertifiedOrdinary,ackMaterializedOrdinary,
