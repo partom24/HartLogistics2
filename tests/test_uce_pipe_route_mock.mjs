@@ -817,16 +817,55 @@ test('original supported vanilla single-storage pipe inputs retain identity chec
       kind+' changed to unsupported type');
   }
 });
-test('double-chest aliases cannot become uncertified input owners',()=>{
-  const f=fixture();
-  const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
-  f.put('minecraft:chest',1,70,5,f.inventories[0]);
+test('double-chest input has ONE canonical native owner for two verified halves',()=>{
+  const f=fixture(),shared=f.newContainer(54);
+  const first=f.put('minecraft:chest',1,70,4,shared);
+  const second=f.put('minecraft:chest',1,70,5,shared);
+  let graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.inputs.length,1);
+  assert.equal(graph.inputs[0].block,first);
+  assert.equal(graph.inputs[0].container,shared);
+  assert.equal(graph.inputs[0].aliases.length,2);
+  assert.equal(f.context.ucePipeSourceStillConnected(
+    f.receiver,graph.inputs[0]),true);
+  // Two pipes in the SAME connected graph may touch both halves, but
+  // the receiver must not schedule two debits of the 54-slot container.
+  for(const [x,y,z] of [[2,71,4],[2,71,5],[1,71,5]])
+    f.put('hartlogistics:transporter',x,y,z);
+  graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.inputs.length,1);
+  assert.equal(graph.inputs[0].ownerId,
+    f.context.ucePipeStorageOwnerId(second));
+  assert.equal(graph.inputs[0].container,shared);
+  // Changing just the distant half invalidates source admission.
+  second.typeId='minecraft:barrel';
   assert.equal(f.network(),undefined);
-  assert.equal(chest.typeId,'minecraft:chest');
+  assert.equal(f.context.ucePipeSourceStillConnected(
+    f.receiver,graph.inputs[0]),false);
+});
+test('double chest input rejects unverified alias size, unloaded half or foreign pipe',()=>{
+  const f=fixture();
+  const first=f.put('minecraft:trapped_chest',1,70,4,f.newContainer());
+  f.put('minecraft:trapped_chest',1,70,5,f.newContainer());
+  assert.equal(f.network(),undefined,
+    'a joined 27-slot container is not a valid double-chest native owner');
+  const shared=f.newContainer(54);
+  first.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
+  const mate=f.dim.getBlock({x:1,y:70,z:5});
+  mate.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
+  assert.ok(f.network(),'reciprocal 54-slot alias is valid');
+  f.missing.add('1,70,5');
+  assert.equal(f.network(),undefined,'unloaded companion half HOLDS');
+  f.missing.clear();
+  f.put('hartlogistics:transporter',0,70,5);
+  assert.equal(f.network(),undefined,
+    'foreign disconnected pipe touching other half cannot share input');
   const shulker=fixture();
   shulker.put('minecraft:shulker_box',1,70,4,shulker.newContainer(54));
   assert.equal(shulker.network(),undefined,
-    'non-27-slot inventory cannot masquerade as a single input');
+    'non-chest 54-slot inventory remains unsupported input');
 });
 test('source removal, unloaded frontier or changed input source identity revokes admission',()=>{
   const f=fixture();
