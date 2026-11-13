@@ -46,7 +46,8 @@ function fixture(){
     receiverOutputHopper:()=>undefined,
     blockIsRedstonePowered:()=>false,
     uceChoosePipeDestination:()=>preferredOutput?{slot:0}:undefined,
-    ucePipeHasUnresolvedForwarding:()=>unresolvedForwarding
+    ucePipeHasUnresolvedForwarding:()=>unresolvedForwarding,
+    uceVerifiedNoReachablePreferredOutput:()=>!unresolvedForwarding
   };
   vm.runInNewContext(code,ctx);
   const normal={worldId:'world',epoch:9,
