@@ -6,7 +6,7 @@ import vm from 'node:vm';
 /** Exact integrated bridge proof. Source-shaped only, not BDS acceptance. */
 const bridge=fs.readFileSync(new URL(
   '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
-const start=bridge.indexOf('function uceFederatedRouteVerified(');
+const start=bridge.indexOf('function uceInterbankRouteVerified(');
 const end=bridge.indexOf('\nfunction uceOrdinaryServiceTick(',start);
 assert.ok(start>0&&end>start);
 const code=bridge.slice(start,end);
@@ -61,6 +61,48 @@ function fixture(){
     set preferredOutput(x){preferredOutput=x;},
     set unresolvedForwarding(x){unresolvedForwarding=x;}};
 }
+test('interbank bridge re-proves source, destination and exact route witness before each shard write',()=>{
+  const source={id:'source',present:true};
+  const target={id:'target',present:true};
+  const witness='IB1|source|verified-filter-target';
+  let routeValid=true,targetLoaded=true,destinationSealed=true;
+  const ctx={
+    uceOrdinaryAccountSource:(_,id)=>id==='source'?shardA:
+      id==='target'&&destinationSealed?shardB:undefined,
+    ucePipeRouteNetwork:()=>({receiverIds:['source']}),
+    uceSelectInterbankFilteredRoute:()=>
+      routeValid?{witness,receiver:target}:undefined,
+    receiverAt:r=>r===source?{typeId:'receiver'}:
+      r===target&&targetLoaded?{typeId:'receiver'}:undefined,
+    inspectQ4OrdinaryDefinitionShape:()=>({ok:true}),
+    uceClassifyLiveStack:()=> 'ORDINARY',
+    ItemStack:class {constructor(typeId,amount){
+      this.typeId=typeId;this.amount=amount;
+    }}
+  };
+  vm.runInNewContext(code,ctx);
+  const tx={worldId:'world',epoch:9,
+    fromAccount:'receiver:source',toAccount:'receiver:target',
+    fromShard:shardA,toShard:shardB,routeWitness:witness,
+    key:JSON.stringify({typeId:'minecraft:cobblestone',
+      lore:[],ench:[],canDestroy:[],canPlaceOn:[]})};
+  const authority={worldId:'world',epoch:9};
+  const check=(x=tx,dir='withdraw')=>
+    ctx.uceInterbankRouteVerified(authority,source,x,dir);
+  assert.equal(check(),true);
+  assert.equal(check(tx,'deposit'),true);
+  assert.equal(check({...tx,toAccount:'receiver:wrong'}),false);
+  assert.equal(check({...tx,fromShard:shardB}),false);
+  assert.equal(check({...tx,routeWitness:witness+'-stale'}),false);
+  assert.equal(check({...tx,toShard:shardA}),false);
+  assert.equal(check({...tx,key:'not-json'}),false);
+  destinationSealed=false;
+  assert.equal(check(),false);
+  destinationSealed=true;targetLoaded=false;
+  assert.equal(check(),false);
+  targetLoaded=true;routeValid=false;
+  assert.equal(check(),false);
+});
 test('federated bridge proves both Receiver and elected bank ownership before a debit',()=>{
   const f=fixture();
   assert.equal(f.ctx.uceFederatedRouteVerified(
