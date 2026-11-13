@@ -9,6 +9,31 @@ import vm from 'node:vm';
  */
 const src=fs.readFileSync(new URL(
   '../candidates/uce/runtime_pipe_route.js',import.meta.url),'utf8');
+// Reuse EXACT production helpers instead of mocks that can silently drift
+// from the 1.4.1 destination whitelist or UCE native chest ownership proof.
+const baseline=fs.readFileSync(new URL(
+  '../addon/behavior_pack/scripts/main.js',import.meta.url),'utf8');
+const bridge=fs.readFileSync(new URL(
+  '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
+function exactFunction(source,name){
+  const start=source.indexOf('function '+name+'(');
+  assert.ok(start>=0,'missing production helper: '+name);
+  const brace=source.indexOf('{',start);
+  let depth=0;
+  for(let i=brace;i<source.length;i++){
+    if(source[i]==='{')depth++;
+    if(source[i]==='}'&&--depth===0)
+      return source.slice(start,i+1);
+    // A closing brace may only close a matching opening brace.
+    if(source[i]!=='}')depth+=0;
+  }
+  throw new Error('unterminated helper: '+name);
+}
+const actualStorageHelpers=[
+  exactFunction(baseline,'supportedStorage'),
+  exactFunction(baseline,'blockContainer'),
+  exactFunction(bridge,'uceDirectStorageOwnerBlock')
+].join('\n');
 function fixture(){
   const dim={id:'minecraft:overworld'},blocks=new Map(),
     missing=new Set(),entries=[],FACES=[
@@ -17,8 +42,8 @@ function fixture(){
     ].map(([name,x,y,z])=>({name,x,y,z}));
   const k=p=>p.x+','+p.y+','+p.z;
   const inventories=[];
-  const containers=()=>{const items=Array(27).fill(undefined);
-    const c={size:27,isValid:true,getItem:i=>items[i],
+  const containers=(size=27)=>{const items=Array(size).fill(undefined);
+    const c={size,isValid:true,getItem:i=>items[i],
       setItem:(i,x)=>{items[i]=x;},fill:x=>items.fill(x)};
     inventories.push(c);return c;};
   function put(typeId,x,y,z,container){
@@ -86,7 +111,7 @@ function fixture(){
     },
     enchantments:stack=>stack?.ench||[]
   };
-  vm.runInNewContext(src,context);
+  vm.runInNewContext(actualStorageHelpers+'\n'+src,context);
   return {context,dim,blocks,missing,k,put,receiver,registeredReceivers,
     receiverBlock,
     nearPipe,farPipe,nearerSorter,fartherSorter,chestA,chestB,filter,
@@ -293,11 +318,63 @@ test('shared graph refuses stale, missing or mismatched Receiver block authority
     id===secondary.id?undefined:'sealed-region';
   assert.equal(f.network(),undefined);
 });
-test('double chest output is refused; no aliasing to same container',()=>{
-  const f=fixture();f.filter.m='bypass';
+test('Transporter-fed Sorter preserves every 1.4.1 single-storage destination',()=>{
+  for(const kind of ['minecraft:chest','minecraft:trapped_chest',
+                     'minecraft:barrel','minecraft:shulker_box',
+                     'minecraft:red_shulker_box','minecraft:blue_shulker_box']){
+    const f=fixture();
+    f.chestA.typeId=kind;
+    const selected=f.choose(COBBLE);
+    assert.equal(selected?.entry,f.filter,kind);
+    assert.equal(selected?.dest.block,f.chestA,kind);
+    assert.equal(f.context.ucePipeDestinationStillValid(
+      f.receiver,COBBLE,selected),true,kind);
+    f.chestA.typeId='minecraft:furnace';
+    assert.notEqual(f.choose(COBBLE)?.entry,f.filter,
+                    kind+' changed to unsupported native inventory');
+    assert.equal(f.context.ucePipeDestinationStillValid(
+      f.receiver,COBBLE,selected),false,kind+' identity changed');
+  }
+});
+test('one 54-slot double chest has one canonical custody owner across both Sorters',()=>{
+  const f=fixture(),shared=f.newContainer(54);
+  f.chestA.typeId='minecraft:chest';
   f.chestB.typeId='minecraft:chest';
-  f.put('minecraft:chest',2,69,6);
-  assert.equal(f.choose(COBBLE),undefined);
+  for(const half of [f.chestA,f.chestB])
+    half.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
+  const primary=f.choose(COBBLE);
+  assert.equal(primary?.entry,f.filter);
+  assert.equal(primary?.dest.container,shared);
+  assert.equal(primary?.slot,0);
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,primary),true);
+  f.filter.m='bypass';
+  const otherHalf=f.choose(COBBLE);
+  assert.equal(otherHalf?.entry,f.fallback);
+  assert.equal(otherHalf?.dest.container,shared);
+  assert.equal(primary.ownerId,otherHalf.ownerId,
+               'both aliases MUST have identical native custody identity');
+  assert.notEqual(primary.routeId,otherHalf.routeId,
+                  'distinct Sorter selection still has its own route witness');
+  f.missing.add('3,69,5');
+  assert.equal(f.choose(COBBLE),undefined,
+               'unloaded companion half cannot authorize native output');
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,otherHalf),false);
+});
+test('double chest output refuses 27-slot aliases and nonreciprocal chest topology',()=>{
+  const f=fixture();
+  f.chestA.typeId='minecraft:trapped_chest';
+  f.chestB.typeId='minecraft:trapped_chest';
+  assert.equal(f.choose(COBBLE),undefined,
+               'physically paired aliases must report one 54-slot inventory');
+  const shared=f.newContainer(54);
+  for(const half of [f.chestA,f.chestB])
+    half.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
+  assert.equal(f.choose(COBBLE)?.dest.container,shared);
+  f.put('minecraft:trapped_chest',4,69,5,f.newContainer(54));
+  assert.equal(f.choose(COBBLE),undefined,
+               'ambiguous triple-chest adjacency must never claim ownership');
 });
 test('powered Receiver pauses only output; Transporter inputs remain discoverable',()=>{
   const f=fixture();f.receiverBlock.powered=true;
