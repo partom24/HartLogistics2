@@ -168,3 +168,28 @@ test('failed reservation readback cannot spawn even if dynamic property write ha
   f.invoke('pg42_spawn');
   assert.match(f.lines.at(-1),/HOLD existing RESERVED/);
 });
+
+test('an ACTIVE readback throw after effect does not cause duplicate native entity',()=>{
+  const f=fixture({abortWriteAt:2});
+  f.invoke('pg42_spawn');
+  assert.equal(f.spawns.length,1);
+  assert.equal(f.entities.length,1);
+  assert.equal(f.writes.length,2);
+  assert.match(f.lines.at(-1),/HOLD ACTIVE readback ambiguous/);
+  const state=JSON.parse(f.db.get('hartlogistics:pg42_native_test_v1'));
+  assert.equal(state.state,'ACTIVE');
+  f.commands.clear();f.load();
+  f.invoke('pg42_spawn');
+  assert.match(f.lines.at(-1),/HOLD existing ACTIVE/);
+  assert.equal(f.spawns.length,1);
+  f.invoke('pg42_audit');
+  assert.match(f.lines.at(-1),/PASS persisted carrier ID/);
+});
+test('non-player command sources cannot start a test or inspect mutable world state',()=>{
+  const f=fixture();
+  f.origin={sourceEntity:{typeId:'minecraft:command_block'}};
+  f.invoke('pg42_spawn');
+  f.invoke('pg42_audit');
+  assert.equal(f.writes.length,0);
+  assert.equal(f.spawns.length,0);
+});
