@@ -72,10 +72,13 @@ function fixture({interruptSecondTicket=false}={}){
           e.location.y-location.y,e.location.z-location.z)<=maxDistance);
     },
     spawnEntity(type,location){
+      // Minecraft returns multiple wrappers for ONE persistent entity
+      // inventory. Every component read must reference the SAME slots.
+      const nativeInventory=container();
       const e={id:'carrier-'+(hosts.length+1),typeId:type,
         location,loaded:true,
         getComponent:()=>({inventorySize:9,
-          canBeSiphonedFrom:false,container:container()})};
+          canBeSiphonedFrom:false,container:nativeInventory})};
       hosts.push(e);
       return e;
     }
