@@ -956,6 +956,56 @@ function uceBulkWildcardPermitted(snapshot,receiverOwnerId,connectedBankOwnerIds
     return p.ok===true&&p.status==='IDLE'&&
         p.reason==='all_connected_banks_full';
 }
+function uceFederatedRouteVerified(authority,receiver,tx,direction){
+    // A graph leader owns the physical Bulk accounts in exactly ONE sealed
+    // shard. Other Receiver shards may exchange virtual ordinary counts
+    // only with this already verified graph, global intent, and leader.
+    try{
+        if(!authority||!receiver||!tx||![
+            'withdraw','deposit'].includes(direction)||
+           tx.worldId!==authority.worldId||tx.epoch!==authority.epoch)
+            return false;
+        const graph=ucePipeRouteNetwork(receiver);
+        if(!graph||!graph.banks?.length||
+           graph.leaderId===receiver.id||
+           graph.fingerprint!==tx.routeWitness||
+           !graph.receiverIds.includes(receiver.id))return false;
+        const leader=findReceiverById(graph.leaderId);
+        if(!leader||leader.present===false||!receiverAt(leader))
+            return false;
+        const leaderGraph=ucePipeRouteNetwork(leader);
+        if(!leaderGraph||leaderGraph.leaderId!==leader.id||
+           leaderGraph.fingerprint!==graph.fingerprint)return false;
+        const followerShard=uceOrdinaryAccountSource(authority,receiver.id);
+        const leaderShard=uceOrdinaryAccountSource(authority,leader.id);
+        if(!followerShard||!leaderShard||followerShard===leaderShard)
+            return false;
+        const followerAccount='receiver:'+receiver.id;
+        const bankAccount=tx.fromAccount===followerAccount?
+            tx.toAccount:tx.toAccount===followerAccount?
+            tx.fromAccount:undefined;
+        if(!bankAccount?.startsWith('bulk:'))return false;
+        const bankFrom=tx.fromAccount===bankAccount;
+        if(tx.fromShard!==(bankFrom?leaderShard:followerShard)||
+           tx.toShard!==(bankFrom?followerShard:leaderShard))
+            return false;
+        const connected=[...new Set(graph.banks.map(
+            b=>uceBulkOwnerId(b)))].sort();
+        if(!connected.includes(bankAccount.slice(5)))return false;
+        const readOnly=createUnifiedShardWriter({world,
+            shardKey:leaderShard,worldId:authority.worldId,
+            epoch:authority.epoch,externalFence:()=>false});
+        if(!readOnly.ok)return false;
+        const state=readOnly.inspect();
+        if(!state.ok)return false;
+        // The same Bulk policy validates all registered bank members and
+        // the single controller. Never borrow an unproven foreign account.
+        return planUnifiedBulkService({
+            snapshot:state.snapshot,receiverOwnerId:leader.id,
+            connectedBankOwnerIds:connected
+        }).ok===true;
+    }catch(_){return false;}
+}
 function uceOrdinaryServiceTick(authority){
     // This lane shares the MR lane's global preflight. Every later ledger
     // credit/debit and native move rechecks its own mutation fence.
@@ -1075,6 +1125,8 @@ function uceOrdinaryServiceTick(authority){
                 if(!bank||bank.kind!=='bulk')return false;
                 return loaded.has(bank.controllerOwnerId);
             },
+            verifyFederatedRoute:(tx,direction)=>
+                uceFederatedRouteVerified(authority,receiver,tx,direction),
             verifyEscrowCustody:tx=>{
                 const current=registry.inspectCustody({ownerId,anchor});
                 if(!current.ok)return false;
