@@ -230,3 +230,34 @@ test('diagnostics treat malformed falsy journal values as HOLD, not clear',()=>{
     '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
   assert.match(source,/const pending=v=>v!==undefined&&v!==null&&v!==''/);
 });
+
+test('session performance counters measure individual item throughput, not just 64-item batches',()=>{
+  const begin=src.indexOf('const UCE_PERF_SLOW_TICK_MS=25;');
+  const end=src.indexOf('// End optional operational diagnostics.',begin);
+  assert.ok(begin>=0&&end>begin,'exact runtime performance helper exists');
+  const output=[];
+  const ctx={system:{currentTick:100},log:s=>output.push(String(s))};
+  vm.runInNewContext(src.slice(begin,end),ctx);
+  const origin={sourceEntity:{sendMessage:s=>output.push(String(s))}};
+  ctx.ucePerformancePanel(origin,'on');
+  ctx.ucePerfRecordMove('ordinary',64);
+  ctx.system.currentTick++;
+  ctx.ucePerfRecordMove('ordinary',32);
+  ctx.ucePerfRecordMove('MR',3);
+  output.length=0;
+  ctx.ucePerformancePanel(origin,'status');
+  const shown=output.join('|');
+  assert.match(shown,/Committed transfer operations: MR 1, ordinary 2/);
+  assert.match(shown,/Committed items: MR 3, ordinary 96/);
+  assert.match(shown,/observed wall-clock rate .* items\/s/);
+  ctx.ucePerformancePanel(origin,'off');
+  ctx.ucePerfRecordMove('ordinary',200000);
+  output.length=0;
+  ctx.ucePerformancePanel(origin,'on');
+  const restarted=output.join('|');
+  assert.match(restarted,/Monitoring:.*ON/);
+  output.length=0;
+  ctx.ucePerformancePanel(origin,'status');
+  assert.match(output.join('|'),/Committed items: MR 0, ordinary 0/,
+    'session statistics reset; no persistent backlog telemetry');
+});
