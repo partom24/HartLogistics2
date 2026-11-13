@@ -1280,6 +1280,34 @@ function uceUseReceiverLinkOrStatus(player,block){
             at.location.x===pending.x&&
             at.location.y===pending.y&&at.location.z===pending.z;
     };
+    // Changing a Collector's link with unretired native waiting cargo
+    // would silently redirect that exact original ItemStack to another
+    // Receiver. The Collector host is independent persistent custody:
+    // only an empty, fully reconciled host may be relinked.
+    const heldRegistry=createUnifiedCarrierRegistry({
+        world,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false,ownerVerifier:uceLiveCollectorOwner
+    });
+    if(!heldRegistry.ok){
+        player.sendMessage('§c[Collector] Native custody inspection unavailable; link HOLD.');
+        return;
+    }
+    const pendingAnchor={dimensionId:pending.d,
+        x:pending.x,y:pending.y,z:pending.z};
+    const heldHost=heldRegistry.inspectHost({
+        ownerId:pending.id,anchor:pendingAnchor});
+    if(heldHost.ok){
+        const ownership=heldRegistry.inspectCustody({
+            ownerId:pending.id,anchor:pendingAnchor});
+        if(!ownership.ok||ownership.occupied!==0){
+            player.sendMessage('§c[Collector] Native waiting cargo or unreadable tickets; relink HOLD until cargo drains.');
+            return;
+        }
+    }else if(heldHost.reason!=='carrier_record_missing'){
+        player.sendMessage('§c[Collector] Existing native host ambiguous; relink HOLD: '+
+            heldHost.reason);
+        return;
+    }
     const receiverVerified=rid=>{
         if(rid!==receiverId||!receiverAt(receiver))return false;
         const proof=inspectUnifiedActiveColdImport({world,
