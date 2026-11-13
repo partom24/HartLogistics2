@@ -193,3 +193,38 @@ test('native Sorter owner revalidates ACTUAL slot before move, route after ACK',
   assert.equal(f.ctx.uceSorterSourceStillValid(
     source,ref,f.stone,identify),false);
 });
+
+test('a 1.4.1 Sorter-column candidate census is indexed once per safe tick without caching ownership',()=>{
+  const f=fixture();
+  const original=f.dim.getBlock;
+  let reads=0;
+  f.dim.getBlock=p=>{reads++;return original(p);};
+  f.ctx.system={currentTick:501};
+  f.ctx.dirty=false;
+  const first=f.ctx.uceSorterCollectorSources(f.receiver);
+  const firstReads=reads;
+  assert.equal(first.length,1);
+  const second=f.ctx.uceSorterCollectorSources(f.receiver);
+  const secondReads=reads-firstReads;
+  assert.equal(second.length,1);
+  assert.ok(secondReads<firstReads,
+    'second Collector request reuses candidate index, not all Sorters');
+  f.collector.link='receiver-other';
+  assert.equal(f.ctx.uceSorterCollectorSources(f.receiver).length,0,
+    'changed links must never be cached as authority');
+  f.collector.link=f.receiver.id;
+  f.ctx.system.currentTick=502;
+  const before=reads;
+  assert.equal(f.ctx.uceSorterCollectorSources(f.receiver).length,1);
+  assert.ok(reads-before>secondReads,
+    'next tick rebuilds candidates from live blocks');
+  // Explicit topology dirty state disables even same-tick index reuse.
+  f.ctx.dirty=true;
+  const dirtyBefore=reads;
+  f.ctx.uceSorterCollectorSources(f.receiver);
+  const dirtyFirst=reads-dirtyBefore;
+  const dirtyNext=reads;
+  f.ctx.uceSorterCollectorSources(f.receiver);
+  assert.equal(reads-dirtyNext,dirtyFirst,
+    'dirty topology must be rediscovered rather than cached');
+});

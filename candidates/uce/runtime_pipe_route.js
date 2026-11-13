@@ -1059,10 +1059,77 @@ function uceSorterColumnWinner(column,item,settledSelection=undefined){
             undefined;
     }catch(_){return undefined;}
 }
+/*
+ * Read-only candidate COLUMN index for the original 1.4.1
+ * Hopper->stacked Sorter->Collector input path.
+ *
+ * In the owner's ~1,400-Sorter / 54-Collector installation, checking all
+ * columns separately for EACH unloaded Collector or every Receiver used
+ * to multiply live block reads. Build only a candidate map once per tick.
+ * It never grants route authority: every chosen column, Collector link,
+ * Sorter winner, redstone state and native source is still rechecked
+ * below and at the existing journaled mutation boundary.
+ *
+ * The topology-dirty flag or absent tick authority disables reuse. Block
+ * changes within a tick can delay recognition of a new source until the
+ * next tick; a stale positive cannot authorize movement because the
+ * live candidate inspection and stillSelected() must both succeed.
+ */
+let uceSorterCollectorColumnCache;
+function uceSorterCollectorColumnIndex(){
+    const index=new Map();
+    if(!Array.isArray(columns))return index;
+    let tick;
+    try{tick=system.currentTick;}catch(_){}
+    const reusable=Number.isSafeInteger(tick)&&tick>=0&&
+        typeof dirty!=='undefined'&&dirty===false;
+    if(reusable&&uceSorterCollectorColumnCache&&
+       uceSorterCollectorColumnCache.tick===tick&&
+       uceSorterCollectorColumnCache.owner===columns&&
+       uceSorterCollectorColumnCache.length===columns.length)
+        return uceSorterCollectorColumnCache.index;
+    for(let i=0;i<columns.length;i++){
+        const col=columns[i];
+        if(!Array.isArray(col?.sorters))continue;
+        const linked=new Set();
+        for(const entry of col.sorters){
+            try{
+                const sorter=sorterAt(entry),face=facingOffset(sorter);
+                if(!sorter||!face)continue;
+                const at=sorter.location;
+                const target=sorter.dimension.getBlock({
+                    x:at.x+face.x,y:at.y+face.y,z:at.z+face.z});
+                if(!target||target.typeId!==COLLECTOR_ID)continue;
+                const p=target.location;
+                const id=logisticsId(target.dimension.id,p.x,p.y,p.z);
+                if(typeof id!=='string'||!id||linked.has(id))continue;
+                linked.add(id);
+                if(!index.has(id))index.set(id,[]);
+                index.get(id).push(i);
+            }catch(_){
+                // A failed read is NOT a candidate. The actual source
+                // and ownership proofs remain fail closed.
+            }
+        }
+    }
+    uceSorterCollectorColumnCache=reusable?
+        {tick,owner:columns,length:columns.length,index}:undefined;
+    return index;
+}
 function uceSorterCollectorSources(receiver,requiredCollectorId=undefined){
     if(!receiver||!Array.isArray(columns))return [];
-    const records=[],seen=new Set();
-    for(const col of columns){
+    const records=[],seen=new Set(),candidateIndices=new Set();
+    const lookup=uceSorterCollectorColumnIndex();
+    for(const [id,indices] of lookup){
+        if(requiredCollectorId&&id!==requiredCollectorId)continue;
+        const collector=findCollectorById(id);
+        if(!collector||collector.present===false||
+           collector.link!==receiver.id)continue;
+        for(const index of indices)candidateIndices.add(index);
+    }
+    // Preserve original column iteration order for shared Hopper aliases.
+    for(const index of [...candidateIndices].sort((a,b)=>a-b)){
+        const col=columns[index];
         let touches=false;
         try{
             for(const entry of col.sorters){

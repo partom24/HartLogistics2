@@ -41,8 +41,8 @@ const routeFunctions=[
   'uceLinkedBankBulkRoutes',
   'uceSelectInterbankFilteredRoute',
   'uceChoosePipeDestination','ucePipeDestinationStillValid',
-  'uceSorterColumnWinner','uceSorterCollectorSources',
-  'uceSorterSourceStillValid'
+  'uceSorterColumnWinner','uceSorterCollectorColumnIndex',
+  'uceSorterCollectorSources','uceSorterSourceStillValid'
 ];
 const routeCode=generated?[
   ...['UCE_MAX_LOADED_PIPES','UCE_MAX_SORTER_COLUMN_HEIGHT'].map(name=>{
@@ -52,6 +52,7 @@ const routeCode=generated?[
     return match[0];
   }),
   'let ucePipeSorterIndexCache;',
+  'let uceSorterCollectorColumnCache;',
   ...routeFunctions.map(name=>exactFunction(generated,name))
 ].join('\n'):src;
 const actualStorageHelpers=[
