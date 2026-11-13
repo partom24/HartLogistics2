@@ -150,3 +150,11 @@ test('Filter match on a later identity outranks a Bulk spill from earlier bucket
   assert.equal(fallback.count,64);
 });
 
+
+test('connected banks remain provably full when leader Receiver is empty',()=>{
+  const s=fixture(0,200000,200000);
+  const p=planUnifiedBulkService(options(s));
+  assert.equal(p.ok,true);
+  assert.equal(p.status,'IDLE');
+  assert.equal(p.reason,'all_connected_banks_full');
+});

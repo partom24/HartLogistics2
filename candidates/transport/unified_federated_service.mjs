@@ -57,7 +57,7 @@ const receipt=(view,kind,tx,accountId)=>!!view.ok&&
 export function executeUnifiedFederatedTransfer({
     world,worldId,epoch,operationId,sourceWriter,destinationWriter,
     fromShard,toShard,fromAccount,toAccount,key,count,externalFence,
-    verifyRoute
+    verifyRoute,routeWitness=''
   }={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
@@ -65,7 +65,9 @@ export function executeUnifiedFederatedTransfer({
      !SHARD.test(fromShard||'')||!SHARD.test(toShard||'')||
      fromShard===toShard||!valid(fromAccount)||!valid(toAccount)||
      fromAccount===toAccount||typeof key!=='string'||!key||
-     !pos(count)||count>64||typeof externalFence!=='function'||
+     !pos(count)||count>64||typeof routeWitness!=='string'||
+     routeWitness.length>8192||!ASCII.test(routeWitness)||
+     typeof externalFence!=='function'||
      typeof verifyRoute!=='function'||
      typeof sourceWriter?.inspect!=='function'||
      typeof sourceWriter?.applyFederatedSide!=='function'||
@@ -92,7 +94,8 @@ export function executeUnifiedFederatedTransfer({
   const args={operationId,fromShard,toShard,fromAccount,toAccount,key,count,
     fromRevision:source.snapshot.revision,toRevision:target.snapshot.revision,
     sourceTotal:source.snapshot.total,targetTotal:target.snapshot.total,
-    sourceCount:bucket(from,key),targetCount:bucket(to,key)};
+    sourceCount:bucket(from,key),targetCount:bucket(to,key),
+    routeWitness};
   // Read-only algebra catches invalid item identity/overflow before saving
   // a global PREPARED marker or changing an account.
   const debit=transitionUnifiedOrdinaryBoundary(source.snapshot,{

@@ -386,7 +386,8 @@ function uceUnifiedJournalHold(){
             'hartsorter:journal_v1',
             'hartsorter:queue_journal_v1',
             'hartlogistics:uce_native_intent_v1',
-            'hartlogistics:uce_boundary_intent_v1'
+            'hartlogistics:uce_boundary_intent_v1',
+            'hartlogistics:uce_federated_intent_v1'
         ]){
             const value=world.getDynamicProperty(key);
             if(value!==undefined&&value!==null&&value!==''){

@@ -86,6 +86,10 @@ export function planUnifiedBulkService({snapshot,receiverOwnerId,
       }
     }
   }
+  // A verified connected Bulk network can be full even if the leader
+  // Receiver itself is empty. Other Receivers need that independent fact.
+  if(banks.every(b=>b.total===b.capacity))
+    return idle('all_connected_banks_full');
   return idle('bulk_retains_custody_or_no_output');
 }
 
