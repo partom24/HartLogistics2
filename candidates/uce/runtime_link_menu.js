@@ -152,9 +152,14 @@ async function uceReceiverLinkMenu(player,block){
         // quarantine and link registry compare/readback remain authoritative.
         uceUseReceiverLinkOrStatus(player,block);
     }finally{
-        uceLinkMenuTickets.delete(player.id);
-        ucePendingLinkBlocks.delete(player.id);
-        uceLinkMenuEnd(player,token);
+        // A player may disconnect and reconnect while a form Promise is
+        // unresolved. Never delete a NEW session's ticket when this older
+        // form finally settles.
+        if(uceLinkMenuOpen.get(player.id)===token){
+            uceLinkMenuTickets.delete(player.id);
+            ucePendingLinkBlocks.delete(player.id);
+            uceLinkMenuEnd(player,token);
+        }
     }
 }
 world.afterEvents?.playerLeave?.subscribe(event=>{
