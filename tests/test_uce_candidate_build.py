@@ -252,5 +252,60 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("function pg26ReadTransportInput(",self.main)
         self.assertIn("function pg23TransportMayRun(",self.main)
 
+
+    def test_hl2_archive_is_explicit_and_contains_no_lab_probe(self):
+        import io
+        import zipfile
+        package_spec=importlib.util.spec_from_file_location(
+            "hl2_package",ROOT/"tools/build_mcaddon.py")
+        package=importlib.util.module_from_spec(package_spec)
+        package_spec.loader.exec_module(package)
+        with tempfile.TemporaryDirectory(prefix="hl2-archive-test-") as temp:
+            target=Path(temp)/"unapproved.mcaddon"
+            package.write_archive(self.path,target,is_uce=True)
+            with zipfile.ZipFile(target) as archive:
+                self.assertIn("NOT_APPROVED_FOR_INSTALL.txt",archive.namelist())
+                self.assertEqual(len([n for n in archive.namelist()
+                                      if n.endswith(".mcpack")]),2)
+                bp_name=next(n for n in archive.namelist() if n.endswith("_BP.mcpack"))
+                with zipfile.ZipFile(io.BytesIO(archive.read(bp_name))) as bp:
+                    files=set(bp.namelist())
+                    self.assertIn("scripts/main.js",files)
+                    self.assertIn("scripts/uce/unified_federated_service.js",files)
+                    self.assertNotIn("tests/pg42_probe.js",files)
+                    main=bp.read("scripts/main.js").decode("utf-8")
+                    for marker in package.FORBIDDEN_UCE_MARKERS:
+                        self.assertNotIn(marker,main)
+            with self.assertRaises(FileExistsError):
+                package.write_archive(self.path,target,is_uce=True)
+            with self.assertRaises(ValueError):
+                package.validate_pair(ROOT/"addon",is_uce=True)
+
+    def test_hl2_packager_requires_explicit_source_and_unapproved_ack(self):
+        import sys
+        cmd=[sys.executable,str(ROOT/"tools/build_mcaddon.py")]
+        missing=subprocess.run(cmd,capture_output=True,text=True)
+        self.assertNotEqual(missing.returncode,0)
+        self.assertIn("--source",missing.stderr)
+        denied=subprocess.run(cmd+["--source","hl2-uce"],
+                              capture_output=True,text=True)
+        self.assertNotEqual(denied.returncode,0)
+        self.assertIn("--acknowledge-unapproved-source",denied.stderr)
+
+    def test_hl2_candidate_refuses_injected_pg42_runtime_probe(self):
+        import shutil
+        package_spec=importlib.util.spec_from_file_location(
+            "hl2_package_probe_gate",ROOT/"tools/build_mcaddon.py")
+        package=importlib.util.module_from_spec(package_spec)
+        package_spec.loader.exec_module(package)
+        with tempfile.TemporaryDirectory(prefix="hl2-injected-probe-") as temp:
+            source=Path(temp)/"candidate"
+            shutil.copytree(self.path,source)
+            main=source/"behavior_pack/scripts/main.js"
+            main.write_text(main.read_text(encoding="utf-8")+
+                            "\\n// TEMP_TEST:PG42-CARRIER\\n",encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"Temporary LAB diagnostic"):
+                package.validate_pair(source,is_uce=True)
+
 if __name__=="__main__":
     unittest.main()
