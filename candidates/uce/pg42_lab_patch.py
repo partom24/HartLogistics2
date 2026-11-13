@@ -43,8 +43,10 @@ def render_pack_pair(folder: Path):
         raise lab.UnsafeLab("PG42 test probe already in predecessor")
     base.write_text(prior.rstrip()+"\n\n"+source,encoding="utf-8")
     old=folder/"pg41-historical/frozen/pg33"
-    wanted=pg41.uce_deploy.check_candidate(current,old)
-    before=pg41.uce_deploy.check_candidate(previous,old)
+    wanted=pg41.uce_deploy.check_candidate(current,old,
+        historical_modules=tuple(pg41.pg40.frozen_uce_builder().MODULES))
+    before=pg41.uce_deploy.check_candidate(previous,old,
+        historical_modules=tuple(pg41.pg40.frozen_uce_builder().MODULES))
     changed={path for path in wanted["behavior_pack"]
              if wanted["behavior_pack"][path]!=before["behavior_pack"][path]}
     if (changed!=CHANGED_BP or

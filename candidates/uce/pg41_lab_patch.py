@@ -86,8 +86,10 @@ def render_pack_pair(folder: Path):
     validate_assets(installed,current)
     old=frozen/"pg33"
     # Both versions keep original UUIDs, manifest version and exact inventory.
-    wanted=uce_deploy.check_candidate(current,old)
-    before=uce_deploy.check_candidate(installed,old)
+    wanted=uce_deploy.check_candidate(current,old,
+        historical_modules=tuple(pg40.frozen_uce_builder().MODULES))
+    before=uce_deploy.check_candidate(installed,old,
+        historical_modules=tuple(pg40.frozen_uce_builder().MODULES))
     changes={k for k in wanted["behavior_pack"] if
              wanted["behavior_pack"][k]!=before["behavior_pack"][k]}
     if (changes!=CHANGED_BP or
