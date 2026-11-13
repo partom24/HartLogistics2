@@ -78,12 +78,12 @@ def frozen_pg40_assets(bp: Path):
     bulk_path="candidates/uce/bulk_assets.py"
     old_bulk=at_pin(bulk_path)
     insertion=(
-        '        "tags":["crafting_table"],\\n'
-        '        # Recipes at format >=1.20.10 must specify discovery/unlock data.\\n'
-        '        # A chest is already required in the recipe; no cheat/experiment.\\n'
-        '        "unlock":[{"item":"minecraft:chest"}],\\n'
+        '        "tags":["crafting_table"],\n'
+        '        # Recipes at format >=1.20.10 must specify discovery/unlock data.\n'
+        '        # A chest is already required in the recipe; no cheat/experiment.\n'
+        '        "unlock":[{"item":"minecraft:chest"}],\n'
     )
-    source_anchor='        "tags":["crafting_table"],\\n'
+    source_anchor='        "tags":["crafting_table"],\n'
     if old_bulk.count(source_anchor)!=1:
         raise lab.UnsafeLab("PG40 historical bulk source changed")
     current_bulk=(ROOT/bulk_path).read_text(encoding="utf-8")
@@ -92,10 +92,10 @@ def frozen_pg40_assets(bp: Path):
     carrier_path="candidates/uce/assets/entities/uce_native_carrier.json"
     old_carrier=at_pin(carrier_path)
     obsolete=(
-        '      "minecraft:pushable": {\\n'
-        '        "is_pushable": false,\\n'
-        '        "is_pushable_by_piston": false\\n'
-        '      },\\n'
+        '      "minecraft:pushable": {\n'
+        '        "is_pushable": false,\n'
+        '        "is_pushable_by_piston": false\n'
+        '      },\n'
     )
     if old_carrier.count(obsolete)!=1:
         raise lab.UnsafeLab("PG40 historical carrier source changed")
@@ -112,7 +112,7 @@ def frozen_pg40_assets(bp: Path):
     if shaped.get("unlock")!=[{"item":"minecraft:chest"}]:
         raise lab.UnsafeLab("PG40 unexpected new Bulk recipe unlock")
     del shaped["unlock"]
-    recipe_path.write_text(json.dumps(recipe,indent=2)+"\\n",encoding="utf-8")
+    recipe_path.write_text(json.dumps(recipe,indent=2)+"\n",encoding="utf-8")
 
 
 def blob_identity(ref: str,path: str) -> str:
