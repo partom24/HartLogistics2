@@ -38,12 +38,12 @@ function ucePipeRouteNetwork(receiver) {
         // Index registered Sorters once per discovery. A 128-segment pipe
         // could legitimately serve 1,000+ stacked Sorters; linear registry
         // scans for every row would grow quadratically with the layout.
-        const registeredSorters=new Map();
+        const registeredSorters=new Map(),duplicateSorters=new Set();
         for(const entry of registry){
             if(!entry||entry.d!==receiver.d)continue;
             const pos=pg26PositionKey(entry);
-            if(registeredSorters.has(pos))return undefined;
-            registeredSorters.set(pos,entry);
+            if(registeredSorters.has(pos))duplicateSorters.add(pos);
+            else registeredSorters.set(pos,entry);
         }
         const downFace=PG26_FACES.find(face=>face.name==='down');
         if(!downFace)return undefined;
@@ -89,8 +89,9 @@ function ucePipeRouteNetwork(receiver) {
                     let sorter=next,complete=false,rowCount=0;
                     for(let depth=0;depth<UCE_MAX_SORTER_COLUMN_HEIGHT;depth++){
                         const q=sorter.location;
-                        const entry=registeredSorters.get(
-                            pg26PositionKey(q));
+                        const rowKey=pg26PositionKey(q);
+                        if(duplicateSorters.has(rowKey))return undefined;
+                        const entry=registeredSorters.get(rowKey);
                         const live=entry&&sorterAt(entry);
                         if(!entry||!live||live.typeId!==SORTER_ID||
                            !ucePipeSameDimension(root,live)||
