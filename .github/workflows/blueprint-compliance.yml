@@ -9,6 +9,13 @@ on:
 permissions:
   contents: read
 
+# Source development makes many small, auditable commits. Only the newest
+# PR head can establish readiness; don't strand it behind outdated 13-job
+# runs. Retain all main/explicit-dispatch evidence without cancellation.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   structural-contract:
     runs-on: ubuntu-latest
