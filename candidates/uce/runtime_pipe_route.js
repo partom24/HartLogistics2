@@ -425,10 +425,10 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority){
         while(pending.length){
             const current=pending.pop();
             if(!current||current.present===false||
-               seen.size>=logistics.receivers.length||
                !uceOrdinaryAccountSource(authority,current.id))
                 return false;
             if(seen.has(current.id))continue;
+            if(seen.size>=logistics.receivers.length)return false;
             seen.add(current.id);
             const root=receiverAt(current);
             if(!root||receiverOutputHopper(current))return false;
