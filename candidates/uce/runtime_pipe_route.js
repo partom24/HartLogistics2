@@ -113,13 +113,13 @@ function ucePipeRouteNetwork(receiver) {
                 } else if(type==='hartlogistics:bulk_storage'){
                     if(!ucePipeSameDimension(root,next))return undefined;
                     banks.set(pg26PositionKey(p),next);
-                } else if(type==='minecraft:chest'||
-                          type==='minecraft:barrel'){
-                    // As in PG26, a vanilla container touching the pipe at
-                    // or above its input level is a SOURCE, never an output.
-                    // Destination containers are exclusively behind Sorters.
-                    if(p.y<root.location.y||
-                       !ucePipeSameDimension(root,next))return undefined;
+                } else if(supportedStorage(next)){
+                    // Any approved vanilla inventory touching a pipe is a
+                    // deliberate INPUT, at any elevation. A vertical bend
+                    // must not reject a lower-bank source simply because
+                    // its Receiver happens to sit higher. Final storage is
+                    // still reachable only through a facing Sorter.
+                    if(!ucePipeSameDimension(root,next))return undefined;
                     const source=uceReadOnlyPipeInput(next,root);
                     if(!source)return undefined;
                     inputs.set(pg26PositionKey(p),source);
@@ -177,23 +177,16 @@ function ucePipeRouteNetwork(receiver) {
 }
 function uceReadOnlyPipeInput(block,root){
     try{
-        if(!block||!['minecraft:chest','minecraft:barrel']
-            .includes(block.typeId)||!ucePipeSameDimension(root,block)||
-           block.location.y<root.location.y)return undefined;
-        // A double chest may expose the same mutable 54-slot inventory
-        // through two block wrappers. Until native alias identity is
-        // established, refuse the entire affected graph.
-        if(block.typeId==='minecraft:chest'){
-            for(const side of PG26_FACES){
-                if(side.y!==0)continue;
-                const neighbor=pg26Neighbor(block,side);
-                if(!neighbor||neighbor.typeId==='minecraft:chest')
-                    return undefined;
-            }
-        }
-        const container=block.getComponent('minecraft:inventory')?.container;
-        if(!container||!container.isValid||container.size!==27)
-            return undefined;
+        if(!block||!supportedStorage(block)||
+           !ucePipeSameDimension(root,block))return undefined;
+        // Same original storage whitelist as the Sorter, but source
+        // ownership remains deliberately narrower: only single 27-slot
+        // inventories. Two aliases of a 54-slot double chest cannot be
+        // extracted until cross-component input ownership is certified.
+        // Never silently treat an aliased chest as an independent source.
+        if(!uceDirectStorageOwnerBlock(block))return undefined;
+        const container=blockContainer(block);
+        if(!container?.isValid||container.size!==27)return undefined;
         return {block,container,typeId:block.typeId};
     }catch(_){return undefined;}
 }
