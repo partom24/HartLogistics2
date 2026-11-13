@@ -121,3 +121,49 @@ test('ordinary operation leaving a pending intent holds direct native Sorter wor
   }});
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
 });
+
+test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',()=>{
+  const start=bridge.indexOf('function uceOrdinaryServiceTick(authority){');
+  const end=bridge.indexOf('\n\n/* Bulk Storage',start);
+  assert.ok(start>=0&&end>start);
+  const actual='let uceOrdinaryCursor=0;\n'+bridge.slice(start,end);
+  const receiver={id:'minecraft:overworld|3|80|6',
+    d:'minecraft:overworld',x:3,y:80,z:6,present:true};
+  const receiverBlock={typeId:'hartsorter:receiver',location:{x:3,y:80,z:6}};
+  const sourceBlock={typeId:'minecraft:hopper',dimension:{id:'minecraft:overworld'},
+    location:{x:3,y:79,z:6}};
+  let total=0,registrations=0;
+  const logs=[];
+  const ctx={
+    logistics:{receivers:[receiver],collectors:[]},
+    receiverAt:()=>receiverBlock,blockIsRedstonePowered:()=>false,
+    receiverOutputHopper:()=>({block:sourceBlock,locked:false,
+      container:{size:5,isValid:true,getItem:()=>undefined}}),
+    uceOrdinaryAccountSource:()=> 'sealed',
+    uceMaybeRegisterBulk:()=>false,
+    ucePipeRouteNetwork:()=>undefined,
+    uceSorterCollectorSources:()=>[],
+    createUnifiedCarrierRegistry:()=>({ok:true,
+      inspectHost:()=>({ok:false,reason:'carrier_record_missing'}),
+      registerEmptyHost:()=>{registrations++;return {ok:false,
+        reason:'synthetic_spawn_blocked'};}}),
+    createUnifiedShardWriter:()=>({ok:true,
+      inspect:()=>({ok:true,snapshot:{accounts:[{
+        id:'receiver:'+receiver.id,total,capacity:250000,
+        buckets:total?[{key:JSON.stringify({typeId:'minecraft:stone'}),count:total}]:[]
+      }]}})}),
+    ItemStack:class {constructor(typeId,amount){this.typeId=typeId;this.amount=amount;}},
+    uceClassifyLiveStack:()=> 'ORDINARY',
+    uceNativeOutputSlot:()=>0,
+    uceBridgeLog:x=>logs.push(x)
+  };
+  vm.runInNewContext(actual,ctx);
+  const authority={worldId:'world',epoch:1};
+  ctx.uceOrdinaryServiceTick(authority);
+  assert.equal(registrations,0);
+  assert.deepEqual(logs,[],'uninitialized idle host is not a custody fault');
+  total=64;
+  ctx.uceOrdinaryServiceTick(authority);
+  assert.equal(registrations,1,'actual pending output may initiate an empty host');
+  assert.deepEqual(logs,['synthetic_spawn_blocked']);
+});
