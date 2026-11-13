@@ -62,6 +62,9 @@ function container(size,first=undefined){
         !x?.nameTag&&!value.nameTag;
       return value;
     },
+    // Bedrock Container.setItem is required for certified physical escrow
+    // retirement after the Receiver's durable ledger credit.
+    setItem(i,value){slots[i]=copy(value);},
     moveItem(i,j,to){
       if(slots[i]===undefined||to.peek(j)!==undefined)
         throw Error('mock-engine-owner-refusal');
