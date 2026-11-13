@@ -1,5 +1,6 @@
 /**
- * UCE virtual ordinary Receiver -> Bulk across two sealed ledger shards.
+ * UCE virtual ordinary transfers between two sealed ledger shards:
+ * Receiver <-> Bulk and Receiver -> verified linked Receiver.
  *
  * One global durable intent coordinates TWO existing shard writers. Neither
  * path reconstructs ItemStacks, creates another queue, or mutates a Q4 key.
@@ -97,7 +98,8 @@ export function executeUnifiedFederatedTransfer({
   const from=account(source,fromAccount),to=account(target,toAccount);
   if(!from||!to||!(
        (from.kind==='receiver'&&to.kind==='bulk')||
-       (from.kind==='bulk'&&to.kind==='receiver')
+       (from.kind==='bulk'&&to.kind==='receiver')||
+       (from.kind==='receiver'&&to.kind==='receiver')
      )||bucket(from,key)<count||to.total+count>to.capacity||
      !nat(source.snapshot.total+target.snapshot.total))
     return hold('federated_account_or_capacity_unverified');
