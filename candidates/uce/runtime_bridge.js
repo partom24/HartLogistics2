@@ -1150,11 +1150,29 @@ function uceOrdinaryServiceTick(authority){
         // authority from a different shard or assume unknown banks are full.
         const governedBanks=bankNetwork?.banks?.length?
             [...new Set(bankNetwork.banks.map(b=>uceBulkOwnerId(b)))].sort():[];
+        let leaderShardKey,leaderLedger;
+        if(governedBanks.length&&bankNetwork.leaderId!==receiver.id){
+            leaderShardKey=uceOrdinaryAccountSource(
+                authority,bankNetwork.leaderId);
+            if(leaderShardKey&&leaderShardKey!==shardKey){
+                const reader=createUnifiedShardWriter({
+                    world,shardKey:leaderShardKey,
+                    worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence:()=>false
+                });
+                const view=reader.ok?reader.inspect():reader;
+                if(view.ok)leaderLedger=view;
+                else uceBridgeLog('federated leader shard HOLD '+
+                    view.reason,ownerId);
+            }
+        }
         let wildcardPermitted=governedBanks.length===0;
         if(governedBanks.length){
-            wildcardPermitted=bankNetwork.leaderId===receiver.id&&
-                uceBulkWildcardPermitted(ledger.snapshot,ownerId,
-                    governedBanks);
+            const governingLedger=bankNetwork.leaderId===receiver.id?
+                ledger:leaderLedger;
+            wildcardPermitted=!!governingLedger&&
+                uceBulkWildcardPermitted(governingLedger.snapshot,
+                    bankNetwork.leaderId,governedBanks);
         }
         const onlyPreferred=!wildcardPermitted;
         let preferredOutputReady=false;
@@ -1216,6 +1234,101 @@ function uceOrdinaryServiceTick(authority){
                     uceBridgeLog('Bulk transfer '+changed.reason);
                 uceOrdinaryCursor=(index+1)%receivers.length;
                 return changed.ok===true;
+            }
+        }
+
+        // Multi-Receiver graphs have one Bulk leader, but a linked
+        // secondary Receiver's ordinary balance lives in its own immutable
+        // shard. This is a virtual internal transfer, not an ItemStack hop.
+        // The same UCE ledger writer commits both sides under ONE globally
+        // prepared federated journal; no cross-shard replay is permitted.
+        if(governedBanks.length&&bankNetwork.leaderId!==receiver.id&&
+           leaderLedger&&leaderShardKey){
+            const preferredKeys=[],outputKeys=[];
+            if(!blockIsRedstonePowered(receiverAt(receiver))){
+                const canDeliver=(key)=>{
+                    try{
+                        const def=JSON.parse(key);
+                        const item=new ItemStack(def.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY')
+                            return false;
+                        return outgoing?
+                            !!uceOrdinaryHopperCandidate(
+                                outgoing.container,item):
+                            (!output&&!!uceChoosePipeDestination(
+                                receiver,item,true,undefined,true));
+                    }catch(_){return false;}
+                };
+                for(const entry of account.buckets)
+                    if(canDeliver(entry.key))
+                        preferredKeys.push(entry.key);
+                if(!sourceRecord&&account.total===0){
+                    for(const bank of leaderLedger.snapshot.accounts){
+                        if(bank.kind!=='bulk'||
+                           !governedBanks.includes(bank.ownerId))continue;
+                        for(const entry of bank.buckets)
+                            if(canDeliver(entry.key))
+                                outputKeys.push(entry.key);
+                    }
+                }
+            }
+            preferredOutputReady=preferredKeys.length>0;
+            const plan=planUnifiedFederatedNetwork({
+                followerSnapshot:ledger.snapshot,
+                leaderSnapshot:leaderLedger.snapshot,
+                receiverOwnerId:ownerId,
+                leaderOwnerId:bankNetwork.leaderId,
+                connectedBankOwnerIds:governedBanks,
+                sourceWaiting:!!sourceRecord,
+                preferredOutputKeys:preferredKeys,
+                outputEligibleKeys:outputKeys
+            });
+            if(!plan.ok){
+                uceBridgeLog('federated planner HOLD '+plan.reason,ownerId);
+            }else if(plan.status==='TRANSFER_DRAFT_ONLY'){
+                const witness=bankNetwork.fingerprint;
+                if(typeof witness!=='string'||witness.length>8192){
+                    uceBridgeLog('federated network witness too large',
+                        ownerId);
+                    return;
+                }
+                const operationId=uceNativeReceiptId();
+                if(!operationId){
+                    uceBridgeLog('federated receipt exhausted');
+                    return;
+                }
+                const proof=(tx,direction)=>
+                    uceFederatedRouteVerified(
+                        authority,receiver,tx,direction);
+                const externalFence=()=>uceLegacyWriterBlocked()&&
+                    !!uceAuthoritySnapshot();
+                const leaderWriter=createUnifiedShardWriter({
+                    world,shardKey:leaderShardKey,
+                    worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence,verifyFederatedRoute:proof
+                });
+                if(!leaderWriter.ok){
+                    uceBridgeLog('federated bank writer '+
+                        leaderWriter.reason,ownerId);
+                    return;
+                }
+                const fromBank=plan.from.startsWith('bulk:');
+                const result=executeUnifiedFederatedTransfer({
+                    world,worldId:authority.worldId,epoch:authority.epoch,
+                    operationId,routeWitness:witness,
+                    sourceWriter:fromBank?leaderWriter:shardWriter,
+                    destinationWriter:fromBank?shardWriter:leaderWriter,
+                    fromShard:fromBank?leaderShardKey:shardKey,
+                    toShard:fromBank?shardKey:leaderShardKey,
+                    fromAccount:plan.from,toAccount:plan.to,
+                    key:plan.key,count:plan.count,
+                    externalFence,verifyRoute:tx=>proof(tx,'withdraw')
+                });
+                if(!result.ok)
+                    uceBridgeLog('federated transfer HOLD '+result.reason,
+                        ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return result.ok===true;
             }
         }
 
