@@ -893,7 +893,7 @@ test('double chest collapse and single-to-double expansion revoke old source slo
   const f=fixture(),shared=f.newContainer(54);
   const first=f.put('minecraft:chest',1,70,4,shared);
   const mate=f.put('minecraft:chest',1,70,5,shared);
-  const source=f.network().inputs[0];
+  const initialGraph=f.network(),source=initialGraph.inputs[0];
   assert.equal(source.container.size,54);
   assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,source),true);
   // Simulate a perfectly valid new single chest at the SAME canonical
@@ -902,10 +902,13 @@ test('double chest collapse and single-to-double expansion revoke old source slo
   const single=f.newContainer();
   first.getComponent=n=>n==='minecraft:inventory'?
     {container:single}:undefined;
-  assert.equal(f.network().inputs[0].container.size,27);
+  const singleGraph=f.network();
+  assert.equal(singleGraph.inputs[0].container.size,27);
+  assert.notEqual(initialGraph.fingerprint,singleGraph.fingerprint,
+    'merge/split may not reuse a saved route witness');
   assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,source),false,
     'changed physical inventory shape invalidates earlier admitted slot');
-  const solo=f.network().inputs[0];
+  const solo=singleGraph.inputs[0];
   mate.typeId='minecraft:chest';
   first.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
   assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,solo),false,
