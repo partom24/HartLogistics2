@@ -282,8 +282,8 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
   const read=(key)=>createUnifiedShardWriter({
     world,shardKey:key,worldId,epoch,externalFence:()=>true}).inspect();
   return {ctx,first,last,collector,collectorBlock,destination,
-    outputHopper,remoteBankId,saved,world,read,logs,
-    get writes(){return writes}};
+    outputHopper,remoteBankId,saved,world,read,logs,put,dim,
+    newContainer,get writes(){return writes}};
 }
 test('integrated UCE scheduler journals a real Filter-directed interbank handoff exactly once',()=>{
   const f=fixture();
@@ -421,4 +421,117 @@ test('33 Receiver ordinary scheduler bounds idle topology scans and fairly visit
     'all 33 existing Receivers must receive a bounded round-robin inspection');
   assert.equal(f.writes,0,
     'idle scan must not reserve carriers, mutate world or create queue');
+});
+
+test('one actual journaled transfer routes 200000 queued items through 1386 stacked Sorters, 54 Collectors and 33 Receivers',()=>{
+  const f=fixture(),ctx=f.ctx;
+  // Upgrade the two-bank real-scheduler fixture to the owner's reported
+  // production-scale geometry, with 33 physically independent Transporter
+  // regions connected by original facing Sorter->Collector links.
+  // Every bank has two 21-high Sorter columns; only the final bank has an
+  // accepting native Filter. All intermediate owners have sealed empty
+  // Receiver shards and use the SAME globally journaled federated writer.
+  const count=33,levels=21;
+  const owners=[f.first,f.last];
+  for(let bank=2;bank<count;bank++){
+    const rx=4+20*bank;
+    const receiver={id:id(rx,70,4),d:dimensionId,x:rx,y:70,z:4,
+      present:true};
+    f.put('hartsorter:receiver',rx,70,4);
+    owners.push(receiver);
+    ctx.logistics.receivers.push(receiver);
+  }
+  const shards=new Map([[f.first.id,shardA],[f.last.id,shardB]]);
+  for(let bank=2;bank<count;bank++){
+    const owner=owners[bank],shard=
+      'hartlogistics:uce_shard_'+String(bank+1).padStart(4,'0')+'_v1';
+    shards.set(owner.id,shard);
+    const zero=previewUnifiedShard({
+      snapshot:ledger(owner.id,0),shardKey:shard});
+    assert.equal(zero.ok,true,zero.reason);
+    f.saved.set(shard,zero.raw);
+  }
+  ctx.uceOrdinaryAccountSource=(_,ownerId)=>shards.get(ownerId);
+  const backlog=previewUnifiedShard({
+    snapshot:ledger(f.first.id,200000),shardKey:shardA});
+  assert.equal(backlog.ok,true,backlog.reason);
+  f.saved.set(shardA,backlog.raw);
+  // Existing x=3 and x=23 top Sorters are retained from the real
+  // two-bank fixture. Bank 1's old Filter must become BYPASS so only
+  // the final bank's physical Filter is an eligible destination.
+  ctx.registry[1].m='bypass';
+  let finalEntry,finalContainer;
+  for(let bank=0;bank<count;bank++){
+    const rx=owners[bank].x;
+    f.put('hartlogistics:transporter',rx-2,70,4);
+    if(bank>=2)f.put('hartlogistics:transporter',rx-1,70,4);
+    for(const col of [1,2]){
+      const x=rx-col;
+      for(let row=0;row<levels;row++){
+        const y=69-row;
+        if(col===1&&row===0&&bank<2)continue;
+        f.put('hartsorter:sorter',x,y,4);
+        ctx.registry.push({d:dimensionId,x,y,z:4,m:'bypass',f:null});
+      }
+    }
+    if(bank===0)continue; // Original top Sorter forwards to bank 1.
+    const lower=ctx.registry.find(e=>e.x===rx-2&&e.y===49);
+    assert.ok(lower,'every bank's registered vertical column is complete');
+    lower.m='filter';
+    lower.f={match:{typeId:'minecraft:cobblestone'}};
+    if(bank<count-1){
+      const block=f.put('hartsorter:collector',rx-2,49,5);
+      const collector={id:id(rx-2,49,5),d:dimensionId,
+        x:rx-2,y:49,z:5,link:owners[bank+1].id,present:true};
+      ctx.logistics.collectors.push(collector);
+    }else{
+      finalEntry=lower;
+      finalContainer=f.newContainer();
+      f.put('minecraft:barrel',rx-2,49,5,finalContainer);
+    }
+  }
+  // The remaining 22 registered Collectors face original BYPASS rows.
+  // They belong to the real scale/registry but cannot take priority
+  // over the active Filter route or manufacture extra item custody.
+  for(let bank=0;bank<22;bank++){
+    const rx=owners[bank].x;
+    const x=rx-1,y=68;
+    f.put('hartsorter:collector',x,y,5);
+    ctx.logistics.collectors.push({
+      id:id(x,y,5),d:dimensionId,x,y,z:5,
+      link:owners[(bank+2)%count].id,present:true});
+  }
+  assert.equal(ctx.registry.length,1386);
+  assert.equal(ctx.logistics.collectors.length,54);
+  assert.equal(ctx.logistics.receivers.length,33);
+  const item=new ctx.ItemStack('minecraft:cobblestone',1);
+  const graph=ctx.ucePipeRouteNetwork(f.first);
+  assert.ok(graph,'source bank must have all 42 loaded Sorters');
+  assert.equal(graph.entries.length,42);
+  const path=ctx.uceSelectInterbankFilteredRoute(
+    f.first,graph,item,{worldId,epoch});
+  assert.ok(path,'final physical Filter must be reachable across 32 banks');
+  assert.equal(path.hops,32);
+  assert.equal(path.receiver.id,owners[32].id);
+  assert.equal(path.remote.entry,finalEntry);
+  assert.ok(path.witness.length<8192,
+    'actual 33-bank transaction witness must fit one global journal');
+  const transmitted=ctx.uceOrdinaryServiceTick({worldId,epoch});
+  assert.equal(transmitted,true,
+    'real Receiver scheduler must commit same federated custody: '+
+    f.logs.join(' | '));
+  const totals=owners.map(owner=>
+    f.read(shards.get(owner.id)).snapshot.total);
+  assert.equal(totals[0],199936);
+  assert.equal(totals[32],64);
+  assert.equal(totals.reduce((sum,n)=>sum+n,0),200000,
+    'all 33 sealed Receiver accounts conserve the historical backlog');
+  assert.ok(totals.slice(1,32).every(n=>n===0),
+    'intermediate routed banks never receive a duplicate virtual credit');
+  assert.equal(finalContainer.getItem(0),undefined,
+    'one virtual transfer does not fabricate a native output');
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),false);
+  assert.equal(f.read(shardA).lastReceipt.kind,'FEDERATED_DEBIT');
+  assert.equal(f.read(shards.get(owners[32].id)).lastReceipt.kind,
+    'FEDERATED_CREDIT');
 });
