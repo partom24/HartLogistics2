@@ -867,6 +867,28 @@ test('double chest input rejects unverified alias size, unloaded half or foreign
   assert.equal(shulker.network(),undefined,
     'non-chest 54-slot inventory remains unsupported input');
 });
+test('Sorter must never emit into the other half of its double-chest pipe input',()=>{
+  const f=fixture(),shared=f.newContainer(54);
+  f.chestA.typeId='minecraft:chest';
+  f.chestB.typeId='minecraft:chest';
+  for(const half of [f.chestA,f.chestB])
+    half.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
+  // Only the farther chest half is physically pipe-attached. The
+  // preferred Sorter faces the OTHER half of the same 54-slot inventory.
+  f.put('hartlogistics:transporter',2,70,5);
+  const graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.inputs.length,1);
+  assert.equal(graph.inputs[0].block,f.chestB,
+    'input canonical owner is the lower-coordinate half');
+  assert.equal(f.context.ucePipeStorageOwnerId(f.chestA),
+               graph.inputs[0].ownerId);
+  assert.equal(f.choose(COBBLE),undefined,
+    'neither Filter nor Wildcard may write back into the same source');
+  f.chestB.typeId='minecraft:barrel';
+  assert.equal(f.network(),undefined,
+    'changing a reciprocal chest pair revokes all source admission');
+});
 test('source removal, unloaded frontier or changed input source identity revokes admission',()=>{
   const f=fixture();
   const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
