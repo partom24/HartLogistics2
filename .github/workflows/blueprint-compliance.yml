@@ -33,6 +33,8 @@ jobs:
         run: |
           node --test tests/test_uce_pipe_route_mock.mjs
           node --test tests/test_uce_interbank_integrated_runtime.mjs
+          node --check tests/test_uce_remote_bulk_integrated.mjs
+          node --test tests/test_uce_remote_bulk_integrated.mjs
           node --test tests/test_uce_interbank_mr_real_port.mjs
           node --test tests/test_unified_bulk_policy.mjs
           node --test tests/test_uce_diagnostics_mock.mjs
@@ -225,6 +227,8 @@ jobs:
           node --test tests/test_uce_pipe_route_mock.mjs
           node --check tests/test_uce_interbank_integrated_runtime.mjs
           node --test tests/test_uce_interbank_integrated_runtime.mjs
+          node --check tests/test_uce_remote_bulk_integrated.mjs
+          node --test tests/test_uce_remote_bulk_integrated.mjs
           node --check tests/test_uce_interbank_mr_mock.mjs
           node --test tests/test_uce_interbank_mr_mock.mjs
           node --check tests/test_uce_interbank_mr_real_port.mjs
