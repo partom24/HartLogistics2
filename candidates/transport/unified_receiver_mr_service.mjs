@@ -114,6 +114,16 @@ export function serviceUnifiedReceiverMR({registry,port,ownerId,anchor,
   if(!Array.isArray(verified.slots)||verified.slots.length===0)
     return denied('carrier_ticket_slots_missing');
   const srcSlot=verified.slots[0];
+  // An ordinary escrow accidentally left in a carrier is governed by the
+  // ordinary boundary journal and must NOT escape via the MR output lane.
+  // Native tickets alone are not spendable ordinary-account authority.
+  let nativeKind;
+  try{
+    const stack=host.container.getItem(srcSlot);
+    nativeKind=stack?identify(stack):undefined;
+  }catch(_){return denied('native_mr_egress_identity_unreadable');}
+  if(nativeKind!=='MR')
+    return denied('native_egress_requires_mr_identity');
   const from={ownerId,container:host.container,slot:srcSlot};
   const to={ownerId:output.ownerId,container:output.container,slot:dstSlot};
   return moveAndClaim({port,registry,ownerId,anchor,
