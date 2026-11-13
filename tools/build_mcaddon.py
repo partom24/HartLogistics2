@@ -59,9 +59,23 @@ def validate_pair(source: Path, *, is_uce: bool) -> tuple[str, Path, Path]:
         main = (bp / "scripts/main.js").read_text(encoding="utf-8")
         if 'const VERSION = "1.5.16-DEV-UCE";' not in main:
             raise ValueError("Not the integrated HL2 UCE runtime")
-        for marker in FORBIDDEN_UCE_MARKERS:
-            if marker in main:
-                raise ValueError(f"Temporary LAB diagnostic reached UCE product: {marker}")
+        # Check every shipped script and diagnostic asset, not just main.js:
+        # otherwise a copied PG42 probe could survive as an unimported file.
+        for kind in (bp, rp):
+            for file in kind.rglob("*"):
+                if file.is_symlink():
+                    raise ValueError(f"UCE pack contains forbidden link: {file}")
+                if not file.is_file():
+                    continue
+                if "tests" in file.relative_to(kind).parts or "pg42_probe" in file.name:
+                    raise ValueError(f"UCE package contains temporary probe file: {file}")
+                if file.suffix in (".js", ".mjs", ".json", ".lang", ".mcfunction"):
+                    body = file.read_text(encoding="utf-8")
+                    for marker in FORBIDDEN_UCE_MARKERS:
+                        if marker in body:
+                            raise ValueError(
+                                f"Temporary LAB diagnostic reached UCE product: {marker} ({file})"
+                            )
         # A source-only build may not silently become a release.
         version = "1.5.16_UNAPPROVED_SOURCE_ONLY"
     else:
