@@ -9,7 +9,9 @@ const source=fs.readFileSync(new URL(
 const begin=source.indexOf('function uceEmptyLinkRegistryBootProof(');
 const end=source.indexOf('\nfunction uceUseReceiverLinkOrStatus(',begin);
 assert.ok(begin>=0&&end>begin,'PG36 guarded fresh link proof is present');
-assert.match(source.slice(end,end+3000),
+const linkEnd=source.indexOf('\n\n/* Read-only status',end);
+assert.ok(linkEnd>end,'exact new-world link UI function has stable boundary');
+assert.match(source.slice(end,linkEnd),
   /verifyEmptyNewWorld:\(\)=>uceEmptyLinkRegistryBootProof\(authority\)/);
 const routine=source.slice(begin,end);
 function fixture(options={}){
