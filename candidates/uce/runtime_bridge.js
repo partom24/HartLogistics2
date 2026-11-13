@@ -290,7 +290,8 @@ function uceMrServiceTick(authority){
                 const route=uceChoosePipeDestination(receiver,native);
                 if(route){
                     endpoints.set(route.ownerId,{verify:()=>
-                        ucePipeDestinationStillValid(receiver,native,route)});
+                        ucePipeDestinationStillValid(receiver,native,route,
+                            route.dest.container.getItem(route.slot)!==undefined)});
                     outputNative={ownerId:route.ownerId,
                         container:route.dest.container,
                         blockVerified:true,locked:false};
@@ -1127,7 +1128,9 @@ function uceOrdinaryServiceTick(authority){
                 routeVerify=()=>!receiverOutputHopper(receiver)&&
                     !blockIsRedstonePowered(receiverAt(receiver))&&
                     ucePipeDestinationStillValid(
-                        receiver,selectedItem,selectedRoute);
+                        receiver,selectedItem,selectedRoute,
+                        selectedRoute.dest.container.getItem(
+                            selectedRoute.slot)!==undefined);
             }else{
                 const outputIndex=uceNativeOutputSlot(outgoing.container);
                 if(outputIndex<0)continue;
@@ -1481,7 +1484,9 @@ function uceSorterDirectServiceTick(authority){
                 // Slot/winner revalidation must not depend on source occupancy
                 // AFTER a successful move, because ACK sees that slot empty.
                 const routeStillSelected=item=>{
-                    const current=uceSorterColumnWinner(col,item);
+                    const occupied=dest.getItem(destSlot)!==undefined;
+                    const current=uceSorterColumnWinner(
+                        col,item,occupied?selected:undefined);
                     return !!current&&current.kind==='storage'&&
                         current.entry===selected.entry&&
                         uceSameLoadedBlock(current.source.block,source)&&

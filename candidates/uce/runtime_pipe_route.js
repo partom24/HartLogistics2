@@ -213,7 +213,8 @@ function ucePipeAutoSeed(item,container) {
     }catch(_){}
     return false;
 }
-function uceChoosePipeDestination(receiver,item,onlyPreferred=false) {
+function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
+                                  settledDestination=undefined) {
     // The old Receiver output Hopper retains first claim to physical egress.
     // Bulk account discovery on the SAME graph may still occur, because
     // moving virtual balances is not a second physical output writer.
@@ -229,7 +230,16 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false) {
         const dest=uceReadOnlySorterDestination(entry,root);
         if(!dest||graph.inputs.some(input=>
             uceSameLoadedBlock(input.block,dest.block)))continue;
-        const empty=ucePipeEmptySlot(dest.container);
+        // Native ACK may see the exact output slot filled by the move.
+        // Only the already selected entry/slot may bypass empty admission.
+        let empty=ucePipeEmptySlot(dest.container);
+        if(settledDestination?.entry===entry &&
+           uceSameLoadedBlock(dest.block,settledDestination.dest?.block) &&
+           Number.isSafeInteger(settledDestination.slot) &&
+           settledDestination.slot>=0 &&
+           settledDestination.slot<dest.container.size &&
+           dest.container.getItem(settledDestination.slot)!==undefined)
+            empty=settledDestination.slot;
         if(empty<0)continue;
         let priority=-1;
         if(mode==='filter'&&matchesFilter(item,entry.f))priority=0;
@@ -252,9 +262,10 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false) {
     return {...selected,routeId,onlyPreferred,
         ownerId:'uce-pipe-output|'+destId};
 }
-function ucePipeDestinationStillValid(receiver,item,admitted) {
+function ucePipeDestinationStillValid(receiver,item,admitted,postMove=false) {
+    if(!admitted)return false;
     const current=uceChoosePipeDestination(receiver,item,
-        admitted?.onlyPreferred===true);
+        admitted.onlyPreferred===true,postMove===true?admitted:undefined);
     return !!current&&current.routeId===admitted.routeId &&
         current.slot===admitted.slot;
 }
@@ -267,7 +278,7 @@ function ucePipeDestinationStillValid(receiver,item,admitted) {
  * A storage Sorter that would win still wins the selection (the UCE storage
  * executor must handle it); an unavailable higher-priority target HOLDS.
  */
-function uceSorterColumnWinner(column,item){
+function uceSorterColumnWinner(column,item,settledSelection=undefined){
     try{
         if(!column||!item||!Array.isArray(column.sorters))
             return undefined;
@@ -321,7 +332,12 @@ function uceSorterColumnWinner(column,item){
                 // verified storage, where it never registers a Collector.
                 if(mode==='auto'&&!autoSorterMatches(item,entry))
                     continue;
-                if(!findAcceptSlot(dest,item))continue;
+                // ACK retains the exact pre-move selection even when the
+                // completed move filled its last free slot.
+                if(!findAcceptSlot(dest,item) &&
+                   !(settledSelection?.entry===entry &&
+                     uceSameLoadedBlock(settledSelection.block,target)))
+                    continue;
                 eligible.push({entry,priority,kind:'storage',
                     block:target,container:dest});
             }

@@ -358,3 +358,41 @@ test('one physical Transporter input cannot serve two disconnected pipe networks
   assert.equal(f.network(),undefined);
   assert.equal(f.choose(COBBLE),undefined);
 });
+
+test('pipe ACK accepts its filled final slot, pre-move admission still refuses it',()=>{
+  const f=fixture(),choice=f.choose(COBBLE);
+  choice.dest.container.fill({typeId:'minecraft:stone',amount:64});
+  assert.equal(f.context.ucePipeDestinationStillValid(f.receiver,COBBLE,choice),false);
+  assert.equal(f.context.ucePipeDestinationStillValid(f.receiver,COBBLE,choice,true),true);
+  f.filter.m='bypass';
+  assert.equal(f.context.ucePipeDestinationStillValid(f.receiver,COBBLE,choice,true),false);
+  f.filter.m='filter';
+  f.missing.add('3,70,3');
+  assert.equal(f.context.ucePipeDestinationStillValid(f.receiver,COBBLE,choice,true),false);
+});
+test('direct Sorter source winner is preserved for the last-slot ACK',()=>{
+  const f=fixture();
+  f.put('minecraft:hopper',3,71,4);
+  const col={d:f.dim.id,source:{x:3,y:71,z:4},
+    sorters:[f.filter,f.fallback]};
+  f.context.getDimension=()=>f.dim;
+  f.context.blockContainer=()=>({
+    size:5,isValid:true,getItem:()=>COBBLE});
+  f.context.hopperIsRedstoneLocked=()=>false;
+  f.context.supportedStorage=b=>b?.typeId==='minecraft:barrel';
+  f.context.findAcceptSlot=(container,item)=>{
+    for(let i=0;i<container.size;i++)
+      if(container.getItem(i)===undefined)return {slot:i};
+    return undefined;
+  };
+  const destination=f.chestA.getComponent('minecraft:inventory').container;
+  destination.fill({typeId:'minecraft:stone',amount:64});
+  destination.setItem(0,undefined);
+  const original=f.context.uceSorterColumnWinner(col,COBBLE);
+  assert.equal(original?.entry,f.filter);
+  destination.setItem(0,{typeId:'minecraft:cobblestone',amount:64});
+  assert.notEqual(f.context.uceSorterColumnWinner(col,COBBLE)?.entry,f.filter);
+  assert.equal(f.context.uceSorterColumnWinner(col,COBBLE,original)?.entry,f.filter);
+  f.filter.m='bypass';
+  assert.notEqual(f.context.uceSorterColumnWinner(col,COBBLE,original)?.entry,f.filter);
+});

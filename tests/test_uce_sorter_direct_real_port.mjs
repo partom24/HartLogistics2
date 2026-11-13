@@ -41,7 +41,7 @@ function inventory(initial){
     set throwAfterMove(x){throwAfterMove=x;}
   };
 }
-function fixture(){
+function fixture({lastSlot=false}={}){
   const props=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
     schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',worldId,epoch,
     writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
@@ -63,6 +63,8 @@ function fixture(){
     return b;
   }
   const input=inventory(original),output=inventory();
+  if(lastSlot)for(let i=1;i<output.size;i++)
+    output.engineSet(i,{typeId:'minecraft:stone',amount:64});
   const hopper=block('minecraft:hopper',4,71,3,input);
   const storage=block('minecraft:barrel',5,70,3,output);
   const entry={d:dim.id,x:4,y:70,z:3};
@@ -72,7 +74,8 @@ function fixture(){
     supportedStorage:b=>b?.typeId==='minecraft:barrel',
     blockContainer:b=>b.container,
     hopperIsRedstoneLocked:()=>false,
-    uceSorterColumnWinner:(c,s)=>s?{
+    uceSorterColumnWinner:(c,s,settled)=>s&&(
+      output.raw.some(v=>v===undefined)||settled?.entry===entry)?{
       kind:'storage',entry,source:{block:hopper},
       block:storage,container:output}:undefined,
     uceNativeOutputSlot:c=>{
@@ -123,4 +126,14 @@ test('pre-existing uncertain native custody freezes direct Sorter output',()=>{
   assert.deepEqual(f.input.raw[0],original);
   assert.equal(f.output.raw[0],undefined);
   assert.equal(f.writes,0);
+});
+
+test('direct native Sorter ACK succeeds when the only free slot becomes full',()=>{
+  const f=fixture({lastSlot:true});
+  f.context.uceSorterDirectServiceTick({worldId,epoch});
+  assert.deepEqual(f.output.raw[0],original);
+  assert.equal(f.input.raw[0],undefined);
+  assert.equal(f.props.has(UCE_NATIVE_INTENT_KEY),false);
+  assert.equal(f.writes,3);
+  assert.deepEqual(f.logs,[]);
 });
