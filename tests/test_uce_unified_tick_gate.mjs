@@ -62,7 +62,8 @@ function fixture({ready=true,active=true,sealed=true,
 test('valid ACTIVE sealed world services both lanes under a single authority proof',()=>{
   const f=fixture();
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
-  assert.equal(f.reads.length,12);
+  assert.equal(f.reads.length,16,
+    'one ordinary no-work attempt still gets a post-commit journal check');
 });
 test('missing authority or failed cold seal never invokes either lane',()=>{
   assert.deepEqual(fixture({active:false}).calls,['authority']);
