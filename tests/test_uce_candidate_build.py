@@ -165,7 +165,9 @@ class UceBuildTests(unittest.TestCase):
         # ingress gate; all share one native and legacy journal authority.
         self.assertIn("hartsorter:queue_journal_v1",s)
         self.assertIn('executeUnifiedOrdinaryDeposit(args)',s)
-        self.assertIn('executeUnifiedOrdinaryWithdrawal(args)',s)
+        self.assertIn('executeUnifiedOrdinaryWithdrawal({...args,',s)
+        self.assertIn('partialOutput:selectedRoute?.partialOutput===true',s)
+        self.assertIn('port.moveCertifiedPartial(',s)
         self.assertEqual(s.count('function logisticsTick() {'),1)
 
     def test_bulk_block_and_same_scheduler_integration(self):
@@ -205,7 +207,9 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("registerBulkMember(",self.main)
         self.assertIn("shardWriter.applyInternalTransfer(",self.main)
         self.assertIn("verifyInternalRoute:tx=>",self.main)
-        self.assertIn("executeUnifiedOrdinaryWithdrawal(args)",self.main)
+        self.assertIn("executeUnifiedOrdinaryWithdrawal({...args,",self.main)
+        self.assertIn("partialOutput:selectedRoute?.partialOutput===true",self.main)
+        self.assertIn("port.moveCertifiedPartial(",self.main)
         self.assertIn("serviceUnifiedReceiverMR({",self.main)
         self.assertIn("createUnifiedLinkRegistry({world",self.main)
         self.assertIn("function uceSelectCollectorForLink(player,block)",self.main)
