@@ -439,12 +439,36 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
             // can accept this item. A full or redstone-locked Hopper must
             // not permanently disable verified downstream Bulk overflow.
             // Missing/invalid native output identity remains a HOLD.
+            const below=root.dimension.getBlock({
+                x:root.location.x,y:root.location.y-1,
+                z:root.location.z});
+            // The original reader returns undefined for both an absent
+            // Hopper and an UNREADABLE Hopper inventory. Those cases must
+            // not be conflated during a negative, network-wide proof.
+            if(!below)return false;
             const hopper=receiverOutputHopper(current);
+            if(below.typeId==='minecraft:hopper'&&!hopper)return false;
             if(hopper){
-                if(!hopper.container?.isValid)return false;
-                if(!hopper.locked&&!blockIsRedstonePowered(root)&&
-                   uceOrdinaryHopperCandidate(hopper.container,item))
-                    return false;
+                if(!uceSameLoadedBlock(below,hopper.block)||
+                   !hopper.container?.isValid||
+                   hopper.container.size!==5)return false;
+                if(!hopper.locked&&!blockIsRedstonePowered(root)){
+                    if(uceOrdinaryHopperCandidate(hopper.container,item))
+                        return false;
+                    // A failed availability check may also mean an
+                    // exception or an unstable native view. Prove the
+                    // exact 5-slot Hopper is populated before treating
+                    // its refusal as ordinary Bulk backpressure.
+                    for(let slot=0;slot<5;slot++){
+                        const existing=hopper.container.getItem(slot);
+                        if(!existing||
+                           !Number.isSafeInteger(existing.amount)||
+                           !Number.isSafeInteger(existing.maxAmount)||
+                           existing.amount<1||
+                           existing.amount>existing.maxAmount)
+                            return false;
+                    }
+                }
             }
             // Only the SAME synchronous decision may reuse topology
             // already inspected for its source Receiver. Mutating writers

@@ -1372,9 +1372,10 @@ test('metadata-rich/uncertified pipe output still requires an empty destination'
 
 test('legacy output Hopper retains first claim without blocking full-Hopper remote Bulk overflow',()=>{
   const f=fixture(),hopper=f.newContainer(5);
+  const live=f.put('minecraft:hopper',4,69,4,hopper);
   const target=f.chestA.getComponent('minecraft:inventory').container;
   target.fill({typeId:'minecraft:stone',amount:64,maxAmount:64});
-  f.context.receiverOutputHopper=()=>({container:hopper,locked:false});
+  f.context.receiverOutputHopper=()=>({block:live,container:hopper,locked:false});
   f.context.uceOrdinaryHopperCandidate=(c,item)=>
     f.context.findAcceptSlot(c,item);
   const authority={worldId:'w',epoch:9};
@@ -1385,9 +1386,16 @@ test('legacy output Hopper retains first claim without blocking full-Hopper remo
   assert.equal(proof(),true,'verified full Hopper permits Bulk arbitration');
   hopper.setItem(4,undefined);
   assert.equal(proof(),false,'newly available Hopper revokes Bulk claim');
-  f.context.receiverOutputHopper=()=>({container:hopper,locked:true});
+  f.context.receiverOutputHopper=()=>({block:live,container:hopper,locked:true});
   assert.equal(proof(),true,'locked Hopper is not an accepting output');
   f.context.receiverOutputHopper=()=>({
-    container:{size:5,isValid:false},locked:false});
+    block:live,container:{size:5,isValid:false},locked:false});
   assert.equal(proof(),false,'unreadable Hopper remains HOLD');
+  f.context.receiverOutputHopper=()=>undefined;
+  assert.equal(proof(),false,'physical Hopper without inventory readback HOLDS');
+  f.context.receiverOutputHopper=()=>({block:live,container:hopper,locked:false});
+  hopper.getItem=()=>{throw new Error('native Hopper read failed');};
+  assert.equal(proof(),false,'read failure cannot be mistaken for full Hopper');
+  f.missing.add('4,69,4');
+  assert.equal(proof(),false,'unloaded output boundary remains HOLD');
 });
