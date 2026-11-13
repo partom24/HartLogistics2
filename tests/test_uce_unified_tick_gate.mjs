@@ -131,8 +131,8 @@ test('multiple successful ordinary Receiver operations are bounded to four per t
     'ORDINARY','ORDINARY','ORDINARY','ORDINARY','SORTER']);
   assert.equal(f.calls.filter(x=>x==='MR').length,1);
   assert.equal(f.calls.filter(x=>x==='SORTER').length,1);
-  assert.equal(f.reads.length,24,
-    '12 checks initially; each extra successful service gets fresh gate');
+  assert.equal(f.reads.length,28,
+    'two pre-lane, four post-commit and one pre-Sorter journal censuses');
 });
 test('ordinary batch stops on no work without spinning the scheduler',()=>{
   const f=fixture({ordinaryBudget:2});
