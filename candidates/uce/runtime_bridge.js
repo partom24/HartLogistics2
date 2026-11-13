@@ -53,6 +53,12 @@ function uceAuthoritySnapshot(){
        !Number.isSafeInteger(value.epoch)||value.epoch<1)return undefined;
     return value;
 }
+function uceCarrierRegistrationReason(result){
+    // Keep engine errors actionable without revealing arbitrary exception
+    // messages or silently changing the durable RESERVED evidence.
+    return result.reason+(result.spawnErrorClass?
+        ' ['+result.spawnErrorClass+']':'');
+}
 function uceBridgeLog(reason,ownerId=undefined){
     const owner=typeof ownerId==='string'&&ownerId?
         ownerId:'global';
@@ -203,7 +209,7 @@ function uceMrServiceTick(authority){
             // host must HOLD. A fresh registration has no ItemStack to clone.
             const registered=registry.registerEmptyHost({ownerId,anchor});
             if(!registered.ok){
-                uceBridgeLog(registered.reason,ownerId);
+                uceBridgeLog(uceCarrierRegistrationReason(registered),ownerId);
                 continue;
             }
             host=registry.inspectHost({ownerId,anchor});
@@ -1091,7 +1097,7 @@ function uceOrdinaryServiceTick(authority){
             if(!canDeposit&&!canWithdraw)continue;
             const created=registry.registerEmptyHost({ownerId,anchor});
             if(!created.ok){
-                uceBridgeLog(created.reason,ownerId);
+                uceBridgeLog(uceCarrierRegistrationReason(created),ownerId);
                 continue;
             }
             host=registry.inspectHost({ownerId,anchor});
@@ -1710,7 +1716,8 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
     let host=registry.inspectHost({ownerId,anchor});
     if(!host.ok&&host.reason==='carrier_record_missing'){
         const created=registry.registerEmptyHost({ownerId,anchor});
-        if(!created.ok){uceBridgeLog('ejected host '+created.reason);return;}
+        if(!created.ok){uceBridgeLog('ejected host '+
+            uceCarrierRegistrationReason(created),ownerId);return;}
         host=registry.inspectHost({ownerId,anchor});
     }
     if(!host.ok){uceBridgeLog('ejected host '+host.reason);return;}

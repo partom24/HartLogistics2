@@ -63,7 +63,9 @@ function fixture(opts={}){
       };
       spawned.push(entity);
       if(opts.spawnThrows){
-        throw Error('entity may have spawned before exception');
+        const error=Error('DO_NOT_LEAK_UNTRUSTED_ENGINE_MESSAGE');
+        error.name=opts.spawnErrorName||'UnknownSpawnError';
+        throw error;
       }
       return entity;
     }
@@ -478,4 +480,29 @@ test('PG40 observed RESERVED without local entity or native ticket remains HOLD,
   assert.equal(f.writes,before);
   failed(register(f),'carrier_record_already_reserved_or_active');
   assert.equal(f.spawned.length,0);
+});
+
+test('spawn failures retain RESERVED and classify only known Bedrock error names without leaking engine messages',()=>{
+  for(const [name,classification] of [
+    ['EntitySpawnError','EntitySpawnError'],
+    ['LocationInUnloadedChunkError','LocationInUnloadedChunkError'],
+    ['LocationOutOfWorldBoundariesError','LocationOutOfWorldBoundariesError'],
+    ['InvalidArgumentError','InvalidArgumentError'],
+    ['InvalidEntityError','InvalidEntityError'],
+    ['UnknownSpawnError','UNCLASSIFIED']
+  ]){
+    const f=fixture({spawnThrows:true,spawnErrorName:name});
+    const r=register(f);
+    failed(r,'carrier_spawn_outcome_ambiguous');
+    assert.equal(r.spawnErrorClass,classification);
+    assert.doesNotMatch(JSON.stringify(r),/DO_NOT_LEAK_UNTRUSTED_ENGINE_MESSAGE/);
+    const observed=f.mgr.inspectHostEvidence({ownerId,anchor});
+    assert.equal(observed.recordState,'RESERVED');
+    assert.equal(observed.custodyState,'HOLD:RESERVED');
+    assert.equal(observed.ticketSlotCount,0);
+    assert.equal(f.writes,1,'reserved host record retained unchanged');
+    failed(f.make().registerEmptyHost({ownerId,anchor}),
+      'carrier_record_already_reserved_or_active');
+    assert.equal(f.spawned.length,1);
+  }
 });

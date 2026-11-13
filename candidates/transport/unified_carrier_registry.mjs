@@ -34,6 +34,17 @@ function anchorEquals(a,b){
   return !!a&&!!b&&a.dimensionId===b.dimensionId&&
     a.x===b.x&&a.y===b.y&&a.z===b.z;
 }
+// Never persist or log raw engine exception text: it can include unrelated
+// entity/world state. Only a closed vocabulary of Bedrock failure classes.
+const spawnFailureNames=new Set([
+  'EntitySpawnError','InvalidArgumentError','InvalidEntityError',
+  'LocationInUnloadedChunkError','LocationOutOfWorldBoundariesError'
+]);
+function spawnFailureClass(error){
+  try{return spawnFailureNames.has(error?.name)?
+      error.name:'UNCLASSIFIED';}
+  catch(_){return 'UNCLASSIFIED';}
+}
 function origin(anchor){
   return {x:anchor.x+0.5,y:anchor.y+0.2,z:anchor.z+0.5};
 }
@@ -184,9 +195,10 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     // world property. RESERVED intentionally survives any interrupted spawn.
     let e;
     try{e=dim.spawnEntity(UCE_CARRIER_TYPE,origin(anchor));}
-    catch(_){
+    catch(error){
       quarantined=true;
-      return hold('carrier_spawn_outcome_ambiguous');
+      return {...hold('carrier_spawn_outcome_ambiguous'),
+        spawnErrorClass:spawnFailureClass(error)};
     }
     const observed=near(dim,anchor);
     if(!observed||observed.length!==1||observed[0].id!==e.id){
