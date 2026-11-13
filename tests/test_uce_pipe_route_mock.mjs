@@ -91,6 +91,7 @@ function fixture(){
   const fallback={d:dim.id,x:2,y:69,z:4,m:'wildcard',f:null};
   entries.push(filter,fallback);
   const context={
+    logistics:{receivers:registeredReceivers,collectors},
     registry:entries,PG26_FACES:FACES,PG26_PIPE_ID:'hartlogistics:transporter',
     PG26_MAX_PIPES:16,RECEIVER_ID:'hartsorter:receiver',
     SORTER_ID:'hartsorter:sorter',COLLECTOR_ID:'hartsorter:collector',
