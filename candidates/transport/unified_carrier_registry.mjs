@@ -299,15 +299,23 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
   function inspectHostEvidence({ownerId,anchor}={}){
     const key=hostKey(ownerId);
     if(!key||!anchorOK(anchor))return hold('invalid_carrier_owner_or_anchor');
+    // Forensics must not mistake an unreadable record for an empty host,
+    // nor hide independently observable physical carriers on corruption.
     const raw=read(world,key);
-    if(!raw.ok)return raw;
-    let record={state:'MISSING',entityId:null};
-    if(raw.raw!==undefined&&raw.raw!==null&&raw.raw!==''){
+    let record={state:'MISSING',entityId:null},recordStatus='VERIFIED';
+    if(!raw.ok){
+      record={state:'UNREADABLE',entityId:null};
+      recordStatus='HOLD:'+raw.reason;
+    }else if(raw.raw!==undefined&&raw.raw!==null&&raw.raw!==''){
       const decoded=decode(raw.raw,ownerId,worldId,epoch);
-      if(!decoded.ok)return decoded;
-      if(!anchorEquals(decoded.record.anchor,anchor))
-        return hold('carrier_anchor_changed');
-      record=decoded.record;
+      if(!decoded.ok){
+        record={state:'INVALID',entityId:null};
+        recordStatus='HOLD:'+decoded.reason;
+      }else{
+        record=decoded.record;
+        if(!anchorEquals(decoded.record.anchor,anchor))
+          recordStatus='HOLD:carrier_anchor_changed';
+      }
     }
     let ownerVerified=false;
     try{ownerVerified=ownerVerifier(ownerId,anchor)===true;}catch(_){}
@@ -330,11 +338,11 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
         inventoryStatus:inv.ok?'VERIFIED':inv.reason});
     }
     const tickets=readTickets(ownerId);
-    if(!tickets.ok)return tickets;
+    const ticketStatus=tickets.ok?'VERIFIED':'HOLD:'+tickets.reason;
     const intent=read(world,'hartlogistics:uce_native_intent_v1');
-    if(!intent.ok)return intent;
-    let nativeIntentPhase='CLEAR';
-    if(intent.raw!==undefined&&intent.raw!==null&&intent.raw!==''){
+    let nativeIntentPhase=intent.ok?'CLEAR':'HOLD:'+intent.reason;
+    if(intent.ok&&intent.raw!==undefined&&intent.raw!==null&&
+       intent.raw!==''){
       try{
         const parsed=JSON.parse(intent.raw);
         nativeIntentPhase=typeof parsed.phase==='string'?
@@ -342,20 +350,26 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
       }catch(_){nativeIntentPhase='INVALID';}
     }
     let custodyState;
-    if(record.state==='ACTIVE'){
+    if(recordStatus!=='VERIFIED'){
+      custodyState=recordStatus;
+    }else if(record.state==='ACTIVE'){
       const custody=inspectCustody({ownerId,anchor});
       custodyState=custody.ok?'VERIFIED':'HOLD:'+custody.reason;
     }else if(record.state==='RESERVED'){
       custodyState='HOLD:RESERVED';
     }else{
-      custodyState=nearby.length===0&&tickets.record.slots.length===0?
-        'UNINITIALIZED':'HOLD:UNCLAIMED_PHYSICAL_CUSTODY';
+      custodyState=tickets.ok?
+        (nearby.length===0&&tickets.record.slots.length===0?
+          'UNINITIALIZED':'HOLD:UNCLAIMED_PHYSICAL_CUSTODY'):
+        ticketStatus;
     }
     return {ok:true,status:'HOST_EVIDENCE_READ_ONLY',ownerId,anchor,
-      recordState:record.state,recordEntityId:record.entityId??null,
+      recordState:record.state,recordStatus,
+      recordEntityId:record.entityId??null,
       ownerVerified,liveEntityCount:nearby.length,entities,
-      ticketRevision:tickets.record.revision,
-      ticketSlotCount:tickets.record.slots.length,
+      ticketStatus,
+      ticketRevision:tickets.ok?tickets.record.revision:null,
+      ticketSlotCount:tickets.ok?tickets.record.slots.length:null,
       nativeIntentPhase,custodyState,canSpawn:false,canTransfer:false,
       canRepair:false,canClearJournal:false};
   }

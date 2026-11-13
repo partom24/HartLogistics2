@@ -393,3 +393,24 @@ test('host census distinguishes idle missing record from an ACTIVE native host',
   assert.equal(ready.custodyState,'VERIFIED');
   assert.equal(ready.liveEntityCount,1);
 });
+
+test('corrupt host and ticket records never hide independently observed physical carrier',()=>{
+  const f=fixture();
+  assert.equal(register(f).ok,true);
+  const key=[...f.records.keys()].find(k=>k.includes('uce_native_host_'));
+  assert.ok(key);
+  f.records.set(key,'{invalid');
+  f.records.set(key.replace('uce_native_host_','uce_native_ticket_'),'{invalid');
+  const oldWrites=f.writes;
+  const audit=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(audit.ok,true,audit.reason);
+  assert.equal(audit.recordState,'INVALID');
+  assert.match(audit.recordStatus,/^HOLD:carrier_record_invalid$/);
+  assert.equal(audit.liveEntityCount,1);
+  assert.equal(audit.entities[0].id,f.spawned[0].id);
+  assert.equal(audit.ticketSlotCount,null);
+  assert.match(audit.ticketStatus,/^HOLD:native_ticket_invalid_json$/);
+  assert.equal(audit.custodyState,audit.recordStatus);
+  assert.equal(f.writes,oldWrites);
+  assert.equal(f.spawned.length,1);
+});

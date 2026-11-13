@@ -1446,9 +1446,12 @@ function uceSendDiagnostics(origin){
                         else missing++;
                         if(audit.custodyState.startsWith('HOLD:'))held++;
                         lines.push('§7Carrier §f'+a.id+' §7state '+
-                            audit.recordState+' | physical '+audit.liveEntityCount+
-                            ' | tickets '+audit.ticketSlotCount+
-                            '@'+audit.ticketRevision+
+                            audit.recordState+' | saved ID '+
+                            (audit.recordEntityId||'none')+
+                            ' | physical '+audit.liveEntityCount+
+                            ' | tickets '+(audit.ticketSlotCount??'UNKNOWN')+
+                            '@'+(audit.ticketRevision??'UNKNOWN')+
+                            ' '+(audit.ticketStatus||'UNVERIFIED')+
                             ' | intent '+audit.nativeIntentPhase+
                             ' | block '+(audit.ownerVerified?'present':'UNVERIFIED')+
                             ' | '+audit.custodyState);

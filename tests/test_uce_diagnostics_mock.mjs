@@ -147,8 +147,9 @@ test('read-only status reveals a RESERVED carrier despite clear global MR journa
       snapshot:{accounts:[account]}})}),
     createUnifiedCarrierRegistry:()=>({ok:true,
       inspectHostEvidence:()=>({ok:true,recordState:'RESERVED',
+        recordEntityId:null,recordStatus:'VERIFIED',
         custodyState:'HOLD:RESERVED',liveEntityCount:1,ticketSlotCount:0,
-        ticketRevision:0,nativeIntentPhase:'CLEAR',
+        ticketRevision:0,ticketStatus:'VERIFIED',nativeIntentPhase:'CLEAR',
         entities:[{id:'native-PG39',occupied:0,inventoryStatus:'VERIFIED'}],
         ownerVerified:true})}),
     uceLiveReceiverOwner:()=>true,
@@ -176,4 +177,31 @@ test('owner-keyed warning suppression keeps alternating failures bounded',()=>{
   assert.match(logs[0],/owner=receiver-A/);
   assert.match(logs[1],/owner=receiver-B/);
   assert.match(logs[2],/repeated=16/);
+});
+
+test('read-only status shows expected ACTIVE ID beside the observed different entity ID',()=>{
+  const lines=[],account=owner(-78);
+  const world={getDynamicProperty:k=>k==='hartlogistics:uce_cold_seal_v1'
+    ?JSON.stringify({shards:[{key:'hartlogistics:uce_shard_0000_v1'}]})
+    :undefined,setDynamicProperty(){throw Error('read-only');}};
+  const ctx={world,uceAuthoritySnapshot:()=>({worldId:'w',epoch:1}),
+    inspectUnifiedActiveColdImport:()=>({ok:true}),
+    createUnifiedShardWriter:()=>({ok:true,inspect:()=>({ok:true,
+      snapshot:{accounts:[account]}})}),
+    createUnifiedCarrierRegistry:()=>({ok:true,
+      inspectHostEvidence:()=>({ok:true,recordState:'ACTIVE',
+        recordEntityId:'expected-carrier',recordStatus:'VERIFIED',
+        custodyState:'HOLD:carrier_entity_id_changed',
+        liveEntityCount:1,ticketSlotCount:null,ticketRevision:null,
+        ticketStatus:'HOLD:native_ticket_invalid_json',
+        nativeIntentPhase:'CLEAR',ownerVerified:true,
+        entities:[{id:'observed-carrier',occupied:1,
+          inventoryStatus:'VERIFIED'}]})}),
+    uceLiveReceiverOwner:()=>true,log:m=>lines.push(String(m))};
+  vm.runInNewContext(fn,ctx);
+  ctx.uceSendDiagnostics({sourceEntity:{sendMessage:m=>lines.push(m)}});
+  assert.match(lines.join('|'),/saved ID expected-carrier/);
+  assert.match(lines.join('|'),/Entity.*observed-carrier/);
+  assert.match(lines.join('|'),/tickets UNKNOWN@UNKNOWN/);
+  assert.match(lines.join('|'),/HOLD:carrier_entity_id_changed/);
 });
