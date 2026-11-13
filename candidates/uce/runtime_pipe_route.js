@@ -630,6 +630,11 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
         // HOLDS; no speculative fallback into local Bulk or Wildcard.
         const expanded=new Set(),todo=[{
             current:receiver,network:graph,path:[]}];
+        // The original Sorter order is Filter > seeded Auto > Wildcard.
+        // A remote Auto is a fallback only after the entire reachable linked
+        // graph proves there is no accepting Filter. Never use it ahead of
+        // a usable Auto on the source Receiver's own Sorter column.
+        let sourceAutoAvailable=false,deferredRemoteAuto;
         while(todo.length){
             const {current,network,path}=todo.pop();
             if(expanded.has(current.id))continue;
@@ -664,6 +669,45 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
                    /[^\x20-\x7e]/.test(witness))return undefined;
                 return {...first,receiver:current,remote:local,
                     hops:path.length,witness};
+            }
+            if(!path.length){
+                // An unresolved Collector can intentionally suppress the
+                // ordinary local-output selector. Still recognize any
+                // actually seeded, accepting original local Auto so a
+                // remote Auto does not improperly jump ahead of it.
+                sourceAutoAvailable=local?.priority===1;
+                if(!sourceAutoAvailable){
+                    for(const entry of network.entries){
+                        if(sorterMode(entry)!=='auto')continue;
+                        const dest=uceReadOnlySorterDestination(
+                            entry,receiverAt(current));
+                        if(!dest||network.inputs.some(input=>
+                            uceSameLoadedBlock(input.block,dest.block))||
+                           !ucePipeAutoSeed(item,dest.container))continue;
+                        const accepting=allowPlainMerge?
+                            findAcceptSlot(dest.container,item):
+                            ucePipeEmptySlot(dest.container);
+                        if(allowPlainMerge?!!accepting:accepting>=0){
+                            sourceAutoAvailable=true;break;
+                        }
+                    }
+                }
+            }else if(local?.priority===1&&!deferredRemoteAuto){
+                const first=path[0],last=local.entry;
+                const segments=path.map(edge=>{
+                    const e=edge.entry;
+                    return e.d+'|'+e.x+','+e.y+','+e.z+'>'+
+                        edge.collector.id+'>'+edge.receiver.id;
+                });
+                // The suffix distinguishes a seeded-Auto handoff from a
+                // Filter using the same physical destination identity.
+                const witness='IB1|'+receiver.id+'|'+segments.join('~')+
+                    '|'+current.id+'|'+last.d+'|'+
+                    last.x+','+last.y+','+last.z+'|'+local.ownerId+'|A';
+                if(witness.length>8192||
+                   /[^\x20-\x7e]/.test(witness))return undefined;
+                deferredRemoteAuto={...first,receiver:current,
+                    remote:local,hops:path.length,witness};
             }
             const candidates=[];
             for(const entry of network.entries){
@@ -717,7 +761,10 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
                     path:[...path,edge]});
             }
         }
-        return undefined;
+        // A local Auto retains its original same-column priority over any
+        // equally seeded Auto in another bank. All reachable Filters have
+        // already been examined, and unverified branches returned HOLD.
+        return sourceAutoAvailable?undefined:deferredRemoteAuto;
     }catch(_){return undefined;}
 }
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
