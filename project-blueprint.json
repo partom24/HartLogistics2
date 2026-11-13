@@ -28,7 +28,15 @@
     "approval_reference": null,
     "evidence_reference": null
   },
-  "temporary_instrumentation": [],
+  "temporary_instrumentation": [
+    {
+      "id": "PG40-FORENSIC-FREEZE",
+      "kind": "debug",
+      "task": "Hold all UCE mutation entrypoints during PG39 read-only carrier census; remove after forensic acceptance",
+      "path": "candidates/uce/pg40_lab_patch.py",
+      "status": "active"
+    }
+  ],
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",
