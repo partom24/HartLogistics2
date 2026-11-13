@@ -51,6 +51,78 @@ function uceLinkMenuEnd(player,token){
     if(uceLinkMenuOpen.get(player?.id)===token)
         uceLinkMenuOpen.delete(player.id);
 }
+/*
+ * Original PG08 Unlink remains a first-class link operation. This function
+ * reuses the one versioned hartsorter:logistics_v2 writer and fences the
+ * physically persisted Collector-native waiting host before detaching.
+ * No implicit legacy-Q4 queue, native ticket disposal or second writer.
+ */
+function uceUnlinkCollectorForMenu(player,block,before){
+    try{
+        if(!player||block?.typeId!==COLLECTOR_ID||
+           !before?.link||!Number.isSafeInteger(before.revision)||
+           !uceLegacyWriterBlocked()||uceUnifiedJournalHold())
+            return false;
+        const authority=uceAuthoritySnapshot();
+        const cold=authority&&inspectUnifiedActiveColdImport({
+            world,worldId:authority.worldId,epoch:authority.epoch});
+        if(!cold?.ok)return false;
+        const p=block.location,selected={
+            id:logisticsId(block.dimension.id,p.x,p.y,p.z),
+            d:block.dimension.id,x:p.x,y:p.y,z:p.z};
+        const anchor={dimensionId:selected.d,
+            x:selected.x,y:selected.y,z:selected.z};
+        const nativeRegistry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>false,ownerVerifier:uceLiveCollectorOwner
+        });
+        if(!nativeRegistry.ok)return false;
+        const custodyClear=()=>{
+            const live=collectorAt(selected);
+            if(!uceSameLoadedBlock(live,block))return false;
+            const host=nativeRegistry.inspectHost({
+                ownerId:selected.id,anchor});
+            if(!host.ok)return host.reason==='carrier_record_missing';
+            const ticket=nativeRegistry.inspectCustody({
+                ownerId:selected.id,anchor});
+            return ticket.ok&&ticket.occupied===0;
+        };
+        if(!custodyClear())return false;
+        const writer=createUnifiedLinkRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !uceUnifiedJournalHold()&&!!uceAuthoritySnapshot(),
+            verifyCollectorBlock:entry=>
+                entry.id===selected.id&&custodyClear(),
+            verifySealedReceiver:()=>false,
+            verifyEmptyNewWorld:()=>false
+        });
+        if(!writer.ok)return false;
+        const state=writer.inspect();
+        const fresh=uceLinkMenuSnapshot(selected.id);
+        if(!state.ok||state.revision!==before.revision||
+           !fresh||fresh.revision!==before.revision||
+           fresh.link!==before.link||!fresh.collectorPresent)
+            return false;
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return false;
+        const removed=writer.unlinkCollector({
+            operationId,collector:selected,
+            expectedRevision:before.revision});
+        if(!removed.ok)return false;
+        const updated=safeJsonParse(
+            world.getDynamicProperty(LOGISTICS_KEY),undefined);
+        if(!updated||!Array.isArray(updated.collectors)||
+           !Array.isArray(updated.receivers)||
+           updated.collectors.filter(x=>x?.id===selected.id).length!==1||
+           updated.collectors.find(x=>x.id===selected.id).link!==null)
+            return false;
+        logistics=updated;
+        if(!uceHydrateNewReceivers())return false;
+        uceLinkMenuNotify(player,'§a[Collector] Receiver link removed.');
+        return true;
+    }catch(_){return false;}
+}
 async function uceCollectorLinkMenu(player,block){
     if(!player||block?.typeId!==COLLECTOR_ID)return;
     const token=uceLinkMenuBegin(player);
@@ -72,14 +144,15 @@ async function uceCollectorLinkMenu(player,block){
             .title('Hart Collector')
             .body('Linked Receiver: '+(before.link||'unlinked'))
             .button('Link / Relink Receiver')
+            .button('Unlink Receiver')
             .button('Details')
             .button('Close'));
         if(uceLinkMenuOpen.get(player.id)!==token)return;
-        if(choice===1){
+        if(choice===2){
             uceShowCollectorLinkedStatus(player,block);
             return;
         }
-        if(choice!==0)return;
+        if(choice!==0&&choice!==1)return;
         const live=collectorAt({
             id:collectorId,d:block.dimension.id,x:p.x,y:p.y,z:p.z
         });
@@ -90,6 +163,26 @@ async function uceCollectorLinkMenu(player,block){
            current.collectorPresent!==before.collectorPresent){
             uceLinkMenuNotify(player,
                 '§c[Collector] Link selection changed; reopen menu.');
+            return;
+        }
+        if(choice===1){
+            if(before.link===null){
+                uceLinkMenuNotify(player,
+                    '§7[Collector] Already unlinked.');
+                return;
+            }
+            const confirm=await uceLinkMenuShow(player,
+                new MessageFormData()
+                    .title('Unlink Receiver')
+                    .body('Remove link from Collector '+collectorId+
+                          ' to '+before.link+'?')
+                    .button1('Cancel')
+                    .button2('Unlink'));
+            if(uceLinkMenuOpen.get(player.id)!==token||
+               confirm!==1)return;
+            if(!uceUnlinkCollectorForMenu(player,block,before))
+                uceLinkMenuNotify(player,
+                    '§c[Collector] Unlink HOLD; saved link unchanged or uncertain.');
             return;
         }
         // Reuse the original authenticated, read-only arming routine.
