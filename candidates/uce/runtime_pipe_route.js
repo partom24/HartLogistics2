@@ -419,7 +419,8 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
  */
 function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
                                             justVerifiedGraph=undefined,
-                                            inspectedGraphs=undefined){
+                                            inspectedGraphs=undefined,
+                                            filtersOnly=false){
     try{
         if(!receiver||!item?.typeId||!authority||
            !Array.isArray(logistics.receivers))return false;
@@ -447,6 +448,10 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
                 const mode=sorterMode(entry);
                 if(mode==='bypass'||!['filter','auto','wildcard']
                     .includes(mode))continue;
+                // Only a reachable Filter can outrank a VERIFIED seeded
+                // local Auto. Do not let an unrelated remote Auto prevent
+                // original 1.4.1 local Auto delivery after filter lookahead.
+                if(filtersOnly&&mode==='auto')continue;
                 const matching=mode==='filter'&&entry.f&&
                     matchesFilter(item,entry.f);
                 if(mode==='filter'&&!matching)continue;
@@ -479,7 +484,7 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
                 // Local/remote native preferred output has priority over
                 // any ordinary count move into Bulk. A full but VERIFIED
                 // container is known to be unavailable, not an unknown.
-                if((matching||(mode==='auto'&&
+                if((matching||(!filtersOnly&&mode==='auto'&&
                     ucePipeAutoSeed(item,dest.container)))&&
                    findAcceptSlot(dest.container,item))return false;
             }
@@ -649,8 +654,12 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
             // Reuse its topology for the local Filter check; every live
             // native destination and item slot is still read independently.
             // The commit-time journal proof runs a NEW full graph discovery.
+            // This is a read-only candidate census, not native admission.
+            // It may inspect a seeded Auto while the DFS still needs to
+            // search for a stronger remote Filter. The actual writer runs
+            // the complete current-world Filter proof again.
             const local=uceChoosePipeDestination(
-                current,item,true,undefined,allowPlainMerge,network);
+                current,item,true,undefined,allowPlainMerge,network,true);
             if(local?.priority===0){
                 // Local Filter still takes priority when it physically
                 // wins this original Sorter column, even at the source.
@@ -770,7 +779,8 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
                                   settledDestination=undefined,
                                   allowPlainMerge=false,
-                                  justVerifiedGraph=undefined) {
+                                  justVerifiedGraph=undefined,
+                                  readOnlyInterbankCensus=false) {
     // The old Receiver output Hopper retains first claim to physical egress.
     // Bulk account discovery on the SAME graph may still occur, because
     // moving virtual balances is not a second physical output writer.
@@ -898,8 +908,18 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
     // ordinary account while a connected Collector route remains
     // unresolved. The separate verified interbank handoff has first claim.
     if(selected.priority>0&&
-       ucePipeHasUnresolvedForwarding(receiver,graph,item))
-        return undefined;
+       ucePipeHasUnresolvedForwarding(receiver,graph,item)){
+        if(selected.priority!==1)return undefined;
+        // A seeded local Auto must not wait forever behind a Wildcard
+        // Collector when every reachable Filter is independently proved
+        // unable to accept this item. The interbank selector itself will
+        // finish its read-only Filter search before using any Auto; every
+        // actual native move/ledger write rechecks the whole live proof.
+        if(!readOnlyInterbankCensus&&
+           !uceVerifiedNoReachablePreferredOutput(
+               receiver,item,uceAuthoritySnapshot(),graph,
+               undefined,true))return undefined;
+    }
     const destId=ucePipeStorageOwnerId(selected.dest.block);
     if(!destId)return undefined;
     const routeId=graph.fingerprint+'#'+selected.entry.d+'|'+
