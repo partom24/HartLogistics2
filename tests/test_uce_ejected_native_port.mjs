@@ -159,7 +159,8 @@ function ordinaryEntityFixture({full=false,changeOnPrepared=false,
   const slots=Array(9).fill(undefined);
   const host={size:9,isValid:true,
     getItem:i=>clone(slots[i]),
-    setItem:(i,x)=>{slots[i]=clone(x)}};
+    setItem:(i,x)=>{slots[i]=clone(x)},
+    moveItem(){throw Error('entity stage must not use a physical move');}};
   const entity={id:'ordinary-entity-1',typeId:'minecraft:item',
     isValid:true,getComponent:n=>n==='minecraft:item'?
       {itemStack:clone(initial)}:undefined,
