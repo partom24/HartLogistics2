@@ -45,7 +45,10 @@ function fixture({receivers=40,moveEvery=true,holdAfter=0}={}){
     },
     uceUnifiedJournalHold:()=>holdAfter>0&&
       inspected.length>=holdAfter,
-    uceBridgeLog:x=>messages.push(x)
+    uceBridgeLog:x=>messages.push(x),
+    // The exact scheduler is under test; observability is a pass-through.
+    ucePerfTimedOperation:(_kind,operation)=>operation(),
+    ucePerfRecordMove:()=>{}
   };
   vm.runInNewContext(actual,context);
   return {tick:()=>context.uceMrServiceTick({
