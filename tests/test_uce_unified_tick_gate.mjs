@@ -293,5 +293,6 @@ test('native Hopper egress selects certified ordinary partial space before empty
   assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical),undefined);
   slots[0]=undefined;
   slots[1]=undefined;
-  assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical)?.slot,1);
+  assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical)?.slot,0,
+    'first available empty slot is preferred when no partial exists');
 });
