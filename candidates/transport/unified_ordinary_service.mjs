@@ -88,7 +88,7 @@ function input({world,worldId,epoch,operationId,accountId,key,count,
   return {ok:true};
 }
 function before(world,tx,writer,verifyRoute,verifyOrdinary,
-    physicalSlot,carrierSlot,registry,ownerId,anchor){
+    physicalSlot,carrierSlot,registry,ownerId,anchor,partialOutput=false){
   const empty=requireEmpty(world);
   if(!empty.ok)return empty;
   const ledger=writer.inspect();
@@ -119,9 +119,15 @@ function before(world,tx,writer,verifyRoute,verifyOrdinary,
   let emptySlot=false,sourceReady=false;
   try{
     emptySlot=carrierSlot.container.getItem(carrierSlot.slot)===undefined;
-    sourceReady=tx.direction==='deposit'
-      ?physicalSlot.container.getItem(physicalSlot.slot)!==undefined
-      :physicalSlot.container.getItem(physicalSlot.slot)===undefined;
+    const physical=physicalSlot.container.getItem(physicalSlot.slot);
+    sourceReady=tx.direction==='deposit'?physical!==undefined:
+      partialOutput?
+        !!physical&&Number.isSafeInteger(physical.amount)&&
+        Number.isSafeInteger(physical.maxAmount)&&
+        physical.amount>0&&
+        physical.amount+tx.count<=physical.maxAmount&&
+        typeof physical.isStackableWith==='function':
+        physical===undefined;
   }catch(_){}
   if(!emptySlot||!sourceReady)
     return hold('physical_endpoints_not_ready');
@@ -208,7 +214,7 @@ export function executeUnifiedOrdinaryWithdrawal(args={}){
     phase:'PREPARED',worldId,epoch,operationId,
     direction:'withdraw',accountId,key,count,expectedRevision:0};
   const start=before(world,tx,writer,verifyRoute,verifyOrdinary,
-    physicalSlot,carrierSlot,registry,ownerId,anchor);
+    physicalSlot,carrierSlot,registry,ownerId,anchor,partialOutput);
   if(!start.ok)return start;
   const requested=update(world,start.previous,tx);
   if(!requested.ok)return requested;
