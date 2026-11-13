@@ -158,3 +158,51 @@ test('connected banks remain provably full when leader Receiver is empty',()=>{
   assert.equal(p.status,'IDLE');
   assert.equal(p.reason,'all_connected_banks_full');
 });
+
+test('200,000 ordinary item backlog drains into verified Bulk members without count drift',()=>{
+  // Owner-reported production conversion backlog. This is a real 64-count
+  // ledger-planner + transition stress case, NOT a Bedrock TPS/latency claim.
+  // Bank A starts almost full so routing must cross into Bank B without
+  // inventing a new balance, dropping a count, or skipping stale revisions.
+  let state=fixture(200000,199936,0);
+  const originalTotal=state.total;
+  let iterations=0,bankSwitches=0,previousBank;
+  let lastPlan;
+  while(state.accounts.find(a=>a.id==='receiver:r1').total>0){
+    const plan=planUnifiedBulkService(options(state));
+    assert.equal(plan.ok,true,plan.reason);
+    assert.equal(plan.status,'TRANSFER_DRAFT_ONLY',plan.reason);
+    assert.equal(plan.direction,'receiver_to_bulk');
+    assert.equal(plan.count,64);
+    if(previousBank&&previousBank!==plan.to)bankSwitches++;
+    previousBank=plan.to;
+    const transition=transitionUnifiedOrdinaryAccounts(state,{
+      operationId:'backlog-'+iterations,
+      from:plan.from,to:plan.to,key:plan.key,count:plan.count,
+      expectedRevision:plan.expectedRevision,
+      expectedEpoch:plan.expectedEpoch
+    });
+    assert.equal(transition.ok,true,transition.reason);
+    assert.equal(transition.next.total,originalTotal);
+    state=transition.next;
+    lastPlan=plan;
+    iterations++;
+    assert.ok(iterations<=3125,'unexpected slow/drifting Bulk transfer');
+  }
+  assert.equal(iterations,3125);
+  assert.equal(bankSwitches,1,
+    'one exhausted bank must hand subsequent batches to the next member');
+  assert.equal(state.accounts.find(a=>a.id==='receiver:r1').total,0);
+  assert.equal(state.accounts.find(a=>a.id==='bulk:bank-a').total,200000);
+  assert.equal(state.accounts.find(a=>a.id==='bulk:bank-b').total,199936);
+  assert.equal(inspectUnifiedOrdinaryLedger(state).ok,true);
+  const stale=transitionUnifiedOrdinaryAccounts(state,{
+    operationId:'backlog-replayed-last-batch',
+    from:lastPlan.from,to:lastPlan.to,key:lastPlan.key,
+    count:lastPlan.count,
+    expectedRevision:lastPlan.expectedRevision,
+    expectedEpoch:lastPlan.expectedEpoch
+  });
+  assert.equal(stale.ok,false,
+    'a replayed old revision must not transfer a batch twice');
+});
