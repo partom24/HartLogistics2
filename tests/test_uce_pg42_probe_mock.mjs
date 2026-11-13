@@ -75,10 +75,10 @@ function fixture({properties={},spawnThrows=false,abortWriteAt=0}={}){
   load();
   return {
     dim,entities,db,lines,writes,spawns,commands,origin,load,
-    invoke:cmd=>{
+    invoke:function(cmd){
       const found=commands.get('hartlogistics:'+cmd);
       assert.ok(found,'command registration '+cmd);
-      return found.callback(origin);
+      return found.callback(this.origin);
     },
     componentSample
   };
