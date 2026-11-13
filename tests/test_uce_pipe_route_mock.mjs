@@ -36,6 +36,7 @@ const routeFunctions=[
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding',
+  'uceSelectInterbankFilteredRoute',
   'uceChoosePipeDestination','ucePipeDestinationStillValid',
   'uceSorterColumnWinner','uceSorterCollectorSources',
   'uceSorterSourceStillValid'
@@ -61,7 +62,7 @@ function fixture(){
       ['west',-1,0,0],['up',0,1,0],['down',0,-1,0]
     ].map(([name,x,y,z])=>({name,x,y,z}));
   const k=p=>p.x+','+p.y+','+p.z;
-  const inventories=[];
+  const inventories=[],collectors=[];
   const containers=(size=27)=>{const items=Array(size).fill(undefined);
     const c={size,isValid:true,getItem:i=>items[i],
       setItem:(i,x)=>{items[i]=x;},fill:x=>items.fill(x)};
@@ -105,6 +106,12 @@ function fixture(){
     },
     logisticsId:(d,x,y,z)=>d+'|'+x+'|'+y+'|'+z,
     findReceiverById:id=>registeredReceivers.find(r=>r.id===id),
+    findCollectorById:id=>collectors.find(c=>c.id===id),
+    collectorAt:c=>{
+      if(!c||c.present===false)return undefined;
+      const b=dim.getBlock({x:c.x,y:c.y,z:c.z});
+      return b?.typeId==='hartsorter:collector'?b:undefined;
+    },
     uceAuthoritySnapshot:()=>({worldId:'w',epoch:9}),
     uceOrdinaryAccountSource:(_,id)=>registeredReceivers.some(r=>r.id===id)?
       'sealed-region':undefined,
@@ -135,7 +142,7 @@ function fixture(){
   return {context,dim,blocks,missing,k,put,receiver,registeredReceivers,
     receiverBlock,
     nearPipe,farPipe,nearerSorter,fartherSorter,chestA,chestB,filter,
-    fallback,inventories,FACES,entries,newContainer:containers,
+    fallback,inventories,FACES,entries,collectors,newContainer:containers,
     choose:item=>context.uceChoosePipeDestination(receiver,item),
     network:()=>context.ucePipeRouteNetwork(receiver)};
 }
@@ -329,6 +336,87 @@ test('Bulk cannot spill past a Collector forwarding frontier or unknown filtered
   assert.equal(f.context.ucePipeHasUnresolvedForwarding(
     f.receiver,f.network(),COBBLE),false,
     'a known full native output may safely be considered for Bulk');
+});
+test('one-hop Collector handoff selects a different sealed Receiver with a real accepting Filter',()=>{
+  const f=fixture();
+  f.filter.m='bypass';
+  const collectorBlock=f.chestB;
+  collectorBlock.typeId='hartsorter:collector';
+  const at=collectorBlock.location;
+  const id=f.context.logisticsId(f.dim.id,at.x,at.y,at.z);
+  const remote={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  f.registeredReceivers.push(remote);
+  f.put('hartsorter:receiver',24,70,4);
+  f.put('hartlogistics:transporter',23,70,4);
+  f.put('hartsorter:sorter',23,69,4);
+  const remoteFilter={d:f.dim.id,x:23,y:69,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}};
+  f.entries.push(remoteFilter);
+  const remoteDest=f.put('minecraft:barrel',23,69,5,f.newContainer());
+  f.collectors.push({id,d:f.dim.id,x:at.x,y:at.y,z:at.z,
+    link:remote.id,present:true});
+  const select=()=>f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+  const route=select();
+  assert.ok(route,'fully verified Collector link should route to Filter');
+  assert.equal(route.entry,f.fallback);
+  assert.equal(route.receiver,remote);
+  assert.equal(route.remote.entry,remoteFilter);
+  assert.equal(route.remote.dest.block,remoteDest);
+  assert.ok(route.witness.startsWith('IB1|'));
+  assert.equal(route.witness.length<8192,true);
+  assert.equal(select()?.witness,route.witness,
+    'same live topology must reproduce exact journal witness');
+  remoteFilter.f={match:{typeId:'minecraft:stone'}};
+  assert.equal(select(),undefined,'unmatched remote filter is not valid');
+  remoteFilter.f={match:{typeId:'minecraft:cobblestone'}};
+  remoteDest.powered=true; // storage power itself is not a Sorter lock
+  assert.equal(select()?.witness,route.witness);
+  remoteDest.powered=false;
+  f.put('hartsorter:sorter',23,69,4).powered=true;
+  assert.equal(select(),undefined,'powered remote Sorter blocks forwarding');
+  f.put('hartsorter:sorter',23,69,4).powered=false;
+  collectorBlock.powered=true;
+  assert.equal(select(),undefined,'redstone-paused Collector is not a route');
+  collectorBlock.powered=false;
+  f.collectors[0].link=f.receiver.id;
+  assert.equal(select(),undefined,'self-link must never bounce same balance');
+  f.collectors[0].link=remote.id;
+  f.filter.m='filter';
+  assert.equal(select(),undefined,'accepting local Filter takes priority');
+});
+test('unloaded, overfull or relinked remote bank cannot receive a virtual handoff',()=>{
+  const f=fixture();f.filter.m='bypass';
+  f.chestB.typeId='hartsorter:collector';
+  const p=f.chestB.location;
+  const next={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  f.registeredReceivers.push(next);
+  f.put('hartsorter:receiver',24,70,4);
+  f.put('hartlogistics:transporter',23,70,4);
+  f.put('hartsorter:sorter',23,69,4);
+  f.entries.push({d:f.dim.id,x:23,y:69,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}});
+  const remote=f.put('minecraft:barrel',23,69,5,f.newContainer());
+  const record={id:f.context.logisticsId(f.dim.id,p.x,p.y,p.z),
+    d:f.dim.id,x:p.x,y:p.y,z:p.z,link:next.id,present:true};
+  f.collectors.push(record);
+  const select=()=>f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+  assert.ok(select());
+  remote.getComponent('minecraft:inventory').container.fill({
+    typeId:'minecraft:stone',amount:64,maxAmount:64});
+  assert.equal(select(),undefined,'full destination cannot take item');
+  remote.getComponent('minecraft:inventory').container.setItem(0,undefined);
+  f.missing.add('23,70,3');
+  assert.equal(select(),undefined,'unloaded remote pipe frontier HOLD');
+  f.missing.clear();
+  record.link='minecraft:overworld|999|70|4';
+  assert.equal(select(),undefined,'stale Collector link HOLD');
+  record.link=next.id;
+  f.missing.add('24,70,4');
+  assert.equal(select(),undefined,'unloaded receiver cannot take custody');
 });
 test('unloaded or uncertified preferred output HOLDS rather than using Wildcard',()=>{
   const f=fixture();
