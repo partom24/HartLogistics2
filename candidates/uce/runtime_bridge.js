@@ -1108,6 +1108,39 @@ function uceBulkWildcardPermitted(snapshot,receiverOwnerId,connectedBankOwnerIds
     return p.ok===true&&p.status==='IDLE'&&
         p.reason==='all_connected_banks_full';
 }
+/*
+ * Authenticate a Receiver→Receiver ordinary count handoff through one
+ * physically placed Sorter→Collector link and one remote usable Filter.
+ * The same proof is rerun before PREPARED, before source debit, and before
+ * destination credit by the EXISTING two-shard journal/ledger writer.
+ */
+function uceInterbankRouteVerified(authority,receiver,tx,direction){
+    try{
+        if(!authority||!receiver||!tx||
+           !['withdraw','deposit'].includes(direction)||
+           tx.worldId!==authority.worldId||
+           tx.epoch!==authority.epoch||
+           tx.fromAccount!=='receiver:'+receiver.id||
+           !tx.toAccount?.startsWith('receiver:')||
+           tx.fromShard!==uceOrdinaryAccountSource(
+               authority,receiver.id)||!tx.routeWitness?.startsWith('IB1|'))
+            return false;
+        const def=JSON.parse(tx.key);
+        if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+            return false;
+        const item=new ItemStack(def.typeId,1);
+        if(uceClassifyLiveStack(item)!=='ORDINARY')return false;
+        const graph=ucePipeRouteNetwork(receiver);
+        const route=uceSelectInterbankFilteredRoute(
+            receiver,graph,item,authority);
+        if(!route||route.witness!==tx.routeWitness||
+           tx.toAccount!=='receiver:'+route.receiver.id||
+           tx.toShard!==uceOrdinaryAccountSource(
+               authority,route.receiver.id)||
+           tx.fromShard===tx.toShard)return false;
+        return !!receiverAt(route.receiver);
+    }catch(_){return false;}
+}
 function uceFederatedRouteVerified(authority,receiver,tx,direction){
     // A graph leader owns the physical Bulk accounts in exactly ONE sealed
     // shard. Other Receiver shards may exchange virtual ordinary counts
@@ -1315,7 +1348,11 @@ function uceOrdinaryServiceTick(authority){
                 return true;
             },
             verifyFederatedRoute:(tx,direction)=>
-                uceFederatedRouteVerified(authority,receiver,tx,direction),
+                tx?.routeWitness?.startsWith('IB1|')?
+                    uceInterbankRouteVerified(
+                        authority,receiver,tx,direction):
+                    uceFederatedRouteVerified(
+                        authority,receiver,tx,direction),
             verifyEscrowCustody:tx=>{
                 const current=registry.inspectCustody({ownerId,anchor});
                 if(!current.ok)return false;
@@ -1335,6 +1372,88 @@ function uceOrdinaryServiceTick(authority){
         const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
         if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
         const bankNetwork=ucePipeRouteNetwork(receiver);
+        // A verifiably accepting remote Filter outranks local Bulk and
+        // terminal Wildcard. A matching Collector must not be consumed by
+        // an unjournaled native output: count ownership changes directly
+        // between the two PREEXISTING sealed Receiver accounts. The global
+        // federated intent fences all other UCE writers until both shards
+        // save their exact receipt; partial-save ambiguity remains HOLD.
+        if(account.total>0&&bankNetwork&&!output&&
+           !blockIsRedstonePowered(receiverAt(receiver))){
+            for(const bucket of account.buckets){
+                let item,forward;
+                try{
+                    const def=JSON.parse(bucket.key);
+                    if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+                        continue;
+                    item=new ItemStack(def.typeId,1);
+                    if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
+                    forward=uceSelectInterbankFilteredRoute(
+                        receiver,bankNetwork,item,authority);
+                }catch(_){continue;}
+                if(!forward)continue;
+                const toShard=uceOrdinaryAccountSource(
+                    authority,forward.receiver.id);
+                if(!toShard||toShard===shardKey)continue;
+                const targetWriter=createUnifiedShardWriter({
+                    world,shardKey:toShard,
+                    worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence:()=>uceLegacyWriterBlocked()&&
+                        !!uceAuthoritySnapshot(),
+                    verifyFederatedRoute:(tx,direction)=>
+                        uceInterbankRouteVerified(
+                            authority,receiver,tx,direction)
+                });
+                if(!targetWriter.ok){
+                    uceBridgeLog('interbank destination writer HOLD '+
+                        targetWriter.reason,ownerId);
+                    return;
+                }
+                const target=targetWriter.inspect();
+                const toAccount='receiver:'+forward.receiver.id;
+                const receiverAccount=target.ok?
+                    target.snapshot.accounts.find(a=>a.id===toAccount):
+                    undefined;
+                if(!receiverAccount||receiverAccount.kind!=='receiver'){
+                    uceBridgeLog('interbank destination account HOLD',
+                        ownerId);
+                    return;
+                }
+                const count=Math.min(64,bucket.count,
+                    receiverAccount.capacity-receiverAccount.total);
+                if(!Number.isSafeInteger(count)||count<=0)continue;
+                if(forward.witness.length>8192){
+                    uceBridgeLog('interbank route witness over limit',
+                        ownerId);
+                    return;
+                }
+                const op=uceNativeReceiptId();
+                if(!op){uceBridgeLog('interbank receipt exhausted');return;}
+                const proof=(tx,direction)=>
+                    uceInterbankRouteVerified(
+                        authority,receiver,tx,direction);
+                const result=ucePerfTimedOperation('federated',()=>
+                    executeUnifiedFederatedTransfer({
+                        world,worldId:authority.worldId,
+                        epoch:authority.epoch,operationId:op,
+                        sourceWriter:shardWriter,
+                        destinationWriter:targetWriter,
+                        fromShard:shardKey,toShard,
+                        fromAccount:accountId,toAccount,
+                        key:bucket.key,count,
+                        routeWitness:forward.witness,
+                        externalFence:()=>uceLegacyWriterBlocked()&&
+                            !!uceAuthoritySnapshot(),
+                        verifyRoute:tx=>proof(tx,'withdraw')
+                    }));
+                if(!result.ok)uceBridgeLog(
+                    'interbank Receiver handoff HOLD '+result.reason,
+                    ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                if(result.ok===true)ucePerfRecordMove('ordinary');
+                return result.ok===true;
+            }
+        }
         // Wildcard is lawful only when every connected bank in the SAME
         // sealed shard is verified full. A nonleader Receiver cannot borrow
         // authority from a different shard or assume unknown banks are full.
