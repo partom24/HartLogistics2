@@ -39,6 +39,10 @@ export function inspectEmptyLegacyWorld({world,logistics}={}){
        key.startsWith('hartsorter:q3')||
        key.startsWith('hartsorter:q4')||
        key.startsWith('hartlogistics:uce_')||
+       // The PG42 one-off carrier probe is NOT a clean product world.
+       // Its sampled native actor and persisted test identity may remain
+       // even when no unified authority or Q4 queue exists.
+       key.startsWith('hartlogistics:pg42_')||
        key.startsWith('hartsorter:queue_journal')||
        key==='hartsorter:journal_v1'||
        key==='hartsorter:logistics_v1')
@@ -54,6 +58,23 @@ export function inspectEmptyLegacyWorld({world,logistics}={}){
        saved.collectors.length||saved.receivers.length)
       return denied('saved_legacy_logistics_owners_not_empty');
   }
+  // A pre-existing orphaned native host may have no dynamic property
+  // record. Observe all loaded dimensions; any carrier or unreadable
+  // native census prohibits claiming that this is an EMPTY UCE world.
+  try{
+    if(typeof world.getDimension!=='function')
+      return denied('native_entity_census_unavailable');
+    for(const dimensionId of [
+      'minecraft:overworld','minecraft:nether','minecraft:the_end']){
+      const dimension=world.getDimension(dimensionId);
+      const entities=dimension?.getEntities({
+        type:'hartlogistics:uce_native_carrier'});
+      if(!Array.isArray(entities))
+        return denied('native_entity_census_unreadable:'+dimensionId);
+      if(entities.length>0)
+        return denied('preexisting_native_carrier_entity:'+dimensionId);
+    }
+  }catch(_){return denied('native_entity_census_unreadable');}
   const idsAfter=world.getDynamicPropertyIds();
   if(JSON.stringify(idsAfter)!==JSON.stringify(ids))
     return denied('world_property_ids_changed_during_preflight');

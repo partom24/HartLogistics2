@@ -12,6 +12,9 @@ function fixture(options={}){
   const world={
     getDynamicProperty:k=>values.get(k),
     getDynamicPropertyIds:()=>[...values.keys()],
+    getDimension:()=>({
+      getEntities:()=>options.carriers||[]
+    }),
     setDynamicProperty(k,v){
       writes++;
       if(options.onWrite)return options.onWrite(k,v,values,writes);
@@ -44,7 +47,8 @@ test('existing owner, Q4 sidecar, journal, old Q2/3, or UCE data forbids activat
   const cases=['hartsorter:q4p_q1_0','hartsorter:q4d_q1_d0',
     'hartsorter:q2m_q1','hartsorter:q3m_q1',
     'hartsorter:queue_journal_v1',
-    'hartsorter:journal_v1','hartlogistics:uce_native_intent_v1'];
+    'hartsorter:journal_v1','hartlogistics:uce_native_intent_v1',
+    'hartlogistics:pg42_native_test_v1'];
   for(const key of cases){
     const f=fixture();f.values.set(key,'preexisting');
     const result=f.activate();
@@ -96,4 +100,23 @@ test('partial save failure freezes REQUESTED with no Q4 writes or unsafe replay'
     'REQUESTED');
   assert.equal([...f.values.keys()].some(x=>x.startsWith('hartsorter:q4')),
     false);
+});
+
+test('preexisting unsourced native carrier blocks empty-world UCE authority before any mutation',()=>{
+  const existing=fixture({carriers:[{id:'old-PG42-host',
+    typeId:'hartlogistics:uce_native_carrier'}]});
+  const r=existing.activate();
+  assert.equal(r.ok,false);
+  assert.match(r.reason,/preexisting_native_carrier_entity/);
+  assert.equal(existing.writes,0);
+});
+test('native entity enumeration failures never imply that a lab world is empty',()=>{
+  const f=fixture();
+  f.world.getDimension=()=>({
+    getEntities:()=>{throw Error('unloaded or unreadable');}
+  });
+  const r=f.activate();
+  assert.equal(r.ok,false);
+  assert.equal(r.reason,'native_entity_census_unreadable');
+  assert.equal(f.writes,0);
 });
