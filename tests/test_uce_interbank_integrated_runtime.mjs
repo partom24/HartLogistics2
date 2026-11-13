@@ -44,7 +44,8 @@ const start=production.indexOf('function uceInterbankRouteVerified(');
 const end=production.indexOf('\n\n/* Bulk Storage',start);
 assert.ok(start>0&&end>start,'exact integrated ordinary scheduler found');
 const routeNames=[
-  'ucePipeSameDimension','ucePipeRouteNetwork','uceReadOnlyPipeInput',
+  'ucePipeSameDimension','ucePipeSorterRegistryIndex',
+  'ucePipeRouteNetwork','uceReadOnlyPipeInput',
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding','uceSelectInterbankFilteredRoute',
@@ -59,6 +60,7 @@ const route=generated?[
     assert.ok(match,'assembled UCE route constant missing '+name);
     return match[0];
   }),
+  'let ucePipeSorterIndexCache;',
   ...routeNames.map(name=>exactFunction(generated,name))
 ].join('\n'):pipe;
 const executable=[
