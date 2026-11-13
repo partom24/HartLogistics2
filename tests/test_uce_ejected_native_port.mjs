@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createUnifiedNativePort,UCE_NATIVE_INTENT_KEY} from
   '../candidates/transport/unified_native_custody.mjs';
+import {createUnifiedCarrierRegistry} from
+  '../candidates/transport/unified_carrier_registry.mjs';
 import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
   createUnifiedShardWriter,previewUnifiedShard,
   verifyUnifiedMutationFence} from
@@ -128,7 +130,8 @@ const plainDefinition={typeId:'minecraft:cobblestone',lore:[],
   ench:[],canDestroy:[],canPlaceOn:[]};
 const plainKey=q5IdentityKey(plainDefinition);
 function ordinaryEntityFixture({full=false,changeOnPrepared=false,
-                               revokeAfterEntityRemoval=false}={}){
+                               revokeAfterEntityRemoval=false,
+                               realRegistry=false}={}){
   const values=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
     schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',
     worldId:plainWorldId,epoch:plainEpoch,
@@ -182,7 +185,7 @@ function ordinaryEntityFixture({full=false,changeOnPrepared=false,
     }
   };
   const operationId='ejected-ordinary-op-1';
-  const registry={
+  let registry={
     inspectCustody:()=>({ok:true,slots:ticketed?[0]:[],
       free:ticketed?8:9,occupied:ticketed?1:0}),
     stageMovedTicket:()=>{
@@ -195,10 +198,43 @@ function ordinaryEntityFixture({full=false,changeOnPrepared=false,
       intent.kind==='CONSUME_ORDINARY_ESCROW'?!ticketed:
       false
   };
+  if(realRegistry){
+    // Real registry host reservation, physically observed native carrier
+    // and durable native ticket revisions, not a mock ticket boolean.
+    const entities=[];
+    const dimension={
+      getEntities:({type})=>entities.filter(e=>e.typeId===type),
+      spawnEntity(type,location){
+        const resident={
+          id:'real-ejected-ordinary-carrier-1',typeId:type,location,
+          getComponent:name=>name==='minecraft:inventory'?
+            {inventorySize:9,canBeSiphonedFrom:false,container:host}:
+            undefined
+        };
+        entities.push(resident);
+        return resident;
+      }
+    };
+    world.getDimension=id=>id===anchor.dimensionId?
+      dimension:undefined;
+    registry=createUnifiedCarrierRegistry({
+      world,worldId:plainWorldId,epoch:plainEpoch,
+      boundaryOperationId:operationId,externalFence:()=>true,
+      ownerVerifier:(id,at)=>id===ownerId&&
+        at.dimensionId===anchor.dimensionId&&
+        at.x===anchor.x&&at.y===anchor.y&&at.z===anchor.z&&linked
+    });
+    assert.equal(registry.ok,true,registry.reason);
+    const admitted=registry.registerEmptyHost({ownerId,anchor});
+    assert.equal(admitted.ok,true,admitted.reason);
+    assert.equal(registry.inspectCustody({ownerId,anchor}).occupied,0);
+  }
   const writer=createUnifiedShardWriter({
     world,shardKey:plainShard,worldId:plainWorldId,
     epoch:plainEpoch,externalFence:()=>true,
-    verifyEscrowCustody:tx=>linked&&ticketed&&
+    verifyEscrowCustody:tx=>linked&&
+      registry.inspectCustody({ownerId,anchor}).ok===true&&
+      registry.inspectCustody({ownerId,anchor}).slots.includes(0)&&
       tx.accountId===plainAccount&&tx.key===plainKey&&
       tx.count===initial.amount&&
       host.getItem(0)?.typeId===initial.typeId&&
@@ -248,7 +284,9 @@ function ordinaryEntityFixture({full=false,changeOnPrepared=false,
       meta.count===initial.amount&&meta.direction==='deposit'
   });
   return {run,view:()=>writer.inspect(),values,world,entity,host,
-    get ticketed(){return ticketed;},
+    registry,ownerId,anchor,
+    get ticketed(){return realRegistry?
+      registry.inspectCustody({ownerId,anchor}).occupied>0:ticketed;},
     get writes(){return writes;},
     revoke:()=>{linked=false}};
 }
@@ -300,4 +338,36 @@ test('route revoked after exact entity ACK leaves one protected escrow and no sp
   assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),true);
   assert.equal(f.run().ok,false,'ambiguous boundary is not replayable');
   assert.equal(f.view().snapshot.total,0);
+});
+
+test('ejected ordinary entry survives REAL carrier registry ticket binding under outer PREPARED boundary',()=>{
+  const f=ordinaryEntityFixture({realRegistry:true});
+  const initial=f.registry.inspectCustody({
+    ownerId:f.ownerId,anchor:f.anchor});
+  assert.equal(initial.ok,true,initial.reason);
+  assert.equal(initial.occupied,0);
+  const result=f.run();
+  assert.equal(result.ok,true,result.reason);
+  assert.equal(result.count,32);
+  assert.equal(f.entity.isValid,false);
+  assert.equal(f.host.getItem(0),undefined);
+  const final=f.registry.inspectCustody({
+    ownerId:f.ownerId,anchor:f.anchor});
+  assert.equal(final.ok,true,final.reason);
+  assert.equal(final.occupied,0);
+  assert.equal(f.view().snapshot.total,32);
+  assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),false);
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+  assert.equal(f.run().ok,false,'original entity cannot be debited twice');
+});
+test('real carrier tickets cannot clear a boundary with changed link after entity ACK',()=>{
+  const f=ordinaryEntityFixture({
+    realRegistry:true,revokeAfterEntityRemoval:true});
+  const result=f.run();
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,'ejected_route_changed_after_native_ack');
+  assert.equal(f.entity.isValid,false);
+  assert.equal(f.host.getItem(0).amount,32);
+  assert.equal(f.view().snapshot.total,0);
+  assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),true);
 });
