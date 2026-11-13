@@ -657,6 +657,19 @@ test('seeded Auto in terminal linked bank is a deferred preferred route after al
   source.setItem(0,{typeId:'minecraft:cobblestone',amount:8});
   assert.equal(select(),undefined,
     'an original source-bank seeded Auto is not bypassed by remote Auto');
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true,undefined,true)?.entry,f.filter,
+    'after global Filter lookahead, a seeded local Auto still delivers');
+  auto.m='filter';
+  auto.f={match:{typeId:'minecraft:cobblestone'}};
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true,undefined,true),undefined,
+    'a reachable remote Filter outranks the otherwise accepting local Auto');
+  assert.equal(select()?.receiver,next,
+    'global Filter route wins before either seeded Auto');
+  auto.m='auto';auto.f=null;
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE,true,undefined,true)?.entry,f.filter);
 });
 test('interbank Filter ties obey original bottom-to-top and coordinate Sorter order',()=>{
   const f=fixture();
