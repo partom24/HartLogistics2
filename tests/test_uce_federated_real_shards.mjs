@@ -66,7 +66,8 @@ function fixture({failAt,receiverCount=100,bankCount=0,
     sourceWriter,destinationWriter,fromShard,toShard,fromAccount,
     toAccount:targetKind+':'+targetOwner,
     key,count:32,externalFence:()=>true,
-    routeWitness:'verified-federated-route',
+    routeWitness:targetKind==='receiver'?
+      'IB1|verified-linked-filter':'verified-federated-route',
     verifyRoute:()=>routeValid};
   return {data,world,sourceWriter,destinationWriter,args,
     get writes(){return writes;},
@@ -119,6 +120,20 @@ test('interbank Receiver transfer fails closed on changed route or crash-cutpoin
   assert.equal(executeUnifiedFederatedTransfer(uncertain.args).ok,false);
   assert.equal(uncertain.sourceWriter.inspect().snapshot.total,68);
   assert.equal(uncertain.destinationWriter.inspect().snapshot.total,32);
+});
+test('interbank and Bulk transfer witnesses cannot cross-authorize each other',()=>{
+  const linked=fixture({targetKind:'receiver',targetOwner:'receiv-b'});
+  const bad=executeUnifiedFederatedTransfer({
+    ...linked.args,routeWitness:'verified-bulk-route'});
+  assert.equal(bad.ok,false);
+  assert.equal(bad.reason,'federated_route_kind_witness_mismatch');
+  assert.equal(linked.writes,0,'wrong route class creates no global intent');
+  const bulk=fixture();
+  const forged=executeUnifiedFederatedTransfer({
+    ...bulk.args,routeWitness:'IB1|pretend-linked-receiver'});
+  assert.equal(forged.ok,false);
+  assert.equal(forged.reason,'federated_route_kind_witness_mismatch');
+  assert.equal(bulk.writes,0);
 });
 test('virtual cross-shard transfer refuses an absent route or excess capacity before PREPARED',()=>{
   const f=fixture();
