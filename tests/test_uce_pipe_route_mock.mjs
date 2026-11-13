@@ -889,6 +889,28 @@ test('Sorter must never emit into the other half of its double-chest pipe input'
   assert.equal(f.network(),undefined,
     'changing a reciprocal chest pair revokes all source admission');
 });
+test('double chest collapse and single-to-double expansion revoke old source slot shape',()=>{
+  const f=fixture(),shared=f.newContainer(54);
+  const first=f.put('minecraft:chest',1,70,4,shared);
+  const mate=f.put('minecraft:chest',1,70,5,shared);
+  const source=f.network().inputs[0];
+  assert.equal(source.container.size,54);
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,source),true);
+  // Simulate a perfectly valid new single chest at the SAME canonical
+  // coordinates, while an old 54-slot JavaScript wrapper remains readable.
+  mate.typeId='minecraft:air';
+  const single=f.newContainer();
+  first.getComponent=n=>n==='minecraft:inventory'?
+    {container:single}:undefined;
+  assert.equal(f.network().inputs[0].container.size,27);
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,source),false,
+    'changed physical inventory shape invalidates earlier admitted slot');
+  const solo=f.network().inputs[0];
+  mate.typeId='minecraft:chest';
+  first.getComponent=n=>n==='minecraft:inventory'?{container:shared}:undefined;
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,solo),false,
+    'a newer 54-slot pair cannot reuse an old 27-slot custody identity');
+});
 test('source removal, unloaded frontier or changed input source identity revokes admission',()=>{
   const f=fixture();
   const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
