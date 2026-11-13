@@ -195,6 +195,104 @@ export function executeUnifiedOrdinaryDeposit(args={}){
   return finish(world,tx,escrow.raw,writer,registry,
     ownerId,anchor,carrierSlot);
 }
+
+/**
+ * Dropper/Dispenser ORDINARY entity -> existing sealed Receiver ledger.
+ * Uses the SAME boundary intent, native entity port, persistent carrier
+ * ticket and shard writer as a Hopper-sourced ordinary deposit. The item
+ * entity is removed ONLY after its exact native escrow and durable ticket
+ * readback. Then a single certified Receiver credit retires that escrow.
+ *
+ * Interrupted operation always HOLDS its outer journal; there is no
+ * speculative replay, second item queue or reconstructed MR payload.
+ */
+export function executeUnifiedEjectedOrdinaryDeposit(args={}){
+  const {world,worldId,epoch,operationId,accountId,key,count,
+    registry,port,writer,ownerId,anchor,carrierSlot,
+    entity,sourceOwnerId,verifyRoute,verifyOrdinary}=args;
+  if(!world||typeof world.getDynamicProperty!=='function'||
+     typeof world.setDynamicProperty!=='function'||
+     !id(worldId)||!positive(epoch)||!id(operationId)||
+     !id(accountId)||!id(key)||!positive(count)||count>64||
+     !id(ownerId)||!anchor||!carrierSlot||
+     carrierSlot.ownerId!==ownerId||!entity||
+     !id(entity.id)||sourceOwnerId!=='ejected-item|'+entity.id||
+     typeof verifyRoute!=='function'||
+     typeof verifyOrdinary!=='function'||
+     typeof registry?.inspectCustody!=='function'||
+     typeof registry?.stageMovedTicket!=='function'||
+     typeof port?.stageEjectedItem!=='function'||
+     typeof port?.ackEjectedItem!=='function'||
+     typeof port?.consumeCertifiedEscrow!=='function'||
+     typeof port?.ackCertifiedEscrow!=='function'||
+     typeof writer?.inspect!=='function'||
+     typeof writer?.applyBoundaryCommit!=='function')
+    return hold('invalid_ejected_ordinary_binding');
+  const empty=requireEmpty(world);
+  if(!empty.ok)return empty;
+  const ledger=writer.inspect();
+  if(!ledger.ok)return hold('ordinary_account_unreadable:'+ledger.reason);
+  if(ledger.snapshot.worldId!==worldId||
+     ledger.snapshot.epoch!==epoch)return hold('ordinary_world_epoch_mismatch');
+  const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
+  if(!account||account.kind!=='receiver')
+    return hold('ejected_receiver_account_unknown');
+  if(account.total+count>account.capacity)
+    return hold('ordinary_account_at_capacity');
+  let routed=false,ordinary=false;
+  try{
+    routed=verifyRoute()===true;
+    ordinary=verifyOrdinary({
+      accountId,key,count,direction:'deposit',entity,
+      fromOwner:sourceOwnerId,to:carrierSlot
+    })===true;
+  }catch(_){}
+  if(!routed||!ordinary)
+    return hold('ejected_ordinary_route_or_identity_unverified');
+  const free=ticket(registry,ownerId,anchor,carrierSlot.slot,false);
+  if(!free.ok)return free;
+  try{
+    if(carrierSlot.container.getItem(carrierSlot.slot)!==undefined)
+      return hold('ejected_ordinary_escrow_occupied');
+  }catch(_){return hold('ejected_ordinary_escrow_unreadable');}
+  const tx={schema:UCE_ORDINARY_BOUNDARY_SCHEMA,
+    phase:'PREPARED',worldId,epoch,operationId,
+    direction:'deposit',accountId,key,count,
+    expectedRevision:ledger.snapshot.revision};
+  const requested=update(world,empty.raw,tx);
+  if(!requested.ok)return requested;
+  const nativeOperationId=operationId+':native-in';
+  const copied=port.stageEjectedItem({
+    operationId:nativeOperationId,entity,sourceOwnerId,to:carrierSlot});
+  if(!copied.ok)return hold('ejected_native_ingress:'+copied.reason);
+  const claimed=registry.stageMovedTicket({ownerId,anchor});
+  if(!claimed.ok)return hold('ejected_native_ticket:'+claimed.reason);
+  const ack=port.ackEjectedItem({
+    operationId:nativeOperationId,entity,sourceOwnerId,to:carrierSlot});
+  if(!ack.ok)return hold('ejected_native_ack:'+ack.reason);
+  const custody=ticket(registry,ownerId,anchor,carrierSlot.slot,true);
+  if(!custody.ok)return custody;
+  let stillLinked=false;
+  try{stillLinked=verifyRoute()===true;}catch(_){}
+  if(!stillLinked)
+    return hold('ejected_route_changed_after_native_ack');
+  const escrow=update(world,requested.raw,{...tx,phase:'ESCROW_READY'});
+  if(!escrow.ok)return escrow;
+  const credited=writer.applyBoundaryCommit({...tx,expectedEpoch:epoch});
+  if(!credited.ok)return hold('ejected_ordinary_credit:'+credited.reason);
+  const retired=port.consumeCertifiedEscrow({
+    operationId:operationId+':retire',
+    from:carrierSlot,accountId,key,count});
+  if(!retired.ok)return hold('ejected_ordinary_escrow_retire:'+retired.reason);
+  const released=registry.stageMovedTicket({ownerId,anchor});
+  if(!released.ok)return hold('ejected_ordinary_ticket_retire:'+released.reason);
+  const cleared=port.ackCertifiedEscrow({
+    operationId:operationId+':retire',
+    from:carrierSlot,accountId,key,count});
+  if(!cleared.ok)return hold('ejected_ordinary_escrow_ack:'+cleared.reason);
+  return finish(world,tx,escrow.raw,writer,registry,
+    ownerId,anchor,carrierSlot);
+}
 /**
  * Withdraw from the SAME ordinary account writer; a certified item is
  * materialized into persistent native escrow, durably debited exactly once,

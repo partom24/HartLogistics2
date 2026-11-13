@@ -3091,16 +3091,15 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
     const stack=itemEntityStack(entity);
     if(!stack||stack.amount<1)return;
     const receiverLoaded=!!receiverAt(receiver);
-    // The original Dropper/Dispenser path must not discard a native MR
-    // stack just because the linked Receiver chunk is unloaded. The
-    // physically loaded Collector already owns a journaled native carrier
-    // waiting lane; ejected MR uses that SAME host/ticket/port, then the
-    // existing Collector->Receiver drain on chunk return.
-    //
-    // Ordinary entities cannot use this waiting host: its drain accepts
-    // only native MR. Leave them as vanilla item entities rather than
-    // creating stranded ordinary custody or a second Q4 queue.
-    if(!receiverLoaded&&uceClassifyLiveStack(stack)!=='MR')return;
+    const itemClass=uceClassifyLiveStack(stack);
+    if(itemClass!=='MR'&&itemClass!=='ORDINARY')return;
+    // MR is physically retained in this same ticketed carrier and later
+    // drains to the Receiver. Ordinary must instead receive a certified
+    // virtual Receiver credit and retire its short-lived native escrow.
+    // Leaving ordinary in an MR-only carrier would strand ownership.
+    const ordinaryKey=itemClass==='ORDINARY'?
+        ucePlainItemIdentity(stack):undefined;
+    if(itemClass==='ORDINARY'&&!ordinaryKey)return;
     const owner=receiverLoaded?receiver:found.collector;
     const ownerId=owner.id,anchor={dimensionId:owner.d,
         x:owner.x,y:owner.y,z:owner.z};
@@ -3166,14 +3165,98 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
     };
     const op=uceNativeReceiptId();
     if(!op){uceBridgeLog('ejected native receipt exhausted');return;}
+    // This proof survives entity removal: the separately persisted carrier
+    // ticket and actual native ItemStack now own the escrow. Both Collector
+    // link and Receiver load state must remain unchanged for the ledger
+    // credit, or the common boundary intent HOLDS.
+    const linkedRoute=()=> {
+        const col=findCollectorById(found.collector.id);
+        const at={dimensionId:found.collector.d,
+            x:found.collector.x,y:found.collector.y,
+            z:found.collector.z};
+        return !!col&&col.present!==false&&
+            col.link===receiver.id&&
+            uceLiveCollectorOwner(col.id,at)&&
+            collectorAllowsEjectedPulse(collectorAt(col))&&
+            !!uceOrdinaryAccountSource(authority,receiver.id)&&
+            (!!receiverAt(receiver))===receiverLoaded&&
+            verifyHost(ownerId,anchor);
+    };
+    const identity=item=>!!item&&itemClass==='ORDINARY'&&
+        item.amount===stack.amount&&
+        uceClassifyLiveStack(item)==='ORDINARY'&&
+        ucePlainItemIdentity(item)===ordinaryKey;
+    let writer;
+    if(itemClass==='ORDINARY'){
+        const shardKey=uceOrdinaryAccountSource(authority,receiver.id);
+        const accountId='receiver:'+receiver.id;
+        const escrowProved=tx=>{
+            if(tx.accountId!==accountId||tx.key!==ordinaryKey||
+               tx.count!==stack.amount||tx.direction!=='deposit'||
+               !linkedRoute())return false;
+            const owned=registry.inspectCustody({ownerId,anchor});
+            if(!owned.ok||!owned.slots.includes(slot))return false;
+            return identity(host.container.getItem(slot));
+        };
+        writer=createUnifiedShardWriter({
+            world,shardKey,worldId:authority.worldId,
+            epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEscrowCustody:escrowProved
+        });
+        if(!writer.ok){
+            uceBridgeLog('ejected ordinary writer '+writer.reason);return;
+        }
+    }
+    const receiptProof=meta=>{
+        if(!writer)return false;
+        const view=writer.inspect();
+        let prepared;
+        try{prepared=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_boundary_intent_v1'));}
+        catch(_){return false;}
+        const receipt=view?.lastReceipt;
+        return !!view?.ok&&prepared?.operationId===op&&
+            prepared.phase==='ESCROW_READY'&&
+            receipt?.kind==='BOUNDARY'&&
+            receipt.operationId===op&&
+            receipt.accountId==='receiver:'+receiver.id&&
+            receipt.direction===meta.direction&&
+            receipt.key===ordinaryKey&&receipt.count===stack.amount;
+    };
     const port=createUnifiedNativePort({
         world,worldId:authority.worldId,epoch:authority.epoch,
+        boundaryOperationId:itemClass==='ORDINARY'?op:null,
         externalFence:()=>uceLegacyWriterBlocked()&&
             !!uceAuthoritySnapshot(),
         verifyEndpointOwner,
-        durableOwnershipWitness:registry.durableOwnershipWitness
+        durableOwnershipWitness:registry.durableOwnershipWitness,
+        certifyOrdinaryEscrow:(item,key,count)=>
+            key===ordinaryKey&&count===stack.amount&&identity(item),
+        verifyLedgerBoundaryReceipt:receiptProof
     });
     if(!port.ok){uceBridgeLog('ejected native port '+port.reason);return;}
+    if(itemClass==='ORDINARY'){
+        const changed=ucePerfTimedOperation('ordinary',()=>
+            executeUnifiedEjectedOrdinaryDeposit({
+                world,worldId:authority.worldId,epoch:authority.epoch,
+                operationId:op,accountId:'receiver:'+receiver.id,
+                key:ordinaryKey,count:stack.amount,
+                registry,port,writer,ownerId,anchor,carrierSlot:to,
+                entity,sourceOwnerId,verifyRoute:linkedRoute,
+                verifyOrdinary:meta=>meta.accountId===
+                    'receiver:'+receiver.id&&
+                    meta.key===ordinaryKey&&
+                    meta.count===stack.amount&&
+                    meta.direction==='deposit'&&
+                    identity(itemEntityStack(entity))
+            }));
+        if(!changed.ok)uceBridgeLog(
+            'ejected ordinary boundary HOLD '+changed.reason,ownerId);
+        else ucePerfRecordMove('ordinary',stack.amount);
+        return;
+    }
     const staged=port.stageEjectedItem({
         operationId:op,entity,sourceOwnerId,to});
     if(!staged.ok){

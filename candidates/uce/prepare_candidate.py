@@ -184,7 +184,7 @@ def compile_patch(source,bridge):
       'import {createUnifiedCarrierRegistry} from "./uce/unified_carrier_registry.js";\n'
       'import {createUnifiedNativePort} from "./uce/unified_native_custody.js";\n'
       'import {serviceUnifiedReceiverMR} from "./uce/unified_receiver_mr_service.js";\n'
-      'import {executeUnifiedOrdinaryDeposit,executeUnifiedOrdinaryWithdrawal} from "./uce/unified_ordinary_service.js";\n'
+      'import {executeUnifiedOrdinaryDeposit,executeUnifiedOrdinaryWithdrawal,executeUnifiedEjectedOrdinaryDeposit} from "./uce/unified_ordinary_service.js";\n'
       'import {createUnifiedShardWriter} from "./uce/unified_world_shard_writer.js";\n'
       'import {planUnifiedBulkService} from "./uce/unified_bulk_policy.js";\n'
       'import {planUnifiedFederatedNetwork,executeUnifiedFederatedTransfer,inspectUnifiedFederatedPending} from "./uce/unified_federated_service.js";\n'

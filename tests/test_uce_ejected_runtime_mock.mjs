@@ -92,6 +92,21 @@ function fixture({route=true,full=false,failCopy=false,
     uceNativeOutputSlot:()=>0,
     uceNativeReceiptId:()=> 'operation-1',
     createUnifiedNativePort:()=>port,
+    createUnifiedShardWriter:()=>({ok:true,inspect:()=>({ok:true})}),
+    executeUnifiedEjectedOrdinaryDeposit:args=>{
+      calls.push('ORDINARY');
+      assert.equal(args.accountId,'receiver:receiver-1');
+      assert.equal(args.ownerId,receiverLoaded?'receiver-1':'c');
+      assert.equal(args.verifyRoute(),true);
+      assert.equal(args.verifyOrdinary({
+        accountId:'receiver:receiver-1',key:args.key,
+        count:args.count,direction:'deposit'}),true);
+      entity.isValid=false;
+      return {ok:true,status:'UNIFIED_ORDINARY_BOUNDARY_DELIVERED'};
+    },
+    ucePerfTimedOperation:(_,fn)=>fn(),
+    ucePerfRecordMove:(kind,count)=>calls.push('METRIC:'+kind+':'+count),
+    ucePlainItemIdentity:()=> 'ordinary-key',
     uceSameLoadedBlock:(a,b)=>a===b,
     uceBridgeLog:s=>logs.push(s),
     system:{runTimeout:fn=>retries.push(fn)}
@@ -145,12 +160,18 @@ test('unloaded linked Receiver buffers ejected MR in Collector native host using
     y:f.collector.y,z:f.collector.z}),false,
     'unloaded Receiver must never be the native owner');
 });
-test('unloaded Receiver cannot strand an ordinary ejected entity in MR-only Collector custody',()=>{
+test('unloaded Receiver ordinary Dropper entity credits existing sealed Receiver instead of MR buffer',()=>{
   const f=fixture({receiverLoaded:false,ordinary:true});
   f.ctx.uceProcessEjectedItemEntity(f.entity);
-  assert.deepEqual(f.calls,[]);
-  assert.equal(f.entity.isValid,true);
-  assert.equal(f.registryOptions,undefined);
+  assert.deepEqual(f.calls,['ORDINARY','METRIC:ordinary:1']);
+  assert.equal(f.entity.isValid,false);
+  assert.ok(f.registryOptions,'Collector escrow must have real owner');
+});
+test('loaded Receiver ordinary Dropper entity also uses virtual Receiver credit',()=>{
+  const f=fixture({ordinary:true});
+  f.ctx.uceProcessEjectedItemEntity(f.entity);
+  assert.deepEqual(f.calls,['ORDINARY','METRIC:ordinary:1']);
+  assert.equal(f.entity.isValid,false);
 });
 test('unloaded Receiver with powered Collector or full native host preserves vanilla entity',()=>{
   for(const options of [
