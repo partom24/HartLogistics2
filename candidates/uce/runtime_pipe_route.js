@@ -480,6 +480,102 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority){
     }catch(_){return false;}
 }
 /*
+ * Ordinary count custody may reach Bulk on a DIFFERENT physical bank through
+ * the original Collector→Receiver links. This discovers only candidate
+ * account owners; a later existing federated writer must inspect registered
+ * capacity/controller/shard and reverify this witness before each debit and
+ * credit. It never claims unregistered, unloaded or uncertain bank space.
+ *
+ * This is usable ONLY after a separately verified network-wide proof that
+ * no accepting Filter/seeded Auto exists. It is NOT a wildcard grant.
+ */
+function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph){
+    try{
+        if(!receiver||!item?.typeId||!authority||
+           !uceVerifiedNoReachablePreferredOutput(
+               receiver,item,authority)||
+           !Array.isArray(logistics.receivers))return undefined;
+        const rootGraph=sourceGraph||ucePipeRouteNetwork(receiver);
+        if(!rootGraph)return undefined;
+        const visited=new Set(),pending=[{
+            current:receiver,graph:rootGraph,path:[]}],found=[];
+        while(pending.length){
+            const {current,graph,path}=pending.pop();
+            if(!current||!graph||!Array.isArray(graph.entries)||
+               !Array.isArray(graph.banks)||
+               !graph.receiverIds?.includes(current.id)||
+               !uceOrdinaryAccountSource(authority,current.id))
+                return undefined;
+            if(visited.has(current.id))continue;
+            if(visited.size>=logistics.receivers.length)
+                return undefined;
+            visited.add(current.id);
+            if(path.length){
+                const chain=path.map(edge=>{
+                    const e=edge.entry;
+                    return e.d+'|'+e.x+','+e.y+','+e.z+'>'+
+                        edge.collector.id+'>'+edge.receiver.id;
+                }).join('~');
+                for(const bank of graph.banks){
+                    const ownerId=uceBulkOwnerId(bank);
+                    if(typeof ownerId!=='string'||!ownerId)
+                        return undefined;
+                    const witness='IBB1|'+receiver.id+'|'+chain+'|'+
+                        graph.leaderId+'|'+ownerId;
+                    if(witness.length>8192||
+                       /[^\x20-\x7e]/.test(witness))
+                        return undefined;
+                    found.push({receiver:current,
+                        leaderId:graph.leaderId,bankOwnerId:ownerId,
+                        graph,path,witness});
+                }
+            }
+            const edges=[];
+            for(const entry of graph.entries){
+                const mode=sorterMode(entry);
+                if(mode==='bypass'||mode==='auto')continue;
+                if(mode==='filter'&&(!entry.f||
+                   !matchesFilter(item,entry.f)))continue;
+                if(mode!=='filter'&&mode!=='wildcard')continue;
+                const sorter=sorterAt(entry);
+                if(!sorter)return undefined;
+                if(blockIsRedstonePowered(sorter))continue;
+                const face=facingOffset(sorter),p=sorter.location;
+                if(!face||!p)return undefined;
+                const target=sorter.dimension.getBlock({
+                    x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+                if(!target)return undefined;
+                if(target.typeId!==COLLECTOR_ID||
+                   blockIsRedstonePowered(target))continue;
+                const q=target.location;
+                const collector=findCollectorById(logisticsId(
+                    target.dimension.id,q.x,q.y,q.z));
+                const live=collector&&collectorAt(collector);
+                const next=collector&&findReceiverById(collector.link);
+                if(!collector||collector.present===false||
+                   !collector.link||!uceSameLoadedBlock(target,live)||
+                   !next||next.present===false||!receiverAt(next)||
+                   !uceOrdinaryAccountSource(authority,next.id))
+                    return undefined;
+                edges.push({entry,collector,receiver:next,
+                    priority:mode==='filter'?0:2});
+            }
+            edges.sort((a,b)=>a.priority-b.priority||
+                a.entry.y-b.entry.y||a.entry.x-b.entry.x||
+                a.entry.z-b.entry.z);
+            for(let i=edges.length-1;i>=0;i--){
+                const edge=edges[i];
+                if(visited.has(edge.receiver.id))continue;
+                const nextGraph=ucePipeRouteNetwork(edge.receiver);
+                if(!nextGraph)return undefined;
+                pending.push({current:edge.receiver,graph:nextGraph,
+                    path:[...path,edge]});
+            }
+        }
+        return found;
+    }catch(_){return undefined;}
+}
+/*
  * Directed linked-bank discovery for ORDINARY Receiver balances.
  *
  * Each traversal edge is the original physical Sorter -> Collector ->
