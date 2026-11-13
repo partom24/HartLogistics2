@@ -263,7 +263,7 @@ test('unloaded pipe boundary or unsupported foreign inventory HOLDS without rout
   f.missing.add('3,70,3');
   assert.equal(f.network(),undefined);
   f.missing.clear();
-  f.put('minecraft:shulker_box',1,70,4,
+  f.put('minecraft:furnace',1,70,4,
     f.chestA.getComponent('minecraft:inventory').container);
   assert.equal(f.network(),undefined);
 });
@@ -451,16 +451,45 @@ test('multiple chest/barrel inputs are deduplicated and sorted deterministically
   assert.equal(graph.inputs[0].block,source1);
   assert.equal(graph.inputs[1].block,source2);
 });
-test('a source below Receiver level and double-chest aliases fail the entire graph',()=>{
-  const low=fixture();
-  // This block is directly below a pipe, at y=69 while Receiver is y=70.
-  low.put('minecraft:barrel',3,69,4,low.inventories[0]);
-  assert.equal(low.network(),undefined);
+test('lower-bank input below Receiver elevation remains a verified pipe source',()=>{
+  const f=fixture();
+  for(const x of [1,0,-1])f.put('hartlogistics:transporter',x,70,4);
+  f.put('hartlogistics:transporter',-1,69,4);
+  const source=f.put('minecraft:barrel',-2,69,4,f.newContainer());
+  const graph=f.network();
+  assert.ok(graph,'a valid descending pipe must not be rejected by Y level');
+  assert.equal(graph.inputs.length,1);
+  assert.equal(graph.inputs[0].block,source);
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,graph.inputs[0]),true);
+  f.missing.add('-1,69,3');
+  assert.equal(f.network(),undefined,'unknown lower-bank frontier HOLDS');
+});
+test('original supported vanilla single-storage pipe inputs retain identity checks',()=>{
+  for(const kind of ['minecraft:chest','minecraft:trapped_chest',
+                     'minecraft:barrel','minecraft:shulker_box',
+                     'minecraft:purple_shulker_box']){
+    const f=fixture(),input=f.put(kind,1,70,4,f.newContainer());
+    const graph=f.network();
+    assert.ok(graph,kind);
+    assert.equal(graph.inputs[0].block,input,kind);
+    assert.equal(f.context.ucePipeSourceStillConnected(
+      f.receiver,graph.inputs[0]),true,kind);
+    input.typeId='minecraft:dispenser';
+    assert.equal(f.context.ucePipeSourceStillConnected(
+      f.receiver,graph.inputs[0]),false,
+      kind+' changed to unsupported type');
+  }
+});
+test('double-chest aliases cannot become uncertified input owners',()=>{
   const f=fixture();
   const chest=f.put('minecraft:chest',1,70,4,f.inventories[0]);
   f.put('minecraft:chest',1,70,5,f.inventories[0]);
   assert.equal(f.network(),undefined);
   assert.equal(chest.typeId,'minecraft:chest');
+  const shulker=fixture();
+  shulker.put('minecraft:shulker_box',1,70,4,shulker.newContainer(54));
+  assert.equal(shulker.network(),undefined,
+    'non-27-slot inventory cannot masquerade as a single input');
 });
 test('source removal, unloaded frontier or changed input source identity revokes admission',()=>{
   const f=fixture();
