@@ -1,22 +1,27 @@
 # Hart Logistics 2 — contributor operating contract
 
-## Current owner development authorization (2026-11-08)
+## Current owner engineering mandate (2026-11-13)
 
-The owner explicitly authorized ongoing implementation, offline testing/builds,
-GitHub development and preparation of LAB test deliveries, with owner involvement
-only for blocking issues or BDS testing. This supersedes older planning-only
-permission statements below for that development scope. Preserve the original
-72-file baseline and all state/compatibility contracts. PG25 is accepted at its bounded LAB scope. Current work is PG27 visual correction of the installed PG26 ordinary
-Transporter prototype: east/west model arms and English name, preserving the
-unchanged single-source/column routing, accepted PG25 gates and Hopper paths; no experiments, world reset,
-production operation or public release is authorized by this instruction.
+The owner explicitly authorizes continued HartLogistics2 implementation,
+integration, source tests, GitHub CI and reviewable development PR changes
+**without recurring permission prompts**. Deliver one coherent product preserving
+all 1.4.1 behavior and data, with one custody authority, one routing authority,
+one coordinated transfer/recovery mechanism, and cold Q4 migration.
+Treat previous PG experiments as bounded evidence, not a mandate to rerun them.
+Retain useful regression fixtures and immutable historical pack reconstruction
+only where needed for safety or rollback; remove temporary runtime probes from
+the release tree after the relevant LAB cleanup. The current draft work is PR #79,
+branch `dev/uce-shared-ordinary-ledger-20261111`. This development mandate does
+**not** authorize an automatic world cutover, LAB install, production access,
+public release, or merge. Request owner BDS involvement only for a complete
+integrated product candidate or an unavoidable safety boundary.
 
 ## Authority and repository boundary
 
 - **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.
 - Read [project-blueprint.json](project-blueprint.json), [roadmap](docs/ROADMAP.md), [current state](docs/CURRENT_DEVELOPMENT_STATE.md), [design](docs/LOGISTICS_DESIGN.md), [Q5 migration](docs/Q5_MIGRATION_DESIGN.md) and relevant source before proposing changes.
-- The owner has approved **planning/documentation and completed Bundle 0 (exact unchanged source import plus offline-only LAB updater safety tooling)**. Gameplay modification and runtime testing/deployment require separate explicit authorization. Permission also exists to **import the provided HartBots production updater as inert reference source**, without running it. Do not execute production updater scripts (even dry-run) or access/modify the live server before a nominated release candidate, and require separate explicit owner authorization for any subsequent production operation. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
-- The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline. Its **72 original BP/RP source files are now committed unchanged** under `addon/` (source import `0ea3000`; [hash inventory](BASELINE_HASHES.json)). The new LAB updater has only **offline synthetic** evidence. No Q5/new-block gameplay code exists.
+- Current owner authority covers **HL2 gameplay source implementation, tests, generated candidate packages and reviewable PRs**. The immutable Bundle 0 baseline remains a protected reference, not the active product. The only interactive BDS/server work permitted is an owner-authorized, stopped, guarded LAB operation with exact source hashes, backups and rollback; do not infer authorization for a new install from a CI pass. Production and other add-ons remain denied; HartBots references are inert only.
+- The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline. Its **72 original BP/RP source files remain protected** under `addon/` (source import `0ea3000`; [hash inventory](BASELINE_HASHES.json)). Active HL2 source is generated through `candidates/uce/prepare_candidate.py` and `candidates/transport/`, including native custody, Receiver accounts, multi-Receiver Transporter routing and Bulk. Source CI is not complete BDS acceptance.
 
 ## Non-negotiable compatibility contract
 
@@ -48,7 +53,7 @@ Use [preliminary PG-01–PG-11 bundles](docs/PRELIMINARY_GO_NO_GO.md) before und
 - Hopper and Transporter are interchangeable **Sorter input** mechanisms sharing priority/filter/redstone rules; pipe atop Sorter columns, adjacent ordinary container means **source**, not final storage; never pipe→ordinary chest output. No output chest at/above pipe Y in intended topology.
 - Persist network IDs and deterministic controller ownership; never infer wildcard permission from stale/unloaded Bulk storage. Keep separate finite native MR slots/backpressure from ordinary Receiver queue counts.
 - Q4→Q5 migration **stops all Hart Logistics script routing server-wide** under a durable maintenance epoch. Unloaded legacy blocks are **PENDING** until auto-migrated on chunk load, not magically mutated while unloaded. Show status in block menus when loaded; do not assume vanilla Hopper mechanics globally stop. Ensure proven safe resume/rollback before clearing the freeze. See [Q5 migration design](docs/Q5_MIGRATION_DESIGN.md).
-- These approvals are **design choices, not implementation authorization**. Source import, gameplay changes, experimental flags, LAB execution and production remain governed by existing gates.
+- These are implementation constraints under the current mandate; experiments, LAB installation, world cutover and production remain separately gated.
 
 ## Optional ticking-area migration proposal (not yet approved)
 
@@ -56,7 +61,16 @@ Q5 migration may **investigate the stable `world.tickingAreaManager` Script API*
 
 ## Current allowed work
 
-Bundle 0 source import/PG-01 and offline PG-02 are specifically authorized and complete. Continue planning and source verification only without a fresh owner decision. **Bundle 1 probe is completed and cleaned up** with PG-03 NO-GO; future gameplay implementation, new probe types, experimental flags or additional LAB execution require explicit separate scope. Do not infer this permission from Bundle 0 or structural CI.
+Continue implementing, reviewing and testing HL2 on the existing draft development
+PR. Perform code hygiene, integration regressions, fault injection and packaging
+validation without repeat prompts. **Do not automatically install a LAB pack,
+switch worlds, clear custody, run BDS or migrate archived Q4.** As of this mandate,
+the owner LAB is on a separate PG42 diagnostic world, not the original PG33
+installer predecessor. Preserve PG35/PG42 worlds, their native-carrier evidence,
+and exact historical rollback tools until owner-authorized cleanup. PG42's
+`tests/pg42_probe.js` remains temporary and must never enter generated HL2
+runtime or a release artifact. Existing-world cold Q4 metadata-rich data still
+requires non-destructive migration and separate full-system acceptance.
 
 ## Approved future link interaction
 
