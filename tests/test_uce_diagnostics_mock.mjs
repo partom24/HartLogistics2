@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const src=fs.readFileSync(new URL(
-  '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
+// Generated-addon tests run the same functions from assembled main.js.
+const src=process.env.UCE_GENERATED_MAIN?
+  fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):
+  fs.readFileSync(new URL(
+    '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
 const marker='function uceSendDiagnostics(origin){';
 const a=src.indexOf(marker),b=src.indexOf('\n}',a);
 assert.ok(a>=0&&b>a);
