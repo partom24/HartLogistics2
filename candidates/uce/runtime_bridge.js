@@ -1952,6 +1952,9 @@ function uceOrdinaryServiceTick(authority){
                 tx?.routeWitness?.startsWith('IB1|')?
                     uceInterbankRouteVerified(
                         authority,receiver,tx,direction):
+                tx?.routeWitness?.startsWith('IBB1|')?
+                    uceInterbankBulkRouteVerified(
+                        authority,receiver,tx,direction):
                     uceFederatedRouteVerified(
                         authority,receiver,tx,direction),
             verifyEscrowCustody:tx=>{
