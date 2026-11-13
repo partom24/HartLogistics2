@@ -197,6 +197,16 @@ test('duplicate Sorter registration revokes the entire Transporter route',()=>{
   assert.equal(f.choose(COBBLE),undefined);
 });
 
+test('an unrelated duplicate Sorter registration does not freeze a separate pipe bank',()=>{
+  const f=fixture();
+  // No registered pipe feeds this distant registry row.
+  f.entries.push({d:f.dim.id,x:1000,y:69,z:1000,m:'filter',
+    f:{match:{typeId:'minecraft:stone'}}});
+  f.entries.push({d:f.dim.id,x:1000,y:69,z:1000,m:'wildcard',f:null});
+  assert.ok(f.network());
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+});
+
 test('occupied preferred output selects lower priority destination without merge',()=>{
   const f=fixture();
   f.chestA.getComponent('minecraft:inventory').container.fill({
