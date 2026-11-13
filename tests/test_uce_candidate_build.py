@@ -123,7 +123,7 @@ class UceBuildTests(unittest.TestCase):
             self.assertIn("if (uceLegacyWriterBlocked())",
                           s[brace:brace+165],name)
         self.assertIn(
-          "if (uceLegacyWriterBlocked()) { uceUnifiedServiceTick(); return; }",s)
+          "if (uceLegacyWriterBlocked()) { ucePerformanceTick(); return; }",s)
         self.assertIn("if (uceLegacyWriterBlocked()) return;",s)
         self.assertIn("UCE_LEGACY_WORLD_WRITER_FENCED",s)
         self.assertIn("if (uceLegacyWriterBlocked()) { uceSendDiagnostics(origin); return; }",s)
