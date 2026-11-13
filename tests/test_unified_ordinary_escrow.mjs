@@ -37,6 +37,12 @@ function container(size=9,item=undefined){
       if(slots[i]===undefined)return undefined;
       const s=structuredClone(slots[i]);
       s.getLore=()=>[...(s.lore||[])];
+      s.isStackableWith=other=>!!other&&
+        other.typeId===s.typeId&&!s.nameTag&&!other.nameTag;
+      s.clone=()=>{
+        const raw=structuredClone(slots[i]);
+        return {...raw,getLore:()=>[...(raw.lore||[])]};
+      };
       return s;
     },
     moveItem(i,j,to){
@@ -46,7 +52,7 @@ function container(size=9,item=undefined){
     },
     setItem(i,v){
       if(v===undefined){slots[i]=undefined;return;}
-      const {getLore,...data}=v; // Bedrock stores native item state, not API methods.
+      const {getLore,isStackableWith,clone,...data}=v; // Bedrock stores native item state, not API methods.
       slots[i]=structuredClone(data);
     },
     peek:i=>slots[i],
@@ -443,4 +449,39 @@ test('coordinator stops safely after an ordinary debit if Sorter topology change
   assert.equal(destination.getItem(1),undefined);
   assert.equal(inspectUnifiedOrdinaryBoundary(f.world).status,
     'BOUNDARY_PENDING_RECONCILIATION');
+});
+
+test('integrated ordinary debit uses existing native partial journal and full escrow ACK',()=>{
+  const f=fixture();
+  assert.equal(executeUnifiedOrdinaryDeposit({
+    ...coordinated(f,'seed-partial-ordinary'),count:64
+  }).ok,true);
+  const destination=container(9);
+  destination.put(2,{typeId:'minecraft:cobblestone',amount:60,maxAmount:64,
+    nameTag:'',lore:[]});
+  const output={ownerId:'sorter-merge-output',container:destination,slot:2};
+  const args={...coordinated(f,'withdraw-partial-ordinary'),count:4,
+    partialOutput:true,physicalSlot:output};
+  const result=executeUnifiedOrdinaryWithdrawal(args);
+  assert.equal(result.ok,true,result.reason);
+  assert.equal(result.status,'UNIFIED_ORDINARY_BOUNDARY_DELIVERED');
+  assert.equal(destination.getItem(2).amount,64,
+    'real occupied destination stack was extended, not replaced');
+  assert.equal(f.writer.inspect().snapshot.total,60,
+    'only actual free space is debited once');
+  assert.equal(f.host.container.getItem(0),undefined);
+  assert.equal(f.reg.inspectCustody(f.owner).occupied,0);
+  assert.equal(f.values.has(boundaryKey),false);
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+});
+test('partial output cannot bypass the native certified journal port',()=>{
+  const f=fixture();
+  const args=coordinated(f,'missing-partial-port');
+  const port={...args.port};
+  port.moveCertifiedPartial=undefined;
+  const result=executeUnifiedOrdinaryWithdrawal({
+    ...args,port,partialOutput:true,count:4});
+  hold(result,'partial_output_port_unavailable');
+  assert.equal(f.values.has(boundaryKey),false);
+  assert.equal(f.writer.inspect().snapshot.total,0);
 });

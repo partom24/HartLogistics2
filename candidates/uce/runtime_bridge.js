@@ -1046,7 +1046,7 @@ function uceOrdinaryServiceTick(authority){
                             return false;
                         return !!outgoing||
                             (!output&&!!uceChoosePipeDestination(
-                                receiver,item,true));
+                                receiver,item,true,undefined,true));
                     }catch(_){return false;}
                 };
                 // Only Filter/seeded Auto (or the preserved native Hopper)
@@ -1111,7 +1111,8 @@ function uceOrdinaryServiceTick(authority){
                             canWithdraw=!!uceChoosePipeDestination(
                                 receiver,item,
                                 !!bankNetwork?.banks?.length&&
-                                bankNetwork.leaderId===receiver.id);
+                                bankNetwork.leaderId===receiver.id,
+                                undefined,true);
                         }
                         if(canWithdraw)break;
                     }
@@ -1188,7 +1189,8 @@ function uceOrdinaryServiceTick(authority){
                     const route=outgoing?undefined:
                         uceChoosePipeDestination(receiver,item,
                             !!bankNetwork?.banks?.length&&
-                            bankNetwork.leaderId===receiver.id);
+                            bankNetwork.leaderId===receiver.id,
+                            undefined,true);
                     if(!outgoing&&!route)continue;
                     if(outgoing&&uceNativeOutputSlot(outgoing.container)<0)
                         continue;
@@ -1198,17 +1200,43 @@ function uceOrdinaryServiceTick(authority){
             }
             if(!bucket)continue;
             direction='withdraw';identityKey=bucket.key;
-            amount=Math.min(bucket.count,64,selectedItem.maxAmount);
+            amount=Math.min(bucket.count,64,selectedItem.maxAmount,
+                selectedRoute?.partialOutput?selectedRoute.room:64);
+            if(!Number.isSafeInteger(amount)||amount<1)continue;
             if(selectedRoute){
                 physicalSlot={ownerId:selectedRoute.ownerId,
                     container:selectedRoute.dest.container,
                     slot:selectedRoute.slot};
-                routeVerify=()=>!receiverOutputHopper(receiver)&&
-                    !blockIsRedstonePowered(receiverAt(receiver))&&
-                    ucePipeDestinationStillValid(
-                        receiver,selectedItem,selectedRoute,
-                        selectedRoute.dest.container.getItem(
-                            selectedRoute.slot)!==undefined);
+                routeVerify=()=>{
+                    let current;
+                    try{
+                        current=selectedRoute.dest.container.getItem(
+                            selectedRoute.slot);
+                    }catch(_){return false;}
+                    // A previously occupied partial slot is NOT post-move
+                    // merely because it is occupied. Check the exact prior
+                    // amount or the exact expected committed amount.
+                    let stackable=false;
+                    try{
+                        stackable=!!current&&
+                            current.isStackableWith(selectedItem)===true&&
+                            selectedItem.isStackableWith(current)===true;
+                    }catch(_){}
+                    const before=selectedRoute.partialOutput?
+                        stackable&&current.amount===
+                            selectedRoute.beforeAmount:
+                        current===undefined;
+                    const after=selectedRoute.partialOutput?
+                        stackable&&current.amount===
+                            selectedRoute.beforeAmount+amount:
+                        !!current&&current.typeId===selectedItem.typeId&&
+                            current.amount===amount;
+                    if(!before&&!after)return false;
+                    return !receiverOutputHopper(receiver)&&
+                        !blockIsRedstonePowered(receiverAt(receiver))&&
+                        ucePipeDestinationStillValid(
+                            receiver,selectedItem,selectedRoute,after);
+                };
             }else{
                 const outputIndex=uceNativeOutputSlot(outgoing.container);
                 if(outputIndex<0)continue;
@@ -1307,7 +1335,8 @@ function uceOrdinaryServiceTick(authority){
                 meta.count===amount&&meta.accountId===accountId};
         const result=direction==='deposit'?
             executeUnifiedOrdinaryDeposit(args):
-            executeUnifiedOrdinaryWithdrawal(args);
+            executeUnifiedOrdinaryWithdrawal({...args,
+                partialOutput:selectedRoute?.partialOutput===true});
         if(!result.ok)uceBridgeLog('ordinary '+result.reason);
         uceOrdinaryCursor=(index+1)%receivers.length;
         // One transaction opportunity per tick, successful or blocked.

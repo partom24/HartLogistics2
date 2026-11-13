@@ -200,6 +200,10 @@ export function executeUnifiedOrdinaryWithdrawal(args={}){
   const {world,worldId,epoch,operationId,accountId,key,count,
     registry,port,writer,ownerId,anchor,carrierSlot,physicalSlot,
     verifyRoute,verifyOrdinary}=args;
+  const partialOutput=args.partialOutput===true;
+  if(partialOutput&&(typeof port.moveCertifiedPartial!=='function'||
+      typeof port.ackCertifiedPartial!=='function'))
+    return hold('partial_output_port_unavailable');
   const tx={schema:UCE_ORDINARY_BOUNDARY_SCHEMA,
     phase:'PREPARED',worldId,epoch,operationId,
     direction:'withdraw',accountId,key,count,expectedRevision:0};
@@ -228,15 +232,23 @@ export function executeUnifiedOrdinaryWithdrawal(args={}){
   let stillRouted=false;
   try{stillRouted=verifyRoute()===true;}catch(_){}
   if(!stillRouted)return hold('sorter_destination_changed_after_debit');
-  const moved=port.moveWhole({
-    operationId:operationId+':native-out',
-    from:carrierSlot,to:physicalSlot});
+  const moved=partialOutput?
+    port.moveCertifiedPartial({
+      operationId:operationId+':native-out',
+      from:carrierSlot,to:physicalSlot,key,count}):
+    port.moveWhole({
+      operationId:operationId+':native-out',
+      from:carrierSlot,to:physicalSlot});
   if(!moved.ok)return hold('ordinary_output:'+moved.reason);
   const released=registry.stageMovedTicket({ownerId,anchor});
   if(!released.ok)return hold('native_ticket_out:'+released.reason);
-  const acknowledged=port.ackWhole({
-    operationId:operationId+':native-out',
-    from:carrierSlot,to:physicalSlot});
+  const acknowledged=partialOutput?
+    port.ackCertifiedPartial({
+      operationId:operationId+':native-out',
+      from:carrierSlot,to:physicalSlot,key,count}):
+    port.ackWhole({
+      operationId:operationId+':native-out',
+      from:carrierSlot,to:physicalSlot});
   if(!acknowledged.ok)return hold('native_output_ack:'+acknowledged.reason);
   return finish(world,tx,escrow.raw,writer,registry,
     ownerId,anchor,carrierSlot);

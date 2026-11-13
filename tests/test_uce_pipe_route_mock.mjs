@@ -67,6 +67,19 @@ function fixture(){
     facingOffset:()=>({x:0,y:0,z:1}),
     sorterMode:e=>e.m,blockIsRedstonePowered:b=>!!b.powered,
     matchesFilter:(item,f)=>item.typeId===f.match.typeId,
+    findAcceptSlot:(c,item)=>{
+      let empty=-1;
+      for(let i=0;i<c.size;i++){
+        const v=c.getItem(i);
+        if(!v){if(empty<0)empty=i;continue;}
+        if(typeof v.isStackableWith==='function'&&
+           v.isStackableWith(item)&&v.amount<v.maxAmount)
+          return {slot:i,before:v.amount,room:v.maxAmount-v.amount,
+            existing:v};
+      }
+      return empty<0?undefined:{slot:empty,before:0,
+        room:item.maxAmount,existing:undefined};
+    },
     enchantments:stack=>stack?.ench||[]
   };
   vm.runInNewContext(src,context);
@@ -396,4 +409,39 @@ test('direct Sorter source winner is preserved for the last-slot ACK',()=>{
   assert.equal(f.context.uceSorterColumnWinner(col,COBBLE,original)?.entry,f.filter);
   f.filter.m='bypass';
   assert.notEqual(f.context.uceSorterColumnWinner(col,COBBLE,original)?.entry,f.filter);
+});
+
+test('ordinary Receiver pipe egress merges into filtered partial stack before wildcard',()=>{
+  const f=fixture();
+  const dest=f.chestA.getComponent('minecraft:inventory').container;
+  const cobble={typeId:'minecraft:cobblestone',amount:1,maxAmount:64,
+    isStackableWith:s=>s?.typeId==='minecraft:cobblestone'};
+  dest.fill({typeId:'minecraft:stone',amount:64,maxAmount:64});
+  dest.setItem(8,{typeId:'minecraft:cobblestone',amount:60,maxAmount:64,
+    isStackableWith:s=>s?.typeId==='minecraft:cobblestone'});
+  const choice=f.context.uceChoosePipeDestination(
+    f.receiver,cobble,false,undefined,true);
+  assert.equal(choice.entry,f.filter);
+  assert.equal(choice.slot,8);
+  assert.equal(choice.partialOutput,true);
+  assert.equal(choice.beforeAmount,60);
+  assert.equal(choice.room,4);
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,cobble,choice),true);
+  dest.setItem(8,{typeId:'minecraft:cobblestone',amount:64,maxAmount:64,
+    isStackableWith:s=>s?.typeId==='minecraft:cobblestone'});
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,cobble,choice,true),true,
+    'same admitted route may ACK exact credited partial slot');
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,cobble,choice,false),false,
+    'pre-move selection must not claim a full slot');
+});
+test('metadata-rich/uncertified pipe output still requires an empty destination',()=>{
+  const f=fixture(),dest=f.chestA.getComponent('minecraft:inventory').container;
+  const item={typeId:'minecraft:enchanted_book',amount:1,maxAmount:1};
+  f.filter.f={match:{typeId:'minecraft:enchanted_book'}};
+  dest.fill({typeId:'minecraft:enchanted_book',amount:1,maxAmount:1});
+  const choice=f.context.uceChoosePipeDestination(f.receiver,item);
+  assert.equal(choice.entry,f.fallback);
 });

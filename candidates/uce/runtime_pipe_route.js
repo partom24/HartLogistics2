@@ -214,7 +214,8 @@ function ucePipeAutoSeed(item,container) {
     return false;
 }
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
-                                  settledDestination=undefined) {
+                                  settledDestination=undefined,
+                                  allowPlainMerge=false) {
     // The old Receiver output Hopper retains first claim to physical egress.
     // Bulk account discovery on the SAME graph may still occur, because
     // moving virtual balances is not a second physical output writer.
@@ -230,16 +231,47 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
         const dest=uceReadOnlySorterDestination(entry,root);
         if(!dest||graph.inputs.some(input=>
             uceSameLoadedBlock(input.block,dest.block)))continue;
-        // Native ACK may see the exact output slot filled by the move.
-        // Only the already selected entry/slot may bypass empty admission.
+        // Ordinary account withdrawals may use a matching partially filled
+        // native slot. This is NOT a second writer: the ledger boundary uses
+        // the existing journaled certified partial port. Metadata-rich
+        // stacks continue to require an empty destination slot.
         let empty=ucePipeEmptySlot(dest.container);
+        let partialOutput=false,beforeAmount=0,room=undefined;
+        if(allowPlainMerge){
+            const accepting=findAcceptSlot(dest.container,item);
+            if(accepting&&Number.isSafeInteger(accepting.slot)&&
+               accepting.slot>=0&&accepting.slot<dest.container.size){
+                if(accepting.before>0&&accepting.room>0){
+                    const sample=dest.container.getItem(accepting.slot);
+                    let identical=false;
+                    try{
+                        identical=!!sample&&sample.amount===accepting.before&&
+                            sample.isStackableWith(item)===true&&
+                            item.isStackableWith(sample)===true&&
+                            sample.maxAmount===item.maxAmount;
+                    }catch(_){}
+                    if(identical){
+                        empty=accepting.slot;partialOutput=true;
+                        beforeAmount=sample.amount;room=accepting.room;
+                    }
+                }else if(accepting.before===0){
+                    empty=accepting.slot;
+                }
+            }
+        }
+        // Native ACK may observe a slot already filled by THIS exact
+        // committed move; preserve the selected route for that one ACK.
         if(settledDestination?.entry===entry &&
            uceSameLoadedBlock(dest.block,settledDestination.dest?.block) &&
            Number.isSafeInteger(settledDestination.slot) &&
            settledDestination.slot>=0 &&
            settledDestination.slot<dest.container.size &&
-           dest.container.getItem(settledDestination.slot)!==undefined)
+           dest.container.getItem(settledDestination.slot)!==undefined){
             empty=settledDestination.slot;
+            partialOutput=settledDestination.partialOutput===true;
+            beforeAmount=settledDestination.beforeAmount||0;
+            room=settledDestination.room;
+        }
         if(empty<0)continue;
         let priority=-1;
         if(mode==='filter'&&matchesFilter(item,entry.f))priority=0;
@@ -247,7 +279,8 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
             priority=1;
         if(mode==='wildcard'&&!onlyPreferred)priority=2;
         if(priority<0)continue;
-        candidates.push({entry,mode,dest,slot:empty,priority});
+        candidates.push({entry,mode,dest,slot:empty,priority,
+            partialOutput,beforeAmount,room,allowPlainMerge});
     }
     candidates.sort((a,b)=>a.priority-b.priority ||
         a.entry.y-b.entry.y||a.entry.x-b.entry.x||
@@ -265,7 +298,8 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
 function ucePipeDestinationStillValid(receiver,item,admitted,postMove=false) {
     if(!admitted)return false;
     const current=uceChoosePipeDestination(receiver,item,
-        admitted.onlyPreferred===true,postMove===true?admitted:undefined);
+        admitted.onlyPreferred===true,postMove===true?admitted:undefined,
+        admitted.allowPlainMerge===true);
     return !!current&&current.routeId===admitted.routeId &&
         current.slot===admitted.slot;
 }
