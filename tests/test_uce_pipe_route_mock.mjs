@@ -479,6 +479,48 @@ test('one-hop Collector handoff selects a different sealed Receiver with a real 
   assert.equal(select(),undefined,
     'uncertified local Filter cannot be bypassed by remote link');
 });
+test('interbank Filter ties obey original bottom-to-top and coordinate Sorter order',()=>{
+  const f=fixture();
+  // Two Filter Sorters of equal priority: the left-hand Collector at x2
+  // must be offered before the local chest at x3, as in the original
+  // deterministic y/x/z Sorter column winner.
+  f.filter.m='filter';
+  f.fallback.m='filter';
+  f.fallback.f={match:{typeId:'minecraft:cobblestone'}};
+  f.chestB.typeId='hartsorter:collector';
+  const collector=f.chestB.location;
+  const receiver={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  f.registeredReceivers.push(receiver);
+  f.put('hartsorter:receiver',24,70,4);
+  f.put('hartlogistics:transporter',23,70,4);
+  f.put('hartsorter:sorter',23,69,4);
+  const target={d:f.dim.id,x:23,y:69,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}};
+  f.entries.push(target);
+  f.put('minecraft:barrel',23,69,5,f.newContainer());
+  f.collectors.push({
+    id:f.context.logisticsId(f.dim.id,collector.x,collector.y,collector.z),
+    d:f.dim.id,x:collector.x,y:collector.y,z:collector.z,
+    link:receiver.id,present:true
+  });
+  const select=()=>f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+  assert.equal(select()?.receiver,receiver,
+    'Collector Filter at smaller x wins equal y and Filter priority');
+  assert.equal(select()?.entry,f.fallback);
+  // A physically lower Filter in the local column must win instead.
+  f.put('hartsorter:sorter',3,68,4);
+  const lower={d:f.dim.id,x:3,y:68,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}};
+  f.entries.push(lower);
+  f.put('minecraft:barrel',3,68,5,f.newContainer());
+  assert.equal(select(),undefined,
+    'lower local Filter wins the original bottom-to-top tie');
+  // A paused local winner is not allowed to mask the remote Filter.
+  f.put('hartsorter:sorter',3,68,4).powered=true;
+  assert.equal(select()?.receiver,receiver);
+});
 test('unloaded, overfull or relinked remote bank cannot receive a virtual handoff',()=>{
   const f=fixture();f.filter.m='bypass';
   f.chestB.typeId='hartsorter:collector';
