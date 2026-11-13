@@ -324,6 +324,22 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     if(!dim)return hold('carrier_dimension_unloaded');
     const nearby=near(dim,anchor);
     if(!nearby)return hold('carrier_entity_query_failed');
+    // Neighbor census is an UNATTRIBUTED physical warning, not a custody
+    // owner lookup. A zero in the 0.75-block host radius never proves that
+    // another loaded carrier was not displaced several blocks away.
+    // This bounded read-only query is only run by explicit status inspection.
+    let vicinityStatus='UNAVAILABLE',vicinityCount=null,vicinityEntities=[];
+    try{
+      const found=dim.getEntities({type:UCE_CARRIER_TYPE,
+        location:origin(anchor),maxDistance:16});
+      if(Array.isArray(found)){
+        const local=new Set(nearby.map(e=>e.id));
+        const others=found.filter(e=>!local.has(e.id));
+        vicinityCount=others.length;
+        vicinityEntities=others.slice(0,8).map(e=>({id:e.id}));
+        vicinityStatus='LOADED_NEIGHBORS_ONLY';
+      }
+    }catch(_){}
     const entities=[];
     for(const entity of nearby.slice(0,8)){
       const inv=inventory(entity);
@@ -372,6 +388,7 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
       recordState:record.state,recordStatus,
       recordEntityId:record.entityId??null,
       ownerVerified,liveEntityCount:nearby.length,entities,
+      vicinityStatus,vicinityCount,vicinityEntities,
       ticketStatus,
       ticketRevision:tickets.ok?tickets.record.revision:null,
       ticketSlotCount:tickets.ok?tickets.record.slots.length:null,

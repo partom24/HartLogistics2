@@ -1449,6 +1449,7 @@ function uceSendDiagnostics(origin){
                             audit.recordState+' | saved ID '+
                             (audit.recordEntityId||'none')+
                             ' | physical '+audit.liveEntityCount+
+                            ' | others≤16 '+(audit.vicinityCount??'UNKNOWN')+
                             ' | tickets '+(audit.ticketSlotCount??'UNKNOWN')+
                             '@'+(audit.ticketRevision??'UNKNOWN')+
                             ' '+(audit.ticketStatus||'UNVERIFIED')+
@@ -1459,6 +1460,8 @@ function uceSendDiagnostics(origin){
                             lines.push('§7  Entity §f'+observed.id+
                                 ' §7occupied '+observed.occupied+
                                 ' | '+observed.inventoryStatus);
+                        for(const other of (audit.vicinityEntities||[]).slice(0,2))
+                            lines.push('§7  Other loaded carrier (unattributed) §f'+other.id);
                     }
                     lines.push('§7Native hosts (read-only, first '+maxHosts+
                         '): §factive '+active+' | RESERVED '+reserved+

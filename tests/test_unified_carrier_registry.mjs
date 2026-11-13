@@ -42,9 +42,14 @@ function fixture(opts={}){
   let verified=opts.verified!==false,writes=0,queries=0;
   const dim={
     id:'minecraft:overworld',
-    getEntities({type}){
+    getEntities({type,location,maxDistance}){
       queries++;
-      return spawned.filter(x=>x.typeId===type&&x.loaded!==false);
+      return spawned.filter(x=>{
+        if(x.typeId!==type||x.loaded===false)return false;
+        const p=x.location,delta=Math.hypot(p.x-location.x,
+          p.y-location.y,p.z-location.z);
+        return delta<=maxDistance;
+      });
     },
     spawnEntity(type,pos){
       const c=fakeContainer();
@@ -426,5 +431,51 @@ test('a sealed but no-longer-live Receiver must not report healthy uninitialized
   assert.equal(r.custodyState,'HOLD:carrier_owner_block_unverified');
   assert.equal(r.canRepair,false);
   assert.equal(f.writes,writes);
+  assert.equal(f.spawned.length,0);
+});
+
+test('PG40 read-only loaded vicinity can reveal another carrier beyond host radius without assigning ownership',()=>{
+  const f=fixture();
+  const other=f.dim.spawnEntity(UCE_CARRIER_TYPE,{
+    x:anchor.x+4.5,y:anchor.y+0.2,z:anchor.z+0.5
+  });
+  const writes=f.writes,local=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(local.ok,true,local.reason);
+  assert.equal(local.recordState,'MISSING');
+  assert.equal(local.liveEntityCount,0,'unclaimed nearby entity is not a local host');
+  assert.equal(local.vicinityCount,1);
+  assert.equal(local.vicinityStatus,'LOADED_NEIGHBORS_ONLY');
+  assert.equal(local.vicinityEntities[0].id,other.id);
+  assert.equal(local.custodyState,'UNINITIALIZED');
+  assert.equal(f.writes,writes,'no saved property was altered by the scan');
+  assert.equal(f.spawned.length,1);
+  // It is NOT a proof that a RESERVED record can be reset or that this
+  // unattributed entity belongs to this particular owner.
+  assert.equal(local.canRepair,false);
+});
+
+test('PG40 observed RESERVED without local entity or native ticket remains HOLD, never reset by census',()=>{
+  const f=fixture();
+  const saved={schema:UCE_CARRIER_SCHEMA,state:'RESERVED',worldId,epoch,
+    ownerId,anchor};
+  f.records.set('hartlogistics:uce_native_host_'+
+    (()=>{let h=2166136261;for(let i=0;i<ownerId.length;i++)
+      h=Math.imul(h^ownerId.charCodeAt(i),16777619);
+      return (h>>>0).toString(16).padStart(8,'0');})()+'_v1',
+    JSON.stringify(saved));
+  const before=f.writes;
+  const r=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.recordState,'RESERVED');
+  assert.equal(r.recordEntityId,null);
+  assert.equal(r.liveEntityCount,0);
+  assert.equal(r.vicinityCount,0);
+  assert.equal(r.ticketSlotCount,0);
+  assert.equal(r.nativeIntentPhase,'CLEAR');
+  assert.equal(r.custodyState,'HOLD:RESERVED');
+  assert.equal(r.canRepair,false);
+  assert.equal(r.canSpawn,false);
+  assert.equal(f.writes,before);
+  failed(register(f),'carrier_record_already_reserved_or_active');
   assert.equal(f.spawned.length,0);
 });
