@@ -126,7 +126,12 @@ test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',(
   const start=bridge.indexOf('function uceOrdinaryServiceTick(authority){');
   const end=bridge.indexOf('\n\n/* Bulk Storage',start);
   assert.ok(start>=0&&end>start);
-  const actual='let uceOrdinaryCursor=0;\n'+bridge.slice(start,end);
+  const helperStart=bridge.indexOf('function uceCarrierRegistrationReason(');
+  const helperEnd=bridge.indexOf('\nfunction uceBridgeLog(',helperStart);
+  assert.ok(helperStart>=0&&helperEnd>helperStart,
+    'runtime carrier error classifier must be exercised from actual source');
+  const actual=bridge.slice(helperStart,helperEnd)+
+    '\nlet uceOrdinaryCursor=0;\n'+bridge.slice(start,end);
   const receiver={id:'minecraft:overworld|3|80|6',
     d:'minecraft:overworld',x:3,y:80,z:6,present:true};
   const receiverBlock={typeId:'hartsorter:receiver',location:{x:3,y:80,z:6}};
