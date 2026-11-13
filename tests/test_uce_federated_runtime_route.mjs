@@ -19,7 +19,7 @@ const rawGraph={leaderId:'lead',receiverIds:['lead','follower'],
   fingerprint:'verified-pipes-and-sorters',
   banks:[{id:'bank-block'}]};
 function fixture(){
-  let validBanks=true,leaderVisible=true;
+  let validBanks=true,leaderVisible=true,preferredOutput=false;
   const network={...rawGraph};
   const ctx={
     world:{},findReceiverById:id=>id===leader.id?leader:undefined,
@@ -36,16 +36,27 @@ function fixture(){
          role:'controller',controllerOwnerId:'bank-owner'}
       ]}})
     }:{ok:false},
-    planUnifiedBulkService:()=>({ok:validBanks})
+    planUnifiedBulkService:()=>({ok:validBanks}),
+    inspectQ4OrdinaryDefinitionShape:()=>({ok:true}),
+    ItemStack:class {
+      constructor(typeId,amount){this.typeId=typeId;this.amount=amount;}
+    },
+    uceClassifyLiveStack:()=> 'ORDINARY',
+    receiverOutputHopper:()=>undefined,
+    blockIsRedstonePowered:()=>false,
+    uceChoosePipeDestination:()=>preferredOutput?{slot:0}:undefined
   };
   vm.runInNewContext(code,ctx);
   const normal={worldId:'world',epoch:9,
     routeWitness:rawGraph.fingerprint,
+    key:JSON.stringify({typeId:'minecraft:stone',lore:[],ench:[],
+      canDestroy:[],canPlaceOn:[]}),
     fromAccount:'receiver:follower',
     toAccount:'bulk:bank-owner',fromShard:shardA,toShard:shardB};
   return {ctx,network,normal,
     set validBanks(x){validBanks=x;},
-    set leaderVisible(x){leaderVisible=x;}};
+    set leaderVisible(x){leaderVisible=x;},
+    set preferredOutput(x){preferredOutput=x;}};
 }
 test('federated bridge proves both Receiver and elected bank ownership before a debit',()=>{
   const f=fixture();
@@ -63,6 +74,7 @@ test('federated bridge proves both Receiver and elected bank ownership before a 
 });
 test('reverse bank refill must remain attached to the same loaded graph and leader',()=>{
   const f=fixture();
+  f.preferredOutput=true;
   const reverse={...f.normal,fromAccount:'bulk:bank-owner',
     toAccount:'receiver:follower',fromShard:shardB,toShard:shardA};
   assert.equal(f.ctx.uceFederatedRouteVerified(
@@ -74,4 +86,22 @@ test('reverse bank refill must remain attached to the same loaded graph and lead
   f.network.fingerprint='new-network-topology';
   assert.equal(f.ctx.uceFederatedRouteVerified(
     authority,follower,reverse,'deposit'),false);
+});
+
+test('federated overflow/refill revalidates live preferred Sorter priority at commit',()=>{
+  const f=fixture();
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,f.normal,'withdraw'),true);
+  f.preferredOutput=true;
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,f.normal,'withdraw'),false,
+    'new preferred output blocks stale overflow');
+  const reverse={...f.normal,fromAccount:'bulk:bank-owner',
+    toAccount:'receiver:follower',fromShard:shardB,toShard:shardA};
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,reverse,'withdraw'),true);
+  f.preferredOutput=false;
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,reverse,'deposit'),false,
+    'retracted preferred output blocks stale refill');
 });
