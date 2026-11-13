@@ -164,7 +164,8 @@ class UceBuildTests(unittest.TestCase):
                      "test_uce_interbank_integrated_runtime.mjs",
                      "test_uce_interbank_mr_mock.mjs",
                      "test_uce_interbank_mr_real_port.mjs",
-                     "test_uce_collector_mr_buffer_mock.mjs"):
+                     "test_uce_collector_mr_buffer_mock.mjs",
+                     "test_uce_unloaded_collector_ordinary_real.mjs"):
             result=subprocess.run(
                 ["node","--test",str(ROOT/"tests"/name)],
                 cwd=ROOT,env=env,stdout=subprocess.PIPE,
@@ -248,6 +249,9 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('    uceCollectorMrBufferTick(authority);',s)
         self.assertIn('    uceMrServiceTick(authority);',s)
         self.assertIn('function uceCollectorMrBufferTick(authority)',s)
+        self.assertIn('function uceCollectorOrdinaryDeposit(authority,col,linked,anchor,',s)
+        self.assertIn("return executeUnifiedOrdinaryDeposit({",s)
+        self.assertIn("uceCollectorOrdinaryDeposit(",s)
         self.assertIn('function uceLiveCollectorOwner(ownerId,anchor)',s)
         self.assertIn('const UCE_COLLECTOR_MR_SCAN_BUDGET=16;',s)
         self.assertIn("uceSorterCollectorSources(linked,col.id)",s)
