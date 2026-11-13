@@ -1205,6 +1205,15 @@ function uceOrdinaryServiceTick(authority){
                     bankNetwork.leaderId,governedBanks);
         }
         const onlyPreferred=!wildcardPermitted;
+        // A shared network's Bank authority is not optional. If the
+        // leader shard is unreadable, a follower must not continue to
+        // native/ordinary custody on a partially verified route.
+        if(governedBanks.length&&
+           bankNetwork.leaderId!==receiver.id&&!leaderLedger){
+            uceBridgeLog('federated leader ledger unavailable',ownerId);
+            uceOrdinaryCursor=(index+1)%receivers.length;
+            return;
+        }
         let preferredOutputReady=false;
         if(bankNetwork?.banks?.length&&
            bankNetwork.leaderId===receiver.id){
@@ -1315,6 +1324,8 @@ function uceOrdinaryServiceTick(authority){
             });
             if(!plan.ok){
                 uceBridgeLog('federated planner HOLD '+plan.reason,ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
             }else if(plan.status==='TRANSFER_DRAFT_ONLY'){
                 const witness=bankNetwork.fingerprint;
                 if(typeof witness!=='string'||witness.length>8192){
