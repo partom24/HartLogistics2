@@ -232,6 +232,47 @@ test('an unrelated duplicate Sorter registration does not freeze a separate pipe
   assert.equal(f.choose(COBBLE).entry,f.filter);
 });
 
+test('matching Transporter-fed Collector Filter HOLDS instead of silently routing to Wildcard',()=>{
+  const f=fixture();
+  f.chestA.typeId='hartsorter:collector';
+  assert.equal(f.network().entries.length,2);
+  assert.equal(f.choose(COBBLE),undefined,
+    'an unimplemented cross-bank handoff cannot be bypassed');
+  // Only a filter for this item represents a candidate route.
+  f.filter.f={match:{typeId:'minecraft:stone'}};
+  assert.equal(f.choose(COBBLE)?.entry,f.fallback);
+  f.filter.f={match:{typeId:'minecraft:cobblestone'}};
+  f.chestA.typeId='minecraft:barrel';
+  assert.equal(f.choose(COBBLE)?.entry,f.filter);
+});
+test('unloaded or uncertified preferred output HOLDS rather than using Wildcard',()=>{
+  const f=fixture();
+  f.missing.add('3,69,5');
+  assert.equal(f.network().entries.length,2);
+  assert.equal(f.choose(COBBLE),undefined);
+  f.missing.clear();
+  f.chestA.typeId='minecraft:chest';
+  f.put('minecraft:chest',4,69,5,f.newContainer());
+  assert.equal(f.choose(COBBLE),undefined,
+    'unverified double chest must not authorize weaker destination');
+  f.chestA.typeId='minecraft:furnace';
+  assert.equal(f.choose(COBBLE)?.entry,f.fallback,
+    'known unsupported physical output is not a hidden route');
+});
+test('verified earlier Filter can win before a later unresolved Collector Wildcard',()=>{
+  const f=fixture();
+  f.filter.m='wildcard';f.filter.f=null;
+  f.chestA.typeId='hartsorter:collector';
+  const below=f.put('hartsorter:sorter',3,68,4);
+  const lower={d:f.dim.id,x:3,y:68,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}};
+  f.entries.push(lower);
+  const output=f.put('minecraft:barrel',3,68,5,f.newContainer());
+  const selected=f.choose(COBBLE);
+  assert.equal(selected?.entry,lower);
+  assert.equal(selected?.dest.block,output);
+  assert.equal(below.typeId,'hartsorter:sorter');
+});
 test('occupied preferred output selects lower priority destination without merge',()=>{
   const f=fixture();
   f.chestA.getComponent('minecraft:inventory').container.fill({
