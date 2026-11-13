@@ -103,6 +103,13 @@ export function executeUnifiedFederatedTransfer({
      )||bucket(from,key)<count||to.total+count>to.capacity||
      !nat(source.snapshot.total+target.snapshot.total))
     return hold('federated_account_or_capacity_unverified');
+  // Receiver→Receiver is an explicit, verifiable linked-bank route,
+  // NEVER a generic balance alias or automatic Bulk rebinding.
+  const linkedReceiverHandoff=from.kind==='receiver'&&
+    to.kind==='receiver';
+  if(linkedReceiverHandoff?!routeWitness.startsWith('IB1|'):
+     routeWitness.startsWith('IB1|'))
+    return hold('federated_route_kind_witness_mismatch');
   const args={operationId,fromShard,toShard,fromAccount,toAccount,key,count,
     fromRevision:source.snapshot.revision,toRevision:target.snapshot.revision,
     sourceTotal:source.snapshot.total,targetTotal:target.snapshot.total,
