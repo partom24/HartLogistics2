@@ -417,7 +417,9 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
  * regions has not yet been verified globally. It may authorize a later
  * separately fenced Receiver→LOCAL-Bulk transfer only.
  */
-function uceVerifiedNoReachablePreferredOutput(receiver,item,authority){
+function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
+                                            justVerifiedGraph=undefined,
+                                            inspectedGraphs=undefined){
     try{
         if(!receiver||!item?.typeId||!authority||
            !Array.isArray(logistics.receivers))return false;
@@ -432,9 +434,15 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority){
             seen.add(current.id);
             const root=receiverAt(current);
             if(!root||receiverOutputHopper(current))return false;
-            const graph=ucePipeRouteNetwork(current);
-            if(!graph||!graph.receiverIds?.includes(current.id)||
+            // Only the SAME synchronous decision may reuse topology
+            // already inspected for its source Receiver. Mutating writers
+            // always start a new verification pass at each shard boundary.
+            const graph=justVerifiedGraph&&current.id===receiver.id?
+                justVerifiedGraph:ucePipeRouteNetwork(current);
+            if(!graph||graph.receiverId!==current.id||
+               !graph.receiverIds?.includes(current.id)||
                !Array.isArray(graph.entries))return false;
+            if(inspectedGraphs)inspectedGraphs.set(current.id,graph);
             for(const entry of graph.entries){
                 const mode=sorterMode(entry);
                 if(mode==='bypass'||!['filter','auto','wildcard']
@@ -492,11 +500,19 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority){
 function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph){
     try{
         if(!receiver||!item?.typeId||!authority||
-           !uceVerifiedNoReachablePreferredOutput(
-               receiver,item,authority)||
            !Array.isArray(logistics.receivers))return undefined;
         const rootGraph=sourceGraph||ucePipeRouteNetwork(receiver);
-        if(!rootGraph)return undefined;
+        if(!rootGraph||rootGraph.receiverId!==receiver.id||
+           !rootGraph.receiverIds?.includes(receiver.id))
+            return undefined;
+        // Both traversals are read-only in one synchronous stack. Reusing
+        // freshly inspected bank graphs avoids doubling discovery cost for
+        // large 1.4.1 multi-bank layouts; the actual transfer writer ALWAYS
+        // re-runs this complete proof before each global journal mutation.
+        const inspectedGraphs=new Map();
+        if(!uceVerifiedNoReachablePreferredOutput(
+            receiver,item,authority,rootGraph,inspectedGraphs))
+            return undefined;
         const visited=new Set(),pending=[{
             current:receiver,graph:rootGraph,path:[]}],found=[];
         while(pending.length){
@@ -566,7 +582,8 @@ function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph){
             for(let i=edges.length-1;i>=0;i--){
                 const edge=edges[i];
                 if(visited.has(edge.receiver.id))continue;
-                const nextGraph=ucePipeRouteNetwork(edge.receiver);
+                const nextGraph=inspectedGraphs.get(edge.receiver.id)||
+                    ucePipeRouteNetwork(edge.receiver);
                 if(!nextGraph)return undefined;
                 pending.push({current:edge.receiver,graph:nextGraph,
                     path:[...path,edge]});
