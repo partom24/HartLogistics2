@@ -197,6 +197,8 @@ jobs:
           node --test tests/test_uce_pipe_route_mock.mjs
           node --check tests/test_uce_interbank_integrated_runtime.mjs
           node --test tests/test_uce_interbank_integrated_runtime.mjs
+          node --check tests/test_uce_interbank_mr_mock.mjs
+          node --test tests/test_uce_interbank_mr_mock.mjs
       - name: UCE multi-network Bulk controller identity uses the shipped runtime reader
         run: |
           node --check tests/test_uce_bulk_runtime_ownership.mjs
