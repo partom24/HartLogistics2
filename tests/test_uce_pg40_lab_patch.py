@@ -118,6 +118,18 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
             "new draft spawn-error capture is not deployed by PG40")
 
 
+    def test_frozen_pg40_compiler_never_inherits_later_product_draft(self):
+        compiler=pg40.frozen_uce_builder()
+        self.assertIn("unified_bulk_policy",compiler.MODULES)
+        frozen=(self.current/"behavior_pack/scripts/main.js").read_text(
+            encoding="utf-8")
+        self.assertIn("executeUnifiedOrdinaryWithdrawal(args)",frozen)
+        self.assertNotIn("uceBulkWildcardPermitted",frozen)
+        self.assertNotIn("partialOutput:selectedRoute?.partialOutput===true",
+                         frozen)
+        self.assertNotIn("inspectUnifiedWildcardCapacity",frozen)
+
+
     def test_runtime_forensic_hold_blocks_every_uce_write_entrypoint(self):
         from subprocess import run
         script=(self.current/"behavior_pack/scripts/main.js").read_text(

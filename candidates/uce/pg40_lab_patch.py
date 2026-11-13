@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from functools import lru_cache
+from types import SimpleNamespace
 
 import lab_deploy as uce_deploy
 import pg37_lab_patch as pg37
@@ -34,14 +36,37 @@ BASE_SHA="22637cae8b988b19e6ecadb1280c34f7dbf1c617"
 PG40_SOURCE_SHA="91389e6bfbc72e1d88e147c507fd473bfc9aef7e"
 CHANGED_BP={"scripts/main.js","scripts/uce/unified_carrier_registry.js"}
 PINNED_BUILDER_INPUTS=(
-    "candidates/uce/prepare_candidate.py",
     "candidates/pg33/prepare_candidate.py",
 )
+
+@lru_cache(maxsize=1)
+def frozen_uce_builder():
+    """Load the original compiler from its exact historical Git blob.
+
+    New product work may change the live UCE compiler, but can never be
+    included when reconstructing installed PG40/PG41/PG42 packs. PG33 is
+    checked independently for an exact unchanged blob.
+    """
+    path="candidates/uce/prepare_candidate.py"
+    result=subprocess.run(
+        ["git","-C",str(ROOT),"show",BASE_SHA+":"+path],
+        check=True,text=True,encoding="utf-8",capture_output=True)
+    namespace={"__name__":"pg40_frozen_uec_builder",
+               "__file__":str(ROOT/path)}
+    try:
+        exec(compile(result.stdout,str(ROOT/path),"exec"),namespace)
+    except Exception as exc:
+        raise lab.UnsafeLab("PG40 historical compiler could not load") from exc
+    funcs=("prepare","compile_patch","MODULES")
+    if any(key not in namespace for key in funcs):
+        raise lab.UnsafeLab("PG40 historical compiler incomplete")
+    return SimpleNamespace(**{key:namespace[key] for key in funcs})
 
 def historical(path: str) -> str:
     allowed={"candidates/uce/runtime_bridge.js",
              "candidates/uce/runtime_pipe_route.js"}|{
-        "candidates/transport/"+name+".mjs" for name in uce.MODULES}
+        "candidates/transport/"+name+".mjs"
+        for name in frozen_uce_builder().MODULES}
     if path not in allowed:
         raise lab.UnsafeLab("PG40 historical source not on allowlist: "+path)
     result=subprocess.run(
@@ -245,8 +270,9 @@ def render_pack_pair(folder: Path):
     old=folder/"pg33"
     prior=folder/"prior"
     current=folder/"current"
+    frozen=frozen_uce_builder()
     pg33.prepare(old)
-    uce.prepare(current)
+    frozen.prepare(current)
     bp=current/"behavior_pack"
     frozen_pg40_assets(bp)
     base_main=(old/"behavior_pack/scripts/main.js").read_text(encoding="utf-8")
@@ -254,15 +280,15 @@ def render_pack_pair(folder: Path):
     pipe=historical("candidates/uce/runtime_pipe_route.js")
     carrier_before,carrier_after=read_only_registry()
     (bp/"scripts/main.js").write_text(
-        uce.compile_patch(base_main,bridge_before+"\n"+pipe),encoding="utf-8")
-    for name in uce.MODULES:
+        frozen.compile_patch(base_main,bridge_before+"\n"+pipe),encoding="utf-8")
+    for name in frozen.MODULES:
         raw=historical("candidates/transport/"+name+".mjs")
         raw=raw.replace(".mjs'",".js'").replace('.mjs"','.js"')
         (bp/("scripts/uce/"+name+".js")).write_text(raw,encoding="utf-8")
     previous=uce_deploy.check_candidate(current,old)
     shutil.copytree(current,prior)
     (bp/"scripts/main.js").write_text(
-        uce.compile_patch(base_main,bridge_after+"\n"+pipe),encoding="utf-8")
+        frozen.compile_patch(base_main,bridge_after+"\n"+pipe),encoding="utf-8")
     carrier_js=carrier_after.replace(".mjs'",".js'").replace('.mjs"','.js"')
     (bp/"scripts/uce/unified_carrier_registry.js").write_text(
         carrier_js,encoding="utf-8")
