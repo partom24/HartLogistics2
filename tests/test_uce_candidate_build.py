@@ -161,7 +161,8 @@ class UceBuildTests(unittest.TestCase):
         env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
         for name in ("test_uce_pipe_route_mock.mjs",
                      "test_uce_interbank_integrated_runtime.mjs",
-                     "test_uce_interbank_mr_mock.mjs"):
+                     "test_uce_interbank_mr_mock.mjs",
+                     "test_uce_interbank_mr_real_port.mjs"):
             result=subprocess.run(
                 ["node","--test",str(ROOT/"tests"/name)],
                 cwd=ROOT,env=env,stdout=subprocess.PIPE,
