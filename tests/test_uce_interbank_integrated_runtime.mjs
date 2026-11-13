@@ -13,6 +13,8 @@ import {createUnifiedShardWriter,previewUnifiedShard,
   '../candidates/transport/unified_world_shard_writer.mjs';
 import {executeUnifiedFederatedTransfer} from
   '../candidates/transport/unified_federated_service.mjs';
+import {planUnifiedBulkService} from
+  '../candidates/transport/unified_bulk_policy.mjs';
 
 /**
  * An OFFLINE exact-source integration test, not a Bedrock or save-atomicity
@@ -250,6 +252,7 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
       inspectHost:()=>({ok:false,reason:'carrier_record_missing'}),
       registerEmptyHost:()=>({ok:false,reason:'test-must-not-spawn-host'})}),
     createUnifiedShardWriter,executeUnifiedFederatedTransfer,
+    planUnifiedBulkService,
     // The source runs in VM while this pure policy module runs in Node.
     // Recreate an ordinary host-realm JSON value before the production
     // shape validator's strict Object.prototype check. In the actual
