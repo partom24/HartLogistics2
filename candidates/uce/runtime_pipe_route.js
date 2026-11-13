@@ -271,6 +271,46 @@ function ucePipeAutoSeed(item,container) {
     }catch(_){}
     return false;
 }
+/*
+ * Shared ordinary Bulk guard: a Collector-facing output can forward to a
+ * later Filter bank, and an unknown high-priority output may still be usable.
+ * Until the distributed route advertisement/writer exists, neither local
+ * nor federated Bulk may claim the absence of a better destination.
+ * This is READ ONLY: the same verified graph and original Sorter policy.
+ */
+function ucePipeHasUnresolvedForwarding(receiver,graph,item){
+    try{
+        if(!receiver||!graph||!Array.isArray(graph.entries)||
+           !item?.typeId)return true;
+        const root=receiverAt(receiver);
+        if(!root)return true;
+        for(const entry of graph.entries){
+            const mode=sorterMode(entry);
+            if(mode==='bypass'||(mode==='filter'&&
+               (!entry.f||!matchesFilter(item,entry.f))))continue;
+            if(!['filter','auto','wildcard'].includes(mode))continue;
+            const b=sorterAt(entry);
+            if(!b)return true;
+            if(blockIsRedstonePowered(b))continue;
+            const face=facingOffset(b),p=b.location;
+            if(!face||!p)return true;
+            const target=b.dimension.getBlock({
+                x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+            if(!target)return true;
+            if(target.typeId===COLLECTOR_ID){
+                // Original Auto does not seed a Collector; Filter and
+                // Wildcard may relay to a separate Receiver/bank.
+                if(mode!=='auto'&&!blockIsRedstonePowered(target))
+                    return true;
+                continue;
+            }
+            if(supportedStorage(target)&&
+               !uceReadOnlySorterDestination(entry,root))
+                return true;
+        }
+        return false;
+    }catch(_){return true;}
+}
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
                                   settledDestination=undefined,
                                   allowPlainMerge=false) {
