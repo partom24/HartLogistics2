@@ -285,14 +285,16 @@ def render_pack_pair(folder: Path):
         raw=historical("candidates/transport/"+name+".mjs")
         raw=raw.replace(".mjs'",".js'").replace('.mjs"','.js"')
         (bp/("scripts/uce/"+name+".js")).write_text(raw,encoding="utf-8")
-    previous=uce_deploy.check_candidate(current,old)
+    previous=uce_deploy.check_candidate(
+        current,old,historical_modules=tuple(frozen.MODULES))
     shutil.copytree(current,prior)
     (bp/"scripts/main.js").write_text(
         frozen.compile_patch(base_main,bridge_after+"\n"+pipe),encoding="utf-8")
     carrier_js=carrier_after.replace(".mjs'",".js'").replace('.mjs"','.js"')
     (bp/"scripts/uce/unified_carrier_registry.js").write_text(
         carrier_js,encoding="utf-8")
-    wanted=uce_deploy.check_candidate(current,old)
+    wanted=uce_deploy.check_candidate(
+        current,old,historical_modules=tuple(frozen.MODULES))
     diff={path for path in wanted["behavior_pack"]
           if wanted["behavior_pack"][path]!=previous["behavior_pack"][path]}
     if (diff!=CHANGED_BP or

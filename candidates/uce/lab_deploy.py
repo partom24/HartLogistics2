@@ -41,7 +41,23 @@ BP_NEW={"blocks/bulk_storage.json","recipes/bulk_storage.json",
 RP_NEW={"models/blocks/bulk_storage.geo.json",
         "textures/blocks/hartlogistics_bulk_storage.png"}
 
-def check_candidate(generated,old):
+def check_candidate(generated,old,*,historical_modules=None):
+    # Only the pinned PG40 forensic builder may provide the original
+    # exact historical module inventory. Current product validation always
+    # demands the complete current BP_NEW set; never silently omit modules.
+    if historical_modules is not None:
+        if (not isinstance(historical_modules,tuple) or
+            not historical_modules or
+            any(not isinstance(x,str) or not x for x in historical_modules) or
+            len(historical_modules)!=len(set(historical_modules)) or
+            not set(historical_modules).issubset(set(uce.MODULES))):
+            raise lab.UnsafeLab("UCE invalid frozen module inventory")
+        expected_bp_new={
+            "blocks/bulk_storage.json","recipes/bulk_storage.json",
+            "entities/uce_native_carrier.json"
+        }|{"scripts/uce/"+name+".js" for name in historical_modules}
+    else:
+        expected_bp_new=BP_NEW
     bp=json.loads((generated/"behavior_pack/manifest.json").read_text())
     rp=json.loads((generated/"resource_pack/manifest.json").read_text())
     if bp["header"]["uuid"]!=lab.BP_UUID or rp["header"]["uuid"]!=lab.RP_UUID:
@@ -87,7 +103,7 @@ def check_candidate(generated,old):
         raise lab.UnsafeLab("UCE introduced another scheduler")
     result={}
     for kind,modified,added in (
-        ("behavior_pack",BP_MODIFIED,BP_NEW),
+        ("behavior_pack",BP_MODIFIED,expected_bp_new),
         ("resource_pack",RP_MODIFIED,RP_NEW)
     ):
         old_files=lab.hashes(old/kind)
