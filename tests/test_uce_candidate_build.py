@@ -211,7 +211,7 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("fromAccount:accountId,toAccount,",s)
         self.assertIn("sourceWriter:shardWriter,",s)
         self.assertIn("destinationWriter:targetWriter,",s)
-        self.assertIn("function uceVerifiedNoReachablePreferredOutput(receiver,item,authority)",s)
+        self.assertIn("function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,",s)
         self.assertIn("if(!bankFrom&&!uceVerifiedNoReachablePreferredOutput(",s)
         self.assertIn("'Bulk spill HOLD: unresolved downstream Sorter route'",s)
         self.assertIn("'federated spill HOLD: unresolved downstream Sorter route'",s)
