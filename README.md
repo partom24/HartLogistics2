@@ -16,6 +16,7 @@ Hart Logistics 2 is the planned evolution of the owner-supplied **Hart Logistics
 - [New block asset contract](docs/RESOURCE_ASSET_POLICY.md): new original visuals for Bulk Storage/Transporter; preserve 1.4.1 resource assets.
 - [Roadmap](docs/ROADMAP.md): authorized planning milestone and future candidates.
 - [Logistics design](docs/LOGISTICS_DESIGN.md): agreed requirements for Bulk Storage, Transporters, controllers and dual-lane handling.
+- [Owner's required topology and storage-room visual target](docs/OWNER_LAYOUT_REFERENCE.md): original PNG references for stacked Sorter banks, linked transport regions and integrated scale.
 - [Q4 to Q5 design](docs/Q5_MIGRATION_DESIGN.md): preservation and migration safeguards.
 - [Open questions](docs/IDEA_INBOX.md): decisions needed before implementation.
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md), [baseline registry](docs/BASELINE_REGISTRY.md) and [evidence register](docs/ENGINEERING_EVIDENCE_REGISTER.md).
