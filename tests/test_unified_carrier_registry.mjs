@@ -106,6 +106,10 @@ test('asset defines stable nonexperimental persistent 9-slot native inventory, d
   assert.equal(def.description.is_experimental,false);
   assert.equal(def.components['minecraft:inventory'].inventory_size,9);
   assert.equal(def.components['minecraft:inventory'].can_be_siphoned_from,false);
+  assert.equal(def.components['minecraft:pushable'],undefined,
+    '1.26.10+ rejects the obsolete combined pushable component');
+  assert.equal(def.components['minecraft:pushable_by_block'],undefined);
+  assert.equal(def.components['minecraft:pushable_by_entity'],undefined);
   assert.ok(def.components['minecraft:persistent']);
   assert.equal(def.components['minecraft:damage_sensor'].triggers.deals_damage,'no');
 });

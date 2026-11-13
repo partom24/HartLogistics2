@@ -50,6 +50,33 @@ class UceBuildTests(unittest.TestCase):
         self.assertFalse(entity["minecraft:entity"]["description"]["is_experimental"])
         self.assertTrue((self.path/"NOT_APPROVED_FOR_INSTALL.txt").exists())
 
+    def test_bds_12663_native_carrier_schema_and_bulk_recipe_unlock(self):
+        # PG40 BDS log: minecraft:pushable no longer parses in 1.26.10.
+        # Avoid the removed component instead of changing world identities,
+        # protected inventory slots, or enabling experiments.
+        raw=json.loads((self.bp/"entities/uce_native_carrier.json").read_text())
+        self.assertEqual(raw["format_version"],"1.26.10")
+        entity=raw["minecraft:entity"]
+        self.assertEqual(entity["description"]["identifier"],
+                         "hartlogistics:uce_native_carrier")
+        components=entity["components"]
+        self.assertNotIn("minecraft:pushable",components)
+        self.assertNotIn("minecraft:pushable_by_block",components)
+        self.assertNotIn("minecraft:pushable_by_entity",components)
+        self.assertEqual(components["minecraft:inventory"]["inventory_size"],9)
+        self.assertIs(components["minecraft:inventory"]["can_be_siphoned_from"],False)
+        self.assertIn("minecraft:persistent",components)
+        self.assertIs(components["minecraft:physics"]["has_gravity"],False)
+        self.assertIs(components["minecraft:physics"]["has_collision"],False)
+        self.assertIn("minecraft:damage_sensor",components)
+        recipe=json.loads((self.bp/"recipes/bulk_storage.json").read_text())
+        shaped=recipe["minecraft:recipe_shaped"]
+        self.assertEqual(recipe["format_version"],"1.21.0")
+        self.assertEqual(shaped["unlock"],[{"item":"minecraft:chest"}])
+        self.assertEqual(shaped["pattern"],["III","ICI","IRI"])
+        self.assertEqual(shaped["result"],
+                         {"item":"hartlogistics:bulk_storage","count":1})
+
     def test_js_import_graph_pinned_to_copied_modules(self):
         import re
         root=self.bp/"scripts"

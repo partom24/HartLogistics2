@@ -99,6 +99,9 @@ def add_bulk_assets(target):
       "minecraft:recipe_shaped":{
         "description":{"identifier":"hartlogistics:bulk_storage_recipe"},
         "tags":["crafting_table"],
+        # Recipes at format >=1.20.10 must specify discovery/unlock data.
+        # A chest is already required in the recipe; no cheat/experiment.
+        "unlock":[{"item":"minecraft:chest"}],
         "pattern":["III","ICI","IRI"],
         "key":{
           "I":{"item":"minecraft:iron_ingot"},
