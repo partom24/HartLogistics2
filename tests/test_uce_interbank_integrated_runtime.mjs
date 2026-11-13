@@ -152,7 +152,7 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
     }
   };
   const ctx={
-    world,logistics,registry:entries,
+    world,logistics,registry:entries,columns:[],
     PG26_FACES:FACES,PG26_PIPE_ID:'hartlogistics:transporter',
     SORTER_ID:'hartsorter:sorter',RECEIVER_ID:'hartsorter:receiver',
     COLLECTOR_ID:'hartsorter:collector',
