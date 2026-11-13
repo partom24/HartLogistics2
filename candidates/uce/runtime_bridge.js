@@ -43,7 +43,7 @@ function ucePerfNotice(reason,detail){
     ucePerfNoticeCounts.set(reason,count);
     // One immediate event, then exponentially bounded repetitions.
     if(count===1||count===16||count===256||count%8192===0)
-        log('[UCE performance] '+reason+' '+detail+' occurrences='+count);
+        try{log('[UCE performance] '+reason+' '+detail+' occurrences='+count);}catch(_){}
 }
 function ucePerfTimedOperation(kind,operation){
     if(!ucePerfEnabled)return operation();
@@ -109,13 +109,14 @@ function ucePerformanceTick(){
     try{uceUnifiedServiceTick();}
     finally{
         const elapsed=Date.now()-start;
-        if(!Number.isFinite(elapsed)||elapsed<0)return;
-        ucePerfStats.ticks++;
-        ucePerfStats.maxTickMs=Math.max(
-            ucePerfStats.maxTickMs,elapsed);
-        if(elapsed>=UCE_PERF_SLOW_TICK_MS){
-            ucePerfStats.slowTicks++;
-            ucePerfNotice('slow_service_tick','elapsed_ms='+elapsed);
+        if(Number.isFinite(elapsed)&&elapsed>=0){
+            ucePerfStats.ticks++;
+            ucePerfStats.maxTickMs=Math.max(
+                ucePerfStats.maxTickMs,elapsed);
+            if(elapsed>=UCE_PERF_SLOW_TICK_MS){
+                ucePerfStats.slowTicks++;
+                ucePerfNotice('slow_service_tick','elapsed_ms='+elapsed);
+            }
         }
     }
 }
