@@ -758,10 +758,12 @@ function uceCollectorMrBufferTick(authority){
             endpoints.set(ownerId,{verify:()=>verifiedLink()&&
                 uceLiveHopperOwner({d:block.dimension.id,
                     x:p.x,y:p.y,z:p.z})&&
-                (!isSorter||!!lastWitness&&
-                    src.stillSelected(lastWitness))});
+                (isSorter?!!lastWitness&&src.stillSelected(lastWitness):
+                    collectorInputSources(col).some(next=>
+                        next.kind==='hopper'&&!next.locked&&
+                        uceSameLoadedBlock(next.block,block)))});
             sources.push({
-                ownerId,container:src.container,
+                ownerId,block,container:src.container,
                 locked:false,blockVerified:true,eligibleSlot:eligible
             });
         };
@@ -785,7 +787,28 @@ function uceCollectorMrBufferTick(authority){
             }
         }catch(_){uceBridgeLog(
             'collector MR source unreadable',col.id);continue;}
-        if(!waiting)continue;
+        // Ordinary does not need an unloaded Receiver's native host.
+        // The loaded Collector's carrier serves as the SAME journaled
+        // short-lived escrow, then the RECEIVER'S already sealed virtual
+        // account is credited directly. MR remains native and has priority.
+        let ordinary;
+        if(!waiting){
+            for(const src of sources){
+                for(let sl=0;sl<src.container.size;sl++){
+                    let stack,key;
+                    try{
+                        stack=src.container.getItem(sl);
+                        key=ucePlainItemIdentity(stack);
+                        if(key&&src.eligibleSlot(sl,stack)===true){
+                            ordinary={source:src,slot:sl,item:stack,key};
+                            break;
+                        }
+                    }catch(_){/* Unknown inventory remains unadmitted. */}
+                }
+                if(ordinary)break;
+            }
+        }
+        if(!waiting&&!ordinary)continue;
         if(!carrier.ok&&carrier.reason==='carrier_record_missing'){
             const created=registry.registerEmptyHost({
                 ownerId:col.id,anchor});
@@ -796,6 +819,23 @@ function uceCollectorMrBufferTick(authority){
         }
         if(!carrier.ok){uceBridgeLog(
             'collector MR host HOLD '+carrier.reason,col.id);continue;}
+        if(ordinary){
+            const routeVerified=()=>verifiedLink()&&
+                !receiverAt(linked)&&
+                endpoints.get(ordinary.source.ownerId)?.verify()===true;
+            const changed=ucePerfTimedOperation('ordinary',()=>
+                uceCollectorOrdinaryDeposit(
+                    authority,col,linked,anchor,ordinary,carrier,
+                    routeVerified));
+            if(!changed.ok)uceBridgeLog(
+                'collector ordinary unloaded ingress HOLD '+
+                changed.reason,col.id);
+            else ucePerfRecordMove('ordinary');
+            uceCollectorMrCursor=(ix+1)%collectors.length;
+            // An interrupted virtual credit cannot permit any later
+            // native/ordinary writer in this same unified tick.
+            return;
+        }
         const endpoint=ref=>{
             if(ref.ownerId===col.id)return verifiedLink()&&
                 registry.inspectHost({ownerId:col.id,anchor}).ok;
