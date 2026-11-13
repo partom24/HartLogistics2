@@ -14,12 +14,14 @@ assert.ok(index>0,'generated ejection bridge handler required');
 const runtime=bridge.slice(index);
 function fixture({route=true,full=false,failCopy=false,
                  receiverLoaded=true,ordinary=false,powered=false,
-                 relinkAfterCopy=false}={}){
+                 pulseGrace=false,relinkAfterCopy=false,
+                 loadAfterCopy=false}={}){
   const calls=[],logs=[],retries=[];
   const authority={worldId:'archived-lab-world',epoch:84};
   const item={typeId:'minecraft:enchanted_book',amount:1,
     nameTag:'Native unchanged',hiddenNbt:{special:44}};
   const entity={id:'entity-1',typeId:'minecraft:item',isValid:true};
+  let loaded=receiverLoaded;
   const sender={typeId:'minecraft:dispenser',
     dimension:{id:'minecraft:overworld'},location:{x:1,y:2,z:3}};
   const collector={id:'c',link:'receiver-1',d:'minecraft:overworld',
@@ -37,8 +39,9 @@ function fixture({route=true,full=false,failCopy=false,
     inspectCustody:()=>({ok:true,free:full?0:9}),
     stageMovedTicket:({ownerId,anchor})=>{
       calls.push('TICKET');
-      if(relinkAfterCopy&&!registryOptions.ownerVerifier(ownerId,anchor))
-        return {ok:false,reason:'collector_link_revoked'};
+      if((relinkAfterCopy||loadAfterCopy)&&
+         !registryOptions.ownerVerifier(ownerId,anchor))
+        return {ok:false,reason:'collector_link_or_chunk_changed'};
       return {ok:true};
     },
     durableOwnershipWitness:()=>true
@@ -50,6 +53,7 @@ function fixture({route=true,full=false,failCopy=false,
       if(failCopy)return {ok:false,reason:'COPY_UNCERTAIN'};
       container.slots[0]=item;
       if(relinkAfterCopy)collector.link='wrong-receiver';
+      if(loadAfterCopy)loaded=true;
       return {ok:true};
     },
     ackEjectedItem:()=>{
@@ -66,7 +70,7 @@ function fixture({route=true,full=false,failCopy=false,
     uceUnifiedJournalHold:()=>false,
     ejectedItemCollector:()=>route?found:undefined,
     findReceiverById:id=>id===receiver.id?receiver:undefined,
-    receiverAt:()=>receiverLoaded?
+    receiverAt:()=>loaded?
       {typeId:'hartsorter:receiver'}:undefined,
     uceOrdinaryAccountSource:()=> 'sealed-shard',
     itemEntityStack:()=>item,
@@ -74,6 +78,8 @@ function fixture({route=true,full=false,failCopy=false,
     findCollectorById:id=>id===collector.id?collector:undefined,
     collectorAt:()=>collectorBlock,
     blockIsRedstonePowered:b=>!!b?.powered,
+    collectorAllowsEjectedPulse:b=>!!b&&
+      (!b.powered||pulseGrace),
     createUnifiedCarrierRegistry:opts=>{
       registryOptions=opts;return registry;
     },
@@ -162,7 +168,23 @@ test('unloaded Collector relink after native copy HOLDS before item entity remov
   f.ctx.uceProcessEjectedItemEntity(f.entity);
   assert.deepEqual(f.calls,['COPY','TICKET']);
   assert.equal(f.entity.isValid,true);
-  assert.equal(f.logs.some(s=>s.includes('collector_link_revoked')),true);
+  assert.equal(f.logs.some(s=>s.includes('collector_link_or_chunk_changed')),true);
   assert.equal(f.container.getItem(0),f.item,
     'uncertain copied payload remains for manual journal reconciliation');
+});
+
+test('temporary Dropper firing pulse keeps original Collector grace while Receiver unloaded',()=>{
+  const f=fixture({receiverLoaded:false,powered:true,pulseGrace:true});
+  f.ctx.uceProcessEjectedItemEntity(f.entity);
+  assert.deepEqual(f.calls,['COPY','TICKET','ACK']);
+  assert.equal(f.entity.isValid,false);
+  assert.equal(f.container.getItem(0),f.item);
+});
+test('Receiver chunk loading during Collector copy HOLDS entity removal and pending native custody',()=>{
+  const f=fixture({receiverLoaded:false,loadAfterCopy:true});
+  f.ctx.uceProcessEjectedItemEntity(f.entity);
+  assert.deepEqual(f.calls,['COPY','TICKET']);
+  assert.equal(f.entity.isValid,true);
+  assert.equal(f.container.getItem(0),f.item);
+  assert.equal(f.logs.some(s=>s.includes('collector_link_or_chunk_changed')),true);
 });

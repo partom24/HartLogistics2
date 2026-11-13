@@ -3115,7 +3115,11 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
             col.link===receiver.id&&!receiverAt(receiver)&&
             !!uceOrdinaryAccountSource(authority,receiver.id)&&
             uceLiveCollectorOwner(ownerId,anchor)&&
-            !blockIsRedstonePowered(collectorAt(col));
+            // Keep the original 1.4.1 pulse-local grace for a real
+            // Dropper/Dispenser rising edge; a held-powered Collector
+            // remains inhibited. The ejected source proof uses this same
+            // predicate, so custody revalidation must not contradict it.
+            collectorAllowsEjectedPulse(collectorAt(col));
     };
     if(!receiverLoaded&&!liveCollectorWaiting())return;
     const verifyHost=(id,at)=>receiverLoaded?
