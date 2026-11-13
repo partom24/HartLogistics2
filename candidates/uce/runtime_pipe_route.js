@@ -312,88 +312,113 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
     }catch(_){return true;}
 }
 /*
- * One-hop logical bank handoff for ORDINARY Receiver balances.
+ * Directed linked-bank discovery for ORDINARY Receiver balances.
  *
- * The source Sorter must physically face a registered, linked Collector.
- * The remote Receiver must be independently sealed, loaded, and attached
- * to a fully verified Transporter/Sorter graph with an accepting Filter.
- * The item is transferred between EXISTING Receiver ledgers via the
- * existing global federated journal; no ItemStack is synthesized or
- * written to a Collector block. This is the strictly provable subset of
- * the original multi-bank chain, not general controller lookahead.
+ * Each traversal edge is the original physical Sorter -> Collector ->
+ * sealed Receiver linkage. It may traverse multiple intermediate banks,
+ * but item ownership is atomically *attempted* only between the original
+ * and final Receiver shards under the EXISTING globally fenced federated
+ * journal. Intermediate banks are READ ONLY; no hidden queue or item copy.
  *
- * An unresolved earlier Collector path HOLDS instead of being skipped for
- * a weaker route. The witness is recomputed at EVERY shard-write boundary.
+ * A destination MUST prove a physically accepting Filter. Auto/Wildcard
+ * storage and local Bulk cannot masquerade as a global Filter. The first
+ * eligible Collector per bank obeys the original priority and bottom-up
+ * deterministic row ordering. Unknown/unloaded links, split graphs,
+ * non-reciprocal native storage and cycles all HOLD without mutation.
+ *
+ * The upper bound comes from the registered Receiver census, NOT the
+ * number of Sorters or a fixed system-wide hop limit. Revalidate the
+ * complete chosen chain at BOTH original shard mutation boundaries.
  */
 function uceSelectInterbankFilteredRoute(receiver,graph,item,authority){
     try{
         if(!receiver||!graph||!item?.typeId||!authority||
            !Array.isArray(graph.entries)||
+           !Array.isArray(logistics.receivers)||
            !graph.receiverIds?.includes(receiver.id)||
            !receiverAt(receiver)||receiverOutputHopper(receiver)||
            blockIsRedstonePowered(receiverAt(receiver)))
             return undefined;
-        // Local Filter has first claim. A remote Filter outranks a local
-        // seeded Auto, local Bulk, or any terminal Wildcard.
-        const local=uceChoosePipeDestination(
-            receiver,item,true,undefined,true);
-        if(local?.priority===0)return undefined;
-        const options=[];
-        for(const entry of graph.entries){
-            const mode=sorterMode(entry);
-            const priority=mode==='filter'&&entry.f&&
-                matchesFilter(item,entry.f)?0:
-                mode==='wildcard'?2:-1;
-            if(priority<0)continue;
-            const sorter=sorterAt(entry);
-            if(!sorter)return undefined;
-            if(blockIsRedstonePowered(sorter))continue;
-            const face=facingOffset(sorter),p=sorter.location;
-            if(!face||!p)return undefined;
-            const block=sorter.dimension.getBlock({
-                x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
-            if(!block)return undefined;
-            // An uncertain local Filter may outrank this handoff. Never
-            // infer a route to the next bank from a failed native ownership
-            // check on a matching local filtered storage destination.
-            if(priority===0&&supportedStorage(block)&&
-               !uceReadOnlySorterDestination(
-                   entry,receiverAt(receiver)))return undefined;
-            if(block.typeId!==COLLECTOR_ID)continue;
-            if(blockIsRedstonePowered(block))continue;
-            const q=block.location;
-            const id=logisticsId(block.dimension.id,q.x,q.y,q.z);
-            const collector=findCollectorById(id);
-            if(!collector||collector.present===false||!collector.link)
+        const visited=new Set([receiver.id]),path=[];
+        let current=receiver,network=graph;
+        for(let hop=0;hop<logistics.receivers.length;hop++){
+            if(!network||!Array.isArray(network.entries)||
+               !network.receiverIds?.includes(current.id)||
+               !receiverAt(current)||receiverOutputHopper(current)||
+               blockIsRedstonePowered(receiverAt(current)))
                 return undefined;
-            const live=collectorAt(collector);
-            if(!uceSameLoadedBlock(block,live))return undefined;
-            const next=findReceiverById(collector.link);
-            if(!next||next.present===false||next.id===receiver.id||
-               !receiverAt(next)||
-               !uceOrdinaryAccountSource(authority,next.id))
-                return undefined;
-            options.push({entry,priority,collector,receiver:next});
+            // Matching native Filter takes priority at this bank. At the
+            // source, it must be served locally. At any later bank it is
+            // an authenticated final owner for the source count balance.
+            const local=uceChoosePipeDestination(
+                current,item,true,undefined,true);
+            if(local?.priority===0){
+                if(hop===0)return undefined;
+                const first=path[0];
+                const segments=path.map(edge=>{
+                    const e=edge.entry;
+                    return e.d+'|'+e.x+','+e.y+','+e.z+'>'+
+                        edge.collector.id+'>'+edge.receiver.id;
+                });
+                const last=local.entry;
+                const witness='IB1|'+receiver.id+'|'+segments.join('~')+
+                    '|'+current.id+'|'+last.d+'|'+
+                    last.x+','+last.y+','+last.z+'|'+local.ownerId;
+                if(witness.length>8192||
+                   /[^\x20-\x7e]/.test(witness))return undefined;
+                return {...first,receiver:current,remote:local,
+                    hops:path.length,witness};
+            }
+            const candidates=[];
+            for(const entry of network.entries){
+                const mode=sorterMode(entry);
+                const priority=mode==='filter'&&entry.f&&
+                    matchesFilter(item,entry.f)?0:
+                    mode==='wildcard'?2:-1;
+                if(priority<0)continue;
+                const sorter=sorterAt(entry);
+                if(!sorter)return undefined;
+                if(blockIsRedstonePowered(sorter))continue;
+                const face=facingOffset(sorter),p=sorter.location;
+                if(!face||!p)return undefined;
+                const block=sorter.dimension.getBlock({
+                    x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+                if(!block)return undefined;
+                // A remote Filter may not bypass an uncertain local Filter
+                // that could still be the original priority winner.
+                if(priority===0&&supportedStorage(block)&&
+                   !uceReadOnlySorterDestination(
+                       entry,receiverAt(current)))return undefined;
+                if(block.typeId!==COLLECTOR_ID||
+                   blockIsRedstonePowered(block))continue;
+                const q=block.location;
+                const id=logisticsId(
+                    block.dimension.id,q.x,q.y,q.z);
+                const collector=findCollectorById(id);
+                if(!collector||collector.present===false||!collector.link)
+                    return undefined;
+                const live=collectorAt(collector);
+                if(!uceSameLoadedBlock(block,live))return undefined;
+                const next=findReceiverById(collector.link);
+                if(!next||next.present===false||!receiverAt(next)||
+                   !uceOrdinaryAccountSource(authority,next.id))
+                    return undefined;
+                candidates.push({entry,priority,collector,receiver:next});
+            }
+            candidates.sort((a,b)=>a.priority-b.priority||
+                a.entry.y-b.entry.y||a.entry.x-b.entry.x||
+                a.entry.z-b.entry.z);
+            if(!candidates.length)return undefined;
+            // Choosing any later or less-preferred branch when the first
+            // link does not lead to a verified final Filter is unsafe.
+            const selected=candidates[0];
+            if(visited.has(selected.receiver.id))return undefined;
+            visited.add(selected.receiver.id);
+            path.push(selected);
+            current=selected.receiver;
+            network=ucePipeRouteNetwork(current);
         }
-        options.sort((a,b)=>a.priority-b.priority||
-            a.entry.y-b.entry.y||a.entry.x-b.entry.x||
-            a.entry.z-b.entry.z);
-        if(!options.length)return undefined;
-        // Do not bypass a stronger linked Sorter whose downstream state
-        // is unavailable. Its item may be destined for later banks.
-        const first=options[0];
-        const remote=uceChoosePipeDestination(
-            first.receiver,item,true,undefined,true);
-        if(!remote||remote.priority!==0||remote.mode!=='filter')
-            return undefined;
-        const e=first.entry,r=remote.entry;
-        const witness='IB1|'+receiver.id+'|'+e.d+'|'+
-            e.x+','+e.y+','+e.z+'|'+first.collector.id+'|'+
-            first.receiver.id+'|'+r.d+'|'+
-            r.x+','+r.y+','+r.z+'|'+remote.ownerId;
-        if(witness.length>8192||/[^\x20-\x7e]/.test(witness))
-            return undefined;
-        return {...first,remote,witness};
+        return undefined;
     }catch(_){return undefined;}
 }
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
