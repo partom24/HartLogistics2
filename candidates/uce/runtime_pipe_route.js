@@ -311,6 +311,85 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
         return false;
     }catch(_){return true;}
 }
+/*
+ * One-hop logical bank handoff for ORDINARY Receiver balances.
+ *
+ * The source Sorter must physically face a registered, linked Collector.
+ * The remote Receiver must be independently sealed, loaded, and attached
+ * to a fully verified Transporter/Sorter graph with an accepting Filter.
+ * The item is transferred between EXISTING Receiver ledgers via the
+ * existing global federated journal; no ItemStack is synthesized or
+ * written to a Collector block. This is the strictly provable subset of
+ * the original multi-bank chain, not general controller lookahead.
+ *
+ * An unresolved earlier Collector path HOLDS instead of being skipped for
+ * a weaker route. The witness is recomputed at EVERY shard-write boundary.
+ */
+function uceSelectInterbankFilteredRoute(receiver,graph,item,authority){
+    try{
+        if(!receiver||!graph||!item?.typeId||!authority||
+           !Array.isArray(graph.entries)||
+           !graph.receiverIds?.includes(receiver.id)||
+           !receiverAt(receiver)||receiverOutputHopper(receiver)||
+           blockIsRedstonePowered(receiverAt(receiver)))
+            return undefined;
+        // Local Filter has first claim. A remote Filter outranks a local
+        // seeded Auto, local Bulk, or any terminal Wildcard.
+        const local=uceChoosePipeDestination(
+            receiver,item,true,undefined,true);
+        if(local?.priority===0)return undefined;
+        const options=[];
+        for(const entry of graph.entries){
+            const mode=sorterMode(entry);
+            const priority=mode==='filter'&&entry.f&&
+                matchesFilter(item,entry.f)?0:
+                mode==='wildcard'?2:-1;
+            if(priority<0)continue;
+            const sorter=sorterAt(entry);
+            if(!sorter)return undefined;
+            if(blockIsRedstonePowered(sorter))continue;
+            const face=facingOffset(sorter),p=sorter.location;
+            if(!face||!p)return undefined;
+            const block=sorter.dimension.getBlock({
+                x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+            if(!block)return undefined;
+            if(block.typeId!==COLLECTOR_ID)continue;
+            if(blockIsRedstonePowered(block))continue;
+            const q=block.location;
+            const id=logisticsId(block.dimension.id,q.x,q.y,q.z);
+            const collector=findCollectorById(id);
+            if(!collector||collector.present===false||!collector.link)
+                return undefined;
+            const live=collectorAt(collector);
+            if(!uceSameLoadedBlock(block,live))return undefined;
+            const next=findReceiverById(collector.link);
+            if(!next||next.present===false||next.id===receiver.id||
+               !receiverAt(next)||
+               !uceOrdinaryAccountSource(authority,next.id))
+                return undefined;
+            options.push({entry,priority,collector,receiver:next});
+        }
+        options.sort((a,b)=>a.priority-b.priority||
+            a.entry.y-b.entry.y||a.entry.x-b.entry.x||
+            a.entry.z-b.entry.z);
+        if(!options.length)return undefined;
+        // Do not bypass a stronger linked Sorter whose downstream state
+        // is unavailable. Its item may be destined for later banks.
+        const first=options[0];
+        const remote=uceChoosePipeDestination(
+            first.receiver,item,true,undefined,true);
+        if(!remote||remote.priority!==0||remote.mode!=='filter')
+            return undefined;
+        const e=first.entry,r=remote.entry;
+        const witness='IB1|'+receiver.id+'|'+e.d+'|'+
+            e.x+','+e.y+','+e.z+'|'+first.collector.id+'|'+
+            first.receiver.id+'|'+r.d+'|'+
+            r.x+','+r.y+','+r.z+'|'+remote.ownerId;
+        if(witness.length>8192||/[^\x20-\x7e]/.test(witness))
+            return undefined;
+        return {...first,remote,witness};
+    }catch(_){return undefined;}
+}
 function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
                                   settledDestination=undefined,
                                   allowPlainMerge=false) {
