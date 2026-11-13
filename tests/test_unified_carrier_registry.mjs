@@ -414,3 +414,17 @@ test('corrupt host and ticket records never hide independently observed physical
   assert.equal(f.writes,oldWrites);
   assert.equal(f.spawned.length,1);
 });
+
+test('a sealed but no-longer-live Receiver must not report healthy uninitialized host',()=>{
+  const f=fixture();
+  f.setVerified(false);
+  const writes=f.writes;
+  const r=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.recordState,'MISSING');
+  assert.equal(r.ownerVerified,false);
+  assert.equal(r.custodyState,'HOLD:carrier_owner_block_unverified');
+  assert.equal(r.canRepair,false);
+  assert.equal(f.writes,writes);
+  assert.equal(f.spawned.length,0);
+});

@@ -359,10 +359,14 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
     }else if(record.state==='RESERVED'){
       custodyState='HOLD:RESERVED';
     }else{
-      custodyState=tickets.ok?
-        (nearby.length===0&&tickets.record.slots.length===0?
-          'UNINITIALIZED':'HOLD:UNCLAIMED_PHYSICAL_CUSTODY'):
-        ticketStatus;
+      // A sealed account whose block no longer exists is NOT an empty,
+      // healthy host. PG39 includes orphaned owner anchors after world edits.
+      custodyState=!ownerVerified?
+        'HOLD:carrier_owner_block_unverified':
+        tickets.ok?
+          (nearby.length===0&&tickets.record.slots.length===0?
+            'UNINITIALIZED':'HOLD:UNCLAIMED_PHYSICAL_CUSTODY'):
+          ticketStatus;
     }
     return {ok:true,status:'HOST_EVIDENCE_READ_ONLY',ownerId,anchor,
       recordState:record.state,recordStatus,
