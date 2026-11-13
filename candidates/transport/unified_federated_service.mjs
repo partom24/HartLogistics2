@@ -38,14 +38,24 @@ function stage(world,before,after){
 }
 const account=(view,id)=>view.snapshot.accounts.find(a=>a.id===id);
 const bucket=(a,key)=>a?.buckets.find(b=>b.key===key)?.count||0;
-const receipt=(view,kind,tx,accountId)=>!!view.ok&&
-  view.lastReceipt?.kind===kind&&
-  view.lastReceipt.operationId===tx.operationId&&
-  view.lastReceipt.accountId===accountId&&
-  view.lastReceipt.key===tx.key&&
-  view.lastReceipt.count===tx.count&&
-  view.lastReceipt.fromShard===tx.fromShard&&
-  view.lastReceipt.toShard===tx.toShard;
+// A matching operation ID/count alone cannot authorize reconciliation.
+// The persisted side must also prove the exact epoch, debit/credit direction
+// and one-revision transition from the global PREPARED witness.
+const receipt=(view,kind,tx,accountId)=>{
+  if(!view?.ok||!tx||!['FEDERATED_DEBIT','FEDERATED_CREDIT']
+    .includes(kind))return false;
+  const debit=kind==='FEDERATED_DEBIT';
+  const before=debit?tx.fromRevision:tx.toRevision;
+  const r=view.lastReceipt;
+  return nat(before)&&before<Number.MAX_SAFE_INTEGER&&
+    r?.kind===kind&&r.operationId===tx.operationId&&
+    r.accountId===accountId&&r.key===tx.key&&
+    r.count===tx.count&&r.fromShard===tx.fromShard&&
+    r.toShard===tx.toShard&&r.epoch===tx.epoch&&
+    r.direction===(debit?'withdraw':'deposit')&&
+    r.beforeRevision===before&&r.revision===before+1&&
+    view.snapshot?.revision===r.revision;
+};
 
 /**
  * Execute once under the live global authority. Caller binds the existing
@@ -178,7 +188,10 @@ export function inspectUnifiedFederatedPending({
      !SHARD.test(tx.toShard||'')||tx.fromShard===tx.toShard||
      !valid(tx.fromAccount)||!valid(tx.toAccount)||
      !pos(tx.count)||tx.count>64||!valid(tx.key)||
+     !valid(tx.routeWitness)||tx.routeWitness.length>8192||
      !nat(tx.fromRevision)||!nat(tx.toRevision)||
+     tx.fromRevision===Number.MAX_SAFE_INTEGER||
+     tx.toRevision===Number.MAX_SAFE_INTEGER||
      !nat(tx.sourceTotal)||!nat(tx.targetTotal)||
      !nat(tx.sourceCount)||!nat(tx.targetCount)||
      tx.sourceCount<tx.count||
