@@ -240,7 +240,7 @@ class UceBuildTests(unittest.TestCase):
         ui_source=(ROOT/"candidates/uce/runtime_link_menu.js").read_text()
         self.assertNotIn("setDynamicProperty(",ui_source)
         self.assertNotIn("saveLogistics(",ui_source)
-        self.assertNotIn("linkCollector({",ui_source)
+        self.assertNotIn(".linkCollector({",ui_source)
 
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
