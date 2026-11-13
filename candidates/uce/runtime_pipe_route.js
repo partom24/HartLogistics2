@@ -276,8 +276,12 @@ function ucePipeSourceStillConnected(receiver,source){
     const graph=ucePipeRouteNetwork(receiver);
     return !!graph&&graph.leaderId===receiver.id&&
         typeof source.typeId==='string'&&
+        typeof source.ownerId==='string'&&
         graph.inputs.some(input=>
+          input.ownerId===source.ownerId&&
           input.typeId===source.typeId&&
+          input.container?.size===source.container?.size&&
+          input.aliases?.length===source.aliases?.length&&
           uceSameLoadedBlock(input.block,source.block))&&
         source.container?.isValid===true;
 }
