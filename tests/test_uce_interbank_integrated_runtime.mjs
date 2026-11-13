@@ -476,7 +476,7 @@ test('one actual journaled transfer routes 200000 queued items through 1386 stac
     }
     if(bank===0)continue; // Original top Sorter forwards to bank 1.
     const lower=ctx.registry.find(e=>e.x===rx-2&&e.y===49);
-    assert.ok(lower,'every bank's registered vertical column is complete');
+    assert.ok(lower,"every bank\u0027s registered vertical column is complete");
     lower.m='filter';
     lower.f={match:{typeId:'minecraft:cobblestone'}};
     if(bank<count-1){
