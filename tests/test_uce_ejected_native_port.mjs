@@ -2,8 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createUnifiedNativePort,UCE_NATIVE_INTENT_KEY} from
   '../candidates/transport/unified_native_custody.mjs';
-import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA} from
+import {UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
+  createUnifiedShardWriter,previewUnifiedShard,
+  verifyUnifiedMutationFence} from
   '../candidates/transport/unified_world_shard_writer.mjs';
+import {createEmptyUnifiedOrdinaryLedger,registerUnifiedEmptyAccount,
+  inspectUnifiedOrdinaryLedger} from
+  '../candidates/transport/unified_ordinary_accounts.mjs';
+import {q5IdentityKey} from '../candidates/transport/q5_bucket_core.mjs';
+import {executeUnifiedEjectedOrdinaryDeposit,
+  UCE_ORDINARY_BOUNDARY_KEY} from
+  '../candidates/transport/unified_ordinary_service.mjs';
 
 const worldId='archived-bds-lab-copy',epoch=84;
 const original={typeId:'minecraft:enchanted_book',amount:1,
@@ -103,4 +112,191 @@ test('foreign journal or missing native endpoints never copies entity item',()=>
   assert.equal(f.slots[0],undefined);
   assert.equal(f.entity.isValid,true);
   assert.equal(f.writes,0);
+});
+
+/*
+ * End-to-end original ordinary entity -> Receiver account path using the
+ * ACTUAL native journal, ordinary boundary coordinator and real shard
+ * writer, with only the Bedrock entity/inventory and ticket persistence
+ * witness supplied by mocks. This is OFFLINE evidence, not BDS disk proof.
+ */
+const plainWorldId='ejected-plain-account',plainEpoch=31;
+const plainReceiverId='minecraft:overworld|24|70|4';
+const plainShard='hartlogistics:uce_shard_0001_v1';
+const plainAccount='receiver:'+plainReceiverId;
+const plainDefinition={typeId:'minecraft:cobblestone',lore:[],
+  ench:[],canDestroy:[],canPlaceOn:[]};
+const plainKey=q5IdentityKey(plainDefinition);
+function ordinaryEntityFixture({full=false,changeOnPrepared=false,
+                               revokeAfterEntityRemoval=false}={}){
+  const values=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
+    schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',
+    worldId:plainWorldId,epoch:plainEpoch,
+    writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
+    migrationReconciled:true
+  })]]);
+  let snapshot=createEmptyUnifiedOrdinaryLedger({
+    worldId:plainWorldId,epoch:plainEpoch}).snapshot;
+  const registered=registerUnifiedEmptyAccount(snapshot,{
+    kind:'receiver',ownerId:plainReceiverId,
+    expectedRevision:snapshot.revision,expectedEpoch:plainEpoch});
+  assert.equal(registered.ok,true,registered.reason);
+  snapshot=registered.next;
+  if(full){
+    const a=snapshot.accounts[0];
+    a.total=a.capacity;
+    a.buckets=[{key:plainKey,count:a.capacity}];
+    snapshot.total=a.capacity;
+    assert.equal(inspectUnifiedOrdinaryLedger(snapshot).ok,true);
+  }
+  const preview=previewUnifiedShard({
+    snapshot,shardKey:plainShard});
+  assert.equal(preview.ok,true,preview.reason);
+  values.set(plainShard,preview.raw);
+  const initial={
+    typeId:'minecraft:cobblestone',amount:32,maxAmount:64};
+  const clone=x=>x===undefined?undefined:structuredClone(x);
+  const slots=Array(9).fill(undefined);
+  const host={size:9,isValid:true,
+    getItem:i=>clone(slots[i]),
+    setItem:(i,x)=>{slots[i]=clone(x)}};
+  const entity={id:'ordinary-entity-1',typeId:'minecraft:item',
+    isValid:true,getComponent:n=>n==='minecraft:item'?
+      {itemStack:clone(initial)}:undefined,
+    remove(){this.isValid=false;}};
+  const ownerId='collector-owner',anchor={
+    dimensionId:'minecraft:overworld',x:3,y:69,z:5};
+  const sourceOwnerId='ejected-item|'+entity.id;
+  let linked=true,ticketed=false,writes=0;
+  const world={
+    getDynamicProperty:key=>values.get(key),
+    setDynamicProperty(key,value){
+      writes++;
+      if(value===undefined)values.delete(key);
+      else values.set(key,value);
+      if(changeOnPrepared&&key===UCE_ORDINARY_BOUNDARY_KEY&&
+         value&&JSON.parse(value).phase==='PREPARED')linked=false;
+      if(revokeAfterEntityRemoval&&key===UCE_NATIVE_INTENT_KEY&&
+         value===undefined&&!entity.isValid)linked=false;
+    }
+  };
+  const operationId='ejected-ordinary-op-1';
+  const registry={
+    inspectCustody:()=>({ok:true,slots:ticketed?[0]:[],
+      free:ticketed?8:9,occupied:ticketed?1:0}),
+    stageMovedTicket:()=>{
+      ticketed=host.getItem(0)!==undefined;
+      return {ok:true};
+    },
+    durableOwnershipWitness:intent=>
+      intent.kind==='ENTITY_TO_NATIVE'?ticketed&&
+        intent.to.ownerId===ownerId&&intent.to.slot===0:
+      intent.kind==='CONSUME_ORDINARY_ESCROW'?!ticketed:
+      false
+  };
+  const writer=createUnifiedShardWriter({
+    world,shardKey:plainShard,worldId:plainWorldId,
+    epoch:plainEpoch,externalFence:()=>true,
+    verifyEscrowCustody:tx=>linked&&ticketed&&
+      tx.accountId===plainAccount&&tx.key===plainKey&&
+      tx.count===initial.amount&&
+      host.getItem(0)?.typeId===initial.typeId&&
+      host.getItem(0)?.amount===initial.amount
+  });
+  assert.equal(writer.ok,true,writer.reason);
+  const verifyReceipt=meta=>{
+    const view=writer.inspect();
+    const raw=values.get(UCE_ORDINARY_BOUNDARY_KEY);
+    let intent;
+    try{intent=JSON.parse(raw);}catch(_){return false;}
+    return !!view.ok&&intent?.operationId===operationId&&
+      intent.phase==='ESCROW_READY'&&
+      view.lastReceipt?.kind==='BOUNDARY'&&
+      view.lastReceipt.operationId===operationId&&
+      view.lastReceipt.accountId===meta.accountId&&
+      view.lastReceipt.key===meta.key&&
+      view.lastReceipt.count===meta.count&&
+      view.lastReceipt.direction===meta.direction;
+  };
+  const port=createUnifiedNativePort({
+    world,worldId:plainWorldId,epoch:plainEpoch,
+    boundaryOperationId:operationId,
+    externalFence:()=>true,
+    verifyEndpointOwner:ref=>
+      ref.ownerId===ownerId?
+        ref.container===host&&linked:
+      ref.ownerId===sourceOwnerId?
+        ref.entity===entity&&entity.isValid&&linked:
+      false,
+    durableOwnershipWitness:registry.durableOwnershipWitness,
+    certifyOrdinaryEscrow:(item,key,count)=>!!item&&
+      item.typeId===initial.typeId&&
+      item.amount===initial.amount&&
+      key===plainKey&&count===initial.amount,
+    verifyLedgerBoundaryReceipt:verifyReceipt
+  });
+  assert.equal(port.ok,true,port.reason);
+  const run=()=>executeUnifiedEjectedOrdinaryDeposit({
+    world,worldId:plainWorldId,epoch:plainEpoch,
+    operationId,accountId:plainAccount,key:plainKey,
+    count:initial.amount,registry,port,writer,ownerId,anchor,
+    carrierSlot:{ownerId,container:host,slot:0},
+    entity,sourceOwnerId,verifyRoute:()=>linked,
+    verifyOrdinary:meta=>entity.isValid&&linked&&
+      meta.accountId===plainAccount&&meta.key===plainKey&&
+      meta.count===initial.amount&&meta.direction==='deposit'
+  });
+  return {run,view:()=>writer.inspect(),values,world,entity,host,
+    get ticketed(){return ticketed;},
+    get writes(){return writes;},
+    revoke:()=>{linked=false}};
+}
+test('ordinary ejected entity credits one real Receiver shard and retires native escrow once',()=>{
+  const f=ordinaryEntityFixture(),result=f.run();
+  assert.equal(result.ok,true,result.reason);
+  assert.equal(result.count,32);
+  assert.equal(result.direction,'deposit');
+  assert.equal(f.entity.isValid,false);
+  assert.equal(f.host.getItem(0),undefined);
+  assert.equal(f.ticketed,false);
+  assert.equal(f.view().snapshot.total,32);
+  assert.equal(f.view().lastReceipt.kind,'BOUNDARY');
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+  assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),false);
+  assert.equal(f.run().ok,false,'original entity cannot be spent twice');
+  assert.equal(f.view().snapshot.total,32);
+});
+test('full sealed Receiver refuses ordinary ejected item before any physical copy or journal',()=>{
+  const f=ordinaryEntityFixture({full:true}),result=f.run();
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,'ordinary_account_at_capacity');
+  assert.equal(f.entity.isValid,true);
+  assert.equal(f.host.getItem(0),undefined);
+  assert.equal(f.view().snapshot.total,250000);
+  assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),false);
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+});
+test('Collector relink at PREPARED preserves original entity and global HOLD',()=>{
+  const f=ordinaryEntityFixture({changeOnPrepared:true}),result=f.run();
+  assert.equal(result.ok,false);
+  assert.equal(f.entity.isValid,true);
+  assert.equal(f.host.getItem(0),undefined);
+  assert.equal(f.view().snapshot.total,0);
+  assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),true);
+  assert.equal(verifyUnifiedMutationFence(
+    f.world,plainWorldId,plainEpoch,()=>true).ok,false);
+});
+test('route revoked after exact entity ACK leaves one protected escrow and no speculative ordinary credit',()=>{
+  const f=ordinaryEntityFixture({revokeAfterEntityRemoval:true});
+  const result=f.run();
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,'ejected_route_changed_after_native_ack');
+  assert.equal(f.entity.isValid,false);
+  assert.equal(f.host.getItem(0).amount,32);
+  assert.equal(f.ticketed,true);
+  assert.equal(f.view().snapshot.total,0);
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+  assert.equal(f.values.has(UCE_ORDINARY_BOUNDARY_KEY),true);
+  assert.equal(f.run().ok,false,'ambiguous boundary is not replayable');
+  assert.equal(f.view().snapshot.total,0);
 });

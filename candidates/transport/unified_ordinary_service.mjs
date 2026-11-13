@@ -213,7 +213,8 @@ export function executeUnifiedEjectedOrdinaryDeposit(args={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !id(worldId)||!positive(epoch)||!id(operationId)||
-     !id(accountId)||!id(key)||!positive(count)||count>64||
+     !id(accountId)||typeof key!=='string'||!key||
+     !positive(count)||count>64||
      !id(ownerId)||!anchor||!carrierSlot||
      carrierSlot.ownerId!==ownerId||!entity||
      !id(entity.id)||sourceOwnerId!=='ejected-item|'+entity.id||
