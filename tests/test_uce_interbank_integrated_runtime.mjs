@@ -137,6 +137,7 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
     [shardB,previewUnifiedShard({
       snapshot:remoteLedger,shardKey:shardB}).raw]]);
   let writes=0,moves=0;
+  const logs=[];
   const dim={id:dimensionId},blocks=new Map(),entries=[];
   const at=p=>p.x+','+p.y+','+p.z;
   const newContainer=()=>{
@@ -267,7 +268,7 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
     ucePerfTimedOperation:(_,action)=>action(),
     ucePerfRecordMove:()=>{},
     ucePerfSampleShard:()=>{},
-    uceBridgeLog:()=>{},
+    uceBridgeLog:(...parts)=>logs.push(parts.join(' ')),
     uceCarrierRegistrationReason:r=>r?.reason||'unknown',
     uceOrdinaryHopperCandidate:()=>remoteBankSeeded?{
       slot:0,partialOutput:false,beforeAmount:0,room:64}:undefined,
@@ -277,7 +278,7 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
   const read=(key)=>createUnifiedShardWriter({
     world,shardKey:key,worldId,epoch,externalFence:()=>true}).inspect();
   return {ctx,first,last,collector,collectorBlock,destination,
-    outputHopper,remoteBankId,saved,world,read,
+    outputHopper,remoteBankId,saved,world,read,logs,
     get writes(){return writes}};
 }
 test('integrated UCE scheduler journals a real Filter-directed interbank handoff exactly once',()=>{
@@ -362,9 +363,19 @@ test('integrated Receiver scheduler refills native output from remote Bulk witho
   const before=f.read(shardA).snapshot.total+
     f.read(shardB).snapshot.total;
   assert.equal(before,128);
+  const graph=f.ctx.ucePipeRouteNetwork(f.first);
+  assert.ok(graph,'source Receiver must have one verified physical pipe graph');
+  const options=f.ctx.uceLinkedBankBulkRoutes(
+    f.first,undefined,{worldId,epoch},graph,false);
+  assert.equal(options?.length,1,
+    'source Receiver must discover its linked remote Bulk bank');
+  const item=new f.ctx.ItemStack('minecraft:cobblestone',1);
+  assert.equal(f.ctx.uceRemoteBulkPreferredOutput(f.first,item),true,
+    'native Hopper must be an accepting original output');
   const transferred=f.ctx.uceOrdinaryServiceTick({worldId,epoch});
   assert.equal(transferred,true,
-    'the real unified scheduler must use the original two-shard journal');
+    'real scheduler must commit the same two-shard journal: '+
+    f.logs.join(' | '));
   assert.equal(f.read(shardA).snapshot.total,64);
   assert.equal(f.read(shardB).snapshot.total,64);
   assert.equal(f.read(shardA).snapshot.total+
@@ -382,6 +393,9 @@ test('integrated remote Bulk refill cannot survive an exact Collector link revoc
   assert.notEqual(result,true);
   assert.equal(f.read(shardA).snapshot.total,0);
   assert.equal(f.read(shardB).snapshot.total,128);
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),true,
+    'exact protected route must have entered PREPARED: '+
+    f.logs.join(' | '));
   assert.equal(JSON.parse(f.saved.get(UCE_FEDERATED_INTENT_KEY)).phase,
     'PREPARED','revocation cannot silently clear an ambiguous transaction');
 });
