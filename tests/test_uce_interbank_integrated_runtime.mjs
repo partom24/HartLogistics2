@@ -76,9 +76,11 @@ const executable=[
   // routes where no Receiver→Receiver Filter transfer was available. Keep
   // the *actual* production adapter in the VM, not an undefined mock seam.
   generated?[
+    'uceRemoteBulkPreferredOutput',
     'uceInterbankBulkRouteVerified',
     'ucePlanInterbankBulkTransfer',
-    'uceTryRemoteBulkTransfer'
+    'uceTryRemoteBulkTransfer',
+    'uceTryRemoteBulkRefill'
   ].map(name=>exactFunction(generated,name)).join('\n'):remoteBulk,
   'let uceOrdinaryCursor=0;',
   production.slice(start,end)
