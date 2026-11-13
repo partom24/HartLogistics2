@@ -207,16 +207,25 @@ jobs:
           node --test tests/test_uce_unified_tick_gate.mjs
       - name: UCE PG37 bounded sealed Receiver owner census and guarded same-version patch
         run: |
-          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
           node --check tests/test_uce_diagnostics_mock.mjs
           node --test tests/test_uce_diagnostics_mock.mjs
           python -m py_compile candidates/uce/pg37_lab_patch.py
-          python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v
+          # The PG37 installer is restricted to its original source commit.
+          # Run its exact historical synthetic checks in an isolated worktree;
+          # never make a newer UCE candidate pretend to be the PG37 patch.
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          historical="$(mktemp -d)"
+          git worktree add --quiet --detach "$historical" 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          (cd "$historical" && python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v)
+          git worktree remove --force "$historical"
       - name: UCE PG36 exact old-to-new same-version patch source and synthetic refusal
         run: |
-          git fetch --quiet --no-tags --depth=1 origin 6e02f29b168caecff5d379795fcd9b5b714ab0be
           python -m py_compile candidates/uce/pg36_lab_patch.py
-          python -m unittest discover -s tests -p 'test_uce_pg36_lab_patch.py' -v
+          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          historical="$(mktemp -d)"
+          git worktree add --quiet --detach "$historical" bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
+          (cd "$historical" && python -m unittest discover -s tests -p 'test_uce_pg36_lab_patch.py' -v)
+          git worktree remove --force "$historical"
       - name: UCE PG36 fresh sealed new-world first Collector link bootstrap
         run: |
           node --check candidates/transport/unified_link_registry.mjs
@@ -732,12 +741,30 @@ jobs:
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
       - name: UCE PG37 read-only owner census exact-source patch synthetic Windows
         run: |
-          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
-          python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          $historical = Join-Path $env:RUNNER_TEMP 'hart-pg37-historical'
+          git worktree add --quiet --detach $historical 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          try {
+            Push-Location $historical
+            python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v
+            if ($LASTEXITCODE -ne 0) { throw 'PG37 historical synthetic tests failed' }
+          } finally {
+            Pop-Location
+            git worktree remove --force $historical
+          }
       - name: UCE PG36 guarded in-place UCE patch synthetic Windows
         run: |
-          git fetch --quiet --no-tags --depth=1 origin 6e02f29b168caecff5d379795fcd9b5b714ab0be
-          python -m unittest discover -s tests -p 'test_uce_pg36_lab_patch.py' -v
+          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          $historical = Join-Path $env:RUNNER_TEMP 'hart-pg36-historical'
+          git worktree add --quiet --detach $historical bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
+          try {
+            Push-Location $historical
+            python -m unittest discover -s tests -p 'test_uce_pg36_lab_patch.py' -v
+            if ($LASTEXITCODE -ne 0) { throw 'PG36 historical synthetic tests failed' }
+          } finally {
+            Pop-Location
+            git worktree remove --force $historical
+          }
       - name: UCE PG35 synthetic empty-world stage, pack binding and restore on Windows
         run: python -m unittest discover -s tests -p 'test_uce_empty_world_switch.py' -v
       - name: UCE 1.5.16 synthetic stopped-LAB two-pack install, rollback and fault injection

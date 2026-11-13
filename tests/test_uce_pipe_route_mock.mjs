@@ -376,8 +376,9 @@ test('direct Sorter source winner is preserved for the last-slot ACK',()=>{
   const col={d:f.dim.id,source:{x:3,y:71,z:4},
     sorters:[f.filter,f.fallback]};
   f.context.getDimension=()=>f.dim;
-  f.context.blockContainer=()=>({
-    size:5,isValid:true,getItem:()=>COBBLE});
+  f.context.blockContainer=b=>b?.typeId==='minecraft:hopper'
+    ?{size:5,isValid:true,getItem:()=>COBBLE}
+    :b?.getComponent('minecraft:inventory')?.container;
   f.context.hopperIsRedstoneLocked=()=>false;
   f.context.supportedStorage=b=>b?.typeId==='minecraft:barrel';
   f.context.findAcceptSlot=(container,item)=>{
