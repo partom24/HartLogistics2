@@ -169,6 +169,31 @@ test('unregistered or unloaded lower Sorter cannot be skipped for wildcard fallb
   assert.equal(f.choose(COBBLE),undefined);
 });
 
+test('128 connected Transporters can discover 1,024 registered stacked Sorters',()=>{
+  const f=fixture();
+  for(let x=1;x>=-124;x--)f.put('hartlogistics:transporter',x,70,4);
+  for(let x=3;x>=-124;x--){
+    if(x<=1)f.put('hartsorter:sorter',x,69,4);
+    if(x<=1)f.entries.push({d:f.dim.id,x,y:69,z:4,m:'bypass',f:null});
+    for(let y=68;y>=62;y--){
+      f.put('hartsorter:sorter',x,y,4);
+      f.entries.push({d:f.dim.id,x,y,z:4,m:'bypass',f:null});
+    }
+  }
+  const graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.entries.length,1024);
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+});
+
+test('duplicate Sorter registration revokes the entire Transporter route',()=>{
+  const f=fixture();
+  assert.ok(f.network());
+  f.entries.push({...f.filter});
+  assert.equal(f.network(),undefined);
+  assert.equal(f.choose(COBBLE),undefined);
+});
+
 test('occupied preferred output selects lower priority destination without merge',()=>{
   const f=fixture();
   f.chestA.getComponent('minecraft:inventory').container.fill({
