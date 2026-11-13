@@ -212,6 +212,8 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("uceBulkWildcardPermitted(ledger.snapshot,ownerId,",self.main)
         self.assertIn("const onlyPreferred=!wildcardPermitted;",self.main)
         self.assertIn("function uceOrdinaryHopperCandidate(",self.main)
+        self.assertIn("if(paired.length!==1||c.size!==54)return false;",self.main)
+        self.assertIn("return back===1;",self.main)
         self.assertIn("selectedHopper?.partialOutput===true",self.main)
         self.assertIn("registerBulkMember(",self.main)
         self.assertIn("shardWriter.applyInternalTransfer(",self.main)

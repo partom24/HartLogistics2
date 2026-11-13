@@ -100,6 +100,80 @@ function fixture({lastSlot=false}={}){
   return {context,world,props,hopper,storage,input,output,logs,
     get writes(){return writes;}};
 }
+test('direct Sorter accepts loaded reciprocal native double chest without aliasing custody',()=>{
+  const f=fixture();
+  const dim=f.hopper.dimension;
+  const faces=[
+    {x:1,y:0,z:0},{x:-1,y:0,z:0},
+    {x:0,y:0,z:1},{x:0,y:0,z:-1}
+  ];
+  const sharedSlots=Array(54).fill(undefined);
+  const shared={
+    size:54,isValid:true,
+    getItem:i=>clone(sharedSlots[i]),
+    moveItem(i,j,to){
+      if(i<0||i>=5||j<0||j>=to.size)throw Error('invalid slot');
+      const item=f.input.raw[i];
+      if(!item||to.getItem(j)!==undefined)throw Error('invalid move');
+      to.put(j,item);
+      f.input.engineSet(i,undefined);
+    },
+    put:(i,v)=>{sharedSlots[i]=clone(v);}
+  };
+  const a={typeId:'minecraft:chest',dimension:dim,
+    location:{x:5,y:70,z:3},
+    getComponent:()=>({container:shared})};
+  const b={typeId:'minecraft:chest',dimension:dim,
+    location:{x:6,y:70,z:3},
+    getComponent:()=>({container:shared})};
+  // Replace only the synthetic Sorter output with one actual logical
+  // inventory shared by both chest halves. Keep the real native port.
+  const originalGet=dim.getBlock;
+  dim.getBlock=p=>{
+    if(p.x===5&&p.y===70&&p.z===3)return a;
+    if(p.x===6&&p.y===70&&p.z===3)return b;
+    return originalGet(p);
+  };
+  f.context.PG26_FACES=faces;
+  f.context.pg26Neighbor=(block,face)=>dim.getBlock({
+    x:block.location.x+face.x,
+    y:block.location.y+face.y,
+    z:block.location.z+face.z});
+  f.context.supportedStorage=block=>
+    block?.typeId==='minecraft:barrel'||block?.typeId==='minecraft:chest';
+  f.context.blockContainer=block=>block.getComponent?.('minecraft:inventory')?.container;
+  f.context.uceSorterColumnWinner=(_,item,settled)=>{
+    if(!item)return undefined;
+    const anyFree=sharedSlots.some(x=>x===undefined);
+    if(!anyFree&&!settled)return undefined;
+    return {kind:'storage',entry:{d:dim.id,x:4,y:70,z:3},
+      source:{block:f.hopper},block:a,container:shared};
+  };
+  // The original fixture's entry identity is referenced in route selection;
+  // use its actual entry object instead of allocating a new identity.
+  const oldWinner=f.context.uceSorterColumnWinner;
+  const col=f.context.columns[0];
+  f.context.uceSorterColumnWinner=(c,item,settled)=>{
+    const picked=oldWinner(c,item,settled);
+    return picked?{...picked,entry:col.sorters[0]}:undefined;
+  };
+  f.context.uceSameLoadedBlock=(x,y)=>!!x&&!!y&&
+    x.typeId===y.typeId&&x.dimension?.id===y.dimension?.id&&
+    x.location.x===y.location.x&&
+    x.location.y===y.location.y&&x.location.z===y.location.z;
+  // The native port invokes the source's moveItem, which must be allowed
+  // to place into this actual paired chest's 54-slot container.
+  f.context.uceNativeOutputSlot=container=>{
+    for(let i=0;i<container.size;i++)
+      if(container.getItem(i)===undefined)return i;
+    return -1;
+  };
+  f.context.uceSorterDirectServiceTick({worldId,epoch});
+  assert.deepEqual(sharedSlots[0],original);
+  assert.equal(f.input.raw[0],undefined);
+  assert.equal(f.props.has(UCE_NATIVE_INTENT_KEY),false);
+  assert.deepEqual(f.logs,[]);
+});
 test('real native port moves metadata-rich stack unchanged and clears matched intent',()=>{
   const f=fixture();
   f.context.uceSorterDirectServiceTick({worldId,epoch});

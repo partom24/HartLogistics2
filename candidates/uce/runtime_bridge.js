@@ -1681,17 +1681,38 @@ let uceSorterDirectCursor=0;
 function uceDirectStorageOwnerBlock(block){
     try{
         if(!block||!supportedStorage(block))return false;
-        if(block.typeId==='minecraft:chest'){
-            // Two block aliases can expose the same double-chest inventory.
-            // Do not infer whole-stack ownership through an unproven alias.
-            for(const face of PG26_FACES){
-                if(face.y!==0)continue;
-                const neighbor=pg26Neighbor(block,face);
-                if(!neighbor||neighbor.typeId==='minecraft:chest')
-                    return false;
+        const c=blockContainer(block);
+        if(!c?.isValid)return false;
+        if(block.typeId!=='minecraft:chest')return true;
+        // A Bedrock double chest is ONE 54-slot native inventory reached
+        // through two adjacent block aliases. Require both live halves,
+        // reciprocal loaded topology and a 54-slot view from each side.
+        // No secondary writer, serialization or heuristic item rebuilding.
+        const paired=[];
+        for(const face of PG26_FACES){
+            if(face.y!==0)continue;
+            const neighbor=pg26Neighbor(block,face);
+            if(!neighbor||neighbor.dimension?.id!==block.dimension?.id)
+                return false;
+            if(neighbor.typeId==='minecraft:chest')
+                paired.push(neighbor);
+        }
+        if(paired.length===0)return c.size===27;
+        if(paired.length!==1||c.size!==54)return false;
+        const other=paired[0],oc=blockContainer(other);
+        if(!oc?.isValid||oc.size!==54)return false;
+        let back=0;
+        for(const face of PG26_FACES){
+            if(face.y!==0)continue;
+            const neighbor=pg26Neighbor(other,face);
+            if(!neighbor||neighbor.dimension?.id!==block.dimension?.id)
+                return false;
+            if(neighbor.typeId==='minecraft:chest'){
+                if(!uceSameLoadedBlock(neighbor,block))return false;
+                back++;
             }
         }
-        return blockContainer(block)?.isValid===true;
+        return back===1;
     }catch(_){return false;}
 }
 function uceSorterDirectServiceTick(authority){
