@@ -233,6 +233,45 @@ test('128 connected Transporters can discover 1,024 registered stacked Sorters',
   assert.equal(f.choose(COBBLE).entry,f.filter);
 });
 
+test('1,536 stacked Sorters across two independent loaded banks have no global Sorter ceiling',()=>{
+  const f=fixture();
+  // 48 pipe-fed columns per bank, 16 vertically contiguous Sorters each.
+  // Each graph stays below its own bounded pipe budget. This is a scale
+  // GEOMETRY proof, not cross-Collector/Bulk forwarding or BDS timing.
+  for(let x=1;x>=-44;x--)f.put('hartlogistics:transporter',x,70,4);
+  for(let x=3;x>=-44;x--){
+    if(x<=1){
+      f.put('hartsorter:sorter',x,69,4);
+      f.entries.push({d:f.dim.id,x,y:69,z:4,m:'bypass',f:null});
+    }
+    for(let y=68;y>=54;y--){
+      f.put('hartsorter:sorter',x,y,4);
+      f.entries.push({d:f.dim.id,x,y,z:4,m:'bypass',f:null});
+    }
+  }
+  const second={id:f.context.logisticsId(f.dim.id,199,70,4),
+    d:f.dim.id,x:199,y:70,z:4,present:true};
+  f.registeredReceivers.push(second);
+  f.put('hartsorter:receiver',199,70,4);
+  for(let x=200;x<=247;x++){
+    f.put('hartlogistics:transporter',x,70,4);
+    for(let y=69;y>=54;y--){
+      f.put('hartsorter:sorter',x,y,4);
+      f.entries.push({d:f.dim.id,x,y,z:4,m:'bypass',f:null});
+    }
+  }
+  const a=f.network(),b=f.context.ucePipeRouteNetwork(second);
+  assert.ok(a);assert.ok(b);
+  assert.equal(f.entries.length,1536);
+  assert.equal(a.entries.length,768);
+  assert.equal(b.entries.length,768);
+  assert.notEqual(a.fingerprint,b.fingerprint);
+  assert.equal(a.leaderId,f.receiver.id);
+  assert.equal(b.leaderId,second.id);
+  assert.ok(a.fingerprint.length<=8192);
+  assert.ok(b.fingerprint.length<=8192);
+  assert.equal(f.choose(COBBLE)?.entry,f.filter);
+});
 test('duplicate Sorter registration revokes the entire Transporter route',()=>{
   const f=fixture();
   assert.ok(f.network());
