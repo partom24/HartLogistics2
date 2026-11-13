@@ -59,7 +59,7 @@ def compile_patch(source,bridge):
       'const VERSION = "1.5.16-DEV-UCE";')
     source=once(source,"function logisticsTick() {",
       "function logisticsTick() {\n"+
-      "    if (uceLegacyWriterBlocked()) { uceUnifiedServiceTick(); return; }")
+      "    if (uceLegacyWriterBlocked()) { ucePerformanceTick(); return; }")
     source=once(source,
       "system.beforeEvents.startup.subscribe((event) => {",
       "system.beforeEvents.startup.subscribe((event) => {\n"+
@@ -120,7 +120,8 @@ def compile_patch(source,bridge):
       "            cheatsRequired: false\n"+
       "        },\n"+
       "        origin => { system.run(() => uceActivateEmptyLabWorld(origin)); }\n"+
-      "    );")
+      "    );"+
+      "\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf',\n            description: 'HL2 read-only performance panel and thresholds.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'status')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf_on',\n            description: 'Enable session-only HL2 performance monitoring.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'on')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf_off',\n            description: 'Disable HL2 performance monitoring.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'off')); }\n    );")
     source=once(source,
       "    system.runTimeout(() => processEjectedItemEntity(ev.entity, 0, spawnLoc), 1);",
       "    system.runTimeout(() => {\n"+
