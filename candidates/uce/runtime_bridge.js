@@ -3165,6 +3165,25 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
     };
     const op=uceNativeReceiptId();
     if(!op){uceBridgeLog('ejected native receipt exhausted');return;}
+    // The ordinary entity path places the SAME outer UCE boundary in
+    // PREPARED before it stages a native move. A new scoped view of the
+    // original carrier registry must therefore explicitly bind that
+    // boundary operation when claiming/releasing its real native tickets.
+    // The already inspected/spawned host is reused; there is no second
+    // carrier, journal or ownership authority. MR stays on the original
+    // unbound native registry path.
+    const custodyRegistry=itemClass==='ORDINARY'?
+        createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:verifyHost,boundaryOperationId:op
+        }):registry;
+    if(!custodyRegistry.ok){
+        uceBridgeLog('ejected scoped registry '+
+            custodyRegistry.reason,ownerId);
+        return;
+    }
     // This proof survives entity removal: the separately persisted carrier
     // ticket and actual native ItemStack now own the escrow. Both Collector
     // link and Receiver load state must remain unchanged for the ledger
@@ -3194,7 +3213,7 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
             if(tx.accountId!==accountId||tx.key!==ordinaryKey||
                tx.count!==stack.amount||tx.direction!=='deposit'||
                !linkedRoute())return false;
-            const owned=registry.inspectCustody({ownerId,anchor});
+            const owned=custodyRegistry.inspectCustody({ownerId,anchor});
             if(!owned.ok||!owned.slots.includes(slot))return false;
             return identity(host.container.getItem(slot));
         };
@@ -3231,7 +3250,7 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
         externalFence:()=>uceLegacyWriterBlocked()&&
             !!uceAuthoritySnapshot(),
         verifyEndpointOwner,
-        durableOwnershipWitness:registry.durableOwnershipWitness,
+        durableOwnershipWitness:custodyRegistry.durableOwnershipWitness,
         certifyOrdinaryEscrow:(item,key,count)=>
             key===ordinaryKey&&count===stack.amount&&identity(item),
         verifyLedgerBoundaryReceipt:receiptProof
@@ -3243,7 +3262,8 @@ function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
                 world,worldId:authority.worldId,epoch:authority.epoch,
                 operationId:op,accountId:'receiver:'+receiver.id,
                 key:ordinaryKey,count:stack.amount,
-                registry,port,writer,ownerId,anchor,carrierSlot:to,
+                registry:custodyRegistry,port,writer,ownerId,anchor,
+                carrierSlot:to,
                 entity,sourceOwnerId,verifyRoute:linkedRoute,
                 verifyOrdinary:meta=>meta.accountId===
                     'receiver:'+receiver.id&&
