@@ -390,3 +390,44 @@ test('same newly registered Receiver cannot claim two reserved shards',()=>{
   fail(inspectUnifiedActiveColdImport({world:f.world,worldId,epoch}),
     'invalid_or_duplicate_new_receiver_owner');
 });
+
+test('200000 original ordinary queue across 33 registered Receivers cold-imports without draining or rewriting Q4',()=>{
+  const groups=Array.from({length:33},(_,i)=>i===0?[
+    {definition:item('minecraft:cobblestone'),amount:200000}
+  ]:[]);
+  const f=fixture(groups),before=[...f.values];
+  const planned=previewUnifiedColdQ4Import(f.params);
+  assert.equal(planned.ok,true,planned.reason);
+  assert.equal(planned.receiverCount,33);
+  assert.equal(planned.itemCount,200000);
+  assert.equal(planned.shards.length,33+UCE_NEW_RECEIVER_RESERVES);
+  assert.equal(planned.shards.filter(x=>x.itemCount>0).length,1);
+  assert.equal(planned.shards.reduce((sum,x)=>sum+x.itemCount,0),200000);
+  assert.equal(f.writes,0,'read-only plan does not drain a Hopper or mutate Q4');
+  const imported=run(f);
+  assert.equal(imported.ok,true,imported.reason);
+  assert.equal(imported.itemCount,200000);
+  assert.equal(imported.originalQ4Retained,true);
+  const health=inspectUnifiedActiveColdImport({
+    world:f.world,worldId,epoch});
+  assert.equal(health.ok,true,health.reason);
+  assert.equal(health.currentLedgerTotal,200000);
+  assert.equal(health.receiverCount,33);
+  assert.deepEqual([...f.values].filter(([k])=>k.startsWith('hartsorter:')),
+    before,'all original Q4 data is byte-for-byte unchanged');
+});
+test('a single opaque row among 200000 ordinary items prevents any partial archived-world cutover',()=>{
+  const groups=Array.from({length:33},(_,i)=>i===0?[
+    {definition:item('minecraft:cobblestone'),amount:200000}
+  ]:i===32?[
+    {definition:item('minecraft:enchanted_book'),amount:1}
+  ]:[]);
+  const f=fixture(groups),source=[...f.values];
+  const result=run(f);
+  assert.equal(result.ok,false);
+  assert.match(result.reason,/q4_ordinary_conversion:q4_not_ordinary/);
+  assert.equal(f.writes,0);
+  assert.equal(f.values.has(UCE_AUTHORITY_KEY),false);
+  assert.deepEqual([...f.values],source,
+    'mixed 200k backlog is not partially converted or changed');
+});
