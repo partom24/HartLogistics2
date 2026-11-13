@@ -426,6 +426,72 @@ test('unloaded, overfull or relinked remote bank cannot receive a virtual handof
   f.missing.add('24,70,4');
   assert.equal(select(),undefined,'unloaded receiver cannot take custody');
 });
+test('original 1,440 stacked Sorters route through 36 physical banks to a final Filter',()=>{
+  const f=fixture(),banks=36,columnsPerBank=5,rows=8;
+  f.filter.m='bypass';f.fallback.m='bypass';
+  const receiverIds=[f.receiver.id],collectors=[];
+  for(let i=1;i<banks;i++){
+    const rx=4+i*30,id=f.context.logisticsId(f.dim.id,rx,70,4);
+    const record={id,d:f.dim.id,x:rx,y:70,z:4,present:true};
+    f.registeredReceivers.push(record);
+    receiverIds.push(id);
+    f.put('hartsorter:receiver',rx,70,4);
+  }
+  let finalFilter,finalChest;
+  for(let i=0;i<banks;i++){
+    const rx=4+i*30;
+    for(let c=1;c<=columnsPerBank;c++){
+      const x=rx-c;
+      if(i>0||c>2)f.put('hartlogistics:transporter',x,70,4);
+      for(let d=0;d<rows;d++){
+        const y=69-d;
+        if(i===0&&c<=2&&d===0)continue; // fixture's first two
+        f.put('hartsorter:sorter',x,y,4);
+        const entry={d:f.dim.id,x,y,z:4,m:'bypass',f:null};
+        f.entries.push(entry);
+        if(c===columnsPerBank&&d===rows-1){
+          if(i===banks-1){
+            entry.m='filter';
+            entry.f={match:{typeId:'minecraft:cobblestone'}};
+            finalFilter=entry;
+            finalChest=f.put('minecraft:barrel',x,y,5,f.newContainer());
+          }else{
+            entry.m='wildcard';
+            f.put('hartsorter:collector',x,y,5);
+            const id=f.context.logisticsId(f.dim.id,x,y,5);
+            const record={id,d:f.dim.id,x,y,z:5,
+              link:receiverIds[i+1],present:true};
+            f.collectors.push(record);
+            collectors.push(record);
+          }
+        }
+      }
+    }
+  }
+  assert.equal(f.entries.length,banks*columnsPerBank*rows);
+  assert.equal(f.registeredReceivers.length,banks);
+  assert.equal(f.collectors.length,banks-1);
+  const all=f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+  assert.ok(all,'multi-hop Filter must be reachable through real links');
+  assert.equal(all.hops,banks-1);
+  assert.equal(all.receiver.id,receiverIds[banks-1]);
+  assert.equal(all.remote.entry,finalFilter);
+  assert.equal(all.remote.dest.block,finalChest);
+  assert.ok(all.witness.length<8192,'full physical path fits journal');
+  assert.equal(f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot()).witness,
+    all.witness,'same path selection remains deterministic');
+  collectors[collectors.length-1].link=receiverIds[0]; // cycle
+  assert.equal(f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot()),
+    undefined,'cycle is never settled into an item transfer');
+  collectors[collectors.length-1].link=receiverIds[banks-1];
+  finalFilter.f={match:{typeId:'minecraft:stone'}};
+  assert.equal(f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot()),
+    undefined,'the final Filter is an actual item match, not a link guess');
+});
 test('unloaded or uncertified preferred output HOLDS rather than using Wildcard',()=>{
   const f=fixture();
   f.missing.add('3,69,5');
