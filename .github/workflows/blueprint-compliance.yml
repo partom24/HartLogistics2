@@ -205,7 +205,7 @@ jobs:
         run: |
           node --check tests/test_uce_unified_tick_gate.mjs
           node --test tests/test_uce_unified_tick_gate.mjs
-      - name: UCE PG42 isolated native carrier fixture: world switch, read-only preservation and restart probe
+      - name: UCE PG42 isolated native carrier fixture and fresh-world restart proof
         run: |
           git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
           node --check tests/pg42_probe.js
