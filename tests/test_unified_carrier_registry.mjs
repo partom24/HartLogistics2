@@ -361,3 +361,35 @@ test('service refuses uncertified MR shape and honors blocked Collector/redstone
   assert.equal(f.writes,2); // Only initial carrier reservation/activation.
   assert.equal(src.getItem(0).typeId,'minecraft:potion');
 });
+
+test('PG39 RESERVED owner has read-only per-host physical and journal evidence',()=>{
+  const f=fixture({spawnThrows:true});
+  failed(register(f),'carrier_spawn_outcome_ambiguous');
+  const writes=f.writes;
+  const r=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'HOST_EVIDENCE_READ_ONLY');
+  assert.equal(r.ownerId,ownerId);
+  assert.equal(r.recordState,'RESERVED');
+  assert.equal(r.custodyState,'HOLD:RESERVED');
+  assert.equal(r.liveEntityCount,1);
+  assert.equal(r.entities[0].occupied,0);
+  assert.equal(r.ticketSlotCount,0);
+  assert.equal(r.nativeIntentPhase,'CLEAR');
+  assert.equal(r.canRepair,false);
+  assert.equal(r.canSpawn,false);
+  assert.equal(f.writes,writes);
+  assert.equal(f.spawned.length,1);
+});
+test('host census distinguishes idle missing record from an ACTIVE native host',()=>{
+  const f=fixture();
+  const before=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(before.ok,true);
+  assert.equal(before.recordState,'MISSING');
+  assert.equal(before.custodyState,'UNINITIALIZED');
+  assert.equal(register(f).ok,true);
+  const ready=f.mgr.inspectHostEvidence({ownerId,anchor});
+  assert.equal(ready.recordState,'ACTIVE');
+  assert.equal(ready.custodyState,'VERIFIED');
+  assert.equal(ready.liveEntityCount,1);
+});

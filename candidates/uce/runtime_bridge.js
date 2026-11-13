@@ -1392,7 +1392,7 @@ function uceSendDiagnostics(origin){
                                     duplicateReceiverOwners++;
                                 else seenReceiverOwners.add(id);
                                 receiverOwners.push({id,total:account.total,
-                                    shardKey:region.key});
+                                    shardKey:region.key,anchor:at});
                             }
                         }else if(account.kind==='bulk'){
                             bankCount++;bulkTotal+=account.total;
@@ -1422,6 +1422,40 @@ function uceSendDiagnostics(origin){
             if(invalidReceiverOwners||duplicateReceiverOwners)
                 lines.push('§cReceiver owner census HOLD: invalid '+
                     invalidReceiverOwners+' | duplicate '+duplicateReceiverOwners);
+            // The global MR journal can be clear while a host is RESERVED.
+            // Read live entities and tickets, without initializing anything.
+            if(typeof createUnifiedCarrierRegistry==='function'){
+                const registry=createUnifiedCarrierRegistry({world,
+                    worldId:auth.worldId,epoch:auth.epoch,
+                    externalFence:()=>false,ownerVerifier:uceLiveReceiverOwner});
+                if(!registry.ok){
+                    lines.push('§cNative host census unavailable: '+registry.reason);
+                }else{
+                    let held=0,reserved=0,missing=0,active=0;
+                    const maxHosts=8;
+                    for(const a of receiverOwners.slice(0,maxHosts)){
+                        const audit=registry.inspectHostEvidence({
+                            ownerId:a.id,anchor:a.anchor});
+                        if(!audit.ok){
+                            held++;
+                            lines.push('§cCarrier §f'+a.id+' §cHOLD '+audit.reason);
+                            continue;
+                        }
+                        if(audit.recordState==='RESERVED')reserved++;
+                        else if(audit.recordState==='ACTIVE')active++;
+                        else missing++;
+                        if(audit.custodyState.startsWith('HOLD:'))held++;
+                        lines.push('§7Carrier §f'+a.id+' §7state '+
+                            audit.recordState+' | physical '+audit.liveEntityCount+
+                            ' | tickets '+audit.ticketSlotCount+
+                            ' | block '+(audit.ownerVerified?'present':'UNVERIFIED')+
+                            ' | '+audit.custodyState);
+                    }
+                    lines.push('§7Native hosts (read-only, first '+maxHosts+
+                        '): §factive '+active+' | RESERVED '+reserved+
+                        ' | missing '+missing+' | HOLD '+held);
+                }
+            }
             lines.push('§7Q4 archive: §fretained unchanged; items migrated only by verified seal');
         }
     }

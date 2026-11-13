@@ -131,3 +131,45 @@ test('PG37 bounded receiver listing refuses to dump an unbounded registry to cha
   assert.equal(receiverLines.length,12);
   assert.match(lines.join('\n'),/20 listed, first 12 shown/);
 });
+
+test('read-only status reveals a RESERVED carrier despite clear global MR journal',()=>{
+  const lines=[],writes=[],account=owner(-78);
+  const world={
+    getDynamicProperty:k=>k==='hartlogistics:uce_cold_seal_v1'
+      ?JSON.stringify({shards:[{key:'hartlogistics:uce_shard_0000_v1'}]})
+      :undefined,
+    setDynamicProperty(...args){writes.push(args);throw Error('read-only');}
+  };
+  const ctx={
+    world,uceAuthoritySnapshot:()=>({worldId:'w',epoch:1}),
+    inspectUnifiedActiveColdImport:()=>({ok:true}),
+    createUnifiedShardWriter:()=>({ok:true,inspect:()=>({ok:true,
+      snapshot:{accounts:[account]}})}),
+    createUnifiedCarrierRegistry:()=>({ok:true,
+      inspectHostEvidence:()=>({ok:true,recordState:'RESERVED',
+        custodyState:'HOLD:RESERVED',liveEntityCount:1,ticketSlotCount:0,
+        ownerVerified:true})}),
+    uceLiveReceiverOwner:()=>true,
+    log:s=>lines.push(String(s))
+  };
+  vm.runInNewContext(fn,ctx);
+  ctx.uceSendDiagnostics({sourceEntity:{sendMessage:s=>lines.push(s)}});
+  assert.match(lines.join('|'),/MR clear/);
+  assert.match(lines.join('|'),/Carrier.*RESERVED.*HOLD:RESERVED/);
+  assert.equal(writes.length,0);
+});
+test('owner-keyed warning suppression keeps alternating failures bounded',()=>{
+  const begin=src.indexOf('const uceWarningCounts=new Map();');
+  const end=src.indexOf('function uceNativeReceiptId(){',begin);
+  assert.ok(begin>=0&&end>begin);
+  const logs=[],ctx={log:s=>logs.push(s)};
+  vm.runInNewContext(src.slice(begin,end),ctx);
+  for(let i=0;i<40;i++){
+    ctx.uceBridgeLog('carrier_reserved_requires_manual_reconciliation','receiver-A');
+    ctx.uceBridgeLog('carrier_record_missing','receiver-B');
+  }
+  assert.equal(logs.length,4);
+  assert.match(logs[0],/owner=receiver-A/);
+  assert.match(logs[1],/owner=receiver-B/);
+  assert.match(logs[2],/repeated=16/);
+});
