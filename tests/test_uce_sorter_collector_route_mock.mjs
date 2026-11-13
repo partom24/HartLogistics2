@@ -85,6 +85,23 @@ test('full preferred storage falls through to linked wildcard Collector',()=>{
   assert.equal(record.kind,'sorter-collector');
   assert.equal(record.eligibleSlot(0,f.stone),true);
 });
+test('an unloaded sealed linked Receiver still leaves the original Sorter Collector route eligible',()=>{
+  const f=fixture();
+  f.storage.inventory.slots.fill({typeId:'minecraft:stone'});
+  f.ctx.receiverAt=()=>undefined;
+  const selected=f.ctx.uceSorterColumnWinner(f.column,f.stone);
+  assert.equal(selected?.kind,'collector',
+    'an unavailable Receiver must NOT cause local storage fallback');
+  assert.equal(selected?.collector.id,f.collector.id);
+  const exact=f.ctx.uceSorterCollectorSources(
+    f.receiver,f.collector.id);
+  assert.equal(exact.length,1);
+  assert.equal(exact[0].eligibleSlot(0,f.stone),true);
+  assert.equal(exact[0].stillSelected(f.stone),true);
+  assert.equal(f.ctx.uceSorterCollectorSources(
+    f.receiver,'another-collector').length,0,
+    'one Collector host may not claim a different Collector route');
+});
 test('wrong Filter item selects Collector without flattening live stack',()=>{
   const f=fixture(),dirt={typeId:'minecraft:dirt',amount:1};
   f.hopper.inventory.setItem(1,dirt);
