@@ -21,6 +21,8 @@ export const UCE_SHARD_SCHEMA='hart-uce-world-shard-v1';
 export const UCE_AUTHORITY_SCHEMA='hart-uce-world-authority-v1';
 export const UCE_AUTHORITY_KEY='hartlogistics:uce_authority_v1';
 export const UCE_SHARD_MAX_CHARS=28000;
+export const UCE_FEDERATED_INTENT_KEY='hartlogistics:uce_federated_intent_v1';
+export const UCE_FEDERATED_SCHEMA='hart-uce-federated-intent-v1';
 const KEY=/^hartlogistics:uce_shard_[a-z0-9_]{1,80}_v1$/;
 const ASCII=/^[\x20-\x7e]+$/;
 const journals=['hartsorter:journal_v1','hartsorter:queue_journal_v1'];
@@ -93,7 +95,8 @@ function noLegacyJournal(world){
  * synchronous runtime writer exclusion inspection before enabling ACTIVE.
  */
 export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
-    {allowedNativeOperationId=null,allowedBoundaryOperationId=null}={}){
+    {allowedNativeOperationId=null,allowedBoundaryOperationId=null,
+     allowedFederatedOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
       typeof externalFence!=='function')
     return hold('invalid_unified_mutation_fence');
@@ -128,6 +131,21 @@ export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
        typeof tx.operationId!=='string'||!tx.operationId ||
        tx.operationId!==allowedBoundaryOperationId)
       return hold('ordinary_boundary_pending_global');
+  }
+  // One globally reserved inter-shard balance is protected from ALL
+  // unrelated native, ordinary, link and account writers.
+  const federated=read(world,UCE_FEDERATED_INTENT_KEY);
+  if(!federated.ok)return federated;
+  if(federated.value!==undefined && federated.value!==null &&
+     federated.value!==''){
+    let intent;
+    try{intent=JSON.parse(federated.value);}
+    catch(_){return hold('federated_intent_invalid_for_unified_fence');}
+    if(!intent||intent.schema!==UCE_FEDERATED_SCHEMA||
+       intent.worldId!==worldId||intent.epoch!==epoch||
+       typeof intent.operationId!=='string'||!intent.operationId||
+       intent.operationId!==allowedFederatedOperationId)
+      return hold('federated_intent_pending_global');
   }
   let exclusive=false;
   try{exclusive=externalFence()===true;}catch(_){};
@@ -172,7 +190,7 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
     externalFence,verifyEscrowCustody,verifyInternalRoute,
     verifyBulkPlacement,verifyGlobalBulkUniqueness,
     verifyReceiverPlacement,verifyGlobalReceiverUniqueness,
-    verifyReceiverReserveShard}={}){
+    verifyReceiverReserveShard,verifyFederatedRoute}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !KEY.test(shardKey||'')||typeof worldId!=='string'||
@@ -193,9 +211,10 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       lastReceipt:parsed.value.receipt,
       canMoveNative:false,canClearQ4:false,canCommitMigration:false};
   }
-  function fence(boundaryOperationId=null){
+  function fence(boundaryOperationId=null,federatedOperationId=null){
     return verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
-      {allowedBoundaryOperationId:boundaryOperationId});
+      {allowedBoundaryOperationId:boundaryOperationId,
+       allowedFederatedOperationId:federatedOperationId});
   }
   function applyInternalTransfer(args){
     if(quarantine)return hold('shard_session_quarantine:'+quarantine);
@@ -339,6 +358,111 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
     return {ok:true,status:'BOUNDARY_ACCOUNT_WRITE_READBACK',
       receipt,accountTotal:step.next.total,
       hasHardCrashDiskProof:false,canMoveNative:false};
+  }
+
+  /**
+   * One side of a virtual ordinary transfer between DIFFERENT sealed
+   * shards. This is the SAME one-key UCE shard writer, not a new balance
+   * engine. A global PREPARED journal owns the count between both receipts.
+   * Interrupted writes HOLD; no automatic replay or hard-crash disk proof.
+   */
+  function applyFederatedSide(args){
+    if(quarantine)return hold('shard_session_quarantine:'+quarantine);
+    if(typeof verifyFederatedRoute!=='function')
+      return hold('federated_route_proof_adapter_missing');
+    const {operationId,fromShard,toShard,fromAccount,toAccount,
+      key,count,direction,expectedRevision,expectedEpoch}=args||{};
+    const isDebit=direction==='withdraw';
+    const accountId=isDebit?fromAccount:toAccount;
+    if(!operationId||typeof operationId!=='string'||
+       operationId.length>256||!ASCII.test(operationId)||
+       !KEY.test(fromShard||'')||!KEY.test(toShard||'')||
+       fromShard===toShard||
+       shardKey!==(isDebit?fromShard:toShard)||
+       !['withdraw','deposit'].includes(direction)||
+       !nat(expectedRevision)||expectedEpoch!==epoch)
+      return hold('invalid_federated_side_request');
+    const gate=fence(null,operationId);
+    if(!gate.ok)return gate;
+    const global=read(world,UCE_FEDERATED_INTENT_KEY);
+    if(!global.ok)return global;
+    let tx;
+    try{tx=JSON.parse(global.value);}
+    catch(_){return hold('federated_intent_unreadable');}
+    const phase=isDebit?'PREPARED':'DEBIT_INSPECTED';
+    const expected=isDebit?tx?.fromRevision:tx?.toRevision;
+    if(!tx||tx.schema!==UCE_FEDERATED_SCHEMA||tx.phase!==phase||
+       tx.worldId!==worldId||tx.epoch!==epoch||
+       tx.operationId!==operationId||
+       tx.fromShard!==fromShard||tx.toShard!==toShard||
+       tx.fromAccount!==fromAccount||tx.toAccount!==toAccount||
+       tx.key!==key||tx.count!==count||
+       expected!==expectedRevision)
+      return hold('federated_intent_not_ready_for_side');
+    // Credit must see the durable source debit before mutating its shard.
+    const sourceReceiptReady=()=>{
+      if(isDebit)return true;
+      const seen=read(world,fromShard);
+      if(!seen.ok)return false;
+      const src=unpack(seen.value,fromShard,worldId,epoch);
+      const r=src.ok?src.value.receipt:undefined;
+      return r?.kind==='FEDERATED_DEBIT'&&
+        r.operationId===operationId&&
+        r.accountId===fromAccount&&r.key===key&&r.count===count&&
+        r.fromShard===fromShard&&r.toShard===toShard;
+    };
+    const routed=()=>{
+      try{return verifyFederatedRoute(tx,direction)===true&&
+        sourceReceiptReady();}catch(_){return false;}
+    };
+    if(!routed())return hold('federated_topology_or_debit_unverified');
+    const old=read(world,shardKey);
+    if(!old.ok)return old;
+    const parsed=unpack(old.value,shardKey,worldId,epoch);
+    if(!parsed.ok)return parsed;
+    const prior=parsed.value;
+    const kind=isDebit?'FEDERATED_DEBIT':'FEDERATED_CREDIT';
+    if(prior.receipt.operationId===operationId){
+      const r=prior.receipt;
+      if(r.kind!==kind||r.accountId!==accountId||
+         r.key!==key||r.count!==count||
+         r.fromShard!==fromShard||r.toShard!==toShard)
+        return hold('federated_receipt_identity_conflict');
+      return {ok:true,status:'FEDERATED_SIDE_ALREADY_COMMITTED',
+        receipt:r,canMoveNative:false,hasHardCrashDiskProof:false};
+    }
+    if(prior.snapshot.revision!==expectedRevision)
+      return hold('federated_shard_stale_revision');
+    const step=transitionUnifiedOrdinaryBoundary(prior.snapshot,{
+      operationId,accountId,key,count,direction,
+      expectedRevision,expectedEpoch:epoch});
+    if(!step.ok)return hold('federated_side_'+step.reason);
+    const receipt={kind,operationId,accountId,key,count,
+      direction,fromShard,toShard,epoch,
+      revision:step.next.revision,
+      beforeRevision:prior.snapshot.revision};
+    const packed=pack(shardKey,step.next,receipt);
+    if(!packed.ok)return packed;
+    const again=read(world,shardKey);
+    if(!again.ok||again.value!==old.value)
+      return hold('federated_shard_changed_prewrite');
+    const check=fence(null,operationId);
+    const globalStill=read(world,UCE_FEDERATED_INTENT_KEY);
+    if(!check.ok||!globalStill.ok||globalStill.value!==global.value||
+       !routed())return hold('federated_route_or_intent_changed_prewrite');
+    try{world.setDynamicProperty(shardKey,packed.raw);}
+    catch(_){
+      quarantine='federated_write_outcome_ambiguous';
+      return hold('federated_shard_write_ambiguous');
+    }
+    const posted=read(world,shardKey);
+    if(!posted.ok||posted.value!==packed.raw||
+       !unpack(posted.value,shardKey,worldId,epoch).ok){
+      quarantine='federated_postwrite_readback_invalid';
+      return hold('federated_shard_readback_mismatch');
+    }
+    return {ok:true,status:'FEDERATED_SIDE_READBACK',
+      receipt,canMoveNative:false,hasHardCrashDiskProof:false};
   }
 
   /**
@@ -492,6 +616,6 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
   }
 
   return {ok:true,inspect,applyInternalTransfer,applyBoundaryCommit,
-    registerBulkMember,registerNewReceiver,
+    applyFederatedSide,registerBulkMember,registerNewReceiver,
     getSessionQuarantine:()=>quarantine};
 }
