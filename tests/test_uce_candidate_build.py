@@ -174,6 +174,20 @@ class UceBuildTests(unittest.TestCase):
                              "generated HL2 assembled routing/custody failed "
                              +name+":\\n"+result.stdout[-14000:])
 
+    def test_generated_performance_panel_counts_items_not_operations(self):
+        # Exercise the same diagnostics suite against the actual derived
+        # Bedrock main.js. The wall-clock observation is not an in-game
+        # throughput/TPS acceptance claim.
+        env=os.environ.copy()
+        env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
+        result=subprocess.run(
+            ["node","--test",str(ROOT/"tests/test_uce_diagnostics_mock.mjs")],
+            cwd=ROOT,env=env,stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,text=True,timeout=60)
+        self.assertEqual(result.returncode,0,
+                         "generated HL2 diagnostics behavior failed:\\n"+
+                         result.stdout[-12000:])
+
     def test_transporter_sorter_preserves_original_storage_destinations(self):
         # This assertion runs against the ACTUAL generated gameplay main.js,
         # not the source-only route reader or a mock implementation.
