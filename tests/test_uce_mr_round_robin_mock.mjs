@@ -24,6 +24,7 @@ function fixture({receivers=40,moveEvery=true,holdAfter=0}={}){
     logistics:{receivers:owners,collectors:[]},
     uceOrdinaryAccountSource:()=> 'sealed-region',
     receiverAt:()=>({typeId:'hartsorter:receiver'}),
+    uceLiveReceiverOwner:()=>true,
     blockIsRedstonePowered:()=>false,
     createUnifiedCarrierRegistry:()=>({
       ok:true,
