@@ -21,7 +21,7 @@ function fixture({existing=true,linked=null}={}){
   const saved={collectors:existing?[{id:colId,link:linked}]:[],
     receivers:[],nextQueue:1,uceLinkRevision:3};
   const notifications=[],actions=[],confirms=[],arms=[],commits=[];
-  let writes=0,leave,formHook;
+  let writes=0,leave,formHook,unlinkCalls=0,nativeOccupied=false;
   const responses={action:[],confirm:[]};
   class ActionFormData{
     title(){return this;}
@@ -71,7 +71,38 @@ function fixture({existing=true,linked=null}={}){
     uceUseReceiverLinkOrStatus:(_,block)=>{
       commits.push(block);
       ctx.ucePendingLinkBlocks.delete(ctx.player.id);
-    }
+    },
+    uceLegacyWriterBlocked:()=>true,
+    uceUnifiedJournalHold:()=>false,
+    uceAuthoritySnapshot:()=>({worldId:'test-world',epoch:1}),
+    inspectUnifiedActiveColdImport:()=>({ok:true}),
+    uceLiveCollectorOwner:()=>true,
+    createUnifiedCarrierRegistry:()=>({
+      ok:true,
+      inspectHost:()=>({ok:true}),
+      inspectCustody:()=>({ok:true,occupied:nativeOccupied?1:0})
+    }),
+    createUnifiedLinkRegistry:opts=>({
+      ok:true,
+      inspect:()=>({ok:true,revision:saved.uceLinkRevision}),
+      unlinkCollector:args=>{
+        unlinkCalls++;
+        if(!opts.verifyCollectorBlock(args.collector)||
+           args.expectedRevision!==saved.uceLinkRevision)
+          return {ok:false,reason:'stale_or_custody_occupied'};
+        const col=saved.collectors.find(c=>c.id===args.collector.id);
+        if(!col?.link)return {ok:false,reason:'not_linked'};
+        col.link=null;
+        saved.uceLinkRevision++;
+        return {ok:true};
+      }
+    }),
+    safeJsonParse:(value,fallback)=>{
+      try{return JSON.parse(value);}catch(_){return fallback;}
+    },
+    uceHydrateNewReceivers:()=>true,
+    uceNativeReceiptId:()=> 'menu-unlink-receipt-1',
+    logistics:{collectors:[],receivers:[]}
   };
   ctx.player={id:'tester',sendMessage:message=>notifications.push(message)};
   vm.runInNewContext(
@@ -82,6 +113,8 @@ function fixture({existing=true,linked=null}={}){
     ctx,colId,recId,saved,responses,notifications,arms,commits,actions,confirms,
     collectorBlock,receiverBlock,
     get writes(){return writes;},
+    get unlinkCalls(){return unlinkCalls;},
+    setNativeOccupied(value){nativeOccupied=value;},
     onForm(fn){formHook=fn;},
     leave(){leave({playerId:'tester'});},
     arm:()=>ctx.uceCollectorLinkMenu(ctx.player,collectorBlock),
@@ -163,7 +196,7 @@ test('unreadable saved link registry fails closed before any selection',async()=
 });
 test('forms unavailable and details-only interaction never mutate link',async()=>{
   const f=fixture();
-  f.responses.action.push({selection:1});
+  f.responses.action.push({selection:2});
   await f.arm();
   assert.ok(f.notifications.includes('details'));
   assert.equal(f.arms.length,0);
@@ -171,4 +204,41 @@ test('forms unavailable and details-only interaction never mutate link',async()=
   await f.arm();
   assert.equal(f.commits.length,0);
   assert.equal(f.writes,0);
+});
+
+test('PG08 Unlink uses existing writer only after explicit confirmation',async()=>{
+  const f=fixture({linked:'other-receiver'});
+  f.responses.action.push({selection:1});
+  f.responses.confirm.push({selection:0});
+  await f.arm();
+  assert.equal(f.unlinkCalls,0);
+  assert.equal(f.saved.collectors[0].link,'other-receiver');
+  f.responses.action.push({selection:1});
+  f.responses.confirm.push({selection:1});
+  await f.arm();
+  assert.equal(f.unlinkCalls,1);
+  assert.equal(f.saved.collectors[0].link,null);
+  assert.equal(f.writes,0);
+  assert.equal(f.commits.length,0);
+});
+test('native Collector waiting custody refuses Unlink without touching link',async()=>{
+  const f=fixture({linked:'other-receiver'});
+  f.setNativeOccupied(true);
+  f.responses.action.push({selection:1});
+  f.responses.confirm.push({selection:1});
+  await f.arm();
+  assert.equal(f.unlinkCalls,0);
+  assert.equal(f.saved.collectors[0].link,'other-receiver');
+  assert.equal(f.writes,0);
+});
+test('stale Unlink confirmation cannot override concurrent relink',async()=>{
+  const f=fixture({linked:'old-receiver'});
+  f.onForm(kind=>{
+    if(kind==='confirm')f.saved.uceLinkRevision++;
+  });
+  f.responses.action.push({selection:1});
+  f.responses.confirm.push({selection:1});
+  await f.arm();
+  assert.equal(f.unlinkCalls,0);
+  assert.equal(f.saved.collectors[0].link,'old-receiver');
 });
