@@ -776,6 +776,35 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: HL2 integrated product launcher syntax, refusals and synthetic PG42 handoff on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\uce\Start-HartLogistics-FullProductLab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $source = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('dev/uce-shared-ordinary-ledger-20261111',
+              'HartLogistics2-FullProduct-LAB', 'full_product_lab.py',
+              'CheckStage','CheckInstall','CheckRollback','CheckRestore',
+              'ExpectedCommit','Assert-Unlinked','--apply')) {
+              if (-not $source.Contains($anchor)) { throw ('HL2 source gate absent: '+$anchor) }
+          }
+          foreach ($set in @(
+              @('-Mode','Install'),
+              @('-Mode','Stage','-Apply'),
+              @('-Mode','CheckStage','-Apply'),
+              @('-Mode','Rollback','-Apply','-ExpectedCommit','abc'),
+              @('-Mode','Plan','-Apply')
+          )) {
+              $denied = $false
+              try { & $launcher @set | Out-Null } catch { $denied = $true }
+              if (-not $denied) { throw ('HL2 launcher failed to refuse: '+($set -join ' ')) }
+          }
+          python -m py_compile candidates/uce/full_product_lab.py
+          python -m unittest discover -s tests -p 'test_uce_full_product_lab.py' -v
       - name: UCE PG42 fresh-world-only native carrier probe and rollback on synthetic Windows
         run: |
           git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
