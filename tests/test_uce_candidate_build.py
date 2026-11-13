@@ -222,7 +222,12 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('port.ackWhole({operationId,from,to})',s)
         self.assertIn("global custody HOLD: journal unreadable",s)
         self.assertIn("if(uceUnifiedJournalHold())return;",s)
-        self.assertEqual(s.count("if(uceUnifiedJournalHold())return;"),6)
+        scheduler=s[s.index("function uceUnifiedServiceTick(){"):
+                    s.index("function uceSealedRegions(",s.index(
+                        "function uceUnifiedServiceTick(){"))]
+        self.assertEqual(
+            scheduler.count("if(uceUnifiedJournalHold())return;"),5,
+            "unified scheduler must fence Collector/MR/ordinary/direct moves")
         # Three coordinated scheduler gates plus the existing entity-event
         # ingress gate; all share one native and legacy journal authority.
         self.assertIn("hartsorter:queue_journal_v1",s)
