@@ -6,7 +6,8 @@
  * PREPARED/debit/credit cutpoints are read back and any uncertainty HOLDS
  * every other Hart custody writer. No automatic replay or disk-atomic claim.
  */
-import {transitionUnifiedOrdinaryBoundary} from './unified_ordinary_accounts.mjs';
+import {transitionUnifiedOrdinaryBoundary,
+  inspectUnifiedOrdinaryLedger} from './unified_ordinary_accounts.mjs';
 import {verifyUnifiedMutationFence,UCE_FEDERATED_INTENT_KEY,
   UCE_FEDERATED_SCHEMA} from './unified_world_shard_writer.mjs';
 const ASCII=/^[\x20-\x7e]+$/;
@@ -82,8 +83,10 @@ export function executeUnifiedFederatedTransfer({
   if(!source.ok||!target.ok)
     return hold('federated_source_or_destination_shard_unreadable');
   const from=account(source,fromAccount),to=account(target,toAccount);
-  if(!from||from.kind!=='receiver'||!to||to.kind!=='bulk'||
-     bucket(from,key)<count||to.total+count>to.capacity||
+  if(!from||!to||!(
+       (from.kind==='receiver'&&to.kind==='bulk')||
+       (from.kind==='bulk'&&to.kind==='receiver')
+     )||bucket(from,key)<count||to.total+count>to.capacity||
      !nat(source.snapshot.total+target.snapshot.total))
     return hold('federated_account_or_capacity_unverified');
   const args={operationId,fromShard,toShard,fromAccount,toAccount,key,count,
@@ -136,4 +139,86 @@ export function executeUnifiedFederatedTransfer({
   return {ok:true,status:'FEDERATED_TWO_SHARD_TRANSFER_READBACK',
     operationId,fromAccount,toAccount,count,key,
     hasHardCrashDiskProof:false,canReplay:false};
+}
+
+/**
+ * Read-only selection for a connected pipe network whose Receiver and Bulk
+ * accounts live in different immutable seal shards. Only the loaded graph's
+ * elected leader shard may own banks. This planner never grants a writer
+ * permission, never aliases one physical bank in two ledgers, and never
+ * creates a second account store.
+ */
+export function planUnifiedFederatedNetwork({
+    followerSnapshot,leaderSnapshot,receiverOwnerId,leaderOwnerId,
+    connectedBankOwnerIds=[],sourceWaiting=false,
+    preferredOutputKeys=[],outputEligibleKeys=[]
+  }={}){
+  const idle=reason=>({ok:true,status:'IDLE',reason,canWriteWorld:false});
+  const deny=reason=>({ok:false,status:'HOLD',reason,canWriteWorld:false});
+  const first=inspectUnifiedOrdinaryLedger(followerSnapshot);
+  const second=inspectUnifiedOrdinaryLedger(leaderSnapshot);
+  if(!first.ok||!second.ok)return deny('federated_shard_invalid');
+  if(followerSnapshot.worldId!==leaderSnapshot.worldId||
+     followerSnapshot.epoch!==leaderSnapshot.epoch||
+     !valid(receiverOwnerId)||!valid(leaderOwnerId)||
+     receiverOwnerId===leaderOwnerId||
+     !Array.isArray(connectedBankOwnerIds)||
+     !connectedBankOwnerIds.length||
+     connectedBankOwnerIds.some(x=>!valid(x))||
+     new Set(connectedBankOwnerIds).size!==connectedBankOwnerIds.length||
+     !Array.isArray(preferredOutputKeys)||
+     !Array.isArray(outputEligibleKeys)||
+     [...preferredOutputKeys,...outputEligibleKeys].some(
+       x=>typeof x!=='string'||!x))
+    return deny('federated_network_membership_invalid');
+  const receiver=followerSnapshot.accounts.find(
+    a=>a.id==='receiver:'+receiverOwnerId&&a.kind==='receiver');
+  const leader=leaderSnapshot.accounts.find(
+    a=>a.id==='receiver:'+leaderOwnerId&&a.kind==='receiver');
+  if(!receiver||!leader||followerSnapshot.accounts.some(
+       a=>a.kind==='bulk'&&connectedBankOwnerIds.includes(a.ownerId)))
+    return deny('federated_receiver_or_bank_shard_ambiguous');
+  const members=new Set(connectedBankOwnerIds);
+  const banks=leaderSnapshot.accounts.filter(
+    a=>a.kind==='bulk'&&members.has(a.ownerId)).sort(
+    (a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+  if(banks.length!==members.size)
+    return deny('federated_bank_not_registered_in_leader_shard');
+  const controllers=banks.filter(b=>b.role==='controller');
+  if(controllers.length!==1||banks.some(
+       b=>b.controllerOwnerId!==controllers[0].ownerId))
+    return deny('federated_bank_controller_unverified');
+  const preferred=new Set(preferredOutputKeys);
+  if(receiver.buckets.some(b=>preferred.has(b.key)))
+    return idle('preferred_sorter_output_ready');
+  if(receiver.total>0&&
+     (!sourceWaiting||receiver.total>=receiver.capacity-512)){
+    for(const b of receiver.buckets){
+      for(const bank of banks){
+        const room=bank.capacity-bank.total;
+        const count=Math.min(room,b.count,64);
+        if(count>0)return {ok:true,status:'TRANSFER_DRAFT_ONLY',
+          direction:'receiver_to_bulk',
+          from:'receiver:'+receiverOwnerId,to:bank.id,
+          key:b.key,count,canWriteWorld:false};
+      }
+    }
+    return idle('all_connected_banks_full');
+  }
+  // Only verified preferred physical outputs may draw bank balances back
+  // into this particular Receiver; Wildcard cannot drain Bulk directly.
+  if(receiver.total===0&&!sourceWaiting&&outputEligibleKeys.length){
+    const eligible=new Set(outputEligibleKeys);
+    for(const bank of banks){
+      for(const b of bank.buckets){
+        if(!eligible.has(b.key))continue;
+        const count=Math.min(b.count,64,receiver.capacity);
+        if(count>0)return {ok:true,status:'TRANSFER_DRAFT_ONLY',
+          direction:'bulk_to_receiver',from:bank.id,
+          to:'receiver:'+receiverOwnerId,
+          key:b.key,count,canWriteWorld:false};
+      }
+    }
+  }
+  return idle('federated_bank_retains_custody_or_no_route');
 }
