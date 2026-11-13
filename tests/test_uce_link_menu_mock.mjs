@@ -11,8 +11,9 @@ import vm from 'node:vm';
 const source=process.env.UCE_GENERATED_MAIN?
   (()=>{const compiled=fs.readFileSync(
     process.env.UCE_GENERATED_MAIN,'utf8');
-    const anchor=compiled.lastIndexOf(
-      '/*\\n * HL2 Collector/Receiver menu for the existing ONE UCE link writer.');
+    const marker=compiled.lastIndexOf(
+      'HL2 Collector/Receiver menu for the existing ONE UCE link writer.');
+    const anchor=marker>=0?compiled.lastIndexOf('/*',marker):-1;
     assert.ok(anchor>=0,'assembled Bedrock main lacks UCE link menu');
     return compiled.slice(anchor);
   })():
