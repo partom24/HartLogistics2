@@ -140,7 +140,7 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
             stop=text.index("function uceAuthoritySnapshot(){",start)
             return text[start:stop]
         self.assertEqual(legacy_fence(script).replace(
-            "    if(UCE_PG40_FORENSIC_FREEZE)return true;\\n",""),
+            "    if(UCE_PG40_FORENSIC_FREEZE)return true;\n",""),
             legacy_fence(prior),
             "preserve original legacy predicate after fail-closed PG40 guard")
         self.assertIn("if(UCE_PG40_FORENSIC_FREEZE)return true;",
