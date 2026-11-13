@@ -63,7 +63,11 @@ function fixture(){
     uceAuthoritySnapshot:()=>({worldId:'w',epoch:9}),
     uceOrdinaryAccountSource:(_,id)=>registeredReceivers.some(r=>r.id===id)?
       'sealed-region':undefined,
-    sorterAt:e=>e===filter?nearerSorter:e===fallback?fartherSorter:undefined,
+    sorterAt:e=>{
+      if(!entries.includes(e))return undefined;
+      const block=dim.getBlock({x:e.x,y:e.y,z:e.z});
+      return block?.typeId==='hartsorter:sorter'?block:undefined;
+    },
     facingOffset:()=>({x:0,y:0,z:1}),
     sorterMode:e=>e.m,blockIsRedstonePowered:b=>!!b.powered,
     matchesFilter:(item,f)=>item.typeId===f.match.typeId,
@@ -86,7 +90,7 @@ function fixture(){
   return {context,dim,blocks,missing,k,put,receiver,registeredReceivers,
     receiverBlock,
     nearPipe,farPipe,nearerSorter,fartherSorter,chestA,chestB,filter,
-    fallback,inventories,FACES,
+    fallback,inventories,FACES,entries,newContainer:containers,
     choose:item=>context.uceChoosePipeDestination(receiver,item),
     network:()=>context.ucePipeRouteNetwork(receiver)};
 }
@@ -101,6 +105,70 @@ test('two Sorters share one read-only pipe network; Filter precedes Wildcard',()
   assert.equal(choice.dest.block,f.chestA);
   assert.equal(choice.ownerId.startsWith('uce-pipe-output|'),true);
 });
+test('one Transporter discovers an eight-Sorter 1.4.1 column and a filtered bottom row wins',()=>{
+  const f=fixture();
+  f.filter.m='wildcard';f.filter.f=null;
+  const rows=[];
+  for(let y=68;y>=62;y--){
+    const block=f.put('hartsorter:sorter',3,y,4);
+    const entry={d:f.dim.id,x:3,y,z:4,m:'bypass',f:null};
+    f.entries.push(entry);
+    rows.push({block,entry});
+  }
+  const bottom=rows[rows.length-1];
+  bottom.entry.m='filter';
+  bottom.entry.f={match:{typeId:'minecraft:cobblestone'}};
+  const dest=f.put('minecraft:barrel',3,62,5,f.newContainer());
+  const graph=f.network();
+  assert.ok(graph);
+  assert.equal(graph.entries.length,9); // 8 in this column plus one other
+  const winner=f.choose(COBBLE);
+  assert.equal(winner.entry,bottom.entry);
+  assert.equal(winner.dest.block,dest);
+  assert.equal(winner.mode,'filter');
+  // Lower Sorters are endpoints, not Transporters: the pipe count is two.
+  assert.equal(graph.fingerprint.includes('3,62,4'),true);
+});
+
+test('stacked matching Filter is bottom-to-top and powered rows do not block lower routing',()=>{
+  const f=fixture();
+  const lower=f.put('hartsorter:sorter',3,68,4);
+  const lowerEntry={d:f.dim.id,x:3,y:68,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}};
+  f.entries.push(lowerEntry);
+  const lowerChest=f.put('minecraft:barrel',3,68,5,f.newContainer());
+  const first=f.choose(COBBLE);
+  assert.equal(first.entry,lowerEntry);
+  assert.equal(first.dest.block,lowerChest);
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,first),true);
+  lower.powered=true;
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+  assert.equal(f.context.ucePipeDestinationStillValid(
+    f.receiver,COBBLE,first),false);
+  lower.powered=false;
+  f.nearerSorter.powered=true;
+  assert.equal(f.choose(COBBLE).entry,lowerEntry);
+  assert.ok(f.network());
+});
+
+test('unregistered or unloaded lower Sorter cannot be skipped for wildcard fallback',()=>{
+  const f=fixture();
+  f.filter.m='wildcard';f.filter.f=null;
+  f.put('hartsorter:sorter',3,68,4);
+  assert.equal(f.network(),undefined);
+  assert.equal(f.choose(COBBLE),undefined);
+  const lowerEntry={d:f.dim.id,x:3,y:68,z:4,m:'filter',
+    f:{match:{typeId:'minecraft:cobblestone'}}};
+  f.entries.push(lowerEntry);
+  f.put('minecraft:barrel',3,68,5,f.newContainer());
+  assert.ok(f.network());
+  assert.equal(f.choose(COBBLE).entry,lowerEntry);
+  f.missing.add('3,67,4'); // May contain a still-higher-priority lower row
+  assert.equal(f.network(),undefined);
+  assert.equal(f.choose(COBBLE),undefined);
+});
+
 test('occupied preferred output selects lower priority destination without merge',()=>{
   const f=fixture();
   f.chestA.getComponent('minecraft:inventory').container.fill({
