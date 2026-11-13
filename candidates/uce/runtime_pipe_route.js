@@ -403,6 +403,83 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
     }catch(_){return true;}
 }
 /*
+ * A verified negative routing proof for ORDINARY Bulk placement.
+ *
+ * An existing directed Collector link is not automatically an accepting
+ * Filter. This read-only census follows all reachable, loaded, sealed
+ * Receiver banks, with cycle-safe deduplication and the ORIGINAL Sorter
+ * filter/seeded-Auto/redstone semantics. Return true ONLY when every
+ * reachable preferred native output is provably unavailable (including
+ * legitimately FULL verified containers). Missing chunks, unknown links,
+ * unreadable inventories and a legacy output Hopper return false/HOLD.
+ *
+ * This is NOT an authorization for Wildcard: capacity in remote controller
+ * regions has not yet been verified globally. It may authorize a later
+ * separately fenced Receiver→LOCAL-Bulk transfer only.
+ */
+function uceVerifiedNoReachablePreferredOutput(receiver,item,authority){
+    try{
+        if(!receiver||!item?.typeId||!authority||
+           !Array.isArray(logistics.receivers))return false;
+        const seen=new Set(),pending=[receiver];
+        while(pending.length){
+            const current=pending.pop();
+            if(!current||current.present===false||
+               seen.size>=logistics.receivers.length||
+               !uceOrdinaryAccountSource(authority,current.id))
+                return false;
+            if(seen.has(current.id))continue;
+            seen.add(current.id);
+            const root=receiverAt(current);
+            if(!root||receiverOutputHopper(current))return false;
+            const graph=ucePipeRouteNetwork(current);
+            if(!graph||!graph.receiverIds?.includes(current.id)||
+               !Array.isArray(graph.entries))return false;
+            for(const entry of graph.entries){
+                const mode=sorterMode(entry);
+                if(mode==='bypass'||!['filter','auto','wildcard']
+                    .includes(mode))continue;
+                const matching=mode==='filter'&&entry.f&&
+                    matchesFilter(item,entry.f);
+                if(mode==='filter'&&!matching)continue;
+                const sorter=sorterAt(entry);
+                if(!sorter)return false;
+                if(blockIsRedstonePowered(sorter))continue;
+                const face=facingOffset(sorter),p=sorter.location;
+                if(!face||!p)return false;
+                const target=sorter.dimension.getBlock({
+                    x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+                if(!target)return false;
+                if(target.typeId===COLLECTOR_ID){
+                    if(mode==='auto'||blockIsRedstonePowered(target))
+                        continue;
+                    const q=target.location,collector=findCollectorById(
+                        logisticsId(target.dimension.id,q.x,q.y,q.z));
+                    const live=collector&&collectorAt(collector);
+                    const next=collector&&findReceiverById(collector.link);
+                    if(!collector||collector.present===false||
+                       !collector.link||!uceSameLoadedBlock(target,live)||
+                       !next||next.present===false||!receiverAt(next)||
+                       !uceOrdinaryAccountSource(authority,next.id))
+                        return false;
+                    if(!seen.has(next.id))pending.push(next);
+                    continue;
+                }
+                if(!supportedStorage(target))continue;
+                const dest=uceReadOnlySorterDestination(entry,root);
+                if(!dest)return false;
+                // Local/remote native preferred output has priority over
+                // any ordinary count move into Bulk. A full but VERIFIED
+                // container is known to be unavailable, not an unknown.
+                if((matching||(mode==='auto'&&
+                    ucePipeAutoSeed(item,dest.container)))&&
+                   findAcceptSlot(dest.container,item))return false;
+            }
+        }
+        return true;
+    }catch(_){return false;}
+}
+/*
  * Directed linked-bank discovery for ORDINARY Receiver balances.
  *
  * Each traversal edge is the original physical Sorter -> Collector ->
