@@ -131,6 +131,21 @@ jobs:
           node --check candidates/transport/unified_world_shard_writer.mjs
           node --check tests/test_unified_world_shard_writer.mjs
           node --test tests/test_unified_world_shard_writer.mjs
+      - name: UCE cross-shard, MR scheduling, opaque-item and Bulk integration regressions
+        run: |
+          node --check candidates/transport/unified_federated_service.mjs
+          node --check tests/test_uce_federated_real_shards.mjs
+          node --test tests/test_uce_federated_real_shards.mjs
+          node --check tests/test_uce_federated_runtime_route.mjs
+          node --test tests/test_uce_federated_runtime_route.mjs
+          node --check tests/test_unified_bulk_policy.mjs
+          node --test tests/test_unified_bulk_policy.mjs
+          node --check tests/test_unified_receiver_mr_service.mjs
+          node --test tests/test_unified_receiver_mr_service.mjs
+          node --check tests/test_uce_mr_round_robin_mock.mjs
+          node --test tests/test_uce_mr_round_robin_mock.mjs
+          node --check tests/test_uce_classification_opaque_fallback.mjs
+          node --test tests/test_uce_classification_opaque_fallback.mjs
       - name: UCE native whole ItemStack port — ACK, ambiguity and restart refusal
         run: |
           node --check candidates/transport/unified_native_custody.mjs
