@@ -254,3 +254,41 @@ test('legacy mode fails closed if dynamic property enumeration is unreadable',()
   vm.runInNewContext(bridge.slice(begin,end),ctx);
   assert.equal(ctx.uceLegacyWriterBlocked(),true);
 });
+
+test('native Hopper egress selects certified ordinary partial space before empty slots',()=>{
+  const from=bridge.indexOf('function uceOrdinaryHopperCandidate(');
+  const to=bridge.indexOf('\nfunction uceNativeOutputSlot(',from);
+  assert.ok(from>0&&to>from);
+  const canonical={typeId:'minecraft:cobblestone',amount:1,maxAmount:64,
+    isStackableWith:other=>other?.typeId==='minecraft:cobblestone'};
+  const partial={typeId:'minecraft:cobblestone',amount:60,maxAmount:64,
+    isStackableWith:other=>other?.typeId==='minecraft:cobblestone'};
+  const slots=[partial,undefined];
+  const ctx={
+    findAcceptSlot:(container,item)=>{
+      const v=container.getItem(0);
+      if(v?.isStackableWith(item)&&v.amount<v.maxAmount)
+        return {slot:0,before:v.amount,room:v.maxAmount-v.amount};
+      return container.getItem(1)===undefined?
+        {slot:1,before:0,room:64}:undefined;
+    },
+    ucePlainItemIdentity:item=>
+      item.typeId==='minecraft:cobblestone'&&!item.nameTag?
+        'plain:cobblestone':undefined
+  };
+  vm.runInNewContext(bridge.slice(from,to),ctx);
+  const inventory={isValid:true,size:2,getItem:i=>slots[i]};
+  const chosen=ctx.uceOrdinaryHopperCandidate(inventory,canonical);
+  assert.equal(chosen.slot,0);
+  assert.equal(chosen.beforeAmount,60);
+  assert.equal(chosen.room,4);
+  assert.equal(chosen.partialOutput,true);
+  slots[0]={...partial,nameTag:'opaque'};
+  assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical)?.slot,1,
+    'opaque inventory entry cannot be merged into; empty slot is eligible');
+  slots[1]={typeId:'minecraft:stone',amount:64};
+  assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical),undefined);
+  slots[0]=undefined;
+  slots[1]=undefined;
+  assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical)?.slot,1);
+});
