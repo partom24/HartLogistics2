@@ -29,10 +29,29 @@ function exactFunction(source,name){
   }
   throw new Error('unterminated helper: '+name);
 }
+const generated=process.env.UCE_GENERATED_MAIN?
+  fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):undefined;
+const routeFunctions=[
+  'ucePipeSameDimension','ucePipeRouteNetwork','uceReadOnlyPipeInput',
+  'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
+  'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
+  'uceChoosePipeDestination','ucePipeDestinationStillValid',
+  'uceSorterColumnWinner','uceSorterCollectorSources',
+  'uceSorterSourceStillValid'
+];
+const routeCode=generated?[
+  ...['UCE_MAX_LOADED_PIPES','UCE_MAX_SORTER_COLUMN_HEIGHT'].map(name=>{
+    const match=generated.match(new RegExp(
+      'const '+name+'\\s*=\\s*[0-9]+\\s*;'));
+    assert.ok(match,'generated main lacks route constant '+name);
+    return match[0];
+  }),
+  ...routeFunctions.map(name=>exactFunction(generated,name))
+].join('\n'):src;
 const actualStorageHelpers=[
-  exactFunction(baseline,'supportedStorage'),
-  exactFunction(baseline,'blockContainer'),
-  exactFunction(bridge,'uceDirectStorageOwnerBlock')
+  exactFunction(generated||baseline,'supportedStorage'),
+  exactFunction(generated||baseline,'blockContainer'),
+  exactFunction(generated||bridge,'uceDirectStorageOwnerBlock')
 ].join('\n');
 function fixture(){
   const dim={id:'minecraft:overworld'},blocks=new Map(),
@@ -111,7 +130,7 @@ function fixture(){
     },
     enchantments:stack=>stack?.ench||[]
   };
-  vm.runInNewContext(actualStorageHelpers+'\n'+src,context);
+  vm.runInNewContext(actualStorageHelpers+'\n'+routeCode,context);
   return {context,dim,blocks,missing,k,put,receiver,registeredReceivers,
     receiverBlock,
     nearPipe,farPipe,nearerSorter,fartherSorter,chestA,chestB,filter,
