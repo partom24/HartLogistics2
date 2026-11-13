@@ -1824,10 +1824,17 @@ function uceOrdinaryServiceTick(authority){
     // credit/debit and native move rechecks its own mutation fence.
     const receivers=logistics.receivers;
     if(!receivers.length)return;
-    // At most ONE ordinary Receiver service per scheduler tick. Not a source
-    // throughput limit: the same virtual account writer can transfer a bounded
-    // count batch internally without staging physical items.
-    for(let step=0;step<receivers.length;step++){
+    // At most ONE ordinary Receiver service per invocation. The outer
+    // scheduler may commit four bounded account operations per tick, but
+    // scanning every one of 33+ Receivers (and their full Sorter/pipe graph)
+    // on each empty invocation can create an unbounded tick-latency spike.
+    //
+    // An empty/HOLD scan advances by its ENTIRE inspected window. No owner
+    // permanently starves simply because the first eight are unloaded or
+    // have no routable ordinary cargo. Physical and ledger authority is
+    // still independently revalidated for every actual transfer.
+    const scanLimit=Math.min(receivers.length,8);
+    for(let step=0;step<scanLimit;step++){
         const index=(uceOrdinaryCursor+step)%receivers.length;
         const receiver=receivers[index];
         if(receiver.present===false||!receiverAt(receiver))continue;
@@ -2622,7 +2629,7 @@ function uceOrdinaryServiceTick(authority){
             ucePerfRecordMove('ordinary',amount);
         return result.ok===true;
     }
-    uceOrdinaryCursor=(uceOrdinaryCursor+1)%receivers.length;
+    uceOrdinaryCursor=(uceOrdinaryCursor+scanLimit)%receivers.length;
 }
 
 

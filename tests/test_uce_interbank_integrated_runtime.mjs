@@ -403,3 +403,22 @@ test('integrated remote Bulk refill cannot survive an exact Collector link revoc
   assert.equal(JSON.parse(f.saved.get(UCE_FEDERATED_INTENT_KEY)).phase,
     'PREPARED','revocation cannot silently clear an ambiguous transaction');
 });
+
+test('33 Receiver ordinary scheduler bounds idle topology scans and fairly visits every owner',()=>{
+  const f=fixture();
+  const visits=[];
+  f.ctx.logistics.receivers=Array.from({length:33},(_,i)=>({
+    id:'unloaded-receiver-'+i,present:true,
+    d:dimensionId,x:1000+i,y:70,z:4
+  }));
+  f.ctx.receiverAt=r=>{visits.push(r.id);return undefined;};
+  for(let tick=0;tick<5;tick++){
+    assert.notEqual(f.ctx.uceOrdinaryServiceTick({worldId,epoch}),true);
+    assert.equal(visits.length,(tick+1)*8,
+      'one no-op scheduler invocation must scan at most eight Receiver owners');
+  }
+  assert.equal(new Set(visits).size,33,
+    'all 33 existing Receivers must receive a bounded round-robin inspection');
+  assert.equal(f.writes,0,
+    'idle scan must not reserve carriers, mutate world or create queue');
+});
