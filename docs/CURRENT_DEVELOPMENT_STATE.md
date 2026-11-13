@@ -56,10 +56,15 @@ Sorter and was a compatibility defect.
   as verified. This is not a 128-Sorter limit. Transporter segments and
   Sorters in columns are counted separately.
 - The registry is indexed once for each graph inspection, avoiding a repeated
-  linear scan of all registered Sorters for every stacked row. Source mock
-  regressions include eight-level columns, blocked/unavailable rows, and
-  **128 pipes with 1,024 stacked Sorters**. These are modeled geometry and
-  routing checks, **not** Bedrock throughput/TPS or full-system acceptance.
+  linear scan of all registered Sorters for every stacked row. The graph route
+  witness encodes each verified **contiguous** column as its top coordinate
+  and row count, instead of repeating every Sorter coordinate; modeled
+  128-pipe/1,024-Sorter witnesses fit the existing 8,192-character federated
+  transfer fence while still changing when a column's membership changes.
+  Source mock regressions include eight-level columns, blocked/unavailable
+  rows, and **128 pipes with 1,024 stacked Sorters**. These are modeled
+  geometry and routing checks, **not** Bedrock throughput/TPS or full-system
+  acceptance.
 - **Still not done:** complete controller-to-controller cross-bank forwarding
   over Collector→Receiver links and product-scale BDS integration. Stacked
   Sorter discovery alone does not establish the requested multi-region
