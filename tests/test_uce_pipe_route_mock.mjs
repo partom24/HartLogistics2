@@ -559,6 +559,25 @@ test('occupied preferred output selects lower priority destination without merge
   assert.equal(chosen.dest.block,f.chestB);
   assert.equal(chosen.slot,0);
 });
+test('an unresolved later-bank Filter outranks an otherwise usable local seeded Auto for MR and ordinary',()=>{
+  const f=fixture();
+  f.filter.m='auto';f.filter.f=null;
+  const a=f.chestA.getComponent('minecraft:inventory').container;
+  a.setItem(0,{typeId:'minecraft:cobblestone',amount:2});
+  f.chestB.typeId='hartsorter:collector';
+  assert.ok(f.network());
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,COBBLE),undefined,
+    'local Auto cannot bypass the later-bank Collector Filter path');
+  const mr={typeId:'minecraft:cobblestone',amount:1,
+    nameTag:'named-native-MR'};
+  assert.equal(f.context.uceChoosePipeDestination(
+    f.receiver,mr),undefined,
+    'metadata-rich native egress keeps the same remote priority');
+  f.chestB.typeId='minecraft:barrel';
+  assert.equal(f.choose(COBBLE)?.entry,f.filter,
+    'without a Collector frontier original seeded Auto still works');
+});
 test('seeded Auto takes precedence over Wildcard but never seeds empty chest',()=>{
   const f=fixture();f.filter.m='auto';f.filter.f=null;
   const a=f.chestA.getComponent('minecraft:inventory').container;
