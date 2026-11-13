@@ -55,7 +55,7 @@ const routeNames=[
 const route=generated?[
   ...['UCE_MAX_LOADED_PIPES','UCE_MAX_SORTER_COLUMN_HEIGHT'].map(name=>{
     const match=generated.match(new RegExp(
-      'const '+name+'\\\\s*=\\\\s*[0-9]+\\\\s*;'));
+      'const '+name+'\\s*=\\s*[0-9]+\\s*;'));
     assert.ok(match,'assembled UCE route constant missing '+name);
     return match[0];
   }),
