@@ -1,9 +1,11 @@
 """PG40 read-only PG39 native-carrier forensic census on exact installed PG37.
 
-Recreate the original PG37 build from its pinned Git source. Only replace the
-existing /hartlogistics:status diagnostics and attach a read-only host observer.
-Never bring later draft custody, routing, partial-merge, or build changes into
-the operator's held LAB world. No server/world access during source Plan.
+Recreate original PG37 from its pinned Git source, install a permanent
+read-only /hartlogistics:status native owner census, and suspend all UCE
+mutation entrypoints with a tracked, temporary PG40 maintenance freeze.
+Preserve the legacy-writer fence: no Q4 writer reactivation. Never bring later
+draft custody, routing or partial-merge logic into the held LAB world.
+No server/world access during source Plan.
 Stopped LAB, exact predecessor hashes, a two-pack backup and rollback remain
 mandatory for any approved install. This is not transport acceptance.
 """
@@ -70,6 +72,52 @@ def diagnostic_method(source: str) -> str:
         raise lab.UnsafeLab("PG40 diagnostic boundary changed")
     return source[begin:end]
 
+def frozen_maintenance_bridge(base: str) -> str:
+    """Stop every UCE-originating mutation path during PG39 observation.
+
+    # TEMP_DEBUG:PG40-FORENSIC-FREEZE
+    This is NOT a new custody authority or a way to re-enable legacy writers.
+    The original UCE legacy fence is byte-identical; only Hart's active
+    scheduler, ejected-item ingress and operator mutation handlers are held.
+    Remove this task-scoped freeze once the physical custody investigation is
+    complete and before any release candidate.
+    """
+    marker="UCE_PG40_FORENSIC_FREEZE"
+    if marker in base:
+        raise lab.UnsafeLab("PG40 duplicate forensic mutation fence")
+    base=replace_exact(base,"function uceAllowsSorterRegistryWrite(key){",
+        "const UCE_PG40_FORENSIC_FREEZE=true;\n"
+        "function uceAllowsSorterRegistryWrite(key){\n"
+        "    if(UCE_PG40_FORENSIC_FREEZE)return false;")
+    entrypoints={
+        "uceUnifiedServiceTick":"return;",
+        "uceMrServiceTick":"return;",
+        "uceOrdinaryServiceTick":"return;",
+        "uceSorterDirectServiceTick":"return;",
+        "uceProcessEjectedItemEntity":"return;",
+        "uceRegisterNewReceiver":"return;",
+        "uceSelectCollectorForLink":"return;",
+        "uceMaybeRegisterBulk":"return false;",
+        "uceActivateEmptyLabWorld":"return;"
+    }
+    for name,action in entrypoints.items():
+        start=base.find("function "+name+"(")
+        if start<0:
+            raise lab.UnsafeLab("PG40 missing mutation handler "+name)
+        end=base.find("{",start)
+        if end<0 or end-start>160:
+            raise lab.UnsafeLab("PG40 handler boundary invalid: "+name)
+        header=base[start:end+1]
+        base=replace_exact(base,header,
+            header+"\n    if(UCE_PG40_FORENSIC_FREEZE)"+action)
+    original="function uceUseReceiverLinkOrStatus(player,block){"
+    base=replace_exact(base,original,original+
+        "\n    if(UCE_PG40_FORENSIC_FREEZE){"+
+        "if(player&&block?.typeId===RECEIVER_ID)"+
+        "uceShowReceiverLinkedStatus(player,block);return;}")
+    return base
+
+
 def diagnostic_only_bridge() -> tuple[str,str]:
     prior=historical("candidates/uce/runtime_bridge.js")
     new=uce.BRIDGE.read_text(encoding="utf-8")
@@ -81,7 +129,8 @@ def diagnostic_only_bridge() -> tuple[str,str]:
         "setDynamicProperty(", "setItem(", "spawnEntity(",
         "moveWhole(", "registerEmptyHost(", "clearDynamicProperties(")):
         raise lab.UnsafeLab("PG40 census may not mutate custody")
-    return prior,replace_exact(prior,original_method,wanted_method)
+    new=replace_exact(prior,original_method,wanted_method)
+    return prior,frozen_maintenance_bridge(new)
 
 def read_only_registry() -> tuple[str,str]:
     prior=historical("candidates/transport/unified_carrier_registry.mjs")
@@ -170,8 +219,8 @@ def main(argv=None):
         with tempfile.TemporaryDirectory(prefix="pg40-source-") as scratch:
             current,prior,wanted,previous=render_pack_pair(Path(scratch))
             if args.mode=="plan":
-                print("PG40 SOURCE ONLY PASS: exactly two read-only BP files")
-                print("Original PG37 runtime, native writers and all assets retained")
+                print("PG40 SOURCE PASS: two BP files, UCE writers suspended")
+                print("Original PG37 native writers and legacy fence preserved")
                 print("No LAB, BDS world, original Q4 or production accessed")
                 return 0
             root=pg08.check_real_root()
