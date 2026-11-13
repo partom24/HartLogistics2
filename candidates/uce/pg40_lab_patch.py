@@ -77,8 +77,10 @@ def frozen_maintenance_bridge(base: str) -> str:
 
     This is a deliberately supported, exact-PG37-only LAB maintenance
     mode, not a disposable runtime debug hook or a gameplay implementation.
-    The original UCE legacy fence is byte-identical; Hart's active scheduler,
-    ejected-item ingress and all operator mutation handlers are suspended.
+    Both legacy and UCE custody writers must be held, including when the
+    world authority is corrupt or unreadable. The existing legacy fence is
+    strengthened to an unconditional true in this isolated forensic build;
+    normal active gameplay sources and world state remain untouched.
     It must never be part of normal product/release candidate compilation.
     """
     marker="UCE_PG40_FORENSIC_FREEZE"
@@ -89,6 +91,12 @@ def frozen_maintenance_bridge(base: str) -> str:
         "const UCE_PG40_FORENSIC_FREEZE=true;\n"
         "function uceAllowsSorterRegistryWrite(key){\n"
         "    if(UCE_PG40_FORENSIC_FREEZE)return false;")
+    # The original UCE marker check alone could fall back to legacy
+    # writers if a damaged world suddenly lost its authority property.
+    # PG40 instead holds ALL Hart writers regardless of marker readability.
+    base=replace_exact(base,"function uceLegacyWriterBlocked(){",
+        "function uceLegacyWriterBlocked(){\n"
+        "    if(UCE_PG40_FORENSIC_FREEZE)return true;")
     entrypoints={
         "uceUnifiedServiceTick":"return;",
         "uceMrServiceTick":"return;",

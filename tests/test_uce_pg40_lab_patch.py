@@ -139,8 +139,13 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
             start=text.index("function uceLegacyWriterBlocked(){")
             stop=text.index("function uceAuthoritySnapshot(){",start)
             return text[start:stop]
-        self.assertEqual(legacy_fence(script),legacy_fence(prior),
-            "never reactivate the legacy Q4 writer when UCE service freezes")
+        self.assertEqual(legacy_fence(script).replace(
+            "    if(UCE_PG40_FORENSIC_FREEZE)return true;\\n",""),
+            legacy_fence(prior),
+            "preserve original legacy predicate after fail-closed PG40 guard")
+        self.assertIn("if(UCE_PG40_FORENSIC_FREEZE)return true;",
+                      legacy_fence(script))
+        self.assertNotIn("UCE_PG40_FORENSIC_FREEZE",legacy_fence(prior))
         self.assertIn("function uceSendDiagnostics(origin){",script)
         self.assertIn("inspectHostEvidence({",script)
         self.assertIn("PG40 FORENSIC HOLD: Hart script transfers",script)
