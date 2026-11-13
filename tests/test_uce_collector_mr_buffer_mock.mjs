@@ -122,7 +122,8 @@ test('unloaded linked Receiver admits MR Hopper input into one Collector-owned n
   assert.equal(f.hasHost,true);
 });
 test('when Receiver becomes loaded, Collector cargo drains before any new input',()=>{
-  const f=fixture({carrierExisting:true,carrierOccupied:true});
+  const f=fixture({carrierExisting:true,carrierOccupied:true,
+    sourceIsMR:false});
   f.tick(); // Receiver unavailable: no additional source MR
   f.setLoaded(true);
   f.tick();
