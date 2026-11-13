@@ -35,8 +35,6 @@ PG40_SOURCE_SHA="91389e6bfbc72e1d88e147c507fd473bfc9aef7e"
 CHANGED_BP={"scripts/main.js","scripts/uce/unified_carrier_registry.js"}
 PINNED_BUILDER_INPUTS=(
     "candidates/uce/prepare_candidate.py",
-    "candidates/uce/bulk_assets.py",
-    "candidates/uce/assets/entities/uce_native_carrier.json",
     "candidates/pg33/prepare_candidate.py",
 )
 
@@ -63,6 +61,58 @@ def pinned_pg40(path: str) -> str:
         check=True,text=True,encoding="utf-8",errors="strict",
         capture_output=True)
     return result.stdout
+
+
+def frozen_pg40_assets(bp: Path):
+    """Reconstruct installed PG40 byte-for-byte after independent asset fixes.
+
+    Later development fixed two BDS parser defects. Those newer assets must
+    NEVER accidentally enter the previously installed PG40 forensic build.
+    Only the exact source edits independently inspected here are tolerated.
+    """
+    def at_pin(path):
+        return subprocess.run(
+            ["git","-C",str(ROOT),"show",PG40_SOURCE_SHA+":"+path],
+            check=True,text=True,encoding="utf-8",errors="strict",
+            capture_output=True).stdout
+    bulk_path="candidates/uce/bulk_assets.py"
+    old_bulk=at_pin(bulk_path)
+    insertion=(
+        '        "tags":["crafting_table"],\\n'
+        '        # Recipes at format >=1.20.10 must specify discovery/unlock data.\\n'
+        '        # A chest is already required in the recipe; no cheat/experiment.\\n'
+        '        "unlock":[{"item":"minecraft:chest"}],\\n'
+    )
+    source_anchor='        "tags":["crafting_table"],\\n'
+    if old_bulk.count(source_anchor)!=1:
+        raise lab.UnsafeLab("PG40 historical bulk source changed")
+    current_bulk=(ROOT/bulk_path).read_text(encoding="utf-8")
+    if current_bulk!=old_bulk.replace(source_anchor,insertion,1):
+        raise lab.UnsafeLab("PG40 unexpected Bulk builder drift")
+    carrier_path="candidates/uce/assets/entities/uce_native_carrier.json"
+    old_carrier=at_pin(carrier_path)
+    obsolete=(
+        '      "minecraft:pushable": {\\n'
+        '        "is_pushable": false,\\n'
+        '        "is_pushable_by_piston": false\\n'
+        '      },\\n'
+    )
+    if old_carrier.count(obsolete)!=1:
+        raise lab.UnsafeLab("PG40 historical carrier source changed")
+    if (ROOT/carrier_path).read_text(encoding="utf-8")!=old_carrier.replace(
+        obsolete,"",1):
+        raise lab.UnsafeLab("PG40 unexpected native carrier asset drift")
+    # Only mutate temporary candidate files, never the original, world, or
+    # installed BP. Restore both objects exactly as installed in PG40.
+    (bp/"entities/uce_native_carrier.json").write_text(
+        old_carrier,encoding="utf-8")
+    recipe_path=bp/"recipes/bulk_storage.json"
+    recipe=json.loads(recipe_path.read_text(encoding="utf-8"))
+    shaped=recipe.get("minecraft:recipe_shaped",{})
+    if shaped.get("unlock")!=[{"item":"minecraft:chest"}]:
+        raise lab.UnsafeLab("PG40 unexpected new Bulk recipe unlock")
+    del shaped["unlock"]
+    recipe_path.write_text(json.dumps(recipe,indent=2)+"\\n",encoding="utf-8")
 
 
 def blob_identity(ref: str,path: str) -> str:
@@ -198,6 +248,7 @@ def render_pack_pair(folder: Path):
     pg33.prepare(old)
     uce.prepare(current)
     bp=current/"behavior_pack"
+    frozen_pg40_assets(bp)
     base_main=(old/"behavior_pack/scripts/main.js").read_text(encoding="utf-8")
     bridge_before,bridge_after=diagnostic_only_bridge()
     pipe=historical("candidates/uce/runtime_pipe_route.js")
