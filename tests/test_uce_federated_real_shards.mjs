@@ -9,7 +9,7 @@ import {createUnifiedShardWriter,previewUnifiedShard,
   UCE_FEDERATED_INTENT_KEY} from
   '../candidates/transport/unified_world_shard_writer.mjs';
 import {executeUnifiedFederatedTransfer,
-  planUnifiedFederatedNetwork} from
+  inspectUnifiedFederatedPending,planUnifiedFederatedNetwork} from
   '../candidates/transport/unified_federated_service.mjs';
 
 const worldId='minecraft:overworld:federated-test',epoch=12;
@@ -194,4 +194,52 @@ test('federated plan honors preferred Sorter, source backpressure and bidirectio
   assert.equal(refill.direction,'bulk_to_receiver');
   assert.equal(refill.count,40);
   assert.equal(planUnifiedFederatedNetwork(opts(b)).status,'IDLE');
+});
+
+test('read-only forensic audit distinguishes source-only debit from both saved receipts',()=>{
+  const sourceOnly=fixture({failAt:2});
+  assert.equal(executeUnifiedFederatedTransfer(sourceOnly.args).ok,false);
+  const a=inspectUnifiedFederatedPending({
+    world:sourceOnly.world,worldId,epoch,
+    sourceWriter:sourceOnly.sourceWriter,
+    destinationWriter:sourceOnly.destinationWriter
+  });
+  assert.equal(a.ok,true,a.reason);
+  assert.equal(a.status,'FEDERATED_PENDING_READ_ONLY_HOLD');
+  assert.equal(a.evidenceState,'SOURCE_DEBIT_ONLY_OBSERVED');
+  assert.equal(a.phase,'PREPARED');
+  assert.equal(a.sourceDebited,true);
+  assert.equal(a.targetCredited,false);
+  assert.equal(a.canClearJournal,false);
+  const both=fixture({failAt:4});
+  assert.equal(executeUnifiedFederatedTransfer(both.args).ok,false);
+  const b=inspectUnifiedFederatedPending({
+    world:both.world,worldId,epoch,
+    sourceWriter:both.sourceWriter,
+    destinationWriter:both.destinationWriter
+  });
+  assert.equal(b.ok,true,b.reason);
+  assert.equal(b.evidenceState,'BOTH_SHARD_RECEIPTS_BALANCED');
+  assert.equal(b.beforeCombinedTotal,b.observedCombinedTotal);
+  assert.equal(b.canReplay,false);
+  assert.equal(b.canClearJournal,false,
+    'apparent balance is not independent hard-crash durability proof');
+});
+test('forensic audit is read-only and never infers safety from corrupt pending state',()=>{
+  const f=fixture();
+  const absent=inspectUnifiedFederatedPending({
+    world:f.world,worldId,epoch,
+    sourceWriter:f.sourceWriter,destinationWriter:f.destinationWriter
+  });
+  assert.equal(absent.status,'FEDERATED_JOURNAL_CLEAR');
+  assert.equal(f.writes,0);
+  f.data.set(UCE_FEDERATED_INTENT_KEY,'not-json');
+  const broken=inspectUnifiedFederatedPending({
+    world:f.world,worldId,epoch,
+    sourceWriter:f.sourceWriter,destinationWriter:f.destinationWriter
+  });
+  assert.equal(broken.ok,false);
+  assert.equal(broken.reason,'federated_pending_json_unreadable');
+  assert.equal(f.writes,0);
+  assert.equal(f.data.get(UCE_FEDERATED_INTENT_KEY),'not-json');
 });
