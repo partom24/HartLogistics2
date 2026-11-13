@@ -417,6 +417,22 @@ test('Collector-linked remote Bulk selection discovers ONLY verified registered 
     f.context.uceBulkOwnerId(bank));
   assert.ok(routes[0].witness.startsWith('IBB1|'));
   assert.equal(plan()[0].witness,routes[0].witness);
+  const scan=f.context.ucePipeRouteNetwork;
+  let scans=0;
+  f.context.ucePipeRouteNetwork=owner=>{
+    scans++;return scan(owner);
+  };
+  const fresh=f.context.ucePipeRouteNetwork(f.receiver);
+  scans=0;
+  const checked=f.context.uceLinkedBankBulkRoutes(
+    f.receiver,COBBLE,authority,fresh);
+  assert.equal(checked.length,1);
+  assert.equal(scans,1,
+    'verified two-bank policy + route census must scan only remote bank once');
+  assert.equal(f.context.uceVerifiedNoReachablePreferredOutput(
+    f.receiver,COBBLE,authority,{...fresh,receiverId:'wrong'}),false,
+    'foreign graph never authorizes a Bulk spill');
+  f.context.ucePipeRouteNetwork=scan;
   entry.m='filter';
   entry.f={match:{typeId:'minecraft:cobblestone'}};
   assert.equal(plan(),undefined,
