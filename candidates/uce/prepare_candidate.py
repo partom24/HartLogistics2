@@ -15,6 +15,7 @@ ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"build/uce-integrated"
 BRIDGE=ROOT/"candidates/uce/runtime_bridge.js"
 PIPE_ROUTE=ROOT/"candidates/uce/runtime_pipe_route.js"
+LINK_MENU=ROOT/"candidates/uce/runtime_link_menu.js"
 ASSET=ROOT/"candidates/uce/assets/entities/uce_native_carrier.json"
 VERSION=[1,5,16]
 MODULES=(
@@ -155,9 +156,9 @@ def compile_patch(source,bridge):
                  "markLogisticsAbsent","allocateQueueKey"):
         source=guard_function(source,name)
     source=guard_function(source,"selectCollector",
-      "uceSelectCollectorForLink(player,block); return;")
+      "void uceCollectorLinkMenu(player,block); return;")
     source=guard_function(source,"useReceiver",
-      "uceUseReceiverLinkOrStatus(player,block); return;")
+      "void uceReceiverLinkMenu(player,block); return;")
     source=guard_function(source,"loadReceiverQueue",
       "throw new Error('UCE_LEGACY_QUEUE_LOAD_FENCED');")
     source=guard_function(source,"recoverJournal")
@@ -179,6 +180,7 @@ def compile_patch(source,bridge):
     source=source[:start]+"    if (!uceLegacyWriterBlocked()) {\n"+(
         segment)+"    }\n"+source[end:]
     imports=(
+      'import { ActionFormData, MessageFormData } from "@minecraft/server-ui";\\n'
       'import {createUnifiedCarrierRegistry} from "./uce/unified_carrier_registry.js";\n'
       'import {createUnifiedNativePort} from "./uce/unified_native_custody.js";\n'
       'import {serviceUnifiedReceiverMR} from "./uce/unified_receiver_mr_service.js";\n'
@@ -225,6 +227,15 @@ def prepare(target):
                         if dep["version"]!=[1,5,15]:
                             raise ValueError("UCE REFUSED predecessor dependency")
                         dep["version"]=VERSION
+                if kind=="behavior_pack":
+                    deps=manifest.setdefault("dependencies",[])
+                    existing=[d for d in deps if d.get("module_name")=="@minecraft/server-ui"]
+                    if len(existing)>1 or (existing and
+                        existing[0].get("version")!="2.2.0"):
+                        raise ValueError("UCE REFUSED inconsistent server-ui dependency")
+                    if not existing:
+                        deps.append({"module_name":"@minecraft/server-ui",
+                                     "version":"2.2.0"})
                 manifest["header"]["name"]=(
                   "HartMods - Hart Logistics "+
                   ("BP" if kind=="behavior_pack" else "RP")+
@@ -250,7 +261,8 @@ def prepare(target):
             main.write_text(compile_patch(
               main.read_text(encoding="utf-8"),
               BRIDGE.read_text(encoding="utf-8")+"\n"+
-              PIPE_ROUTE.read_text(encoding="utf-8")),encoding="utf-8")
+              PIPE_ROUTE.read_text(encoding="utf-8")+"\n"+
+              LINK_MENU.read_text(encoding="utf-8")),encoding="utf-8")
             (target/"NOT_APPROVED_FOR_INSTALL.txt").write_text(
               "UCE integrated SOURCE build ONLY by default. NO manual install.\n"
               "For owner-approved stopped-LAB acceptance, use ONLY the exact-SHA\n"
