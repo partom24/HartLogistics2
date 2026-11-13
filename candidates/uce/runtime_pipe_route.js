@@ -27,7 +27,8 @@ function ucePipeRouteNetwork(receiver) {
         // Collector and pipe-source admission may continue while powered.
         if(!root)return undefined;
         const pending=[],seen=new Map(),endpoints=new Map(),
-            banks=new Map(),inputs=new Map(),receiverIds=new Set([receiver.id]);
+            columnRuns=new Map(),banks=new Map(),inputs=new Map(),
+            receiverIds=new Set([receiver.id]);
         for(const face of PG26_FACES) {
             const b=pg26Neighbor(root,face);
             if(!b)return undefined;
@@ -85,7 +86,7 @@ function ucePipeRouteNetwork(receiver) {
                     // Each row keeps its own Filter/Auto/Wildcard/redstone
                     // policy. Unknown or unregistered lower rows HOLD the
                     // graph; they must not be skipped for a weaker output.
-                    let sorter=next,complete=false;
+                    let sorter=next,complete=false,rowCount=0;
                     for(let depth=0;depth<UCE_MAX_SORTER_COLUMN_HEIGHT;depth++){
                         const q=sorter.location;
                         const entry=registeredSorters.get(
@@ -96,6 +97,7 @@ function ucePipeRouteNetwork(receiver) {
                            !uceSameLoadedBlock(sorter,live)||
                            entry.nativeQuarantine)return undefined;
                         endpoints.set(pg26PositionKey(q),entry);
+                        rowCount++;
                         const below=pg26Neighbor(sorter,downFace);
                         if(!below)return undefined;
                         if(below.typeId!==SORTER_ID){complete=true;break;}
@@ -103,6 +105,10 @@ function ucePipeRouteNetwork(receiver) {
                         sorter=below;
                     }
                     if(!complete)return undefined;
+                    // Contiguous verified columns have no gaps. Their top
+                    // coordinate + row count uniquely identifies every row,
+                    // avoiding oversized per-Sorter federated route witnesses.
+                    columnRuns.set(pg26PositionKey(p),rowCount);
                 } else if(type==='hartlogistics:bulk_storage'){
                     if(!ucePipeSameDimension(root,next))return undefined;
                     banks.set(pg26PositionKey(p),next);
@@ -148,7 +154,9 @@ function ucePipeRouteNetwork(receiver) {
             }
         }
         const sortedPipes=[...seen.keys()].sort();
-        const sortedOutputs=[...endpoints.keys()].sort();
+        const sortedColumns=[...columnRuns.entries()]
+            .sort((a,b)=>a[0].localeCompare(b[0]))
+            .map(([top,count])=>top+'x'+count);
         const sortedInputs=[...inputs.keys()].sort().map(
             key=>key+':'+inputs.get(key).typeId);
         const sortedBanks=[...banks.keys()].sort();
@@ -156,7 +164,7 @@ function ucePipeRouteNetwork(receiver) {
         return {receiverId:receiver.id,
             receiverIds:sortedReceivers,leaderId:sortedReceivers[0],
             fingerprint:sortedReceivers.join(';')+'|'+sortedPipes.join(';')+
-              '->'+sortedOutputs.join(';')+
+              '->'+sortedColumns.join(';')+
               '<-'+sortedInputs.join(';')+
               '#'+sortedBanks.join(';'),
             entries:[...endpoints.values()],
