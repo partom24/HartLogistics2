@@ -149,7 +149,7 @@ class UceBuildTests(unittest.TestCase):
         s=self.main
         self.assertIn('function uceUnifiedServiceTick(){',s)
         self.assertIn('    uceMrServiceTick(authority);',s)
-        self.assertIn('    uceOrdinaryServiceTick(authority);',s)
+        self.assertIn('const committed=uceOrdinaryServiceTick(authority);',s)
         self.assertIn('    uceSorterDirectServiceTick(authority);',s)
         self.assertIn('function uceSorterDirectServiceTick(authority)',s)
         self.assertIn('function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined)',s)
