@@ -137,9 +137,11 @@ function uceTryRemoteBulkTransfer(authority,receiver,shardKey,
             return {ok:true,status:'REMOTE_BULK_IDLE_EMPTY'};
         if(sourceWaiting&&account.total<account.capacity-512)
             return {ok:true,status:'REMOTE_BULK_SOURCE_PRIORITY'};
-        if(receiverOutputHopper(receiver)||
-           blockIsRedstonePowered(receiverAt(receiver)))
+        if(blockIsRedstonePowered(receiverAt(receiver)))
             return {ok:true,status:'REMOTE_BULK_LEGACY_OUTPUT_PRIORITY'};
+        const hopper=receiverOutputHopper(receiver);
+        if(hopper&&!hopper.container?.isValid)
+            return hold('remote_bulk_output_hopper_unverified');
         for(const entry of account.buckets){
             let item;
             try{
@@ -150,6 +152,12 @@ function uceTryRemoteBulkTransfer(authority,receiver,shardKey,
                 if(uceClassifyLiveStack(item)!=='ORDINARY')
                     continue;
             }catch(_){continue;}
+            // An ACCEPTING original Hopper retains native egress priority.
+            // A verified full/locked Hopper is backpressure, not a reason
+            // to strand ordinary balance when remote Bulk is available.
+            if(hopper&&!hopper.locked&&
+               uceOrdinaryHopperCandidate(hopper.container,item))
+                continue;
             // An actually selected local preferred destination must retain
             // first claim, including when this Receiver has no Bulk member.
             if(uceChoosePipeDestination(receiver,item,true,

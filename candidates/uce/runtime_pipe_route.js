@@ -434,7 +434,18 @@ function uceVerifiedNoReachablePreferredOutput(receiver,item,authority,
             if(seen.size>=logistics.receivers.length)return false;
             seen.add(current.id);
             const root=receiverAt(current);
-            if(!root||receiverOutputHopper(current))return false;
+            if(!root)return false;
+            // The original output Hopper has FIRST claim only while it
+            // can accept this item. A full or redstone-locked Hopper must
+            // not permanently disable verified downstream Bulk overflow.
+            // Missing/invalid native output identity remains a HOLD.
+            const hopper=receiverOutputHopper(current);
+            if(hopper){
+                if(!hopper.container?.isValid)return false;
+                if(!hopper.locked&&!blockIsRedstonePowered(root)&&
+                   uceOrdinaryHopperCandidate(hopper.container,item))
+                    return false;
+            }
             // Only the SAME synchronous decision may reuse topology
             // already inspected for its source Receiver. Mutating writers
             // always start a new verification pass at each shard boundary.

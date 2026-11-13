@@ -2307,7 +2307,7 @@ function uceOrdinaryServiceTick(authority){
         // this Receiver's local bank/controller is full or absent. Never
         // invent an item hop: move only the certified ordinary count through
         // the existing globally journaled TWO-shard federated writer.
-        if(account.total>0&&bankNetwork&&!output&&!preferredOutputReady&&
+        if(account.total>0&&bankNetwork&&!preferredOutputReady&&
            !blockIsRedstonePowered(receiverAt(receiver))){
             const remote=uceTryRemoteBulkTransfer(
                 authority,receiver,shardKey,shardWriter,

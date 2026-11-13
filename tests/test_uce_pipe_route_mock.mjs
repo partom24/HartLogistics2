@@ -1369,3 +1369,25 @@ test('metadata-rich/uncertified pipe output still requires an empty destination'
   const choice=f.context.uceChoosePipeDestination(f.receiver,item);
   assert.equal(choice.entry,f.fallback);
 });
+
+test('legacy output Hopper retains first claim without blocking full-Hopper remote Bulk overflow',()=>{
+  const f=fixture(),hopper=f.newContainer(5);
+  const target=f.chestA.getComponent('minecraft:inventory').container;
+  target.fill({typeId:'minecraft:stone',amount:64,maxAmount:64});
+  f.context.receiverOutputHopper=()=>({container:hopper,locked:false});
+  f.context.uceOrdinaryHopperCandidate=(c,item)=>
+    f.context.findAcceptSlot(c,item);
+  const authority={worldId:'w',epoch:9};
+  const proof=()=>f.context.uceVerifiedNoReachablePreferredOutput(
+    f.receiver,COBBLE,authority,f.network());
+  assert.equal(proof(),false,'empty original Hopper outranks Bulk');
+  hopper.fill({typeId:'minecraft:stone',amount:64,maxAmount:64});
+  assert.equal(proof(),true,'verified full Hopper permits Bulk arbitration');
+  hopper.setItem(4,undefined);
+  assert.equal(proof(),false,'newly available Hopper revokes Bulk claim');
+  f.context.receiverOutputHopper=()=>({container:hopper,locked:true});
+  assert.equal(proof(),true,'locked Hopper is not an accepting output');
+  f.context.receiverOutputHopper=()=>({
+    container:{size:5,isValid:false},locked:false});
+  assert.equal(proof(),false,'unreadable Hopper remains HOLD');
+});

@@ -65,7 +65,7 @@ function makeLedger(owners,counts={}){
 }
 function fixture({remoteFull=false,badController=false,
                  revokeOnPrepared=false,invalidPath=false,
-                 sourceWaiting=false}={}){
+                 sourceWaiting=false,hopperAccepts=null}={}){
   const a=makeLedger([['receiver',src.id]],{
     ['receiver:'+src.id]:128
   });
@@ -112,7 +112,8 @@ function fixture({remoteFull=false,badController=false,
       id===src.id?srcShard:id===dst.id?dstShard:undefined,
     uceBulkOwnerId:b=>b.ownerId,
     ucePipeRouteNetwork:()=>({receiverIds:[src.id],banks:[]}),
-    uceLinkedBankBulkRoutes:()=>routeActive?[route]:undefined,
+    uceLinkedBankBulkRoutes:()=>routeActive&&hopperAccepts!==true?
+      [route]:undefined,
     // The VM item definition is parsed in a different JS realm from the
     // imported pure identity validator. Production runs in ONE realm;
     // normalize only the mock boundary, without relaxing the real gate.
@@ -134,7 +135,9 @@ function fixture({remoteFull=false,badController=false,
     uceAuthoritySnapshot:()=>authority,
     ucePerfTimedOperation:(_,fn)=>fn(),
     ucePerfRecordMove:()=>{},
-    receiverOutputHopper:()=>undefined,
+    receiverOutputHopper:()=>hopperAccepts===null?undefined:{
+      container:{isValid:true,size:5},locked:false},
+    uceOrdinaryHopperCandidate:()=>hopperAccepts===true,
     receiverAt:()=>({typeId:'hartsorter:receiver'}),
     blockIsRedstonePowered:()=>false,
     uceChoosePipeDestination:()=>undefined
@@ -208,4 +211,21 @@ test('source ingress backpressure does not spill a low-water Receiver into remot
   assert.equal(r.status,'REMOTE_BULK_SOURCE_PRIORITY');
   assert.equal(f.writes,0);
   assert.equal(f.view(srcShard).snapshot.total,128);
+});
+
+test('full original output Hopper can spill to remote governed Bulk with exact two-shard receipts',()=>{
+  const f=fixture({hopperAccepts:false}),r=f.run();
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'REMOTE_BULK_TRANSFER_COMMITTED');
+  assert.equal(f.view(srcShard).snapshot.total,64);
+  assert.equal(f.view(dstShard).snapshot.total,64);
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),false);
+});
+test('newly accepting original output Hopper takes priority over remote Bulk with no journal write',()=>{
+  const f=fixture({hopperAccepts:true}),r=f.run();
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'REMOTE_BULK_NO_SPENDABLE_ROUTE');
+  assert.equal(f.writes,0);
+  assert.equal(f.view(srcShard).snapshot.total,128);
+  assert.equal(f.view(dstShard).snapshot.total,0);
 });
