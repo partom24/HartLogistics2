@@ -243,3 +243,101 @@ test('forensic audit is read-only and never infers safety from corrupt pending s
   assert.equal(f.writes,0);
   assert.equal(f.data.get(UCE_FEDERATED_INTENT_KEY),'not-json');
 });
+
+
+function canonicalFederatedShardWithReceipt(raw,patch){
+  // Recompute the non-cryptographic envelope integrity exactly as the real
+  // writer does. The test must exercise semantic checks, not JSON corruption.
+  const saved=JSON.parse(raw);
+  const body={schema:saved.schema,shardKey:saved.shardKey,
+    snapshot:saved.snapshot,receipt:{...saved.receipt,...patch}};
+  const serialized=JSON.stringify(body);
+  let h=2166136261;
+  for(let i=0;i<serialized.length;i++)
+    h=Math.imul(h^serialized.charCodeAt(i),16777619);
+  return JSON.stringify({...body,
+    integrity:'fnv32:'+(h>>>0).toString(16).padStart(8,'0')});
+}
+
+test('federated credit rejects a canonical but wrong-direction source receipt',()=>{
+  const f=fixture();
+  let injected=false;
+  const destinationWriter={
+    ...f.destinationWriter,
+    applyFederatedSide(args){
+      f.data.set(fromShard,canonicalFederatedShardWithReceipt(
+        f.data.get(fromShard),{direction:'deposit'}));
+      injected=true;
+      return f.destinationWriter.applyFederatedSide(args);
+    }
+  };
+  const result=executeUnifiedFederatedTransfer({
+    ...f.args,destinationWriter
+  });
+  assert.equal(injected,true);
+  assert.equal(result.ok,false);
+  assert.equal(result.pendingReconciliation,true);
+  assert.equal(result.reason,
+    'federated_credit:federated_topology_or_debit_unverified');
+  assert.equal(f.sourceWriter.inspect().ok,true,
+    'forged receipt must pass envelope validation to exercise binding');
+  assert.equal(f.destinationWriter.inspect().snapshot.total,0);
+  assert.equal(f.sourceWriter.inspect().snapshot.total,68);
+  assert.equal(JSON.parse(f.data.get(UCE_FEDERATED_INTENT_KEY)).phase,
+    'DEBIT_INSPECTED');
+  assert.equal(verifyUnifiedMutationFence(
+    f.world,worldId,epoch,()=>true).ok,false);
+});
+
+test('federated final readback refuses a forged receipt revision before journal clear',()=>{
+  const f=fixture();
+  const destinationWriter={
+    ...f.destinationWriter,
+    inspect(){
+      const current=f.destinationWriter.inspect();
+      if(current.lastReceipt?.kind!=='FEDERATED_CREDIT')
+        return current;
+      return {...current,lastReceipt:{
+        ...current.lastReceipt,
+        beforeRevision:current.lastReceipt.beforeRevision+1
+      }};
+    }
+  };
+  const result=executeUnifiedFederatedTransfer({
+    ...f.args,destinationWriter
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,'federated_balanced_receipts_unverified');
+  assert.equal(result.pendingReconciliation,true);
+  assert.equal(f.sourceWriter.inspect().snapshot.total,68);
+  assert.equal(f.destinationWriter.inspect().snapshot.total,32);
+  assert.equal(JSON.parse(f.data.get(UCE_FEDERATED_INTENT_KEY)).phase,
+    'CREDIT_INSPECTED');
+});
+
+test('forensic audit rejects valid-balance receipts with wrong epoch, revision or direction',()=>{
+  for(const patch of [
+    {epoch:epoch+1},{direction:'withdraw'},
+    {beforeRevision:2},{revision:4}
+  ]){
+    const f=fixture({failAt:4});
+    assert.equal(executeUnifiedFederatedTransfer(f.args).ok,false);
+    const destinationWriter={
+      inspect(){
+        const current=f.destinationWriter.inspect();
+        return {...current,lastReceipt:{...current.lastReceipt,...patch}};
+      }
+    };
+    const report=inspectUnifiedFederatedPending({
+      world:f.world,worldId,epoch,sourceWriter:f.sourceWriter,
+      destinationWriter
+    });
+    assert.equal(report.ok,false,JSON.stringify(patch));
+    assert.equal(report.status,'HOLD');
+    assert.equal(report.reason,
+      'federated_pending_receipt_or_balance_inconsistent');
+    assert.equal(report.canReplay,false);
+    assert.equal(report.canClearJournal,false);
+    assert.equal(f.data.has(UCE_FEDERATED_INTENT_KEY),true);
+  }
+});
