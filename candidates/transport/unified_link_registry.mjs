@@ -51,7 +51,8 @@ function parse(raw){
   if(data.uceLastLinkReceipt!==undefined){
     const r=data.uceLastLinkReceipt;
     if(!r||r.schema!==UCE_LINKS_RECEIPT_SCHEMA||
-       !id(r.operationId)||!id(r.collectorId)||!id(r.receiverId)||
+       !id(r.operationId)||!id(r.collectorId)||
+       (r.receiverId!==null&&!id(r.receiverId))||
        !integer(r.revision)||r.revision!==data.uceLinkRevision)
       return hold('saved_logistics_receipt_invalid');
   }
@@ -95,13 +96,14 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
       revision:r.data.uceLinkRevision??0};
   }
   function linkCollector({operationId,collector,receiverId,
-      expectedRevision}={}){
+      expectedRevision,unlink=false}={}){
     if(quarantined)return hold('link_session_quarantined');
     if(!id(operationId)||!collector||!id(collector.id)||
        !id(collector.d)||!Number.isSafeInteger(collector.x)||
        !Number.isSafeInteger(collector.y)||
        !Number.isSafeInteger(collector.z)||
-       !id(receiverId)||!integer(expectedRevision))
+       ((unlink===true)?receiverId!==null:!id(receiverId))||
+       !integer(expectedRevision))
       return hold('invalid_link_request');
     const gate=verifyUnifiedMutationFence(world,worldId,epoch,externalFence);
     if(!gate.ok)return hold(gate.reason);
@@ -122,10 +124,13 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
     let valid=false,receiverValid=false;
     try{
       valid=verifyCollectorBlock(collector)===true;
-      receiverValid=verifySealedReceiver(receiverId)===true;
+      receiverValid=unlink===true?true:
+        verifySealedReceiver(receiverId)===true;
     }catch(_){}
     if(!valid||!receiverValid)
       return hold('collector_or_sealed_receiver_unverified');
+    if(unlink===true&&(!current||!current.link))
+      return hold('collector_not_linked');
     if(current?.link===receiverId&&current.present!==false)
       return {ok:true,status:'COLLECTOR_LINK_ALREADY_PRESENT',
         operationId,revision,canWriteQueue:false};
@@ -157,7 +162,8 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
     let stillCollector=false,stillReceiver=false;
     try{
       stillCollector=verifyCollectorBlock(collector)===true;
-      stillReceiver=verifySealedReceiver(receiverId)===true;
+      stillReceiver=unlink===true?true:
+        verifySealedReceiver(receiverId)===true;
     }catch(_){}
     let stillEmptySafe=!previous.bootstrap;
     if(previous.bootstrap){
@@ -180,5 +186,8 @@ export function createUnifiedLinkRegistry({world,worldId,epoch,
       operationId,canWriteQueue:false,canClearQ4:false};
   }
   return {ok:true,inspect,linkCollector,
+    unlinkCollector:args=>linkCollector({
+      ...args,receiverId:null,unlink:true
+    }),
     getSessionQuarantine:()=>quarantined};
 }
