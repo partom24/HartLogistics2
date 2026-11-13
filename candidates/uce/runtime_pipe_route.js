@@ -330,7 +330,8 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
  * number of Sorters or a fixed system-wide hop limit. Revalidate the
  * complete chosen chain at BOTH original shard mutation boundaries.
  */
-function uceSelectInterbankFilteredRoute(receiver,graph,item,authority){
+function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
+                                        allowPlainMerge=true){
     try{
         if(!receiver||!graph||!item?.typeId||!authority||
            !Array.isArray(graph.entries)||
@@ -351,7 +352,7 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority){
             // source, it must be served locally. At any later bank it is
             // an authenticated final owner for the source count balance.
             const local=uceChoosePipeDestination(
-                current,item,true,undefined,true);
+                current,item,true,undefined,allowPlainMerge);
             if(local?.priority===0){
                 if(hop===0)return undefined;
                 const first=path[0];
