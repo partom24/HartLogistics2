@@ -32,7 +32,8 @@ function exactFunction(source,name){
 const generated=process.env.UCE_GENERATED_MAIN?
   fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):undefined;
 const routeFunctions=[
-  'ucePipeSameDimension','ucePipeRouteNetwork','uceReadOnlyPipeInput',
+  'ucePipeSameDimension','ucePipeSorterRegistryIndex',
+  'ucePipeRouteNetwork','uceReadOnlyPipeInput',
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding',
@@ -48,6 +49,7 @@ const routeCode=generated?[
     assert.ok(match,'generated main lacks route constant '+name);
     return match[0];
   }),
+  'let ucePipeSorterIndexCache;',
   ...routeFunctions.map(name=>exactFunction(generated,name))
 ].join('\n'):src;
 const actualStorageHelpers=[
@@ -280,6 +282,34 @@ test('1,536 stacked Sorters across two independent loaded banks have no global S
   assert.ok(a.fingerprint.length<=8192);
   assert.ok(b.fingerprint.length<=8192);
   assert.equal(f.choose(COBBLE)?.entry,f.filter);
+});
+test('all independent bank graph reads reuse one original Sorter index per verified Bedrock tick',()=>{
+  const f=fixture();
+  let scans=0;
+  const base=f.entries[Symbol.iterator].bind(f.entries);
+  f.entries[Symbol.iterator]=function*(){scans++;yield* base();};
+  f.context.system={currentTick:105};
+  f.context.dirty=false;
+  assert.ok(f.network());
+  assert.equal(f.choose(COBBLE)?.entry,f.filter);
+  assert.ok(f.network());
+  assert.equal(scans,1,
+    'repeated graph and selected-route verification must not rescan 1,400 original entries');
+  // The index must reference original mode/filter objects, not a stale
+  // snapshot of an item's mutable original Filter configuration.
+  f.filter.f={match:{typeId:'minecraft:stone'}};
+  assert.equal(f.choose(COBBLE)?.entry,f.fallback);
+  assert.equal(scans,1);
+  f.context.dirty=true;
+  assert.ok(f.network());
+  assert.equal(scans,2,'a pending topology change defeats the cache');
+  f.context.dirty=false;
+  f.context.system.currentTick++;
+  assert.ok(f.network());
+  assert.equal(scans,3,'next tick gets a fresh coordinate census');
+  f.entries.push({d:f.dim.id,x:500,y:69,z:4,m:'bypass',f:null});
+  assert.ok(f.network());
+  assert.equal(scans,4,'registration change invalidates same-tick census');
 });
 test('duplicate Sorter registration revokes the entire Transporter route',()=>{
   const f=fixture();
