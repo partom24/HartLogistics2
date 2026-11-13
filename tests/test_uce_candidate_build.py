@@ -152,6 +152,23 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||",s)
         self.assertIn("block.typeId === 'hartlogistics:bulk_storage'",s)
 
+    def test_transporter_sorter_preserves_original_storage_destinations(self):
+        # This assertion runs against the ACTUAL generated gameplay main.js,
+        # not the source-only route reader or a mock implementation.
+        s=self.main
+        self.assertIn("function uceReadOnlySorterDestination(entry,root)",s)
+        self.assertIn("function uceDirectStorageOwnerBlock(block)",s)
+        self.assertIn("function ucePipeStorageOwnerId(block)",s)
+        self.assertIn("!supportedStorage(dest)||!uceDirectStorageOwnerBlock(dest)",s)
+        self.assertIn("const c=blockContainer(dest);",s)
+        self.assertIn("const destId=ucePipeStorageOwnerId(selected.dest.block);",s)
+        # The immutable 1.4.1 whitelist is the authority, not a newly
+        # invented or reduced set for Transporter-fed columns.
+        self.assertIn('id === "minecraft:trapped_chest"',s)
+        self.assertIn('id.endsWith("_shulker_box")',s)
+        self.assertIn('if(paired.length!==1||c.size!==54)return false;',s)
+        self.assertNotIn("!['minecraft:chest','minecraft:barrel'].includes(dest.typeId)",s)
+
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
         self.assertIn('function uceUnifiedServiceTick(){',s)
