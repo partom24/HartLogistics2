@@ -610,6 +610,54 @@ test('one-hop Collector handoff selects a different sealed Receiver with a real 
   assert.equal(select(),undefined,
     'uncertified local Filter cannot be bypassed by remote link');
 });
+test('seeded Auto in terminal linked bank is a deferred preferred route after all Filters',()=>{
+  const f=fixture();
+  f.filter.m='bypass';
+  f.chestB.typeId='hartsorter:collector';
+  const p=f.chestB.location;
+  const next={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  f.registeredReceivers.push(next);
+  f.put('hartsorter:receiver',24,70,4);
+  f.put('hartlogistics:transporter',23,70,4);
+  f.put('hartsorter:sorter',23,69,4);
+  const auto={d:f.dim.id,x:23,y:69,z:4,m:'auto',f:null};
+  f.entries.push(auto);
+  const destination=f.put('minecraft:barrel',23,69,5,f.newContainer());
+  const container=destination.getComponent('minecraft:inventory').container;
+  const collector={id:f.context.logisticsId(f.dim.id,p.x,p.y,p.z),
+    d:f.dim.id,x:p.x,y:p.y,z:p.z,present:true,link:next.id};
+  f.collectors.push(collector);
+  const select=()=>f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+  assert.equal(select(),undefined,
+    'unseeded Auto never claims a remote ordinary item');
+  container.setItem(2,{typeId:'minecraft:cobblestone',amount:10,maxAmount:64});
+  const accepted=select();
+  assert.equal(accepted?.receiver,next);
+  assert.equal(accepted?.remote.entry,auto);
+  assert.equal(accepted?.remote.priority,1);
+  assert.ok(accepted?.witness.endsWith('|A'),
+    'Auto route has a separate authenticated mode witness');
+  assert.equal(select()?.witness,accepted.witness);
+  auto.m='filter';auto.f={match:{typeId:'minecraft:cobblestone'}};
+  assert.equal(select()?.remote.priority,0,
+    'a verified Filter takes precedence over seeded Auto');
+  assert.notEqual(select()?.witness,accepted.witness);
+  auto.m='auto';auto.f=null;
+  const remoteSorter=f.dim.getBlock({x:23,y:69,z:4});
+  remoteSorter.powered=true;
+  assert.equal(select(),undefined,'powered remote Auto HOLDS');
+  remoteSorter.powered=false;
+  // The original local Filter remains the first-class destination.
+  f.filter.m='filter';
+  assert.equal(select(),undefined,'local matching Filter outranks remote Auto');
+  f.filter.m='auto';
+  const source=f.chestA.getComponent('minecraft:inventory').container;
+  source.setItem(0,{typeId:'minecraft:cobblestone',amount:8});
+  assert.equal(select(),undefined,
+    'an original source-bank seeded Auto is not bypassed by remote Auto');
+});
 test('interbank Filter ties obey original bottom-to-top and coordinate Sorter order',()=>{
   const f=fixture();
   // Two Filter Sorters of equal priority: the left-hand Collector at x2
