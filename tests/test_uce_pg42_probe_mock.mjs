@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const source=readFileSync(new URL(
-  '../candidates/uce/pg42_probe.js',import.meta.url),'utf8');
+  'pg42_probe.js',import.meta.url),'utf8');
 
 function fixture({properties={},spawnThrows=false,abortWriteAt=0}={}){
   const db=new Map(Object.entries(properties)),entities=[],commands=new Map();

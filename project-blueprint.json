@@ -33,7 +33,7 @@
       "id": "PG42-CARRIER",
       "kind": "test",
       "task": "Fresh PG42 world only; one native carrier, persistent 9-slot named/lore sample and restart audit; delete probe plus registry after BDS acceptance",
-      "path": "candidates/uce/pg42_probe.js",
+      "path": "tests/pg42_probe.js",
       "status": "active"
     }
   ],

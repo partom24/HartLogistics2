@@ -23,7 +23,7 @@ lab=switch.lab
 pg08=switch.pg08
 ROOT=switch.ROOT
 CHANGED_BP={"scripts/main.js"}
-PROBE=ROOT/"candidates/uce/pg42_probe.js"
+PROBE=ROOT/"tests/pg42_probe.js"
 
 
 def render_pack_pair(folder: Path):

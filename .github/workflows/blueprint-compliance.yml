@@ -208,7 +208,7 @@ jobs:
       - name: UCE PG42 isolated native carrier fixture: world switch, read-only preservation and restart probe
         run: |
           git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
-          node --check candidates/uce/pg42_probe.js
+          node --check tests/pg42_probe.js
           node --test tests/test_uce_pg42_probe_mock.mjs
           python -m py_compile candidates/uce/pg42_world_switch.py candidates/uce/pg42_lab_patch.py
           python -m unittest discover -s tests -p 'test_uce_pg42_carrier_lab.py' -v
