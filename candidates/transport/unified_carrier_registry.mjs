@@ -292,9 +292,10 @@ export function createUnifiedCarrierRegistry({world,worldId,epoch,
   }
 
   /**
-   * Bounded read-only PG39 evidence. A RESERVED record is deliberately
-   * NOT repaired or promoted by this observer. ItemStacks never leave their
-   * native slots; only slot counts and entity identities are reported.
+   * Permanent read-only native carrier health for the supported status
+   * command. A RESERVED record is never repaired or promoted here;
+   * ItemStacks stay in native slots. Exact saved and observed owner/entity
+   * identities, counts and HOLD reasons remain inspectable without writes.
    */
   function inspectHostEvidence({ownerId,anchor}={}){
     const key=hostKey(ownerId);
