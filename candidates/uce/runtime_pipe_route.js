@@ -649,8 +649,13 @@ function uceSorterColumnWinner(column,item,settledSelection=undefined){
                    blockIsRedstonePowered(target))continue;
                 const receiver=findReceiverById(collector.link);
                 const authority=uceAuthoritySnapshot();
-                if(!receiver||receiver.present===false||
-                   !receiverAt(receiver)||!authority||
+                // A loaded Collector may own native waiting custody
+                // even while its linked Receiver chunk is UNLOADED. The
+                // Receiver's sealed account, not its current block load,
+                // is the identity authority for this original Q4 route.
+                // A separate Collector-native carrier must claim MR cargo;
+                // direct Receiver admission still requires receiverAt().
+                if(!receiver||receiver.present===false||!authority||
                    !uceOrdinaryAccountSource(authority,receiver.id))
                     continue;
                 eligible.push({entry,priority,kind:'collector',
@@ -680,7 +685,7 @@ function uceSorterColumnWinner(column,item,settledSelection=undefined){
             undefined;
     }catch(_){return undefined;}
 }
-function uceSorterCollectorSources(receiver){
+function uceSorterCollectorSources(receiver,requiredCollectorId=undefined){
     if(!receiver||!Array.isArray(columns))return [];
     const records=[],seen=new Set();
     for(const col of columns){
@@ -696,7 +701,11 @@ function uceSorterCollectorSources(receiver){
                 const q=target.location;
                 const collector=findCollectorById(
                     logisticsId(target.dimension.id,q.x,q.y,q.z));
-                if(collector?.link===receiver.id){touches=true;break;}
+                if(collector?.link===receiver.id&&
+                   (!requiredCollectorId||
+                    collector.id===requiredCollectorId)){
+                    touches=true;break;
+                }
             }
             if(!touches)continue;
             const dim=getDimension(col.d),source=dim?.getBlock(col.source);
@@ -715,6 +724,8 @@ function uceSorterCollectorSources(receiver){
                         const selected=uceSorterColumnWinner(col,item);
                         return !!selected&&selected.kind==='collector'&&
                            selected.receiver.id===receiver.id&&
+                           (!requiredCollectorId||
+                            selected.collector.id===requiredCollectorId)&&
                            uceSameLoadedBlock(selected.source.block,source);
                     }catch(_){return false;}
                 },
@@ -727,6 +738,8 @@ function uceSorterCollectorSources(receiver){
                         const selected=uceSorterColumnWinner(col,item);
                         return !!selected&&selected.kind==='collector'&&
                            selected.receiver.id===receiver.id&&
+                           (!requiredCollectorId||
+                            selected.collector.id===requiredCollectorId)&&
                            uceSameLoadedBlock(selected.source.block,source);
                     }catch(_){return false;}
                 }});
