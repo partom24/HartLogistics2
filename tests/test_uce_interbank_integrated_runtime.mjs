@@ -109,16 +109,33 @@ function ledger(owner,total){
   return snap;
 }
 function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
-                 destinationTotal=0,remoteMode='filter'}={}){
+                 destinationTotal=0,remoteMode='filter',
+                 remoteBankSeeded=false}={}){
+  const remoteBankId=id(23,70,5);
+  let remoteLedger=ledger(id(24,70,4),destinationTotal);
+  if(remoteBankSeeded){
+    const registered=registerUnifiedEmptyAccount(remoteLedger,{
+      kind:'bulk',ownerId:remoteBankId,
+      expectedRevision:remoteLedger.revision,expectedEpoch:epoch});
+    assert.equal(registered.ok,true,registered.reason);
+    remoteLedger=registered.next;
+    const bank=remoteLedger.accounts.find(a=>
+      a.id==='bulk:'+remoteBankId&&a.kind==='bulk');
+    assert.ok(bank);
+    bank.total=128;
+    bank.buckets=[{key,count:128}];
+    remoteLedger.total+=128;
+    assert.equal(inspectUnifiedOrdinaryLedger(remoteLedger).ok,true);
+  }
   const saved=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
     schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',
     worldId,epoch,writer:'UCE_EXCLUSIVE',
     q4LegacyWritersFenced:true,migrationReconciled:true
   })],[shardA,previewUnifiedShard({
-    snapshot:ledger(id(4,70,4),100),shardKey:shardA}).raw],
+    snapshot:ledger(id(4,70,4),remoteBankSeeded?0:100),
+    shardKey:shardA}).raw],
     [shardB,previewUnifiedShard({
-      snapshot:ledger(id(24,70,4),destinationTotal),
-      shardKey:shardB}).raw]]);
+      snapshot:remoteLedger,shardKey:shardB}).raw]]);
   let writes=0,moves=0;
   const dim={id:dimensionId},blocks=new Map(),entries=[];
   const at=p=>p.x+','+p.y+','+p.z;
@@ -144,6 +161,10 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
   put('hartsorter:receiver',24,70,4);
   put('hartlogistics:transporter',3,70,4);
   put('hartlogistics:transporter',23,70,4);
+  if(remoteBankSeeded)
+    put('hartlogistics:bulk_storage',23,70,5);
+  const outputHopper=remoteBankSeeded?put('minecraft:hopper',
+    4,69,4,{size:5,isValid:true,getItem:()=>undefined}):undefined;
   put('hartsorter:sorter',3,69,4);
   put('hartsorter:sorter',23,69,4);
   const collectorBlock=put('hartsorter:collector',3,69,5);
@@ -207,7 +228,12 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
     uceLegacyWriterBlocked:()=>true,
     uceMaybeRegisterBulk:()=>false,
     uceSorterCollectorSources:()=>[],
-    receiverOutputHopper:()=>undefined,
+    receiverOutputHopper:r=>remoteBankSeeded&&r.id===first.id?
+      {block:outputHopper,
+        container:outputHopper.getComponent('minecraft:inventory').container,
+        locked:false}:undefined,
+    uceBulkOwnerId:b=>id(
+      b.location.x,b.location.y,b.location.z),
     blockIsRedstonePowered:b=>!!b.powered,
     sorterMode:e=>e.m,facingOffset:()=>({x:0,y:0,z:1}),
     matchesFilter:(item,filter)=>item.typeId===filter.match.typeId,
@@ -243,14 +269,16 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
     ucePerfSampleShard:()=>{},
     uceBridgeLog:()=>{},
     uceCarrierRegistrationReason:r=>r?.reason||'unknown',
-    uceOrdinaryHopperCandidate:()=>undefined,
+    uceOrdinaryHopperCandidate:()=>remoteBankSeeded?{
+      slot:0,partialOutput:false,beforeAmount:0,room:64}:undefined,
     hopperIsRedstoneLocked:()=>false
   };
   vm.runInNewContext(executable,ctx);
   const read=(key)=>createUnifiedShardWriter({
     world,shardKey:key,worldId,epoch,externalFence:()=>true}).inspect();
   return {ctx,first,last,collector,collectorBlock,destination,
-    saved,world,read,get writes(){return writes}};
+    outputHopper,remoteBankId,saved,world,read,
+    get writes(){return writes}};
 }
 test('integrated UCE scheduler journals a real Filter-directed interbank handoff exactly once',()=>{
   const f=fixture();
@@ -327,4 +355,33 @@ test('full remote Receiver cannot be overcredited by Collector forwarding',()=>{
   assert.equal(f.read(shardA).snapshot.total,100);
   assert.equal(f.read(shardB).snapshot.total,250000);
   assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),false);
+});
+
+test('integrated Receiver scheduler refills native output from remote Bulk without physical duplication',()=>{
+  const f=fixture({remoteBankSeeded:true});
+  const before=f.read(shardA).snapshot.total+
+    f.read(shardB).snapshot.total;
+  assert.equal(before,128);
+  const transferred=f.ctx.uceOrdinaryServiceTick({worldId,epoch});
+  assert.equal(transferred,true,
+    'the real unified scheduler must use the original two-shard journal');
+  assert.equal(f.read(shardA).snapshot.total,64);
+  assert.equal(f.read(shardB).snapshot.total,64);
+  assert.equal(f.read(shardA).snapshot.total+
+    f.read(shardB).snapshot.total,before);
+  assert.equal(f.read(shardA).lastReceipt.kind,'FEDERATED_CREDIT');
+  assert.equal(f.read(shardB).lastReceipt.kind,'FEDERATED_DEBIT');
+  assert.equal(f.saved.has(UCE_FEDERATED_INTENT_KEY),false);
+  assert.equal(f.outputHopper.getComponent('minecraft:inventory')
+    .container.getItem(0),undefined,
+    'virtual refill is followed by the existing physical egress writer');
+});
+test('integrated remote Bulk refill cannot survive an exact Collector link revocation at PREPARED',()=>{
+  const f=fixture({remoteBankSeeded:true,afterPreparedLinkChange:true});
+  const result=f.ctx.uceOrdinaryServiceTick({worldId,epoch});
+  assert.notEqual(result,true);
+  assert.equal(f.read(shardA).snapshot.total,0);
+  assert.equal(f.read(shardB).snapshot.total,128);
+  assert.equal(JSON.parse(f.saved.get(UCE_FEDERATED_INTENT_KEY)).phase,
+    'PREPARED','revocation cannot silently clear an ambiguous transaction');
 });
