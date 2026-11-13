@@ -70,7 +70,7 @@ def compile_patch(source,bridge):
       "        const e = registerCollector(ev.block);",
       "    if (ev.block.typeId === COLLECTOR_ID) {\n"+
       "        if (uceLegacyWriterBlocked()) {\n"+
-      "            uceSelectCollectorForLink(ev.player,ev.block); return;\n"+
+      "            void uceCollectorLinkMenu(ev.player,ev.block); return;\n"+
       "        }\n"+
       "        const e = registerCollector(ev.block);")
     source=once(source,
