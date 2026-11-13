@@ -38,6 +38,7 @@ const routeFunctions=[
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding',
   'uceVerifiedNoReachablePreferredOutput',
+  'uceLinkedBankBulkRoutes',
   'uceSelectInterbankFilteredRoute',
   'uceChoosePipeDestination','ucePipeDestinationStillValid',
   'uceSorterColumnWinner','uceSorterCollectorSources',
@@ -383,6 +384,47 @@ test('local Bulk spill requires verified absence of preferred output across link
   f.missing.clear();
   f.context.logistics.collectors[0].link=f.receiver.id;
   assert.equal(proof(),true,'verified loop adds no unseen preferred output');
+});
+test('Collector-linked remote Bulk selection discovers ONLY verified registered bank owners',()=>{
+  const f=fixture();
+  f.chestA.typeId='hartsorter:collector';
+  const remote={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  f.registeredReceivers.push(remote);
+  const col={id:f.context.logisticsId(f.dim.id,3,69,5),
+    d:f.dim.id,x:3,y:69,z:5,present:true,link:remote.id};
+  f.context.logistics={receivers:f.registeredReceivers,
+    collectors:[col]};
+  f.context.findCollectorById=id=>id===col.id?col:undefined;
+  f.context.collectorAt=()=>f.chestA;
+  f.context.uceBulkOwnerId=b=>b.dimension.id+'|'+f.k(b.location);
+  f.put('hartsorter:receiver',remote.x,70,4);
+  f.put('hartlogistics:transporter',remote.x-1,70,4);
+  f.put('hartsorter:sorter',remote.x-1,69,4);
+  f.put('minecraft:barrel',remote.x-1,69,5,f.newContainer());
+  const bank=f.put('hartlogistics:bulk_storage',remote.x-2,70,4);
+  const entry={d:f.dim.id,x:remote.x-1,y:69,z:4,m:'wildcard',f:null};
+  f.entries.push(entry);
+  const authority={worldId:'mock',epoch:7};
+  const plan=()=>f.context.uceLinkedBankBulkRoutes(
+    f.receiver,COBBLE,authority,f.network());
+  const routes=plan();
+  assert.ok(routes);
+  assert.equal(routes.length,1);
+  assert.equal(routes[0].receiver.id,remote.id);
+  assert.equal(routes[0].leaderId,remote.id);
+  assert.equal(routes[0].bankOwnerId,
+    f.context.uceBulkOwnerId(bank));
+  assert.ok(routes[0].witness.startsWith('IBB1|'));
+  assert.equal(plan()[0].witness,routes[0].witness);
+  entry.m='filter';
+  entry.f={match:{typeId:'minecraft:cobblestone'}};
+  assert.equal(plan(),undefined,
+    'remote accepting Filter invalidates all Bulk spill candidates');
+  entry.m='wildcard';entry.f=null;
+  col.link='unregistered-receiver';
+  assert.equal(plan(),undefined,
+    'unknown Collector endpoint must not authorize remote Bulk');
 });
 test('remote Filter can be discovered through second verified Collector bank branch',()=>{
   const f=fixture();
