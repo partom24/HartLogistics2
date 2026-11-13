@@ -349,6 +349,157 @@ function uceReceiverHasNewMRInput(receiver){
     }
     return false;
 }
+/*
+ * ONE native ItemStack handoff from the source Receiver's already-owned
+ * nine-slot carrier to the final Filter-bank Receiver's carrier.
+ *
+ * The same existing native journal is PREPARED before Container.moveItem.
+ * Both original carrier ticket records must be independently updated to
+ * RELEASED/ADMITTED and physically reconciled before ACK. At no point is
+ * an MR ItemStack serialized, reconstructed, copied, or placed into an
+ * ordinary count ledger. A failed move, ticket write or ACK remains HOLD.
+ *
+ * Return undefined only if no authenticated interbank Filter path exists.
+ * A selected path with unavailable target capacity/owner returns HOLD and
+ * MUST NOT be replaced by a weaker Wildcard output.
+ */
+function uceTryInterbankMrHandoff(authority,receiver,registry,host,
+                                  sourceAnchor,sourceSlot,item){
+    try{
+        if(!authority||!receiver||!registry||!host?.container||
+           !Number.isSafeInteger(sourceSlot)||sourceSlot<0||
+           sourceSlot>=host.container.size||
+           !item||uceClassifyLiveStack(item)!=='MR')
+            return undefined;
+        const network=ucePipeRouteNetwork(receiver);
+        const selected=uceSelectInterbankFilteredRoute(
+            receiver,network,item,authority,false);
+        if(!selected)return undefined;
+        const target=selected.receiver;
+        const targetAnchor={dimensionId:target.d,
+            x:target.x,y:target.y,z:target.z};
+        const checked=()=> {
+            const fresh=uceSelectInterbankFilteredRoute(
+                receiver,ucePipeRouteNetwork(receiver),
+                item,authority,false);
+            return !!fresh&&fresh.witness===selected.witness&&
+                fresh.receiver.id===target.id&&
+                uceLiveReceiverOwner(receiver.id,sourceAnchor)&&
+                uceLiveReceiverOwner(target.id,targetAnchor);
+        };
+        if(!checked())return {ok:false,status:'HOLD',
+            reason:'interbank_mr_route_changed'};
+        let targetHost=registry.inspectHost({
+            ownerId:target.id,anchor:targetAnchor});
+        if(!targetHost.ok&&targetHost.reason==='carrier_record_missing'){
+            // Exactly one new empty target host for a present MR item and
+            // authenticated live route. RESERVED/ambiguous older hosts never
+            // auto-respawn. A failed creation remains frozen for manual audit.
+            const created=registry.registerEmptyHost({
+                ownerId:target.id,anchor:targetAnchor});
+            if(!created.ok)return {ok:false,status:'HOLD',
+                reason:'interbank_mr_target_host:'+created.reason};
+            targetHost=registry.inspectHost({
+                ownerId:target.id,anchor:targetAnchor});
+        }
+        if(!targetHost.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_host:'+targetHost.reason};
+        const ownedSource=registry.inspectCustody({
+            ownerId:receiver.id,anchor:sourceAnchor});
+        const ownedTarget=registry.inspectCustody({
+            ownerId:target.id,anchor:targetAnchor});
+        if(!ownedSource.ok||!ownedTarget.ok||
+           !ownedSource.slots.includes(sourceSlot))
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_carrier_ticket_not_verified'};
+        if(ownedTarget.free<1)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_carrier_full'};
+        let destinationSlot=-1;
+        for(let i=0;i<targetHost.container.size;i++){
+            if(targetHost.container.getItem(i)===undefined){
+                destinationSlot=i;break;
+            }
+        }
+        if(destinationSlot<0)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_slots_full'};
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_operation_id_exhausted'};
+        const from={ownerId:receiver.id,
+            container:host.container,slot:sourceSlot};
+        const to={ownerId:target.id,
+            container:targetHost.container,slot:destinationSlot};
+        const ownership=ref=>{
+            if(!checked())return false;
+            if(ref.ownerId===receiver.id&&
+               ref.container===host.container&&
+               ref.slot===sourceSlot)
+                return registry.inspectHost({
+                    ownerId:receiver.id,anchor:sourceAnchor}).ok;
+            if(ref.ownerId===target.id&&
+               ref.container===targetHost.container&&
+               ref.slot===destinationSlot)
+                return registry.inspectHost({
+                    ownerId:target.id,anchor:targetAnchor}).ok;
+            return false;
+        };
+        const bothTickets=intent=>{
+            if(intent?.operationId!==operationId||
+               intent.from?.ownerId!==from.ownerId||
+               intent.to?.ownerId!==to.ownerId||
+               intent.from.slot!==sourceSlot||
+               intent.to.slot!==destinationSlot||
+               !registry.durableOwnershipWitness(intent))return false;
+            const old=registry.inspectCustody({
+                ownerId:receiver.id,anchor:sourceAnchor});
+            const next=registry.inspectCustody({
+                ownerId:target.id,anchor:targetAnchor});
+            return old.ok&&next.ok&&
+                !old.slots.includes(sourceSlot)&&
+                next.slots.includes(destinationSlot);
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:ownership,
+            durableOwnershipWitness:bothTickets
+        });
+        if(!port.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_native_port:'+port.reason};
+        const moved=port.moveWhole({operationId,from,to});
+        if(!moved.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_move:'+moved.reason};
+        if(moved.status!=='NATIVE_MOVED_PENDING_OWNERSHIP_ACK')
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_move_unexpected_result'};
+        // NEVER acknowledge after only one ownership record changes.
+        // Both records persist independently; a crash between them
+        // deliberately leaves the global native intent for reconciliation.
+        const released=registry.stageMovedTicket({
+            ownerId:receiver.id,anchor:sourceAnchor});
+        if(!released.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_source_ticket:'+released.reason};
+        const admitted=registry.stageMovedTicket({
+            ownerId:target.id,anchor:targetAnchor});
+        if(!admitted.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_ticket:'+admitted.reason};
+        if(!bothTickets({operationId,from,to}))
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_two_owner_custody_unverified'};
+        const ack=port.ackWhole({operationId,from,to});
+        if(!ack.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_ack:'+ack.reason};
+        if(ack.status!=='NATIVE_CUSTODY_ACK_READBACK')
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_ack_unexpected_result'};
+        return {ok:true,status:'INTERBANK_MR_NATIVE_CUSTODY_ACK',
+            moved:moved.destinationWitness?.amount||0,
+            fromOwner:receiver.id,toOwner:target.id,
+            operationId,routeHops:selected.hops};
+    }catch(_){return {ok:false,status:'HOLD',
+        reason:'interbank_mr_runtime_unreadable'};}
+}
 const UCE_MR_SCAN_BUDGET=16;
 const UCE_MR_MOVE_BUDGET=8;
 function uceMrServiceTick(authority){
@@ -495,6 +646,36 @@ function uceMrServiceTick(authority){
                     outputNative={ownerId:route.ownerId,
                         container:route.dest.container,
                         blockVerified:true,locked:false};
+                }
+            }
+        }
+        // An authenticated downstream Filter in the linked-bank chain
+        // outranks a local Auto/Wildcard for native MR too. The host-to-host
+        // transfer is the SAME global native journal and two ticket records.
+        // The input and existing Hopper output rules remain unchanged.
+        if(!output&&!blockIsRedstonePowered(rb)){
+            const owned=registry.inspectCustody({ownerId,anchor});
+            if(owned.ok&&owned.slots.length){
+                const fromSlot=owned.slots[0];
+                const stack=host.container.getItem(fromSlot);
+                if(stack&&uceClassifyLiveStack(stack)==='MR'){
+                    const forwarded=uceTryInterbankMrHandoff(
+                        authority,receiver,registry,host,anchor,
+                        fromSlot,stack);
+                    if(forwarded!==undefined){
+                        if(!forwarded.ok)
+                            uceBridgeLog(forwarded.reason,ownerId);
+                        else if(forwarded.moved>0){
+                            considered++;
+                            ucePerfRecordMove('MR',forwarded.moved);
+                        }
+                        if(uceUnifiedJournalHold()||
+                           considered>=UCE_MR_MOVE_BUDGET)break;
+                        // Exactly ONE MR operation is attempted per owner:
+                        // never fall back to weaker local output after an
+                        // interbank attempt fails or completes.
+                        continue;
+                    }
                 }
             }
         }
