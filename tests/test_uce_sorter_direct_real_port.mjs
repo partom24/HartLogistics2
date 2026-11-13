@@ -82,6 +82,9 @@ function fixture({lastSlot=false}={}){
       for(let i=0;i<c.size;i++)if(c.getItem(i)===undefined)return i;
       return -1;
     },
+    ucePlainItemIdentity:()=>undefined,
+    uceClassifyLiveStack:()=> 'MR',
+    findAcceptSlot:()=>undefined,
     uceLiveHopperOwner:()=>true,
     getBlock:(d,x,y,z)=>dim.getBlock({x,y,z}),
     uceSameLoadedBlock:(a,b)=>a?.typeId===b?.typeId&&
