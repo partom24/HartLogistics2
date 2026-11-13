@@ -206,6 +206,19 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('if(paired.length!==1||c.size!==54)return false;',s)
         self.assertNotIn("!['minecraft:chest','minecraft:barrel'].includes(dest.typeId)",s)
 
+    def test_generated_link_menu_executes_original_pg08_behavior(self):
+        # Source-only execution of the assembled Bedrock main.js menu, not
+        # merely an overlay module test or an actual client UI observation.
+        env=os.environ.copy()
+        env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
+        result=subprocess.run(
+            ["node","--test",str(ROOT/"tests/test_uce_link_menu_mock.mjs")],
+            cwd=ROOT,env=env,stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,text=True,timeout=60)
+        self.assertEqual(result.returncode,0,
+                         "generated HL2 Collector/Receiver menu failed:\\n"+
+                         result.stdout[-14000:])
+
     def test_original_pg08_link_menu_runs_in_assembled_uce_product(self):
         bp=json.loads((self.bp/"manifest.json").read_text())
         ui=[d for d in bp["dependencies"]
