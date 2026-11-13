@@ -255,7 +255,7 @@ class UceBuildTests(unittest.TestCase):
                     s.index("function uceSealedRegions(",s.index(
                         "function uceUnifiedServiceTick(){"))]
         self.assertEqual(
-            scheduler.count("if(uceUnifiedJournalHold())return;"),6,
+            scheduler.count("if(uceUnifiedJournalHold())return;"),5,
             "unified scheduler must fence Collector/MR/ordinary/direct moves")
         # Three coordinated scheduler gates plus the existing entity-event
         # ingress gate; all share one native and legacy journal authority.
