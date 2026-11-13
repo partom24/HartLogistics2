@@ -174,6 +174,8 @@ test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',(
     receiverAt:()=>receiverBlock,blockIsRedstonePowered:()=>false,
     receiverOutputHopper:()=>({block:sourceBlock,locked:false,
       container:{size:5,isValid:true,getItem:()=>undefined}}),
+    uceOrdinaryHopperCandidate:()=>({
+      slot:0,partialOutput:false,beforeAmount:0,room:64}),
     uceOrdinaryAccountSource:()=> 'sealed',
     uceMaybeRegisterBulk:()=>false,
     ucePipeRouteNetwork:()=>undefined,

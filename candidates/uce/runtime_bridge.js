@@ -605,27 +605,34 @@ function ucePlainItemIdentity(stack){
 // ordinary ledger or native writer. Unknown/metadata-rich item shapes HOLD.
 function uceOrdinaryHopperCandidate(container,item){
     try{
-        if(!container?.isValid||!item||
-           ucePlainItemIdentity(item)===undefined)return undefined;
-        const found=findAcceptSlot(container,item);
-        if(!found||!Number.isSafeInteger(found.slot)||
-           found.slot<0||found.slot>=container.size||
-           !Number.isSafeInteger(found.before)||found.before<0||
-           !Number.isSafeInteger(found.room)||found.room<1)return undefined;
-        const existing=container.getItem(found.slot);
-        if(found.before===0){
-            return existing===undefined?{slot:found.slot,
-                partialOutput:false,beforeAmount:0,
-                room:Math.min(found.room,item.maxAmount)}:undefined;
+        if(!container?.isValid||!Number.isSafeInteger(container.size)||
+           container.size<1||!item||!Number.isSafeInteger(item.maxAmount)||
+           item.maxAmount<1)return undefined;
+        const wanted=ucePlainItemIdentity(item);
+        if(wanted===undefined)return undefined;
+        let empty=-1;
+        // Bedrock's vanilla findAcceptSlot prefers a compatible merge.
+        // A metadata-rich or uncertain occupied slot must not hide a
+        // genuinely empty slot later in the same vanilla Hopper.
+        for(let i=0;i<container.size;i++){
+            const existing=container.getItem(i);
+            if(existing===undefined){
+                if(empty<0)empty=i;
+                continue;
+            }
+            if(!Number.isSafeInteger(existing.amount)||
+               !Number.isSafeInteger(existing.maxAmount)||
+               existing.amount<1||existing.amount>=existing.maxAmount||
+               existing.maxAmount!==item.maxAmount||
+               ucePlainItemIdentity(existing)!==wanted)continue;
+            if(existing.isStackableWith(item)!==true||
+               item.isStackableWith(existing)!==true)continue;
+            return {slot:i,partialOutput:true,
+                beforeAmount:existing.amount,
+                room:existing.maxAmount-existing.amount};
         }
-        if(!existing||existing.amount!==found.before||
-           ucePlainItemIdentity(existing)!==ucePlainItemIdentity(item)||
-           existing.maxAmount!==item.maxAmount||
-           existing.isStackableWith(item)!==true||
-           item.isStackableWith(existing)!==true||
-           existing.amount+found.room>existing.maxAmount)return undefined;
-        return {slot:found.slot,partialOutput:true,
-            beforeAmount:found.before,room:found.room};
+        return empty<0?undefined:{slot:empty,
+            partialOutput:false,beforeAmount:0,room:item.maxAmount};
     }catch(_){return undefined;}
 }
 function uceNativeOutputSlot(container){
