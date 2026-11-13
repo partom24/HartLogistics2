@@ -201,3 +201,89 @@ test('restart finds pending native intent but never automatically settles or rep
   holds(p.moveWhole({operationId:'again',from:f.from,to:f.to}),
     'native_intent_pending_global');
 });
+
+function plainStack(amount,typeId='minecraft:stone'){
+  return {
+    typeId,amount,maxAmount:64,
+    isStackableWith(other){return other?.typeId===typeId&&other.maxAmount===64;},
+    clone(){return plainStack(this.amount,typeId);}
+  };
+}
+function partialFixture({throwAfterCredit=false}={}){
+  const values=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
+    schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',worldId,epoch,
+    writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
+    migrationReconciled:true
+  })]]);
+  function container(item,fail=false){
+    const state=[item];
+    return {
+      size:1,isValid:true,getItem:i=>state[i],
+      moveItem(){throw Error('partial must not use whole-stack moveItem');},
+      setItem(i,v){
+        state[i]=v;
+        if(fail)throw Error('setter threw after physical effect');
+      },
+      get current(){return state[0];}
+    };
+  }
+  const source=container(plainStack(12));
+  const target=container(plainStack(60),throwAfterCredit);
+  const from={ownerId:'sorter:source',container:source,slot:0};
+  const to={ownerId:'sorter:destination',container:target,slot:0};
+  let writes=0;
+  const world={getDynamicProperty:k=>values.get(k),
+    setDynamicProperty(k,v){
+      writes++;
+      if(v===undefined)values.delete(k);else values.set(k,v);
+    }};
+  const opts={world,worldId,epoch,externalFence:()=>true,
+    verifyEndpointOwner:()=>true,
+    durableOwnershipWitness:()=>true,
+    certifyOrdinaryEscrow:(item,key,n)=>
+      !!item&&item.typeId===key&&item.amount===n&&
+      item.maxAmount===64&&item.isStackableWith(plainStack(1))
+  };
+  const port=createUnifiedNativePort(opts);
+  assert.equal(port.ok,true);
+  const args={operationId:'certified-plain-merge-1',from,to,
+    key:'minecraft:stone',count:4};
+  return {port,values,source,target,args,world,opts,
+    get writes(){return writes;}};
+}
+test('certified plain partial merge updates both exact native slots under one intent and ACK',()=>{
+  const f=partialFixture();
+  const moved=f.port.moveCertifiedPartial(f.args);
+  assert.equal(moved.ok,true,moved.reason);
+  assert.equal(moved.movedCount,4);
+  assert.equal(moved.status,'NATIVE_MOVED_PENDING_OWNERSHIP_ACK');
+  assert.equal(f.source.current.amount,8);
+  assert.equal(f.target.current.amount,64);
+  assert.equal(JSON.parse(f.values.get(UCE_NATIVE_INTENT_KEY)).phase,'MOVED_INSPECTED');
+  const ack=f.port.ackCertifiedPartial(f.args);
+  assert.equal(ack.ok,true,ack.reason);
+  assert.equal(ack.status,'NATIVE_CUSTODY_ACK_READBACK');
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),false);
+  assert.equal(f.writes,3);
+});
+test('partial credit ambiguous after mutation remains PREPARED and blocks new physical moves',()=>{
+  const f=partialFixture({throwAfterCredit:true});
+  holds(f.port.moveCertifiedPartial(f.args),'plain_partial_credit_ambiguous');
+  assert.equal(f.source.current.amount,12);
+  assert.equal(f.target.current.amount,64);
+  assert.equal(JSON.parse(f.values.get(UCE_NATIVE_INTENT_KEY)).phase,'PREPARED');
+  assert.equal(f.port.getSessionQuarantine(),true);
+  const restarted=createUnifiedNativePort(f.opts);
+  holds(restarted.moveCertifiedPartial({...f.args,operationId:'another-merge'}),
+    'native_intent_pending_global');
+  assert.equal(f.values.has(UCE_NATIVE_INTENT_KEY),true);
+});
+test('metadata-rich or over-capacity partial merge refuses before any journal',()=>{
+  const f=partialFixture();
+  f.target.setItem(0,plainStack(64));
+  holds(f.port.moveCertifiedPartial(f.args),'plain_partial_capacity_or_owner_unverified');
+  assert.equal(f.writes,0);
+  f.target.setItem(0,plainStack(60,'minecraft:diamond_pickaxe'));
+  holds(f.port.moveCertifiedPartial(f.args),'plain_partial_item_not_certified');
+  assert.equal(f.writes,0);
+});
