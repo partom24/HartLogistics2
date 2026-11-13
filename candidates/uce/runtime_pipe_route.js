@@ -282,13 +282,45 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
         return undefined;
     const graph=ucePipeRouteNetwork(receiver),root=receiverAt(receiver);
     if(!graph||!root)return undefined;
-    const candidates=[];
+    const candidates=[],unresolved=[];
+    const routeOrder=(a,b)=>a.priority-b.priority ||
+        a.entry.y-b.entry.y||a.entry.x-b.entry.x||
+        a.entry.z-b.entry.z;
     for(const entry of graph.entries) {
         const mode=sorterMode(entry);
         if(mode==='bypass'||(mode==='filter'&&!entry.f))continue;
+        const b=sorterAt(entry);
+        if(b&&blockIsRedstonePowered(b))continue;
+        const eligiblePriority=mode==='filter'&&
+            matchesFilter(item,entry.f)?0:
+            mode==='auto'?1:
+            mode==='wildcard'&&!onlyPreferred?2:-1;
+        if(eligiblePriority<0)continue;
         const dest=uceReadOnlySorterDestination(entry,root);
-        if(!dest||graph.inputs.some(input=>
-            uceSameLoadedBlock(input.block,dest.block)))continue;
+        if(!dest){
+            const face=b&&facingOffset(b),p=b?.location;
+            let target;
+            try{
+                if(face&&p)target=b.dimension.getBlock({
+                    x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
+            }catch(_){}
+            // A matching Collector Sorter is a LIVE 1.4.1 forwarding
+            // destination, but its UCE pipe→linked-Receiver transaction is
+            // not implemented yet. Never silently skip it for Wildcard/Bulk
+            // or an otherwise lower-priority local storage destination.
+            // Unknown/unloaded or unverifiable native storage is equally
+            // forbidden as proof that a stronger route is unavailable.
+            if(!target||
+               (target.typeId===COLLECTOR_ID&&mode!=='auto')||
+               (target.typeId!==COLLECTOR_ID&&supportedStorage(target)))
+                unresolved.push({entry,priority:eligiblePriority});
+            continue;
+        }
+        if(graph.inputs.some(input=>
+            uceSameLoadedBlock(input.block,dest.block))){
+            unresolved.push({entry,priority:eligiblePriority});
+            continue;
+        }
         // Ordinary account withdrawals may use a matching partially filled
         // native slot. This is NOT a second writer: the ledger boundary uses
         // the existing journaled certified partial port. Metadata-rich
@@ -340,10 +372,14 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
         candidates.push({entry,mode,dest,slot:empty,priority,
             partialOutput,beforeAmount,room,allowPlainMerge});
     }
-    candidates.sort((a,b)=>a.priority-b.priority ||
-        a.entry.y-b.entry.y||a.entry.x-b.entry.x||
-        a.entry.z-b.entry.z);
+    candidates.sort(routeOrder);
+    unresolved.sort(routeOrder);
     const selected=candidates[0];
+    // A priority-eligible unresolved Collector or unknown target that sorts
+    // ahead of the chosen destination must HOLD. A verified local Filter may
+    // still serve an item ahead of a lower-priority forwarding wildcard.
+    if(unresolved.length&&(!selected||
+       routeOrder(unresolved[0],selected)<=0))return undefined;
     if(!selected)return undefined;
     const destId=ucePipeStorageOwnerId(selected.dest.block);
     if(!destId)return undefined;
