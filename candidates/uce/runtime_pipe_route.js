@@ -431,21 +431,30 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
            !receiverAt(receiver)||receiverOutputHopper(receiver)||
            blockIsRedstonePowered(receiverAt(receiver)))
             return undefined;
-        const visited=new Set([receiver.id]),path=[];
-        let current=receiver,network=graph;
-        for(let hop=0;hop<logistics.receivers.length;hop++){
-            if(!network||!Array.isArray(network.entries)||
+        // Explore every independently linked Receiver at most ONCE. A
+        // Collector cycle adds no new destination authority, and a later
+        // branch cannot re-spend an already visited native Receiver. DFS
+        // preserves original Filter then Wildcard and bottom-up ordering.
+        // Any unknown eligible branch encountered before a chosen Filter
+        // HOLDS; no speculative fallback into local Bulk or Wildcard.
+        const expanded=new Set(),todo=[{
+            current:receiver,network:graph,path:[]}];
+        while(todo.length){
+            const {current,network,path}=todo.pop();
+            if(expanded.has(current.id))continue;
+            if(expanded.size>=logistics.receivers.length||
+               !network||!Array.isArray(network.entries)||
                !network.receiverIds?.includes(current.id)||
                !receiverAt(current)||receiverOutputHopper(current)||
                blockIsRedstonePowered(receiverAt(current)))
                 return undefined;
-            // Matching native Filter takes priority at this bank. At the
-            // source, it must be served locally. At any later bank it is
-            // an authenticated final owner for the source count balance.
+            expanded.add(current.id);
             const local=uceChoosePipeDestination(
                 current,item,true,undefined,allowPlainMerge);
             if(local?.priority===0){
-                if(hop===0)return undefined;
+                // Local Filter still takes priority when it physically
+                // wins this original Sorter column, even at the source.
+                if(!path.length)return undefined;
                 const first=path[0];
                 const segments=path.map(edge=>{
                     const e=edge.entry;
@@ -476,8 +485,9 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
                 const block=sorter.dimension.getBlock({
                     x:p.x+face.x,y:p.y+face.y,z:p.z+face.z});
                 if(!block)return undefined;
-                // A remote Filter may not bypass an uncertain local Filter
-                // that could still be the original priority winner.
+                // An unknown matching local Filter is NOT proof that
+                // another bank may claim the item. A known full Filter
+                // may be bypassed, but never an unverifiable native owner.
                 if(priority===0&&supportedStorage(block)&&
                    !uceReadOnlySorterDestination(
                        entry,receiverAt(current)))return undefined;
@@ -500,15 +510,17 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
             candidates.sort((a,b)=>a.priority-b.priority||
                 a.entry.y-b.entry.y||a.entry.x-b.entry.x||
                 a.entry.z-b.entry.z);
-            if(!candidates.length)return undefined;
-            // Choosing any later or less-preferred branch when the first
-            // link does not lead to a verified final Filter is unsafe.
-            const selected=candidates[0];
-            if(visited.has(selected.receiver.id))return undefined;
-            visited.add(selected.receiver.id);
-            path.push(selected);
-            current=selected.receiver;
-            network=ucePipeRouteNetwork(current);
+            // Reverse push means the earlier original Sorter winner is
+            // explored FIRST, with alternate verified Collector branches
+            // available only if its chain has no accepting remote Filter.
+            for(let i=candidates.length-1;i>=0;i--){
+                const edge=candidates[i];
+                if(expanded.has(edge.receiver.id))continue;
+                const nextNetwork=ucePipeRouteNetwork(edge.receiver);
+                if(!nextNetwork)return undefined;
+                todo.push({current:edge.receiver,network:nextNetwork,
+                    path:[...path,edge]});
+            }
         }
         return undefined;
     }catch(_){return undefined;}
