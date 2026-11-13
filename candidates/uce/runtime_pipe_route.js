@@ -214,20 +214,46 @@ function uceReadOnlySorterDestination(entry,root) {
         const at=b.location;
         const dest=b.dimension.getBlock({
             x:at.x+face.x,y:at.y+face.y,z:at.z+face.z});
-        if(!dest||!ucePipeSameDimension(root,dest) ||
-           !['minecraft:chest','minecraft:barrel'].includes(dest.typeId))
+        // Exactly the original 1.4.1 supported-storage set. The existing
+        // native owner proof checks both halves of a double chest (54 slots),
+        // and the single-chest shape (27 slots), without copying ItemStacks.
+        // Reuse it for pipe output rather than creating a second rule set.
+        if(!dest||!ucePipeSameDimension(root,dest)||
+           !supportedStorage(dest)||!uceDirectStorageOwnerBlock(dest))
             return undefined;
-        if(dest.typeId==='minecraft:chest'){
-            for(const side of PG26_FACES) {
-                if(side.y!==0)continue;
-                const near=pg26Neighbor(dest,side);
-                if(!near||near.typeId==='minecraft:chest')
-                    return undefined;
+        const c=blockContainer(dest);
+        if(!c?.isValid)return undefined;
+        if(dest.typeId!=='minecraft:chest'&&
+           dest.typeId!=='minecraft:trapped_chest'&&c.size!==27)
+            return undefined;
+        return {block:dest,container:c};
+    }catch(_){return undefined;}
+}
+// Distinct halves of one verified double chest represent ONE inventory
+// owner. Never allocate two independent custody identities for the aliases.
+function ucePipeStorageOwnerId(block){
+    try{
+        if(!block||!uceDirectStorageOwnerBlock(block))return undefined;
+        let at=pg26PositionKey(block.location);
+        if(block.typeId==='minecraft:chest'||
+           block.typeId==='minecraft:trapped_chest'){
+            const c=blockContainer(block);
+            if(c.size===54){
+                const halves=[];
+                for(const face of PG26_FACES){
+                    if(face.y!==0)continue;
+                    const other=pg26Neighbor(block,face);
+                    if(!other)return undefined;
+                    if(other.typeId===block.typeId)
+                        halves.push(other);
+                }
+                if(halves.length!==1||
+                   !uceDirectStorageOwnerBlock(halves[0]))return undefined;
+                const mate=pg26PositionKey(halves[0].location);
+                if(mate<at)at=mate;
             }
         }
-        const c=dest.getComponent('minecraft:inventory')?.container;
-        if(!c||!c.isValid||c.size!==27)return undefined;
-        return {block:dest,container:c};
+        return block.dimension.id+'|'+block.typeId+'|'+at;
     }catch(_){return undefined;}
 }
 function ucePipeEmptySlot(container) {
@@ -326,8 +352,8 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
         a.entry.z-b.entry.z);
     const selected=candidates[0];
     if(!selected)return undefined;
-    const destId=selected.dest.block.dimension.id+'|'+
-        pg26PositionKey(selected.dest.block.location);
+    const destId=ucePipeStorageOwnerId(selected.dest.block);
+    if(!destId)return undefined;
     const routeId=graph.fingerprint+'#'+selected.entry.d+'|'+
         selected.entry.x+','+selected.entry.y+','+selected.entry.z+
         '#'+selected.mode+'#'+destId;
