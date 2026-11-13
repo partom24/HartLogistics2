@@ -1800,11 +1800,23 @@ function uceSendDiagnostics(origin){
             'hartlogistics:uce_native_intent_v1');
         const boundary=world.getDynamicProperty(
             'hartlogistics:uce_boundary_intent_v1');
+        const federated=world.getDynamicProperty(
+            'hartlogistics:uce_federated_intent_v1');
         const q4native=world.getDynamicProperty('hartsorter:journal_v1');
         const q4queue=world.getDynamicProperty('hartsorter:queue_journal_v1');
         lines.push('§7Pending custody: §fMR '+(native?'HOLD':'clear')+
             ' | Ordinary '+(boundary?'HOLD':'clear')+
+            ' | Federated '+(federated?'HOLD':'clear')+
             ' | Q4 '+(q4native||q4queue?'HOLD':'clear'));
+        if(federated){
+            let tx;
+            try{tx=JSON.parse(federated);}catch(_){}
+            if(tx?.schema==='hart-uce-federated-intent-v1'){
+                lines.push('§cFederated HOLD: '+tx.phase+
+                    ' §f'+tx.fromAccount+' -> '+tx.toAccount+
+                    ' x'+tx.count+' §c(no automatic replay)');
+            }else lines.push('§cFederated journal unreadable; global HOLD');
+        }
     }catch(_){
         lines.push('§cCustody journals unreadable: global HOLD');
     }

@@ -9,7 +9,8 @@ const marker='function uceSendDiagnostics(origin){';
 const a=src.indexOf(marker),b=src.indexOf('\n}',a);
 assert.ok(a>=0&&b>a);
 const fn=src.slice(a,b+2);
-function fixture({active=true,sealed=true,native=false,boundary=false}={}){
+function fixture({active=true,sealed=true,native=false,boundary=false,
+  federated=false}={}){
   const lines=[],calls=[];
   const auth=active?{worldId:'minecraft:overworld:141',epoch:4}:undefined;
   const seal={shards:[{key:'hartlogistics:uce_shard_0000_v1'}]};
@@ -21,6 +22,10 @@ function fixture({active=true,sealed=true,native=false,boundary=false}={}){
         return native?'{"phase":"PREPARED"}':undefined;
       if(key==='hartlogistics:uce_boundary_intent_v1')
         return boundary?'{"phase":"ESCROW_READY"}':undefined;
+      if(key==='hartlogistics:uce_federated_intent_v1')
+        return federated?JSON.stringify({schema:'hart-uce-federated-intent-v1',
+          phase:'DEBIT_INSPECTED',fromAccount:'receiver:a',
+          toAccount:'bulk:b',count:32}):undefined;
       return undefined;
     },
     setDynamicProperty(){throw Error('diagnostics must never write');}
@@ -204,4 +209,13 @@ test('read-only status shows expected ACTIVE ID beside the observed different en
   assert.match(lines.join('|'),/Entity.*observed-carrier/);
   assert.match(lines.join('|'),/tickets UNKNOWN@UNKNOWN/);
   assert.match(lines.join('|'),/HOLD:carrier_entity_id_changed/);
+});
+
+test('status isolates unresolved cross-shard custody and never clears the global intent',()=>{
+  const f=fixture({federated:true});f.run();
+  const joined=f.lines.join('|');
+  assert.match(joined,/Federated HOLD/);
+  assert.match(joined,/DEBIT_INSPECTED/);
+  assert.match(joined,/receiver:a.*bulk:b.*32/);
+  assert.ok(f.calls.includes('hartlogistics:uce_federated_intent_v1'));
 });

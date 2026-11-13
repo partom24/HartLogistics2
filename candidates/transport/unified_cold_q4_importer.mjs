@@ -75,7 +75,9 @@ function rawRecords(world,receiver){
 }
 function journalClear(world){
   for(const key of ['hartsorter:journal_v1','hartsorter:queue_journal_v1',
-    'hartlogistics:uce_native_intent_v1']){
+    'hartlogistics:uce_native_intent_v1',
+    'hartlogistics:uce_boundary_intent_v1',
+    'hartlogistics:uce_federated_intent_v1']){
     const r=read(world,key);
     if(!r.ok)return r;
     if(r.value!==undefined&&r.value!==null&&r.value!=='')
