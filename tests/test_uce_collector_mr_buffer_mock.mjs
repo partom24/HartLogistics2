@@ -78,6 +78,11 @@ function fixture({receiverLoaded=false,powered=false,
         stillSelected:()=>sourceEligible}];
     },
     uceLiveHopperOwner:()=>true,
+    uceSameLoadedBlock:(a,b)=>!!a&&!!b&&
+      a.typeId===b.typeId&&a.dimension?.id===b.dimension?.id&&
+      a.location?.x===b.location?.x&&
+      a.location?.y===b.location?.y&&
+      a.location?.z===b.location?.z,
     uceClassifyLiveStack:stack=>stack===native?'MR':
       stack===ordinary?'ORDINARY':'UNKNOWN',
     ucePlainItemIdentity:stack=>stack===ordinary?
