@@ -20,6 +20,7 @@ function fixture({receivers=40,moveEvery=true,holdAfter=0}={}){
     id:'receiver-'+i,d:'minecraft:overworld',x:i,y:70,z:9,present:true
   }));
   const context={
+    world:{},
     logistics:{receivers:owners,collectors:[]},
     uceOrdinaryAccountSource:()=> 'sealed-region',
     receiverAt:()=>({typeId:'hartsorter:receiver'}),
