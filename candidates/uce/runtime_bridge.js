@@ -1000,10 +1000,32 @@ function uceFederatedRouteVerified(authority,receiver,tx,direction){
         if(!state.ok)return false;
         // The same Bulk policy validates all registered bank members and
         // the single controller. Never borrow an unproven foreign account.
-        return planUnifiedBulkService({
+        const governed=planUnifiedBulkService({
             snapshot:state.snapshot,receiverOwnerId:leader.id,
             connectedBankOwnerIds:connected
-        }).ok===true;
+        });
+        if(!governed.ok)return false;
+        // Graph coordinates alone do not prove the Sorter filter/mode is
+        // still eligible. Re-evaluate the actual item and Receiver output
+        // priority immediately before EACH of the two shard commits.
+        const def=JSON.parse(tx.key);
+        if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+            return false;
+        const item=new ItemStack(def.typeId,1);
+        if(uceClassifyLiveStack(item)!=='ORDINARY')
+            return false;
+        const output=receiverOutputHopper(receiver);
+        let preferred=false;
+        if(!blockIsRedstonePowered(receiverAt(receiver))){
+            if(output&&!output.locked)
+                preferred=!!uceOrdinaryHopperCandidate(output.container,item);
+            else if(!output)
+                preferred=!!uceChoosePipeDestination(
+                    receiver,item,true,undefined,true);
+        }
+        // Overflow cannot bypass a newly available Filter/Auto output.
+        // Refill from Bulk requires a genuinely usable preferred output.
+        return bankFrom?preferred:!preferred;
     }catch(_){return false;}
 }
 function uceOrdinaryServiceTick(authority){
