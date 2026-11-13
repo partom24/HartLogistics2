@@ -86,9 +86,11 @@ architecture/evidence documents.
 - **Input correction:** a verified single 27-slot vanilla source may feed a
   loaded connected Transporter at any vertical position; the former
   `source.y >= receiver.y` restriction incorrectly rejected legitimate
-  descending pipes. Double-chest source aliases still HOLD until unique
-  cross-component source ownership is proven. Supported source classes now
-  match the original vanilla storage whitelist (27-slot safe shapes only).
+  descending pipes. Verified reciprocal 54-slot double-chest sources are now
+  canonicalized to ONE loaded native inventory owner across both aliases;
+  uncertain sizes, unloaded halves, foreign-network contacts, and any input
+  also selected as a Sorter output HOLD. Approved 27-slot single inventory
+  sources remain unchanged. This is source-tested, NOT BDS-certified.
 - **Missing-forwarding safety fence:** a matching Collector-facing Sorter is
   *not* silently skipped in favor of a later Wildcard or weaker local route.
   An unloaded or unverifiable higher-priority output also HOLDs. This
@@ -172,6 +174,44 @@ No owner world, LAB/PG35/PG42 archive, native item or production pack was touche
   unloaded Receiver and Collector-side MR waiting, full Q4 migration, true
   Bedrock native move/save verification and 200k-item sustained throughput.
   No production/LAB/world/backup mutation or owner BDS request.
+
+## 2026-11-13 — Existing PG08 link UX and double-chest source integration (source only)
+
+- The existing Bedrock 2.2.0 `@minecraft/server-ui` dependency and
+  PG08-proven Action/MessageForm concepts now drive actual UCE link/relink,
+  Receiver confirmation, Unlink, details and cancellation via
+  `candidates/uce/runtime_link_menu.js`. Both original player interaction
+  entry points are wired in `prepare_candidate.py`, without duplicate UI
+  imports. The *sole* `unified_link_registry.mjs` writer now accepts a
+  revisioned null-link receipt to unlink; it first independently verifies
+  the native Collector waiting carrier is physically empty with matching
+  tickets. Stale forms, expired selection, disconnected player and uncertain
+  custody refuse mutation. Source and generated Bedrock-main behavioral
+  tests cover these flows. **No new Q4 queue or link writer**.
+- **Transporter double-chest INPUT parity:** `runtime_pipe_route.js` now
+  reuses the existing reciprocal 54-slot native chest proof, canonicalizes
+  either physical chest half to one input owner, deduplicates two pipe
+  attachments, and checks *both* halves for foreign pipe connections.
+  The same canonical owner ID prevents a Sorter output into the opposite
+  half of its OWN connected input. Unloaded/missing half, wrong size, or
+  alias across unconnected pipe graphs HOLD. Physical Bedrock alias
+  behavior and throughput are not certified by mock tests.
+- **Unloaded Collector buffering:** the existing unified scheduler and one
+  native carrier / ordinary boundary are being used to stage MR and ordinary
+  Collector→sealed Receiver custody while a Receiver block is unloaded.
+  The newly added real-source mocks / generated integration tests are
+  **source-only**. No hard-crash flush ordering, accepted unload/reload BDS
+  gameplay or production rollout is claimed.
+- **CI:** PR #79 now groups superseded pull-request workflows for
+  cancellation to favor the newest exact-head validation, preserving
+  main/manual workflow evidence. The present head must be checked
+  independently; older successful jobs are not acceptance of these changes.
+
+Remaining release blockers include global controller/alternate-bank Bulk
+arbitration, more-than-128-segment bounded topology discovery, archived
+nonempty Q4 cutover/opaque metadata migration, real 200,000-item throughput
+and integrated BDS product acceptance. No LAB or production install or
+archive/world mutation occurred.
 
 ## Owner's current LAB boundary
 
