@@ -531,6 +531,183 @@ function uceTryInterbankMrHandoff(authority,receiver,registry,host,
     }catch(_){return {ok:false,status:'HOLD',
         reason:'interbank_mr_runtime_unreadable'};}
 }
+/*
+ * Collector-owned MR waiting custody for linked Receivers whose chunks are
+ * unloaded. A Collector already has a stable original block identity, so
+ * the EXISTING persistent nine-slot native-carrier registry can use it as an
+ * owner without introducing a second queue, journal, item serializer or
+ * scheduler. Only the original physically selected Hopper/Sorter sources
+ * may stage the native ItemStack. When the Receiver loads, BOTH carrier
+ * tickets are updated under ONE existing native PREPARED intent before ACK.
+ */
+const UCE_COLLECTOR_MR_SCAN_BUDGET=16;
+let uceCollectorMrCursor=0;
+function uceCollectorMrBufferTick(authority){
+    const collectors=logistics.collectors;
+    if(!Array.isArray(collectors)||!collectors.length)return;
+    let scanned=0;
+    for(let step=0;step<Math.min(collectors.length,
+                              UCE_COLLECTOR_MR_SCAN_BUDGET);step++){
+        scanned++;
+        const ix=(uceCollectorMrCursor+step)%collectors.length;
+        const col=collectors[ix];
+        if(!col||col.present===false||!col.link)continue;
+        const cb=collectorAt(col);
+        if(!cb||blockIsRedstonePowered(cb))continue;
+        const linked=findReceiverById(col.link);
+        if(!linked||linked.present===false||
+           !uceOrdinaryAccountSource(authority,linked.id))continue;
+        const anchor={dimensionId:col.d,x:col.x,y:col.y,z:col.z};
+        const receiverLoaded=!!receiverAt(linked);
+        const verifiedLink=()=> {
+            const live=findCollectorById(col.id);
+            const next=live&&findReceiverById(live.link);
+            return !!live&&live.present!==false&&
+                live.link===linked.id&&
+                uceLiveCollectorOwner(col.id,anchor)&&
+                next?.id===linked.id&&next.present!==false&&
+                !!uceOrdinaryAccountSource(authority,next.id);
+        };
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:(ownerId,at)=>
+                ownerId===col.id?uceLiveCollectorOwner(ownerId,at):
+                ownerId===linked.id?uceLiveReceiverOwner(ownerId,at):
+                false
+        });
+        if(!registry.ok){uceBridgeLog(
+            'collector MR registry '+registry.reason,col.id);continue;}
+        let carrier=registry.inspectHost({ownerId:col.id,anchor});
+        if(receiverLoaded){
+            // If this Collector has never needed its own native carrier,
+            // leave the original direct loaded-Receiver route unchanged.
+            if(!carrier.ok){
+                if(carrier.reason!=='carrier_record_missing')
+                    uceBridgeLog('collector MR host '+
+                        carrier.reason,col.id);
+                continue;
+            }
+            const owned=registry.inspectCustody({
+                ownerId:col.id,anchor});
+            if(!owned.ok){uceBridgeLog('collector MR custody '+
+                owned.reason,col.id);continue;}
+            if(!owned.slots.length)continue;
+            const slot=owned.slots[0];
+            let stack;
+            try{stack=carrier.container.getItem(slot);}catch(_){}
+            if(!stack||uceClassifyLiveStack(stack)!=='MR'){
+                uceBridgeLog('collector MR waiting identity HOLD',col.id);
+                continue;
+            }
+            const witness='CB1|'+col.id+'>'+linked.id;
+            const result=uceTryInterbankMrHandoff(
+                authority,col,registry,carrier,anchor,slot,stack,{
+                    receiver:linked,witness,
+                    verify:()=>verifiedLink()&&!!receiverAt(linked)&&
+                        !blockIsRedstonePowered(collectorAt(col))
+                });
+            if(!result?.ok)
+                uceBridgeLog('collector MR drain HOLD '+
+                    (result?.reason||'route_unavailable'),col.id);
+            else if(result.moved>0)ucePerfRecordMove('MR',result.moved);
+            uceCollectorMrCursor=(ix+1)%collectors.length;
+            return;
+        }
+        // Receiver is truly unloaded. Only the loaded Collector and its
+        // physically eligible Hopper or winning Sorter column may own MR.
+        // Ordinary is NOT captured by this native-only waiting lane.
+        const sources=[],endpoints=new Map();
+        const add=(src,isSorter=false)=>{
+            const block=src.block,p=block?.location;
+            if(!block||!p||src.locked===true||
+               !src.container?.isValid||block.typeId!=='minecraft:hopper')
+                return;
+            const ownerId=(isSorter?'sorter-input|':'input|')+
+                block.dimension.id+'|'+p.x+','+p.y+','+p.z;
+            let lastWitness;
+            const eligible=(slot,item)=>{
+                if(!isSorter)return true;
+                const allowed=src.eligibleSlot(slot,item)===true;
+                if(allowed)lastWitness=item;
+                return allowed;
+            };
+            endpoints.set(ownerId,{verify:()=>verifiedLink()&&
+                uceLiveHopperOwner({d:block.dimension.id,
+                    x:p.x,y:p.y,z:p.z})&&
+                (!isSorter||!!lastWitness&&
+                    src.stillSelected(lastWitness))});
+            sources.push({
+                ownerId,container:src.container,
+                locked:false,blockVerified:true,eligibleSlot:eligible
+            });
+        };
+        for(const src of collectorInputSources(col)){
+            if(src.kind==='hopper')add(src);
+        }
+        for(const src of uceSorterCollectorSources(linked,col.id))
+            add(src,true);
+        if(!sources.length)continue;
+        let waiting=false;
+        try{
+            for(const src of sources){
+                for(let i=0;i<src.container.size;i++){
+                    const item=src.container.getItem(i);
+                    if(item&&uceClassifyLiveStack(item)==='MR'&&
+                       src.eligibleSlot(i,item)===true){
+                        waiting=true;break;
+                    }
+                }
+                if(waiting)break;
+            }
+        }catch(_){uceBridgeLog(
+            'collector MR source unreadable',col.id);continue;}
+        if(!waiting)continue;
+        if(!carrier.ok&&carrier.reason==='carrier_record_missing'){
+            const created=registry.registerEmptyHost({
+                ownerId:col.id,anchor});
+            if(!created.ok){uceBridgeLog('collector MR initialize HOLD '+
+                uceCarrierRegistrationReason(created),col.id);
+                continue;}
+            carrier=registry.inspectHost({ownerId:col.id,anchor});
+        }
+        if(!carrier.ok){uceBridgeLog(
+            'collector MR host HOLD '+carrier.reason,col.id);continue;}
+        const endpoint=ref=>{
+            if(ref.ownerId===col.id)return verifiedLink()&&
+                registry.inspectHost({ownerId:col.id,anchor}).ok;
+            const evidence=endpoints.get(ref.ownerId);
+            return !!evidence&&evidence.verify();
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:endpoint,
+            durableOwnershipWitness:registry.durableOwnershipWitness
+        });
+        if(!port.ok){uceBridgeLog(
+            'collector MR port HOLD '+port.reason,col.id);continue;}
+        const operationId=uceNativeReceiptId();
+        if(!operationId){uceBridgeLog(
+            'collector MR receipt exhausted',col.id);return;}
+        const moved=serviceUnifiedReceiverMR({
+            registry,port,ownerId:col.id,anchor,
+            direction:'ingress',inputSources:sources,
+            identify:uceClassifyLiveStack,operationId,
+            collectorPowered:false,receiverPowered:false
+        });
+        if(!moved.ok)uceBridgeLog(
+            'collector MR waiting HOLD '+moved.reason,col.id);
+        else if(moved.moved>0)ucePerfRecordMove('MR',moved.moved);
+        uceCollectorMrCursor=(ix+1)%collectors.length;
+        if(uceUnifiedJournalHold())return;
+        if(moved.moved>0)return;
+    }
+    uceCollectorMrCursor=(uceCollectorMrCursor+scanned)%
+        collectors.length;
+}
 const UCE_MR_SCAN_BUDGET=16;
 const UCE_MR_MOVE_BUDGET=8;
 function uceMrServiceTick(authority){
@@ -785,6 +962,10 @@ function uceUnifiedServiceTick(){
     // source-column census in this ONE unified scheduler; no legacy writer.
     try{if(dirty)rebuildTopology();}
     catch(_){uceBridgeLog('Sorter topology reconstruction HOLD');return;}
+    // The SAME global native journal first protects MR held by loaded
+    // Collectors when their linked Receiver chunks are unavailable.
+    uceCollectorMrBufferTick(authority);
+    if(uceUnifiedJournalHold())return;
     uceMrServiceTick(authority);
     // MR may have left an uncertain PREPARED intent in this same tick.
     // The ordinary lane must not even start until its recovery is resolved.
