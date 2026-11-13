@@ -34,6 +34,18 @@ function ucePipeRouteNetwork(receiver) {
             if(b.typeId===PG26_PIPE_ID)pending.push(b);
         }
         if(!pending.length)return undefined;
+        // Index registered Sorters once per discovery. A 128-segment pipe
+        // could legitimately serve 1,000+ stacked Sorters; linear registry
+        // scans for every row would grow quadratically with the layout.
+        const registeredSorters=new Map();
+        for(const entry of registry){
+            if(!entry||entry.d!==receiver.d)continue;
+            const pos=pg26PositionKey(entry);
+            if(registeredSorters.has(pos))return undefined;
+            registeredSorters.set(pos,entry);
+        }
+        const downFace=PG26_FACES.find(face=>face.name==='down');
+        if(!downFace)return undefined;
         while(pending.length) {
             const pipe=pending.pop();
             const at=pg26PositionKey(pipe.location);
@@ -76,17 +88,15 @@ function ucePipeRouteNetwork(receiver) {
                     let sorter=next,complete=false;
                     for(let depth=0;depth<UCE_MAX_SORTER_COLUMN_HEIGHT;depth++){
                         const q=sorter.location;
-                        const entry=registry.find(e=>
-                            e.d===sorter.dimension.id&&
-                            e.x===q.x&&e.y===q.y&&e.z===q.z);
+                        const entry=registeredSorters.get(
+                            pg26PositionKey(q));
                         const live=entry&&sorterAt(entry);
                         if(!entry||!live||live.typeId!==SORTER_ID||
                            !ucePipeSameDimension(root,live)||
                            !uceSameLoadedBlock(sorter,live)||
                            entry.nativeQuarantine)return undefined;
                         endpoints.set(pg26PositionKey(q),entry);
-                        const below=pg26Neighbor(sorter,PG26_FACES.find(
-                            f=>f.name==='down'));
+                        const below=pg26Neighbor(sorter,downFace);
                         if(!below)return undefined;
                         if(below.typeId!==SORTER_ID){complete=true;break;}
                         if(!ucePipeSameDimension(root,below))return undefined;
