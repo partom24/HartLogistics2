@@ -8,7 +8,8 @@ import {createUnifiedShardWriter,previewUnifiedShard,
   verifyUnifiedMutationFence,UCE_AUTHORITY_KEY,UCE_AUTHORITY_SCHEMA,
   UCE_FEDERATED_INTENT_KEY} from
   '../candidates/transport/unified_world_shard_writer.mjs';
-import {executeUnifiedFederatedTransfer} from
+import {executeUnifiedFederatedTransfer,
+  planUnifiedFederatedNetwork} from
   '../candidates/transport/unified_federated_service.mjs';
 
 const worldId='minecraft:overworld:federated-test',epoch=12;
@@ -17,7 +18,7 @@ const toShard='hartlogistics:uce_shard_0002_v1';
 const fromAccount='receiver:receiv-a',toAccount='bulk:bank-a';
 const key=q5IdentityKey({typeId:'minecraft:cobblestone',lore:[],
   ench:[],canDestroy:[],canPlaceOn:[]});
-function fixture({failAt}={}){
+function fixture({failAt,receiverCount=100,bankCount=0}={}){
   const data=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
     schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',worldId,epoch,
     writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
@@ -37,10 +38,10 @@ function fixture({failAt}={}){
     return snap;
   }
   data.set(fromShard,previewUnifiedShard({
-    snapshot:ledger('receiver','receiv-a',100),
+    snapshot:ledger('receiver','receiv-a',receiverCount),
     shardKey:fromShard}).raw);
   data.set(toShard,previewUnifiedShard({
-    snapshot:ledger('bulk','bank-a',0),
+    snapshot:ledger('bulk','bank-a',bankCount),
     shardKey:toShard}).raw);
   let writes=0;
   const world={
@@ -125,4 +126,72 @@ test('uncertain destination credit preserves intent; no speculative replay',()=>
     'DEBIT_INSPECTED');
   assert.equal(verifyUnifiedMutationFence(
     f.world,worldId,epoch,()=>true).ok,false);
+});
+
+test('cross-shard transfers may refill an empty follower Receiver from leader Bulk',()=>{
+  const f=fixture({receiverCount:0,bankCount:70});
+  const reverse={...f.args,
+    operationId:'cross-shard-refill-1',count:16,
+    sourceWriter:f.destinationWriter,
+    destinationWriter:f.sourceWriter,
+    fromShard:toShard,toShard:fromShard,
+    fromAccount:toAccount,toAccount:fromAccount
+  };
+  const r=executeUnifiedFederatedTransfer(reverse);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(f.sourceWriter.inspect().snapshot.total,16);
+  assert.equal(f.destinationWriter.inspect().snapshot.total,54);
+  assert.equal(f.data.has(UCE_FEDERATED_INTENT_KEY),false);
+});
+test('federated plan holds when network membership, controller or shard provenance is incomplete',()=>{
+  const f=fixture();
+  const options={followerSnapshot:f.sourceWriter.inspect().snapshot,
+    leaderSnapshot:f.destinationWriter.inspect().snapshot,
+    receiverOwnerId:'receiv-a',leaderOwnerId:'leader-1',
+    connectedBankOwnerIds:['bank-a']};
+  // Add the missing leader Receiver using the SAME ledger kernel, not a
+  // synthetic shadow account: the controller must own a physical anchor.
+  let snap=options.leaderSnapshot;
+  const reg=registerUnifiedEmptyAccount(snap,{
+    kind:'receiver',ownerId:'leader-1',
+    expectedRevision:snap.revision,expectedEpoch:epoch});
+  assert.equal(reg.ok,true,reg.reason);
+  options.leaderSnapshot=reg.next;
+  const result=planUnifiedFederatedNetwork(options);
+  assert.equal(result.ok,true,result.reason);
+  assert.equal(result.direction,'receiver_to_bulk');
+  assert.equal(result.count,64);
+  assert.equal(result.to,toAccount);
+  const missing=planUnifiedFederatedNetwork({
+    ...options,connectedBankOwnerIds:['bank-a','missing']});
+  assert.equal(missing.ok,false);
+  assert.equal(missing.reason,'federated_bank_not_registered_in_leader_shard');
+  const sameOwner=planUnifiedFederatedNetwork({
+    ...options,leaderOwnerId:'receiv-a'});
+  assert.equal(sameOwner.ok,false);
+});
+test('federated plan honors preferred Sorter, source backpressure and bidirectional refill',()=>{
+  const a=fixture();
+  const b=fixture({receiverCount:0,bankCount:40});
+  function opts(f){
+    const l=f.destinationWriter.inspect().snapshot;
+    const reg=registerUnifiedEmptyAccount(l,{
+      kind:'receiver',ownerId:'leader-1',
+      expectedRevision:l.revision,expectedEpoch:epoch});
+    assert.equal(reg.ok,true);
+    return {followerSnapshot:f.sourceWriter.inspect().snapshot,
+      leaderSnapshot:reg.next,receiverOwnerId:'receiv-a',
+      leaderOwnerId:'leader-1',connectedBankOwnerIds:['bank-a']};
+  }
+  assert.equal(planUnifiedFederatedNetwork({
+    ...opts(a),preferredOutputKeys:[key]}).reason,
+    'preferred_sorter_output_ready');
+  assert.equal(planUnifiedFederatedNetwork({
+    ...opts(a),sourceWaiting:true}).status,'IDLE');
+  const refill=planUnifiedFederatedNetwork({
+    ...opts(b),outputEligibleKeys:[key]});
+  assert.equal(refill.ok,true,refill.reason);
+  assert.equal(refill.direction,'bulk_to_receiver');
+  assert.equal(refill.count,40);
+  assert.equal(planUnifiedFederatedNetwork(opts(b)).status,'IDLE');
 });
