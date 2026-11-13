@@ -27,15 +27,18 @@ const UCE_PERF_SHARD_MAX_CHARS=28000;
 let ucePerfEnabled=false;
 let ucePerfLastMoveTick=undefined;
 let ucePerfLastShardSampleTick=undefined;
+let ucePerfStartedAtMs=undefined;
 const ucePerfNoticeCounts=new Map();
 const ucePerfStats={ticks:0,maxTickMs:0,slowTicks:0,slowOps:0,
-    moves:0,ordinaryMoves:0,mrMoves:0,gaps:0,
+    moves:0,ordinaryMoves:0,mrMoves:0,
+    ordinaryItems:0,mrItems:0,gaps:0,
     maxGapTicks:0,maxShardChars:0,shardSamples:0,shardWarnings:0};
 function ucePerfReset(){
     for(const key of Object.keys(ucePerfStats))ucePerfStats[key]=0;
     ucePerfNoticeCounts.clear();
     ucePerfLastMoveTick=undefined;
     ucePerfLastShardSampleTick=undefined;
+    ucePerfStartedAtMs=Date.now();
 }
 function ucePerfNotice(reason,detail){
     if(!ucePerfEnabled)return;
@@ -73,9 +76,16 @@ function ucePerfRecordMove(kind,count=1){
         }
     }
     if(Number.isSafeInteger(tick))ucePerfLastMoveTick=tick;
-    ucePerfStats.moves+=count;
-    if(kind==='MR')ucePerfStats.mrMoves+=count;
-    else ucePerfStats.ordinaryMoves+=count;
+    // Keep transfer operations distinct from individual item quantities.
+    // A single ordinary Bulk transaction can account for 64 items.
+    ucePerfStats.moves++;
+    if(kind==='MR'){
+        ucePerfStats.mrMoves++;
+        ucePerfStats.mrItems+=count;
+    }else{
+        ucePerfStats.ordinaryMoves++;
+        ucePerfStats.ordinaryItems+=count;
+    }
 }
 function ucePerfSampleShard(shardKey){
     if(!ucePerfEnabled)return;
@@ -145,10 +155,18 @@ function ucePerformancePanel(origin,mode='status'){
             ', max '+ucePerfStats.maxTickMs+'ms, slow '+
             ucePerfStats.slowTicks+', slow operations '+
             ucePerfStats.slowOps);
-        say('§7Transfers observed: MR '+ucePerfStats.mrMoves+
+        say('§7Committed transfer operations: MR '+ucePerfStats.mrMoves+
             ', ordinary '+ucePerfStats.ordinaryMoves+
             '; gaps >=40 ticks '+ucePerfStats.gaps+
             ' (max '+ucePerfStats.maxGapTicks+')');
+        const elapsed=Number.isFinite(ucePerfStartedAtMs)?
+            Math.max(1000,Date.now()-ucePerfStartedAtMs):undefined;
+        const items=ucePerfStats.mrItems+ucePerfStats.ordinaryItems;
+        const rate=elapsed===undefined?'unknown':
+            (items*1000/elapsed).toFixed(1);
+        say('§7Committed items: MR '+ucePerfStats.mrItems+
+            ', ordinary '+ucePerfStats.ordinaryItems+
+            '; observed wall-clock rate '+rate+' items/s');
         say('§7Shard samples '+ucePerfStats.shardSamples+
             ', max '+ucePerfStats.maxShardChars+
             ' chars, high-size samples '+ucePerfStats.shardWarnings);
@@ -830,7 +848,7 @@ function uceCollectorMrBufferTick(authority){
             if(!changed.ok)uceBridgeLog(
                 'collector ordinary unloaded ingress HOLD '+
                 changed.reason,col.id);
-            else ucePerfRecordMove('ordinary');
+            else ucePerfRecordMove('ordinary',ordinary.item.amount);
             uceCollectorMrCursor=(ix+1)%collectors.length;
             // An interrupted virtual credit cannot permit any later
             // native/ordinary writer in this same unified tick.
@@ -2033,7 +2051,8 @@ function uceOrdinaryServiceTick(authority){
                     'interbank Receiver handoff HOLD '+result.reason,
                     ownerId);
                 uceOrdinaryCursor=(index+1)%receivers.length;
-                if(result.ok===true)ucePerfRecordMove('ordinary');
+                if(result.ok===true)
+                    ucePerfRecordMove('ordinary',result.count);
                 return result.ok===true;
             }
         }
@@ -2159,7 +2178,8 @@ function uceOrdinaryServiceTick(authority){
                 if(!changed.ok)
                     uceBridgeLog('Bulk transfer '+changed.reason);
                 uceOrdinaryCursor=(index+1)%receivers.length;
-                if(changed.ok===true)ucePerfRecordMove('ordinary');
+                if(changed.ok===true)
+                    ucePerfRecordMove('ordinary',plan.count);
                 return changed.ok===true;
             }
         }
@@ -2273,7 +2293,8 @@ function uceOrdinaryServiceTick(authority){
                     uceBridgeLog('federated transfer HOLD '+result.reason,
                         ownerId);
                 uceOrdinaryCursor=(index+1)%receivers.length;
-                if(result.ok===true)ucePerfRecordMove('ordinary');
+                if(result.ok===true)
+                    ucePerfRecordMove('ordinary',plan.count);
                 return result.ok===true;
             }
         }
@@ -2551,7 +2572,8 @@ function uceOrdinaryServiceTick(authority){
         if(!result.ok)uceBridgeLog('ordinary '+result.reason);
         uceOrdinaryCursor=(index+1)%receivers.length;
         // Stop the batch on HOLD, but fairly continue after success.
-        if(result.ok===true)ucePerfRecordMove('ordinary');
+        if(result.ok===true)
+            ucePerfRecordMove('ordinary',amount);
         return result.ok===true;
     }
     uceOrdinaryCursor=(uceOrdinaryCursor+1)%receivers.length;
