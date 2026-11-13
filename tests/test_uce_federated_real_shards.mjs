@@ -18,7 +18,8 @@ const toShard='hartlogistics:uce_shard_0002_v1';
 const fromAccount='receiver:receiv-a',toAccount='bulk:bank-a';
 const key=q5IdentityKey({typeId:'minecraft:cobblestone',lore:[],
   ench:[],canDestroy:[],canPlaceOn:[]});
-function fixture({failAt,receiverCount=100,bankCount=0}={}){
+function fixture({failAt,receiverCount=100,bankCount=0,
+                  targetKind='bulk',targetOwner='bank-a'}={}){
   const data=new Map([[UCE_AUTHORITY_KEY,JSON.stringify({
     schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',worldId,epoch,
     writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
@@ -41,7 +42,7 @@ function fixture({failAt,receiverCount=100,bankCount=0}={}){
     snapshot:ledger('receiver','receiv-a',receiverCount),
     shardKey:fromShard}).raw);
   data.set(toShard,previewUnifiedShard({
-    snapshot:ledger('bulk','bank-a',bankCount),
+    snapshot:ledger(targetKind,targetOwner,bankCount),
     shardKey:toShard}).raw);
   let writes=0;
   const world={
@@ -63,7 +64,8 @@ function fixture({failAt,receiverCount=100,bankCount=0}={}){
   assert.equal(destinationWriter.ok,true);
   const args={world,worldId,epoch,operationId:'federated-safe-op-1',
     sourceWriter,destinationWriter,fromShard,toShard,fromAccount,
-    toAccount,key,count:32,externalFence:()=>true,
+    toAccount:targetKind+':'+targetOwner,
+    key,count:32,externalFence:()=>true,
     routeWitness:'verified-federated-route',
     verifyRoute:()=>routeValid};
   return {data,world,sourceWriter,destinationWriter,args,
@@ -85,6 +87,38 @@ test('one exclusive global intent transfers 32 virtual ordinary items between tw
   assert.equal(src.lastReceipt.operationId,dst.lastReceipt.operationId);
   assert.equal(src.snapshot.accounts[0].lifetime.delivered,32);
   assert.equal(f.writes,6,'prepare/debit/mark/credit/mark/clear');
+});
+test('a verified Collector handoff moves ordinary counts Receiver to Receiver without a second queue',()=>{
+  const f=fixture({targetKind:'receiver',targetOwner:'receiv-b'});
+  f.args.routeWitness='IB1|verified-Sorter-Collector-Receiver-link';
+  const result=executeUnifiedFederatedTransfer(f.args);
+  assert.equal(result.ok,true,result.reason);
+  assert.equal(f.sourceWriter.inspect().snapshot.total,68);
+  assert.equal(f.destinationWriter.inspect().snapshot.total,32);
+  assert.equal(f.sourceWriter.inspect().snapshot.total+
+               f.destinationWriter.inspect().snapshot.total,100);
+  assert.equal(f.data.has(UCE_FEDERATED_INTENT_KEY),false);
+  assert.equal(f.sourceWriter.inspect().lastReceipt.kind,'FEDERATED_DEBIT');
+  assert.equal(f.destinationWriter.inspect().lastReceipt.kind,'FEDERATED_CREDIT');
+  assert.equal(f.writes,6);
+});
+test('interbank Receiver transfer fails closed on changed route or crash-cutpoint',()=>{
+  const blocked=fixture({targetKind:'receiver',targetOwner:'receiv-b'});
+  blocked.routeValid=false;
+  const refused=executeUnifiedFederatedTransfer(blocked.args);
+  assert.equal(refused.ok,false);
+  assert.equal(blocked.writes,0);
+  const uncertain=fixture({targetKind:'receiver',
+    targetOwner:'receiv-b',failAt:4});
+  const result=executeUnifiedFederatedTransfer(uncertain.args);
+  assert.equal(result.ok,false);
+  assert.equal(result.pendingReconciliation,true);
+  assert.equal(uncertain.data.has(UCE_FEDERATED_INTENT_KEY),true);
+  assert.equal(verifyUnifiedMutationFence(
+    uncertain.world,worldId,epoch,()=>true).ok,false);
+  assert.equal(executeUnifiedFederatedTransfer(uncertain.args).ok,false);
+  assert.equal(uncertain.sourceWriter.inspect().snapshot.total,68);
+  assert.equal(uncertain.destinationWriter.inspect().snapshot.total,32);
 });
 test('virtual cross-shard transfer refuses an absent route or excess capacity before PREPARED',()=>{
   const f=fixture();
