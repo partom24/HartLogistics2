@@ -540,6 +540,128 @@ function uceTryInterbankMrHandoff(authority,receiver,registry,host,
  * may stage the native ItemStack. When the Receiver loads, BOTH carrier
  * tickets are updated under ONE existing native PREPARED intent before ACK.
  */
+/*
+ * Credit an UNLOADED linked Receiver's existing sealed ordinary account
+ * from a LOADED Collector Hopper/Sorter source, using the SAME ordinary
+ * physical-boundary coordinator and the Collector's existing carrier as
+ * a short-lived native escrow. No Q4 writer, queue, extra account, or
+ * second recovery journal is created. One whole ordinary stack per call.
+ * The Receiver block need not be loaded; the saved Receiver identity and
+ * sealed shard are the durable virtual owner, while all physical custody
+ * stays on the loaded Collector until the ledger receipt is saved.
+ */
+function uceCollectorOrdinaryDeposit(authority,col,linked,anchor,
+                                    candidate,carrier,routeVerified){
+    try{
+        if(!authority||!col||!linked||!candidate||!carrier?.container||
+           typeof routeVerified!=='function')return {
+            ok:false,reason:'collector_ordinary_binding_invalid'};
+        const accountId='receiver:'+linked.id;
+        const shardKey=uceOrdinaryAccountSource(authority,linked.id);
+        if(!shardKey||!routeVerified())return {
+            ok:false,reason:'collector_ordinary_link_not_verified'};
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return {
+            ok:false,reason:'collector_ordinary_receipt_exhausted'};
+        const ownerId=col.id;
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:uceLiveCollectorOwner,
+            boundaryOperationId:operationId
+        });
+        if(!registry.ok)return registry;
+        const owned=registry.inspectCustody({ownerId,anchor});
+        if(!owned.ok)return owned;
+        if(owned.free<1)return {ok:false,
+            reason:'collector_ordinary_native_escrow_full'};
+        const index=uceNativeOutputSlot(carrier.container);
+        if(index<0)return {ok:false,
+            reason:'collector_ordinary_escrow_slot_unavailable'};
+        const carrierSlot={ownerId,container:carrier.container,slot:index};
+        const physicalSlot={ownerId:candidate.source.ownerId,
+            container:candidate.source.container,slot:candidate.slot};
+        const key=candidate.key,count=candidate.item.amount;
+        const identity=stack=>{
+            if(!stack||stack.amount!==count||
+               uceClassifyLiveStack(stack)!=='ORDINARY'|| 
+               ucePlainItemIdentity(stack)!==key)return false;
+            try{
+                const def=JSON.parse(key);
+                return inspectQ4OrdinaryDefinitionShape(def).ok===true&&
+                    def.typeId===stack.typeId;
+            }catch(_){return false;}
+        };
+        if(!Number.isSafeInteger(count)||count<1||
+           count>64||!identity(candidate.item))return {
+            ok:false,reason:'collector_ordinary_item_shape_unverified'};
+        const escrowProved=tx=>{
+            if(tx.accountId!==accountId||tx.key!==key||
+               tx.count!==count||tx.direction!=='deposit'||
+               !routeVerified())return false;
+            const owned=registry.inspectCustody({ownerId,anchor});
+            if(!owned.ok||!owned.slots.includes(index))return false;
+            const stack=carrier.container.getItem(index);
+            return identity(stack);
+        };
+        const writer=createUnifiedShardWriter({
+            world,shardKey,worldId:authority.worldId,
+            epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEscrowCustody:escrowProved
+        });
+        if(!writer.ok)return writer;
+        const receiptProof=meta=>{
+            const view=writer.inspect();
+            let prepared;
+            try{prepared=JSON.parse(world.getDynamicProperty(
+                'hartlogistics:uce_boundary_intent_v1'));}
+            catch(_){return false;}
+            const receipt=view?.lastReceipt;
+            return !!view?.ok&&
+                prepared?.operationId===operationId&&
+                prepared.phase==='ESCROW_READY'&&
+                receipt?.kind==='BOUNDARY'&&
+                receipt.operationId===operationId&&
+                receipt.accountId===accountId&&
+                receipt.direction===meta.direction&&
+                receipt.key===key&&receipt.count===count;
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            boundaryOperationId:operationId,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:ref=>{
+                if(ref.ownerId===ownerId)
+                    return ref.container===carrier.container&&
+                        routeVerified()&&
+                        registry.inspectHost({ownerId,anchor}).ok;
+                return ref.ownerId===physicalSlot.ownerId&&
+                    ref.container===physicalSlot.container&&
+                    ref.slot===physicalSlot.slot&&routeVerified();
+            },
+            durableOwnershipWitness:registry.durableOwnershipWitness,
+            certifyOrdinaryEscrow:(stack,k,n)=>
+                k===key&&n===count&&identity(stack),
+            verifyLedgerBoundaryReceipt:receiptProof
+        });
+        if(!port.ok)return port;
+        return executeUnifiedOrdinaryDeposit({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            operationId,accountId,key,count,
+            registry,port,writer,ownerId,anchor,
+            carrierSlot,physicalSlot,
+            verifyRoute:routeVerified,
+            verifyOrdinary:meta=>meta.accountId===accountId&&
+                meta.key===key&&meta.count===count&&
+                meta.direction==='deposit'
+        });
+    }catch(_){return {ok:false,
+        reason:'collector_ordinary_deposit_unreadable'};}
+}
 const UCE_COLLECTOR_MR_SCAN_BUDGET=16;
 let uceCollectorMrCursor=0;
 function uceCollectorMrBufferTick(authority){
