@@ -412,10 +412,11 @@ function ucePipeHasUnresolvedForwarding(receiver,graph,item){
  * journal. Intermediate banks are READ ONLY; no hidden queue or item copy.
  *
  * A destination MUST prove a physically accepting Filter. Auto/Wildcard
- * storage and local Bulk cannot masquerade as a global Filter. The first
- * eligible Collector per bank obeys the original priority and bottom-up
- * deterministic row ordering. Unknown/unloaded links, split graphs,
- * non-reciprocal native storage and cycles all HOLD without mutation.
+ * storage and local Bulk cannot masquerade as a global Filter.
+ * Verify eligible Collector branches in original priority/bottom-up order.
+ * An exhausted or cyclic VERIFIED branch may yield to a later branch, but
+ * any unknown/unloaded link, split graph or unverified native storage HOLDS
+ * before claiming a weaker alternative. No speculative branch writes.
  *
  * The upper bound comes from the registered Receiver census, NOT the
  * number of Sorters or a fixed system-wide hop limit. Revalidate the
