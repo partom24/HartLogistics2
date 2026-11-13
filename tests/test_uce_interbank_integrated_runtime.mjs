@@ -198,7 +198,9 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
       }
       return undefined;
     },
-    createUnifiedCarrierRegistry:()=>({ok:true}),
+    createUnifiedCarrierRegistry:()=>({ok:true,
+      inspectHost:()=>({ok:false,reason:'carrier_record_missing'}),
+      registerEmptyHost:()=>({ok:false,reason:'test-must-not-spawn-host'})}),
     createUnifiedShardWriter,executeUnifiedFederatedTransfer,
     inspectQ4OrdinaryDefinitionShape,
     uceClassifyLiveStack:()=> 'ORDINARY',
@@ -225,6 +227,18 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
 }
 test('integrated UCE scheduler journals a real Filter-directed interbank handoff exactly once',()=>{
   const f=fixture();
+  const item=new f.ctx.ItemStack('minecraft:cobblestone',1);
+  assert.equal(inspectQ4OrdinaryDefinitionShape(JSON.parse(key)).ok,true);
+  assert.ok(f.ctx.ucePipeRouteNetwork(f.first),
+    'source pipe graph must be physically loaded and owned');
+  assert.ok(f.ctx.ucePipeRouteNetwork(f.last),
+    'target pipe graph must be physically loaded and owned');
+  assert.equal(f.ctx.uceChoosePipeDestination(
+    f.last,item,true,undefined,true)?.mode,'filter',
+    'remote Filter must be an eligible native destination');
+  assert.ok(f.ctx.uceSelectInterbankFilteredRoute(
+    f.first,f.ctx.ucePipeRouteNetwork(f.first),item,{worldId,epoch}),
+    'Collector edge and remote Filter must form a live interbank path');
   const moved=f.ctx.uceOrdinaryServiceTick({worldId,epoch});
   assert.equal(moved,true);
   assert.equal(f.read(shardA).snapshot.total,36);
