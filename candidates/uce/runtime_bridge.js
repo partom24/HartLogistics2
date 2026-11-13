@@ -32,11 +32,37 @@ function uceAllowsSorterRegistryWrite(key){
     return cold.ok===true;
 }
 
+// Legacy mode is allowed only when this process has actually established
+// that the world has NO prior unified-custody footprint. If the authority
+// key is lost after UCE was active, neither Q4 nor UCE may resume writing.
+let uceEverHadAuthority=false;
+let uceLegacyOriginChecked=false;
 function uceLegacyWriterBlocked(){
     try{
         const raw=world.getDynamicProperty(UCE_MAIN_AUTHORITY);
-        return raw!==undefined && raw!==null && raw!=='';
-    }catch(_){return true;} // Unreadable authority cannot default to LEGACY.
+        if(raw!==undefined&&raw!==null&&raw!==''){
+            uceEverHadAuthority=true;
+            return true;
+        }
+        if(uceEverHadAuthority)return true;
+        // A missing authority marker is NOT evidence of a LEGACY world:
+        // the cold seal or any durable UCE shard/journal still fences Q4.
+        if(world.getDynamicProperty('hartlogistics:uce_cold_seal_v1')!==undefined){
+            uceEverHadAuthority=true;
+            return true;
+        }
+        if(!uceLegacyOriginChecked){
+            const keys=world.getDynamicPropertyIds();
+            if(!Array.isArray(keys)||
+               keys.some(k=>typeof k!=='string'))return true;
+            uceLegacyOriginChecked=true;
+            if(keys.some(k=>k.startsWith('hartlogistics:uce_'))){
+                uceEverHadAuthority=true;
+                return true;
+            }
+        }
+        return false;
+    }catch(_){return true;} // Never default to Q4 on an unreadable world.
 }
 function uceAuthoritySnapshot(){
     let raw;

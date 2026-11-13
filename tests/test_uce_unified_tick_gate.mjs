@@ -174,3 +174,56 @@ test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',(
   assert.equal(registrations,1,'actual pending output may initiate an empty host');
   assert.deepEqual(logs,['synthetic_spawn_blocked']);
 });
+
+test('missing UCE authority cannot silently re-enable Q4 when sealed shard or journal survived a restart',()=>{
+  const begin=bridge.indexOf('let uceEverHadAuthority=false;');
+  const end=bridge.indexOf('\nfunction uceAuthoritySnapshot(){',begin);
+  assert.ok(begin>=0&&end>begin,'actual UCE/legacy fence stable bounds');
+  const original=bridge.slice(begin,end);
+  const scenarios=[
+    {keys:[],props:{},legacy:true},
+    {keys:['hartsorter:logistics_v2'],props:{},legacy:true},
+    {keys:['hartlogistics:uce_shard_0002_v1'],props:{},legacy:false},
+    {keys:['hartlogistics:uce_native_host_d5df_v1'],props:{},legacy:false},
+    {keys:['hartlogistics:uce_native_intent_v1'],props:{},legacy:false},
+    {keys:[],props:{'hartlogistics:uce_cold_seal_v1':'sealed'},legacy:false},
+    {keys:['hartlogistics:uce_authority_v1'],props:{
+      'hartlogistics:uce_authority_v1':'corrupt marker'},legacy:false},
+    {keys:['hartlogistics:uce_authority_v1'],props:{
+      'hartlogistics:uce_authority_v1':''},legacy:false}
+  ];
+  for(const scenario of scenarios){
+    let listed=0;
+    const ctx={UCE_MAIN_AUTHORITY:'hartlogistics:uce_authority_v1',
+      world:{getDynamicProperty:key=>scenario.props[key],
+        getDynamicPropertyIds:()=>{listed++;return [...scenario.keys];}}};
+    vm.runInNewContext(original,ctx);
+    const first=ctx.uceLegacyWriterBlocked();
+    assert.equal(first,!scenario.legacy,JSON.stringify(scenario));
+    const second=ctx.uceLegacyWriterBlocked();
+    assert.equal(second,first,'stable fail-closed provenance');
+    assert.ok(listed<=1,'legacy origins must not enumerate every tick');
+  }
+});
+test('once UCE authority has existed, deleting the marker in-process cannot revive legacy writers',()=>{
+  const begin=bridge.indexOf('let uceEverHadAuthority=false;');
+  const end=bridge.indexOf('\nfunction uceAuthoritySnapshot(){',begin);
+  const raw={authority:'persisted'};
+  const ctx={UCE_MAIN_AUTHORITY:'hartlogistics:uce_authority_v1',
+    world:{getDynamicProperty:key=>key==='hartlogistics:uce_authority_v1'?
+      raw.authority:undefined,
+      getDynamicPropertyIds:()=>[]}};
+  vm.runInNewContext(bridge.slice(begin,end),ctx);
+  assert.equal(ctx.uceLegacyWriterBlocked(),true);
+  raw.authority=undefined;
+  assert.equal(ctx.uceLegacyWriterBlocked(),true);
+});
+test('legacy mode fails closed if dynamic property enumeration is unreadable',()=>{
+  const begin=bridge.indexOf('let uceEverHadAuthority=false;');
+  const end=bridge.indexOf('\nfunction uceAuthoritySnapshot(){',begin);
+  const ctx={UCE_MAIN_AUTHORITY:'hartlogistics:uce_authority_v1',
+    world:{getDynamicProperty:()=>undefined,
+      getDynamicPropertyIds:()=>{throw Error('unreadable');}}};
+  vm.runInNewContext(bridge.slice(begin,end),ctx);
+  assert.equal(ctx.uceLegacyWriterBlocked(),true);
+});
