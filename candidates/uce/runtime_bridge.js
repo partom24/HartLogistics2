@@ -894,6 +894,15 @@ function uceSameLoadedBlock(a,b){
     const x=a.location,y=b.location;
     return !!x&&!!y&&x.x===y.x&&x.y===y.y&&x.z===y.z;
 }
+function uceBulkWildcardPermitted(snapshot,receiverOwnerId,connectedBankOwnerIds){
+    // Reuse the exact existing Bulk membership/controller validator.
+    // Never introduce a second physical or virtual custody writer.
+    const p=planUnifiedBulkService({snapshot,receiverOwnerId,
+        connectedBankOwnerIds,sourceWaiting:false,
+        outputEligibleKeys:[],preferredOutputKeys:[]});
+    return p.ok===true&&p.status==='IDLE'&&
+        p.reason==='all_connected_banks_full';
+}
 function uceOrdinaryServiceTick(authority){
     // This lane shares the MR lane's global preflight. Every later ledger
     // credit/debit and native move rechecks its own mutation fence.
@@ -1038,13 +1047,9 @@ function uceOrdinaryServiceTick(authority){
             [...new Set(bankNetwork.banks.map(b=>uceBulkOwnerId(b)))].sort():[];
         let wildcardPermitted=governedBanks.length===0;
         if(governedBanks.length){
-            const proof=inspectUnifiedWildcardCapacity({
-                snapshot:ledger.snapshot,receiverOwnerId:ownerId,
-                connectedBankOwnerIds:governedBanks
-            });
-            wildcardPermitted=proof.ok===true&&
-                proof.allowWildcard===true&&
-                bankNetwork.leaderId===receiver.id;
+            wildcardPermitted=bankNetwork.leaderId===receiver.id&&
+                uceBulkWildcardPermitted(ledger.snapshot,ownerId,
+                    governedBanks);
         }
         const onlyPreferred=!wildcardPermitted;
         let preferredOutputReady=false;

@@ -72,3 +72,37 @@ test('incomplete, unreadable or multiply indexed world shards always HOLD',()=>{
   ]);
   assert.equal(duplicate('bank-new','same-shard'),false);
 });
+
+test('runtime wildcard gate reuses validated Bulk planner and rejects unknown capacity',()=>{
+  const begin=source.indexOf('function uceBulkWildcardPermitted(');
+  const end=source.indexOf('\nfunction uceOrdinaryServiceTick(',begin);
+  assert.ok(begin>0&&end>begin,'actual runtime Bulk wildcard gate found');
+  const calls=[];
+  let result={ok:true,status:'TRANSFER_DRAFT_ONLY',
+    direction:'receiver_to_bulk'};
+  const ctx={
+    planUnifiedBulkService:args=>{
+      calls.push(args);
+      return result;
+    }
+  };
+  vm.runInNewContext(source.slice(begin,end),ctx);
+  const check=()=>ctx.uceBulkWildcardPermitted(
+    {schema:'fixture'},'receiver-owner',['member-a','member-b']);
+  assert.equal(check(),false,'usable capacity must not allow Wildcard');
+  result={ok:true,status:'IDLE',reason:'all_connected_banks_full'};
+  assert.equal(check(),true,'only proven exhaustion permits Wildcard');
+  result={ok:false,status:'HOLD',reason:'unregistered_bulk_member'};
+  assert.equal(check(),false);
+  result={ok:true,status:'IDLE',reason:'no_connected_registered_bank'};
+  assert.equal(check(),false);
+  assert.equal(calls.length,4);
+  for(const a of calls){
+    assert.equal(a.receiverOwnerId,'receiver-owner');
+    assert.deepEqual(Array.from(a.connectedBankOwnerIds),
+      ['member-a','member-b']);
+    assert.equal(a.sourceWaiting,false);
+    assert.equal(a.preferredOutputKeys.length,0);
+    assert.equal(a.outputEligibleKeys.length,0);
+  }
+});

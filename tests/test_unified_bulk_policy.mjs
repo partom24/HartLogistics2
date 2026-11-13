@@ -5,9 +5,8 @@ import {createEmptyUnifiedOrdinaryLedger,
   registerUnifiedEmptyAccount,inspectUnifiedOrdinaryLedger,
   transitionUnifiedOrdinaryAccounts} from
   '../candidates/transport/unified_ordinary_accounts.mjs';
-import {planUnifiedBulkService,inspectUnifiedWildcardCapacity,
-  UCE_BULK_RECEIVER_RESERVE,UCE_BULK_MOVE_BATCH} from
-  '../candidates/transport/unified_bulk_policy.mjs';
+import {planUnifiedBulkService,UCE_BULK_RECEIVER_RESERVE,
+  UCE_BULK_MOVE_BATCH} from '../candidates/transport/unified_bulk_policy.mjs';
 const key=q5IdentityKey({typeId:'minecraft:cobblestone',
   lore:[],ench:[],canDestroy:[],canPlaceOn:[]});
 function fixture(r=249700,a=0,b=0){
@@ -151,38 +150,3 @@ test('Filter match on a later identity outranks a Bulk spill from earlier bucket
   assert.equal(fallback.count,64);
 });
 
-test('Wildcard route waits for real connected Bulk exhaustion, then becomes eligible',()=>{
-  const available=inspectUnifiedWildcardCapacity({
-    ...options(fixture(200,199999,200000))});
-  assert.equal(available.ok,true);
-  assert.equal(available.allowWildcard,false);
-  assert.equal(available.canWriteWorld,false);
-  const full=inspectUnifiedWildcardCapacity({
-    ...options(fixture(200,200000,200000))});
-  assert.equal(full.ok,true);
-  assert.equal(full.allowWildcard,true);
-  assert.equal(full.status,'BULK_CAPACITY_EXHAUSTED_READ_ONLY');
-  const stopped=inspectUnifiedWildcardCapacity({
-    ...options(fixture(0,200000,200000))});
-  assert.equal(stopped.allowWildcard,false,
-    'a zero-balance Receiver is not an authorization to output anything');
-});
-test('unregistered Bulk, broken controller, or foreign shard cannot authorize Wildcard',()=>{
-  const registered=fixture(200,200000,200000);
-  const missing=inspectUnifiedWildcardCapacity({
-    snapshot:registered,receiverOwnerId:'r1',
-    connectedBankOwnerIds:['bank-a','unknown-bank']});
-  assert.equal(missing.ok,false);
-  assert.equal(missing.allowWildcard,false);
-  const mismatched=inspectUnifiedWildcardCapacity({
-    snapshot:registered,receiverOwnerId:'foreign-receiver',
-    connectedBankOwnerIds:['bank-a','bank-b']});
-  assert.equal(mismatched.ok,false);
-  assert.equal(mismatched.allowWildcard,false);
-  const corrupt=structuredClone(registered);
-  corrupt.accounts.find(a=>a.id==='bulk:bank-b').controllerOwnerId='bank-b';
-  const invalid=inspectUnifiedWildcardCapacity({
-    ...options(corrupt)});
-  assert.equal(invalid.ok,false);
-  assert.equal(invalid.allowWildcard,false);
-});
