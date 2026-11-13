@@ -145,6 +145,91 @@ export function executeUnifiedFederatedTransfer({
 }
 
 /**
+ * Forensic read-only audit of an INTERRUPTED global cross-shard transfer.
+ * This function never clears or replays the journal, even if both shard
+ * receipts look balanced: Bedrock has no proved hard-crash flush ordering.
+ * The result is actionable evidence for a stopped-LAB restore/reconciliation.
+ */
+export function inspectUnifiedFederatedPending({
+    world,worldId,epoch,sourceWriter,destinationWriter
+  }={}){
+  const fail=reason=>({
+    ok:false,status:'HOLD',reason,canWriteWorld:false,
+    canReplay:false,canClearJournal:false,hasHardCrashDiskProof:false
+  });
+  if(!world||!valid(worldId)||!pos(epoch)||
+     typeof sourceWriter?.inspect!=='function'||
+     typeof destinationWriter?.inspect!=='function')
+    return fail('invalid_federated_inspection_binding');
+  const pending=read(world);
+  if(!pending.ok)return fail(pending.reason);
+  if(pending.raw===undefined||pending.raw===null||
+     pending.raw==='')return {ok:true,status:'FEDERATED_JOURNAL_CLEAR',
+       canWriteWorld:false,canReplay:false,canClearJournal:false};
+  let tx;
+  try{tx=JSON.parse(pending.raw);}catch(_){
+    return fail('federated_pending_json_unreadable');
+  }
+  if(!tx||tx.schema!==UCE_FEDERATED_SCHEMA||
+     !['PREPARED','DEBIT_INSPECTED','CREDIT_INSPECTED']
+       .includes(tx.phase)||
+     tx.worldId!==worldId||tx.epoch!==epoch||
+     !valid(tx.operationId)||!SHARD.test(tx.fromShard||'')||
+     !SHARD.test(tx.toShard||'')||tx.fromShard===tx.toShard||
+     !valid(tx.fromAccount)||!valid(tx.toAccount)||
+     !pos(tx.count)||tx.count>64||!valid(tx.key)||
+     !nat(tx.fromRevision)||!nat(tx.toRevision)||
+     !nat(tx.sourceTotal)||!nat(tx.targetTotal)||
+     !nat(tx.sourceCount)||!nat(tx.targetCount)||
+     tx.sourceCount<tx.count||
+     !nat(tx.sourceTotal-tx.count)||
+     !nat(tx.targetTotal+tx.count))
+    return fail('federated_pending_identity_invalid');
+  const from=sourceWriter.inspect(),to=destinationWriter.inspect();
+  if(!from.ok||!to.ok)
+    return fail('federated_pending_shards_unreadable');
+  const src=account(from,tx.fromAccount);
+  const dst=account(to,tx.toAccount);
+  if(!src||!dst)return fail('federated_pending_accounts_missing');
+  const srcBalance=bucket(src,tx.key);
+  const dstBalance=bucket(dst,tx.key);
+  const sourceOld=from.snapshot.revision===tx.fromRevision&&
+    from.snapshot.total===tx.sourceTotal&&
+    srcBalance===tx.sourceCount;
+  const sourceMoved=from.snapshot.revision===tx.fromRevision+1&&
+    from.snapshot.total===tx.sourceTotal-tx.count&&
+    srcBalance===tx.sourceCount-tx.count&&
+    receipt(from,'FEDERATED_DEBIT',tx,tx.fromAccount);
+  const targetOld=to.snapshot.revision===tx.toRevision&&
+    to.snapshot.total===tx.targetTotal&&
+    dstBalance===tx.targetCount;
+  const targetMoved=to.snapshot.revision===tx.toRevision+1&&
+    to.snapshot.total===tx.targetTotal+tx.count&&
+    dstBalance===tx.targetCount+tx.count&&
+    receipt(to,'FEDERATED_CREDIT',tx,tx.toAccount);
+  if((!sourceOld&&!sourceMoved)||(!targetOld&&!targetMoved)||
+     (targetMoved&&!sourceMoved))
+    return fail('federated_pending_receipt_or_balance_inconsistent');
+  let evidenceState;
+  if(sourceOld&&targetOld&&tx.phase==='PREPARED')
+    evidenceState='NO_SHARD_WRITE_OBSERVED';
+  else if(sourceMoved&&targetOld&&
+      ['PREPARED','DEBIT_INSPECTED'].includes(tx.phase))
+    evidenceState='SOURCE_DEBIT_ONLY_OBSERVED';
+  else if(sourceMoved&&targetMoved)
+    evidenceState='BOTH_SHARD_RECEIPTS_BALANCED';
+  else return fail('federated_pending_phase_receipt_conflict');
+  return {ok:true,status:'FEDERATED_PENDING_READ_ONLY_HOLD',
+    phase:tx.phase,evidenceState,operationId:tx.operationId,
+    fromAccount:tx.fromAccount,toAccount:tx.toAccount,count:tx.count,
+    sourceDebited:sourceMoved,targetCredited:targetMoved,
+    observedCombinedTotal:from.snapshot.total+to.snapshot.total,
+    beforeCombinedTotal:tx.sourceTotal+tx.targetTotal,
+    canWriteWorld:false,canReplay:false,canClearJournal:false,
+    hasHardCrashDiskProof:false};
+}
+
+/**
  * Read-only selection for a connected pipe network whose Receiver and Bulk
  * accounts live in different immutable seal shards. Only the loaded graph's
  * elected leader shard may own banks. This planner never grants a writer
