@@ -209,7 +209,7 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("ucePipeDestinationStillValid(",self.main)
         self.assertIn("planUnifiedBulkService(",self.main)
         self.assertIn("function uceBulkWildcardPermitted(",self.main)
-        self.assertIn("uceBulkWildcardPermitted(ledger.snapshot,ownerId,",self.main)
+        self.assertIn("uceBulkWildcardPermitted(governingLedger.snapshot,",self.main)
         self.assertIn("const onlyPreferred=!wildcardPermitted;",self.main)
         self.assertIn("function uceFederatedRouteVerified(",self.main)
         self.assertIn("planUnifiedFederatedNetwork({",self.main)
