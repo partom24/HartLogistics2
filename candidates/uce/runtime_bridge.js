@@ -1683,7 +1683,8 @@ function uceDirectStorageOwnerBlock(block){
         if(!block||!supportedStorage(block))return false;
         const c=blockContainer(block);
         if(!c?.isValid)return false;
-        if(block.typeId!=='minecraft:chest')return true;
+        if(block.typeId!=='minecraft:chest'&&
+           block.typeId!=='minecraft:trapped_chest')return true;
         // A Bedrock double chest is ONE 54-slot native inventory reached
         // through two adjacent block aliases. Require both live halves,
         // reciprocal loaded topology and a 54-slot view from each side.
@@ -1694,7 +1695,7 @@ function uceDirectStorageOwnerBlock(block){
             const neighbor=pg26Neighbor(block,face);
             if(!neighbor||neighbor.dimension?.id!==block.dimension?.id)
                 return false;
-            if(neighbor.typeId==='minecraft:chest')
+            if(neighbor.typeId===block.typeId)
                 paired.push(neighbor);
         }
         if(paired.length===0)return c.size===27;
@@ -1707,7 +1708,7 @@ function uceDirectStorageOwnerBlock(block){
             const neighbor=pg26Neighbor(other,face);
             if(!neighbor||neighbor.dimension?.id!==block.dimension?.id)
                 return false;
-            if(neighbor.typeId==='minecraft:chest'){
+            if(neighbor.typeId===block.typeId){
                 if(!uceSameLoadedBlock(neighbor,block))return false;
                 back++;
             }
