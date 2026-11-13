@@ -127,7 +127,8 @@ test('one Transporter discovers an eight-Sorter 1.4.1 column and a filtered bott
   assert.equal(winner.dest.block,dest);
   assert.equal(winner.mode,'filter');
   // Lower Sorters are endpoints, not Transporters: the pipe count is two.
-  assert.equal(graph.fingerprint.includes('3,62,4'),true);
+  assert.equal(graph.fingerprint.includes('3,69,4x8'),true);
+  assert.equal(graph.entries.some(e=>e.y===62),true);
 });
 
 test('stacked matching Filter is bottom-to-top and powered rows do not block lower routing',()=>{
@@ -183,6 +184,8 @@ test('128 connected Transporters can discover 1,024 registered stacked Sorters',
   const graph=f.network();
   assert.ok(graph);
   assert.equal(graph.entries.length,1024);
+  // Federated Bulk custody has an 8,192-character route witness fence.
+  assert.ok(graph.fingerprint.length<=8192);
   assert.equal(f.choose(COBBLE).entry,f.filter);
 });
 
