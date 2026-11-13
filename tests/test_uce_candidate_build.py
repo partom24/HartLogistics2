@@ -207,7 +207,10 @@ class UceBuildTests(unittest.TestCase):
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
         self.assertIn('function uceUnifiedServiceTick(){',s)
+        self.assertIn('    uceCollectorMrBufferTick(authority);',s)
         self.assertIn('    uceMrServiceTick(authority);',s)
+        self.assertIn('function uceCollectorMrBufferTick(authority)',s)
+        self.assertIn('function uceLiveCollectorOwner(ownerId,anchor)',s)
         self.assertIn('const committed=uceOrdinaryServiceTick(authority);',s)
         self.assertIn('    uceSorterDirectServiceTick(authority);',s)
         self.assertIn('function uceSorterDirectServiceTick(authority)',s)
@@ -219,7 +222,7 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('port.ackWhole({operationId,from,to})',s)
         self.assertIn("global custody HOLD: journal unreadable",s)
         self.assertIn("if(uceUnifiedJournalHold())return;",s)
-        self.assertEqual(s.count("if(uceUnifiedJournalHold())return;"),5)
+        self.assertEqual(s.count("if(uceUnifiedJournalHold())return;"),6)
         # Three coordinated scheduler gates plus the existing entity-event
         # ingress gate; all share one native and legacy journal authority.
         self.assertIn("hartsorter:queue_journal_v1",s)
