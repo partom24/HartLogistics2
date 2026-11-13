@@ -193,7 +193,8 @@ test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',(
     ItemStack:class {constructor(typeId,amount){this.typeId=typeId;this.amount=amount;}},
     uceClassifyLiveStack:()=> 'ORDINARY',
     uceNativeOutputSlot:()=>0,
-    uceBridgeLog:x=>logs.push(x)
+    uceBridgeLog:x=>logs.push(x),
+    ucePerfSampleShard:()=>{}
   };
   vm.runInNewContext(actual,ctx);
   const authority={worldId:'world',epoch:1};
@@ -296,4 +297,102 @@ test('native Hopper egress selects certified ordinary partial space before empty
   slots[1]=undefined;
   assert.equal(ctx.uceOrdinaryHopperCandidate(inventory,canonical)?.slot,0,
     'first available empty slot is preferred when no partial exists');
+});
+
+/**
+ * Permanent product observability coverage. Exercise exactly the runtime
+ * diagnostic helpers; the logger may never make a custody operation succeed,
+ * write a world key, or swallow a transfer exception.
+ */
+const perfBegin=bridge.indexOf('/* Permanent, optional read-only operational diagnostics.');
+const perfEnd=bridge.indexOf('// End optional operational diagnostics.',perfBegin);
+assert.ok(perfBegin>0&&perfEnd>perfBegin,
+  'optional performance panel must be present in the product bridge');
+const perfSource=bridge.slice(perfBegin,perfEnd+
+  '// End optional operational diagnostics.'.length);
+function perfFixture({throwLog=false,throwService=false}={}){
+  const events=[],messages=[],reads=[];
+  let clock=0,serviceCalls=0,writes=0;
+  const ctx={
+    system:{currentTick:100},
+    Date:{now:()=>clock},
+    world:{
+      getDynamicProperty:key=>{
+        reads.push(key);
+        return 'x'.repeat(23000);
+      },
+      setDynamicProperty:()=>{writes++;}
+    },
+    log:message=>{
+      if(throwLog)throw Error('diagnostics logger unavailable');
+      events.push(message);
+    },
+    uceUnifiedServiceTick:()=>{
+      serviceCalls++;
+      clock+=30;
+      if(throwService)throw Error('original custody failure');
+    }
+  };
+  vm.runInNewContext(perfSource,ctx);
+  const origin={sourceEntity:{sendMessage:message=>messages.push(message)}};
+  return {ctx,origin,messages,events,reads,
+    advance:ms=>{clock+=ms;},calls:()=>serviceCalls,writes:()=>writes};
+}
+test('HL2 monitoring is OFF by default and has zero extra shard reads',()=>{
+  const f=perfFixture();
+  f.ctx.ucePerformanceTick();
+  f.ctx.ucePerfTimedOperation('ordinary',()=>{});
+  f.ctx.ucePerfSampleShard('hartlogistics:uce_shard_region1_v1');
+  f.ctx.ucePerfRecordMove('MR');
+  assert.equal(f.calls(),1,'same unified scheduler invoked');
+  assert.equal(f.reads.length,0,'no diagnostic world reads when OFF');
+  assert.equal(f.events.length,0,'no telemetry log when OFF');
+  assert.equal(f.writes(),0,'never writes state');
+  f.ctx.ucePerformancePanel(f.origin);
+  assert.ok(f.messages.some(s=>s.includes('OFF')));
+});
+test('operator toggle enables timing, size warnings, transfer gap and disable',()=>{
+  const f=perfFixture();
+  const k='hartlogistics:uce_shard_region1_v1';
+  f.ctx.ucePerformancePanel(f.origin,'on');
+  assert.ok(f.messages.some(s=>s.includes('ON')));
+  f.ctx.ucePerformanceTick();
+  assert.equal(f.calls(),1);
+  assert.ok(f.events.some(s=>s.includes('slow_service_tick')));
+  assert.equal(f.ctx.ucePerfTimedOperation('MR',()=>{
+    f.advance(13);return 42;
+  }),42);
+  assert.ok(f.events.some(s=>s.includes('slow_operation')));
+  f.ctx.ucePerfSampleShard(k);
+  assert.deepEqual(f.reads,[k]);
+  assert.ok(f.events.some(s=>s.includes('shard_high')));
+  // Sampling is bounded to one additional read per 100 ticks.
+  f.ctx.ucePerfSampleShard(k);
+  assert.equal(f.reads.length,1);
+  f.ctx.ucePerfRecordMove('MR');
+  f.ctx.system.currentTick=150;
+  f.ctx.ucePerfRecordMove('ordinary');
+  assert.ok(f.events.some(s=>s.includes('transfer_gap')));
+  f.ctx.ucePerformancePanel(f.origin,'status');
+  assert.ok(f.messages.some(s=>s.includes('MR 1')));
+  assert.ok(f.messages.some(s=>s.includes('ordinary 1')));
+  f.ctx.ucePerformancePanel(f.origin,'off');
+  assert.ok(f.messages.some(s=>s.includes('OFF')));
+  const count=f.events.length;
+  f.ctx.system.currentTick=200;
+  f.ctx.ucePerfSampleShard(k);
+  f.ctx.ucePerformanceTick();
+  assert.equal(f.events.length,count,'OFF suppresses event logging');
+  assert.equal(f.reads.length,1,'OFF suppresses sampling');
+  assert.equal(f.calls(),2,'OFF does not suppress core service');
+  assert.equal(f.writes(),0,'control panel has no world writer');
+});
+test('diagnostic log failure cannot hide custody error or affect OFF mode',()=>{
+  const f=perfFixture({throwLog:true,throwService:true});
+  assert.throws(()=>f.ctx.ucePerformanceTick(),/original custody failure/);
+  f.ctx.ucePerformancePanel(f.origin,'on');
+  assert.throws(()=>f.ctx.ucePerformanceTick(),/original custody failure/);
+  f.ctx.ucePerfTimedOperation('MR',()=>f.advance(20));
+  f.ctx.ucePerfSampleShard('hartlogistics:uce_shard_region1_v1');
+  assert.equal(f.writes(),0);
 });
