@@ -1,5 +1,21 @@
 # UCE integrated LAB acceptance — owner handoff (NOT YET APPROVED)
 
+> **Current LAB is not the PG33 predecessor described below.** The owner's
+> active isolated world `HartUCECarrierLabPG42` has the temporary PG42
+> single-carrier probe installed and a persistent
+> `hartlogistics:pg42_native_test_v1` record. Its nine-slot native actor
+> contains the preserved named/lore paper witness. This is **not** an empty UCE
+> world. Do not run the original `-Mode CheckLab/Install` commands below or
+> `/hartlogistics:activate_empty_lab` against PG42, do not clear that record,
+> kill the carrier, bypass hashes or change world registrations to make them
+> pass. The original guarded installer targets exact PG33 1.5.15 installed
+> in ThomasServer and intentionally refuses the current environment.
+> A separately guarded, **full integrated product** LAB deployment/rollback
+> candidate is required after completing source integration and CI. No
+> additional carrier-only tests are required; PG42 persistence evidence was
+> already owner-observed. Preserve PG35, PG42 and all backup evidence.
+
+
 This is one intended **integrated custody/routing** BDS session, not a source-test
 approval or archived 1.4.1 migration. Do not begin until exact-head GitHub CI,
 safe installer preflight, and an independent LAB world backup are confirmed.
