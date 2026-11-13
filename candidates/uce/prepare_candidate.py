@@ -180,7 +180,6 @@ def compile_patch(source,bridge):
     source=source[:start]+"    if (!uceLegacyWriterBlocked()) {\n"+(
         segment)+"    }\n"+source[end:]
     imports=(
-      'import { ActionFormData, MessageFormData } from "@minecraft/server-ui";\n'
       'import {createUnifiedCarrierRegistry} from "./uce/unified_carrier_registry.js";\n'
       'import {createUnifiedNativePort} from "./uce/unified_native_custody.js";\n'
       'import {serviceUnifiedReceiverMR} from "./uce/unified_receiver_mr_service.js";\n'
