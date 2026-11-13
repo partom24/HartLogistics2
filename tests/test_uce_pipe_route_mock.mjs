@@ -1399,3 +1399,44 @@ test('legacy output Hopper retains first claim without blocking full-Hopper remo
   f.missing.add('4,69,4');
   assert.equal(proof(),false,'unloaded output boundary remains HOLD');
 });
+
+
+test('remote Bulk refill census follows physical Collector links before item-specific native output proof',()=>{
+  const f=fixture(),authority=f.context.uceAuthoritySnapshot();
+  const targetId=f.context.logisticsId(f.dim.id,34,70,4);
+  f.put('hartsorter:receiver',34,70,4);
+  f.registeredReceivers.push({id:targetId,d:f.dim.id,
+    x:34,y:70,z:4,present:true});
+  f.put('hartlogistics:transporter',33,70,4);
+  const remoteBank=f.put('hartlogistics:bulk_storage',33,70,5);
+  f.chestB.typeId='hartsorter:collector';
+  const linkId=f.context.logisticsId(f.dim.id,2,69,5);
+  f.collectors.push({id:linkId,d:f.dim.id,x:2,y:69,z:5,
+    link:targetId,present:true});
+  f.fallback.m='filter';
+  f.fallback.f={match:{typeId:'minecraft:cobblestone'}};
+  f.context.uceBulkOwnerId=b=>f.context.logisticsId(
+    b.dimension.id,b.location.x,b.location.y,b.location.z);
+  const graph=f.network();
+  assert.ok(graph);
+  const exploratory=f.context.uceLinkedBankBulkRoutes(
+    f.receiver,undefined,authority,graph,false);
+  assert.equal(exploratory.length,1,
+    'item-free census may discover only physically verified banks');
+  assert.equal(exploratory[0].bankOwnerId,
+    f.context.uceBulkOwnerId(remoteBank));
+  const routed=f.context.uceLinkedBankBulkRoutes(
+    f.receiver,COBBLE,authority,graph,false);
+  assert.equal(routed.length,1,
+    'real ordinary item must independently match Collector Filter');
+  assert.equal(routed[0].witness,exploratory[0].witness);
+  const stone={typeId:'minecraft:stone',amount:1};
+  const rejected=f.context.uceLinkedBankBulkRoutes(
+    f.receiver,stone,authority,graph,false);
+  assert.equal(rejected.length,0,
+    'candidate bank access must never bypass item-specific Filter');
+  f.collectors[0].link=null;
+  assert.equal(f.context.uceLinkedBankBulkRoutes(
+    f.receiver,undefined,authority,f.network(),false),
+    undefined,'revoked Collector link fails closed before refill');
+});
