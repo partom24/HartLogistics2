@@ -413,7 +413,14 @@ function uceUnifiedServiceTick(){
     // MR may have left an uncertain PREPARED intent in this same tick.
     // The ordinary lane must not even start until its recovery is resolved.
     if(uceUnifiedJournalHold())return;
-    uceOrdinaryServiceTick(authority);
+    // Four bounded successful Receiver/account operations per tick reuse the
+    // SAME authority, journal and cursor. On any HOLD or stalled operation,
+    // stop batching; every next operation gets a fresh global journal gate.
+    for(let op=0;op<4;op++){
+        const committed=uceOrdinaryServiceTick(authority);
+        if(uceUnifiedJournalHold())return;
+        if(committed!==true)break;
+    }
     // The same native custody journal also covers original direct Sorter
     // outputs to ordinary vanilla storage: never run them in parallel with
     // an unsettled Receiver boundary.
@@ -1108,7 +1115,7 @@ function uceOrdinaryServiceTick(authority){
                 if(!changed.ok)
                     uceBridgeLog('Bulk transfer '+changed.reason);
                 uceOrdinaryCursor=(index+1)%receivers.length;
-                return;
+                return changed.ok===true;
             }
         }
 
@@ -1356,8 +1363,8 @@ function uceOrdinaryServiceTick(authority){
                 partialOutput:selectedRoute?.partialOutput===true});
         if(!result.ok)uceBridgeLog('ordinary '+result.reason);
         uceOrdinaryCursor=(index+1)%receivers.length;
-        // One transaction opportunity per tick, successful or blocked.
-        return;
+        // Stop the batch on HOLD, but fairly continue after success.
+        return result.ok===true;
     }
     uceOrdinaryCursor=(uceOrdinaryCursor+1)%receivers.length;
 }

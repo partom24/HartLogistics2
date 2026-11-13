@@ -15,8 +15,8 @@ assert.ok(first>=0&&last>first,'unified scheduler must have stable bounds');
 const actual=bridge.slice(first,last);
 
 function fixture({ready=true,active=true,sealed=true,
-                  thrown=false,journals={},afterMR=null,
-                  dirty=false,topologyFails=false}={}){
+                  thrown=false,journals={},afterMR=null,afterOrdinary=null,
+                  ordinaryBudget=0,dirty=false,topologyFails=false}={}){
   const calls=[],messages=[],reads=[];
   const authority=active?{worldId:'restored-lab-copy',epoch:41}:undefined;
   const world={
@@ -47,6 +47,9 @@ function fixture({ready=true,active=true,sealed=true,
     },
     uceOrdinaryServiceTick:a=>{
       assert.equal(a,authority);calls.push('ORDINARY');
+      const count=calls.filter(x=>x==='ORDINARY').length;
+      if(typeof afterOrdinary==='function')afterOrdinary(journals,count);
+      return count<=ordinaryBudget;
     },
     uceSorterDirectServiceTick:a=>{
       assert.equal(a,authority);calls.push('SORTER');
@@ -122,6 +125,30 @@ test('ordinary operation leaving a pending intent holds direct native Sorter wor
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
 });
 
+test('multiple successful ordinary Receiver operations are bounded to four per tick',()=>{
+  const f=fixture({ordinaryBudget:100});
+  assert.deepEqual(f.calls,['authority','cold','MR',
+    'ORDINARY','ORDINARY','ORDINARY','ORDINARY','SORTER']);
+  assert.equal(f.calls.filter(x=>x==='MR').length,1);
+  assert.equal(f.calls.filter(x=>x==='SORTER').length,1);
+  assert.equal(f.reads.length,24,
+    '12 checks initially; each extra successful service gets fresh gate');
+});
+test('ordinary batch stops on no work without spinning the scheduler',()=>{
+  const f=fixture({ordinaryBudget:2});
+  assert.deepEqual(f.calls,['authority','cold','MR',
+    'ORDINARY','ORDINARY','ORDINARY','SORTER']);
+});
+test('ordinary journal interruption in second operation stops all subsequent writers',()=>{
+  const f=fixture({ordinaryBudget:4,afterOrdinary:(journals,count)=>{
+    if(count===2)
+      journals['hartlogistics:uce_boundary_intent_v1']='PREPARED';
+  }});
+  assert.deepEqual(f.calls,['authority','cold','MR',
+    'ORDINARY','ORDINARY']);
+  assert.equal(f.messages.some(x=>x.includes('uce_boundary_intent_v1')),true);
+  assert.equal(f.calls.includes('SORTER'),false);
+});
 test('an idle Receiver with an output Hopper does not reserve/spawn a carrier',()=>{
   const start=bridge.indexOf('function uceOrdinaryServiceTick(authority){');
   const end=bridge.indexOf('\n\n/* Bulk Storage',start);
