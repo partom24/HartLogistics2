@@ -98,6 +98,13 @@ class UceBuildTests(unittest.TestCase):
             {name+".js" for name in mod.MODULES}
         )
         self.assertGreaterEqual(len(seen),4)
+        # Every shipped UCE module must actually be reachable from main.
+        # This catches abandoned prototype modules silently left in the
+        # output even if the copied module inventory still matches MODULES.
+        reached={p.name for p in seen if p.parent==root/"uce"}
+        declared={name+".js" for name in mod.MODULES}
+        self.assertEqual(reached,declared,
+                         f"Unreachable or missing UCE modules: {sorted(reached ^ declared)}")
 
     def test_legacy_core_writers_and_original_scheduler_fenced(self):
         s=self.main
