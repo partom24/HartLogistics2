@@ -575,6 +575,14 @@ function uceChoosePipeDestination(receiver,item,onlyPreferred=false,
     if(unresolved.length&&(!selected||
        routeOrder(unresolved[0],selected)<=0))return undefined;
     if(!selected)return undefined;
+    // A later-bank matching Filter must outrank this bank's Auto or
+    // terminal Wildcard regardless of Y ordering. Even when the physically
+    // local wildcard sorts first, do NOT consume an MR native item or
+    // ordinary account while a connected Collector route remains
+    // unresolved. The separate verified interbank handoff has first claim.
+    if(selected.priority>0&&
+       ucePipeHasUnresolvedForwarding(receiver,graph,item))
+        return undefined;
     const destId=ucePipeStorageOwnerId(selected.dest.block);
     if(!destId)return undefined;
     const routeId=graph.fingerprint+'#'+selected.entry.d+'|'+
