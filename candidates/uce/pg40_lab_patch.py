@@ -87,10 +87,11 @@ def read_only_registry() -> tuple[str,str]:
     prior=historical("candidates/transport/unified_carrier_registry.mjs")
     draft=(ROOT/"candidates/transport/unified_carrier_registry.mjs").read_text(
         encoding="utf-8")
-    marker="  function inspectHostEvidence({ownerId,anchor}={}){"
+    marker="\n  /**\n   * Bounded read-only PG39 evidence."
     start=draft.find(marker)
     end=draft.find("  function currentJournal(){",start)
-    if start<0 or end<start or draft.count(marker)!=1:
+    if (start<0 or end<start or draft.count(marker)!=1 or
+        "  function inspectHostEvidence({ownerId,anchor}={}){" not in draft[start:end]):
         raise lab.UnsafeLab("PG40 native host observer boundary changed")
     observer=draft[start:end]
     # A forensic observer is only allowed to read. No item writes/spawning.

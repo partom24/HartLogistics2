@@ -1448,8 +1448,14 @@ function uceSendDiagnostics(origin){
                         lines.push('§7Carrier §f'+a.id+' §7state '+
                             audit.recordState+' | physical '+audit.liveEntityCount+
                             ' | tickets '+audit.ticketSlotCount+
+                            '@'+audit.ticketRevision+
+                            ' | intent '+audit.nativeIntentPhase+
                             ' | block '+(audit.ownerVerified?'present':'UNVERIFIED')+
                             ' | '+audit.custodyState);
+                        for(const observed of audit.entities.slice(0,2))
+                            lines.push('§7  Entity §f'+observed.id+
+                                ' §7occupied '+observed.occupied+
+                                ' | '+observed.inventoryStatus);
                     }
                     lines.push('§7Native hosts (read-only, first '+maxHosts+
                         '): §factive '+active+' | RESERVED '+reserved+

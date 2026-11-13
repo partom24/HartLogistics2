@@ -148,6 +148,8 @@ test('read-only status reveals a RESERVED carrier despite clear global MR journa
     createUnifiedCarrierRegistry:()=>({ok:true,
       inspectHostEvidence:()=>({ok:true,recordState:'RESERVED',
         custodyState:'HOLD:RESERVED',liveEntityCount:1,ticketSlotCount:0,
+        ticketRevision:0,nativeIntentPhase:'CLEAR',
+        entities:[{id:'native-PG39',occupied:0,inventoryStatus:'VERIFIED'}],
         ownerVerified:true})}),
     uceLiveReceiverOwner:()=>true,
     log:s=>lines.push(String(s))
@@ -156,6 +158,8 @@ test('read-only status reveals a RESERVED carrier despite clear global MR journa
   ctx.uceSendDiagnostics({sourceEntity:{sendMessage:s=>lines.push(s)}});
   assert.match(lines.join('|'),/MR clear/);
   assert.match(lines.join('|'),/Carrier.*RESERVED.*HOLD:RESERVED/);
+  assert.match(lines.join('|'),/Entity.*native-PG39.*occupied 0/);
+  assert.match(lines.join('|'),/intent CLEAR/);
   assert.equal(writes.length,0);
 });
 test('owner-keyed warning suppression keeps alternating failures bounded',()=>{
