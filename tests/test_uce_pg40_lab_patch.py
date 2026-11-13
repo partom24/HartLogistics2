@@ -143,6 +143,7 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
             "never reactivate the legacy Q4 writer when UCE service freezes")
         self.assertIn("function uceSendDiagnostics(origin){",script)
         self.assertIn("inspectHostEvidence({",script)
+        self.assertIn("PG40 FORENSIC HOLD: Hart script transfers",script)
         checked=run(["node","--check","--input-type=module"],
             input=script,text=True,capture_output=True)
         self.assertEqual(checked.returncode,0,checked.stderr)

@@ -115,6 +115,10 @@ def frozen_maintenance_bridge(base: str) -> str:
         "\n    if(UCE_PG40_FORENSIC_FREEZE){"+
         "if(player&&block?.typeId===RECEIVER_ID)"+
         "uceShowReceiverLinkedStatus(player,block);return;}")
+    base=replace_exact(base,
+        "    lines.push('§7Build: §fSOURCE ONLY; no BDS acceptance or hard-crash disk proof');",
+        "    lines.push('§cPG40 FORENSIC HOLD: Hart script transfers and registrations suspended; vanilla world still ticks.');\n"
+        "    lines.push('§7Build: §fSOURCE ONLY; no BDS acceptance or hard-crash disk proof');")
     return base
 
 
