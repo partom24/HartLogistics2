@@ -198,14 +198,20 @@ function uceReceiverHasNewMRInput(receiver){
     }
     return false;
 }
+const UCE_MR_SCAN_BUDGET=16;
+const UCE_MR_MOVE_BUDGET=8;
 function uceMrServiceTick(authority){
     // uceUnifiedServiceTick is the only caller. It has already validated
     // world-wide cold authority and all native/ordinary/legacy journals.
     // Each physical writer still performs its own fresh mutation fence.
     const receivers=logistics.receivers;
     if(!receivers.length)return;
-    let considered=0;
-    for(let step=0;step<receivers.length;step++){
+    let considered=0,scanned=0;
+    // Bounded round-robin: do not walk hundreds of potentially unloaded
+    // Receiver hosts, ticket properties and pipe graphs in a single tick.
+    // Every Receiver eventually gets its turn, even when earlier ones HOLD.
+    for(let step=0;step<Math.min(receivers.length,UCE_MR_SCAN_BUDGET);step++){
+        scanned++;
         const ix=(uceMrCursor+step)%receivers.length;
         const receiver=receivers[ix];
         // A historical/unexpected registry row is not custody authority.
@@ -360,8 +366,13 @@ function uceMrServiceTick(authority){
         }else if(result.moved>0){
             considered++;
         }
+        // Stop before touching another owner if this MR operation left an
+        // unresolved custody intent. The outer scheduler also holds other
+        // lanes on that exact journal in the same tick.
+        if(uceUnifiedJournalHold()||considered>=UCE_MR_MOVE_BUDGET)
+            break;
     }
-    uceMrCursor=(uceMrCursor+1)%receivers.length;
+    uceMrCursor=(uceMrCursor+scanned)%receivers.length;
 }
 
 
