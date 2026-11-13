@@ -106,3 +106,36 @@ test('empty receiver census remains read only',()=>{
   assert.equal(x.q4ItemCount,0);
   assert.equal(x.canMigrate,false);
 });
+
+test('opaque migration preflight pinpoints affected Receiver queues without leaking metadata or writing Q4',()=>{
+  const sensitive={...ordinary,nameTag:'Private custom name'};
+  const f=fixture([
+    [{definition:ordinary,amount:200000}],
+    [{definition:sensitive,amount:3}],
+    [{definition:ordinary,amount:6}],
+    [{definition:{...ordinary,typeId:'minecraft:enchanted_book'},amount:1}]
+  ]);
+  const before=JSON.stringify([...f.values]);
+  const result=previewUnifiedMigrationPreflight({world:f.world});
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,'legacy_metadata_rich_or_unknown_items');
+  assert.equal(result.receiverCount,4);
+  assert.equal(result.q4ItemCount,200010);
+  assert.equal(result.ordinaryShapeCandidateCount,200006);
+  assert.equal(result.metadataRichOrUnknownCount,4);
+  assert.equal(result.opaqueReceiverCount,2);
+  assert.deepEqual(result.opaqueReceiverExamples.map(x=>x.queueKey),[
+    'q2','q4'
+  ]);
+  assert.deepEqual(result.opaqueReceiverExamples.map(x=>x.opaqueItemCount),[
+    3,1
+  ]);
+  assert.equal(result.opaqueReceiverExamples[0].receiverId,
+    'minecraft:overworld|1|70|4');
+  assert.equal(JSON.stringify(result.opaqueReceiverExamples)
+    .includes('Private custom name'),false,
+    'the diagnostic never prints private legacy item metadata');
+  assert.equal(f.writes,0);
+  assert.equal(JSON.stringify([...f.values]),before,
+    'preflight cannot alter any source property or item count');
+});

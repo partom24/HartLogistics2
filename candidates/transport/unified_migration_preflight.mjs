@@ -76,8 +76,8 @@ export function previewUnifiedMigrationPreflight({world}={}){
     registrySnapshotStable:true
   });
   if(!census.ok)return refuse('legacy_q4_census:'+census.reason);
-  let ordinary=0,opaque=0;
-  const reasons=new Set();
+  let ordinary=0,opaque=0,opaqueReceiverCount=0;
+  const reasons=new Set(),opaqueReceiverExamples=[];
   for(const receiver of registry.receivers){
     const scan=sampleQ4WorldReadOnly({world,receiver});
     if(!scan.ok)
@@ -86,15 +86,32 @@ export function previewUnifiedMigrationPreflight({world}={}){
     if(!sealed||sealed.itemCount!==scan.total||
        sealed.fingerprint!==scan.snapshotFingerprint)
       return refuse('legacy_q4_source_changed_during_preflight');
+    let receiverOpaque=0;
+    const receiverReasons=new Set();
     for(const entry of scan.entries){
       const shape=inspectQ4OrdinaryDefinitionShape(entry.definition);
       if(shape.ok)ordinary+=entry.amount;
       else{
         opaque+=entry.amount;
+        receiverOpaque+=entry.amount;
         reasons.add(shape.reason);
+        receiverReasons.add(shape.reason);
       }
-      if(!natural(ordinary)||!natural(opaque))
+      if(!natural(ordinary)||!natural(opaque)||
+         !natural(receiverOpaque))
         return refuse('legacy_item_count_overflow');
+    }
+    if(receiverOpaque>0){
+      opaqueReceiverCount++;
+      // Queue IDs and counts are bounded diagnostic evidence only:
+      // never expose a named item, metadata definition, enchantment
+      // or reconstructed ItemStack. No source queue is mutated here.
+      if(opaqueReceiverExamples.length<8)
+        opaqueReceiverExamples.push({
+          receiverId:receiver.id,queueKey:receiver.queueKey,
+          opaqueItemCount:receiverOpaque,
+          reasons:[...receiverReasons].sort().slice(0,3)
+        });
     }
   }
   const final=readLegacyRegistry(world);
@@ -108,6 +125,7 @@ export function previewUnifiedMigrationPreflight({world}={}){
     receiverCount:census.receiverCount,q4ItemCount:census.itemCount,
     ordinaryShapeCandidateCount:ordinary,
     metadataRichOrUnknownCount:opaque,
+    opaqueReceiverCount,opaqueReceiverExamples,
     opaqueReasons:[...reasons].sort().slice(0,10),
     hasFrozenWorldProof:false,hasBackupProof:false,
     hasNativeRoundTripProof:false,

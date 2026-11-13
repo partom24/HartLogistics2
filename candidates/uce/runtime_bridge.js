@@ -2887,6 +2887,16 @@ function uceSendMigrationPreview(origin){
         if(result.opaqueReasons?.length)
             lines.push('§eOpaque item reasons: '+
                 result.opaqueReasons.join(', '));
+        if(result.opaqueReceiverCount>0){
+            lines.push('§eAffected Receiver queues: '+
+                result.opaqueReceiverCount);
+            for(const row of (result.opaqueReceiverExamples||[])
+                .slice(0,3)){
+                lines.push('§7'+row.receiverId+
+                    ' | opaque: '+row.opaqueItemCount+
+                    ' | queue: '+row.queueKey);
+            }
+        }
     }
     lines.push('§7NOT a freeze, backup proof, native item proof, migration, or release.');
     lines.push('§7No items, Q4 properties or authority were changed.');
