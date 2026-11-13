@@ -318,9 +318,9 @@ export function inspectUnifiedActiveColdImport({world,worldId,epoch}={}){
     // One shard may not simultaneously bind its members to different owners.
     const localBanks=checked.snapshot.accounts.filter(a=>a.kind==='bulk');
     const localControllers=localBanks.filter(a=>a.role==='controller');
-    // Current runtime has no cross-shard Bulk transfer protocol. Each
-    // network that holds banks must own its own controller; never silently
-    // accept a foreign shard's controller as local spend authorization.
+    // Ordinary cross-shard transfers are globally journaled and never
+    // alias a bank into a foreign shard. Each sealed bank shard retains
+    // exactly one controller; foreign account authority is never inferred.
     if(localBanks.length && (localControllers.length!==1 ||
        localBanks.some(a=>
          a.controllerOwnerId!==localControllers[0].ownerId)))

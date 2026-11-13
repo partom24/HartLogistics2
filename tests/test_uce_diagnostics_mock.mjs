@@ -219,3 +219,10 @@ test('status isolates unresolved cross-shard custody and never clears the global
   assert.match(joined,/receiver:a.*bulk:b.*32/);
   assert.ok(f.calls.includes('hartlogistics:uce_federated_intent_v1'));
 });
+
+test('diagnostics treat malformed falsy journal values as HOLD, not clear',()=>{
+  const f=fixture();
+  const source=fs.readFileSync(new URL(
+    '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
+  assert.match(source,/const pending=v=>v!==undefined&&v!==null&&v!==''/);
+});

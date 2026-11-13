@@ -1804,11 +1804,12 @@ function uceSendDiagnostics(origin){
             'hartlogistics:uce_federated_intent_v1');
         const q4native=world.getDynamicProperty('hartsorter:journal_v1');
         const q4queue=world.getDynamicProperty('hartsorter:queue_journal_v1');
-        lines.push('§7Pending custody: §fMR '+(native?'HOLD':'clear')+
-            ' | Ordinary '+(boundary?'HOLD':'clear')+
-            ' | Federated '+(federated?'HOLD':'clear')+
-            ' | Q4 '+(q4native||q4queue?'HOLD':'clear'));
-        if(federated){
+        const pending=v=>v!==undefined&&v!==null&&v!=='';
+        lines.push('§7Pending custody: §fMR '+(pending(native)?'HOLD':'clear')+
+            ' | Ordinary '+(pending(boundary)?'HOLD':'clear')+
+            ' | Federated '+(pending(federated)?'HOLD':'clear')+
+            ' | Q4 '+(pending(q4native)||pending(q4queue)?'HOLD':'clear'));
+        if(pending(federated)){
             let tx;
             try{tx=JSON.parse(federated);}catch(_){}
             if(tx?.schema==='hart-uce-federated-intent-v1'){
