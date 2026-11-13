@@ -803,6 +803,7 @@ jobs:
               try { & $launcher @set | Out-Null } catch { $denied = $true }
               if (-not $denied) { throw ('HL2 launcher failed to refuse: '+($set -join ' ')) }
           }
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
           python -m py_compile candidates/uce/full_product_lab.py
           python -m unittest discover -s tests -p 'test_uce_full_product_lab.py' -v
       - name: UCE PG42 fresh-world-only native carrier probe and rollback on synthetic Windows
