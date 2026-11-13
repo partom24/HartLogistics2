@@ -2302,6 +2302,28 @@ function uceOrdinaryServiceTick(authority){
             }
         }
 
+        // Connected via the ORIGINAL Sorter→Collector→Receiver topology, a
+        // different sealed bank may have spendable Bulk capacity even when
+        // this Receiver's local bank/controller is full or absent. Never
+        // invent an item hop: move only the certified ordinary count through
+        // the existing globally journaled TWO-shard federated writer.
+        if(account.total>0&&bankNetwork&&!output&&!preferredOutputReady&&
+           !blockIsRedstonePowered(receiverAt(receiver))){
+            const remote=uceTryRemoteBulkTransfer(
+                authority,receiver,shardKey,shardWriter,
+                account,!!sourceRecord);
+            if(!remote.ok){
+                uceBridgeLog('remote Bulk HOLD '+remote.reason,ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+            if(remote.status==='REMOTE_BULK_TRANSFER_COMMITTED'){
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                ucePerfRecordMove('ordinary',remote.count);
+                return true;
+            }
+        }
+
         // Initialize an empty native host only for actual eligible work.
         // Mere presence of an output Hopper or pipe is NOT a transfer.
         host=registry.inspectHost({ownerId,anchor});
