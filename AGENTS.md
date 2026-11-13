@@ -16,6 +16,16 @@ branch `dev/uce-shared-ordinary-ledger-20261111`. This development mandate does
 public release, or merge. Request owner BDS involvement only for a complete
 integrated product candidate or an unavoidable safety boundary.
 
+**Continuous development rule (owner, 2026-11-13):** Do not interrupt or
+stop implementation to provide status updates, solicit routine go-aheads,
+repeat accepted tests, or request the next prompt. Continue coding,
+integrating, fixing CI failures, and validating autonomously within the
+existing repository/LAB safety boundaries. A progress report is not a stop
+condition. Stop and request owner involvement only when hands-on validation,
+a decision requiring owner authority, or an issue that cannot safely be
+resolved within the existing mandate genuinely blocks further development.
+Keep PRs unmerged and do not deploy to a live world without explicit approval.
+
 ## Authority and repository boundary
 
 - **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.
