@@ -37,16 +37,37 @@ function exactFunction(src,name){
   }
   throw Error('unterminated function '+name);
 }
-const start=bridge.indexOf('function uceInterbankRouteVerified(');
-const end=bridge.indexOf('\n\n/* Bulk Storage',start);
+const generated=process.env.UCE_GENERATED_MAIN?
+  fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):undefined;
+const production=generated||bridge;
+const start=production.indexOf('function uceInterbankRouteVerified(');
+const end=production.indexOf('\n\n/* Bulk Storage',start);
 assert.ok(start>0&&end>start,'exact integrated ordinary scheduler found');
+const routeNames=[
+  'ucePipeSameDimension','ucePipeRouteNetwork','uceReadOnlyPipeInput',
+  'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
+  'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
+  'ucePipeHasUnresolvedForwarding','uceSelectInterbankFilteredRoute',
+  'uceChoosePipeDestination','ucePipeDestinationStillValid',
+  'uceSorterColumnWinner','uceSorterCollectorSources',
+  'uceSorterSourceStillValid'
+];
+const route=generated?[
+  ...['UCE_MAX_LOADED_PIPES','UCE_MAX_SORTER_COLUMN_HEIGHT'].map(name=>{
+    const match=generated.match(new RegExp(
+      'const '+name+'\\\\s*=\\\\s*[0-9]+\\\\s*;'));
+    assert.ok(match,'assembled UCE route constant missing '+name);
+    return match[0];
+  }),
+  ...routeNames.map(name=>exactFunction(generated,name))
+].join('\n'):pipe;
 const executable=[
-  exactFunction(baseline,'supportedStorage'),
-  exactFunction(baseline,'blockContainer'),
-  exactFunction(bridge,'uceDirectStorageOwnerBlock'),
-  pipe,
+  exactFunction(generated||baseline,'supportedStorage'),
+  exactFunction(generated||baseline,'blockContainer'),
+  exactFunction(production,'uceDirectStorageOwnerBlock'),
+  route,
   'let uceOrdinaryCursor=0;',
-  bridge.slice(start,end)
+  production.slice(start,end)
 ].join('\n');
 const worldId='minecraft:overworld:interbank-integrated',epoch=13;
 const shardA='hartlogistics:uce_shard_0001_v1';
