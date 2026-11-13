@@ -1838,6 +1838,22 @@ function uceSendDiagnostics(origin){
                 lines.push('§cFederated HOLD: '+tx.phase+
                     ' §f'+tx.fromAccount+' -> '+tx.toAccount+
                     ' x'+tx.count+' §c(no automatic replay)');
+                if(auth){
+                    const source=createUnifiedShardWriter({
+                        world,shardKey:tx.fromShard,worldId:auth.worldId,
+                        epoch:auth.epoch,externalFence:()=>false});
+                    const destination=createUnifiedShardWriter({
+                        world,shardKey:tx.toShard,worldId:auth.worldId,
+                        epoch:auth.epoch,externalFence:()=>false});
+                    const audit=source.ok&&destination.ok?
+                        inspectUnifiedFederatedPending({
+                            world,worldId:auth.worldId,epoch:auth.epoch,
+                            sourceWriter:source,destinationWriter:destination
+                        }):{ok:false,reason:'shard_reader_unavailable'};
+                    lines.push('§cFederated read-only evidence: '+
+                        (audit.ok?audit.evidenceState||audit.status:
+                            'HOLD:'+audit.reason));
+                }
             }else lines.push('§cFederated journal unreadable; global HOLD');
         }
     }catch(_){

@@ -184,7 +184,7 @@ def compile_patch(source,bridge):
       'import {executeUnifiedOrdinaryDeposit,executeUnifiedOrdinaryWithdrawal} from "./uce/unified_ordinary_service.js";\n'
       'import {createUnifiedShardWriter} from "./uce/unified_world_shard_writer.js";\n'
       'import {planUnifiedBulkService} from "./uce/unified_bulk_policy.js";\n'
-      'import {planUnifiedFederatedNetwork,executeUnifiedFederatedTransfer} from "./uce/unified_federated_service.js";\n'
+      'import {planUnifiedFederatedNetwork,executeUnifiedFederatedTransfer,inspectUnifiedFederatedPending} from "./uce/unified_federated_service.js";\n'
       'import {createUnifiedLinkRegistry} from "./uce/unified_link_registry.js";\n'
       'import {q5IdentityKey} from "./uce/q5_bucket_core.js";\n'
       'import {inspectQ4OrdinaryDefinitionShape} from "./uce/q5_ordinary_shape_gate.js";\n'

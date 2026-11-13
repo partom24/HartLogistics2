@@ -40,6 +40,9 @@ function fixture({active=true,sealed=true,native=false,boundary=false,
         {kind:'bulk',role:'controller',total:40,capacity:200000},
         {kind:'bulk',role:'member',total:20,capacity:200000}
       ]}})}),
+    inspectUnifiedFederatedPending:()=>({
+      ok:true,evidenceState:'SOURCE_DEBIT_ONLY_OBSERVED'
+    }),
     log:message=>lines.push(String(message))
   };
   vm.runInNewContext(fn,ctx);
@@ -217,6 +220,7 @@ test('status isolates unresolved cross-shard custody and never clears the global
   assert.match(joined,/Federated HOLD/);
   assert.match(joined,/DEBIT_INSPECTED/);
   assert.match(joined,/receiver:a.*bulk:b.*32/);
+  assert.match(joined,/SOURCE_DEBIT_ONLY_OBSERVED/);
   assert.ok(f.calls.includes('hartlogistics:uce_federated_intent_v1'));
 });
 
