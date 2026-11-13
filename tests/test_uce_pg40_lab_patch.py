@@ -102,6 +102,51 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
                       (cur/"main.js").read_text(encoding="utf-8"),
                       "no other draft runtime changes in diagnostics patch")
 
+
+    def test_runtime_forensic_hold_blocks_every_uce_write_entrypoint(self):
+        from subprocess import run
+        script=(self.current/"behavior_pack/scripts/main.js").read_text(
+            encoding="utf-8")
+        prior=(self.previous/"behavior_pack/scripts/main.js").read_text(
+            encoding="utf-8")
+        self.assertIn("// TEMP_DEBUG:PG40-FORENSIC-FREEZE",script)
+        self.assertIn("const UCE_PG40_FORENSIC_FREEZE=true;",script)
+        self.assertNotIn("UCE_PG40_FORENSIC_FREEZE",prior)
+        functions={
+          "uceAllowsSorterRegistryWrite":"return false;",
+          "uceUnifiedServiceTick":"return;",
+          "uceMrServiceTick":"return;",
+          "uceOrdinaryServiceTick":"return;",
+          "uceSorterDirectServiceTick":"return;",
+          "uceProcessEjectedItemEntity":"return;",
+          "uceRegisterNewReceiver":"return;",
+          "uceSelectCollectorForLink":"return;",
+          "uceMaybeRegisterBulk":"return false;",
+          "uceActivateEmptyLabWorld":"return;"
+        }
+        for name,action in functions.items():
+            prefix="function "+name+"("
+            self.assertEqual(script.count(prefix),1,name)
+            begin=script.index(prefix)
+            open_brace=script.index("{",begin)
+            self.assertLess(open_brace-begin,160,name)
+            expected="if(UCE_PG40_FORENSIC_FREEZE)"+action
+            self.assertIn(expected,script[open_brace+1:open_brace+105],name)
+        link=script.index("function uceUseReceiverLinkOrStatus(")
+        self.assertIn("if(UCE_PG40_FORENSIC_FREEZE)",
+                      script[link:link+230])
+        def legacy_fence(text):
+            start=text.index("function uceLegacyWriterBlocked(){")
+            stop=text.index("function uceAuthoritySnapshot(){",start)
+            return text[start:stop]
+        self.assertEqual(legacy_fence(script),legacy_fence(prior),
+            "never reactivate the legacy Q4 writer when UCE service freezes")
+        self.assertIn("function uceSendDiagnostics(origin){",script)
+        self.assertIn("inspectHostEvidence({",script)
+        checked=run(["node","--check","--input-type=module"],
+            input=script,text=True,capture_output=True)
+        self.assertEqual(checked.returncode,0,checked.stderr)
+
     def test_exact_pg37_stopped_lab_apply_and_rollback_preserve_both_worlds(self):
         properties=(self.root/"server.properties").read_bytes()
         plan=pg40.pg37.make_plan(self.root,self.current,self.previous,
