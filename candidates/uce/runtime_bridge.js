@@ -1785,8 +1785,8 @@ function uceFederatedRouteVerified(authority,receiver,tx,direction){
         // A later-bank Filter may be reachable through this Receiver's
         // Collector-facing Sorter. Do not debit into local Bulk before the
         // complete bank-to-bank route has a verified custody handoff.
-        if(!bankFrom&&ucePipeHasUnresolvedForwarding(
-            receiver,graph,item))return false;
+        if(!bankFrom&&!uceVerifiedNoReachablePreferredOutput(
+            receiver,item,authority))return false;
         const output=receiverOutputHopper(receiver);
         let preferred=false;
         if(!blockIsRedstonePowered(receiverAt(receiver))){
@@ -1924,8 +1924,8 @@ function uceOrdinaryServiceTick(authority){
                         const def=JSON.parse(tx.key);
                         const item=new ItemStack(def.typeId,1);
                         if(uceClassifyLiveStack(item)!=='ORDINARY'||
-                           ucePipeHasUnresolvedForwarding(
-                               receiver,graph,item))return false;
+                           !uceVerifiedNoReachablePreferredOutput(
+                               receiver,item,authority))return false;
                     }catch(_){return false;}
                 }
                 return true;
@@ -2128,8 +2128,8 @@ function uceOrdinaryServiceTick(authority){
                     try{
                         const item=new ItemStack(
                             JSON.parse(plan.key).typeId,1);
-                        unresolved=ucePipeHasUnresolvedForwarding(
-                            receiver,bankNetwork,item);
+                        unresolved=!uceVerifiedNoReachablePreferredOutput(
+                            receiver,item,authority);
                     }catch(_){}
                     if(unresolved){
                         uceBridgeLog(
@@ -2211,8 +2211,8 @@ function uceOrdinaryServiceTick(authority){
                     try{
                         const item=new ItemStack(
                             JSON.parse(plan.key).typeId,1);
-                        unresolved=ucePipeHasUnresolvedForwarding(
-                            receiver,bankNetwork,item);
+                        unresolved=!uceVerifiedNoReachablePreferredOutput(
+                            receiver,item,authority);
                     }catch(_){}
                     if(unresolved){
                         uceBridgeLog(
