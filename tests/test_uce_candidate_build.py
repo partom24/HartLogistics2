@@ -143,7 +143,8 @@ class UceBuildTests(unittest.TestCase):
             brace=s.find("{",start)
             self.assertNotIn("if (uceLegacyWriterBlocked())",
                              s[brace:brace+165],name)
-        self.assertIn("uceSelectCollectorForLink(ev.player,ev.block); return;",s)
+        self.assertIn("void uceCollectorLinkMenu(ev.player,ev.block); return;",s)
+        self.assertIn("void uceReceiverLinkMenu(player,block); return;",s)
         self.assertIn("uceRegisterNewReceiver(ev.player,ev.block); return;",s)
         self.assertIn("if (uceLegacyWriterBlocked()) uceHydrateNewReceivers();",s)
         self.assertIn("function uceOrdinaryAccountSource(authority,ownerId)",s)
@@ -204,6 +205,29 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn('id.endsWith("_shulker_box")',s)
         self.assertIn('if(paired.length!==1||c.size!==54)return false;',s)
         self.assertNotIn("!['minecraft:chest','minecraft:barrel'].includes(dest.typeId)",s)
+
+    def test_original_pg08_link_menu_runs_in_assembled_uce_product(self):
+        bp=json.loads((self.bp/"manifest.json").read_text())
+        ui=[d for d in bp["dependencies"]
+            if d.get("module_name")=="@minecraft/server-ui"]
+        self.assertEqual(ui,[{"module_name":"@minecraft/server-ui",
+                              "version":"2.2.0"}])
+        self.assertIn(
+            'import { ActionFormData, MessageFormData } from "@minecraft/server-ui";',
+            self.main)
+        self.assertIn("function uceCollectorLinkMenu(player,block)",self.main)
+        self.assertIn("function uceReceiverLinkMenu(player,block)",self.main)
+        self.assertIn("function uceLinkMenuSnapshot(collectorId)",self.main)
+        self.assertIn("uceUseReceiverLinkOrStatus(player,block);",self.main)
+        self.assertIn("if(!fresh||ticket.expires<system.currentTick||",self.main)
+        self.assertIn("uceLinkMenuTickets.delete(player.id);",self.main)
+        self.assertIn("function uceSelectCollectorForLink(player,block)",self.main)
+        self.assertIn("function uceUseReceiverLinkOrStatus(player,block)",self.main)
+        # UI only calls the existing sealed/custody-guarded link writer.
+        ui_source=(ROOT/"candidates/uce/runtime_link_menu.js").read_text()
+        self.assertNotIn("setDynamicProperty(",ui_source)
+        self.assertNotIn("saveLogistics(",ui_source)
+        self.assertNotIn("linkCollector({",ui_source)
 
     def test_one_unified_scheduler_serves_mr_and_ordinary(self):
         s=self.main
