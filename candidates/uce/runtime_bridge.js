@@ -15,6 +15,148 @@ let uceMrBootNonce=undefined;
 // not reset suppression for the first (the PG39 failure mode).
 const uceWarningCounts=new Map();
 const UCE_MAIN_AUTHORITY='hartlogistics:uce_authority_v1';
+
+/* Permanent, optional read-only operational diagnostics. Default OFF on each
+ * BDS start. No extra world keys, item serialization, replay or write path.
+ * Timing is local script wall time, NOT a measured server TPS guarantee. */
+const UCE_PERF_SLOW_TICK_MS=25;
+const UCE_PERF_SLOW_OP_MS=12;
+const UCE_PERF_WARN_SHARD_CHARS=22400;
+const UCE_PERF_CRITICAL_SHARD_CHARS=26000;
+const UCE_PERF_SHARD_MAX_CHARS=28000;
+let ucePerfEnabled=false;
+let ucePerfLastMoveTick=undefined;
+let ucePerfLastShardSampleTick=undefined;
+const ucePerfNoticeCounts=new Map();
+const ucePerfStats={ticks:0,maxTickMs:0,slowTicks:0,slowOps:0,
+    moves:0,ordinaryMoves:0,mrMoves:0,gaps:0,
+    maxGapTicks:0,maxShardChars:0,shardSamples:0,shardWarnings:0};
+function ucePerfReset(){
+    for(const key of Object.keys(ucePerfStats))ucePerfStats[key]=0;
+    ucePerfNoticeCounts.clear();
+    ucePerfLastMoveTick=undefined;
+    ucePerfLastShardSampleTick=undefined;
+}
+function ucePerfNotice(reason,detail){
+    if(!ucePerfEnabled)return;
+    const count=(ucePerfNoticeCounts.get(reason)||0)+1;
+    ucePerfNoticeCounts.set(reason,count);
+    // One immediate event, then exponentially bounded repetitions.
+    if(count===1||count===16||count===256||count%8192===0)
+        log('[UCE performance] '+reason+' '+detail+' occurrences='+count);
+}
+function ucePerfTimedOperation(kind,operation){
+    if(!ucePerfEnabled)return operation();
+    const start=Date.now();
+    try{return operation();}
+    finally{
+        const elapsed=Date.now()-start;
+        if(Number.isFinite(elapsed)&&elapsed>=UCE_PERF_SLOW_OP_MS){
+            ucePerfStats.slowOps++;
+            ucePerfNotice('slow_operation',
+                'lane='+kind+' elapsed_ms='+elapsed);
+        }
+    }
+}
+function ucePerfRecordMove(kind,count=1){
+    if(!ucePerfEnabled||!Number.isSafeInteger(count)||count<1)return;
+    const tick=system.currentTick;
+    if(Number.isSafeInteger(tick)&&ucePerfLastMoveTick!==undefined){
+        const gap=tick-ucePerfLastMoveTick;
+        if(gap>=40){
+            ucePerfStats.gaps++;
+            ucePerfStats.maxGapTicks=Math.max(
+                ucePerfStats.maxGapTicks,gap);
+            // A quiet interval can be unloaded/idle, not a performance fault.
+            ucePerfNotice('transfer_gap','ticks='+gap+
+                ' (may be idle or blocked; not a TPS measurement)');
+        }
+    }
+    if(Number.isSafeInteger(tick))ucePerfLastMoveTick=tick;
+    ucePerfStats.moves+=count;
+    if(kind==='MR')ucePerfStats.mrMoves+=count;
+    else ucePerfStats.ordinaryMoves+=count;
+}
+function ucePerfSampleShard(shardKey){
+    if(!ucePerfEnabled)return;
+    const tick=system.currentTick;
+    // At most one EXTRA read per 100 game ticks, not one per transfer.
+    if(!Number.isSafeInteger(tick)||tick<0||tick%100!==0||
+       tick===ucePerfLastShardSampleTick)return;
+    ucePerfLastShardSampleTick=tick;
+    try{
+        const raw=world.getDynamicProperty(shardKey);
+        if(typeof raw!=='string'){
+            ucePerfNotice('shard_read','non_string');
+            return;
+        }
+        const chars=raw.length; // ASCII shard JSON: chars, not native NBT bytes.
+        ucePerfStats.shardSamples++;
+        ucePerfStats.maxShardChars=Math.max(
+            ucePerfStats.maxShardChars,chars);
+        if(chars>=UCE_PERF_WARN_SHARD_CHARS){
+            ucePerfStats.shardWarnings++;
+            const level=chars>=UCE_PERF_CRITICAL_SHARD_CHARS?
+                'shard_critical':'shard_high';
+            ucePerfNotice(level,'shard='+shardKey+
+                ' chars='+chars+'/'+UCE_PERF_SHARD_MAX_CHARS);
+        }
+    }catch(_){ucePerfNotice('shard_read','exception');}
+}
+function ucePerformanceTick(){
+    if(!ucePerfEnabled){uceUnifiedServiceTick();return;}
+    const start=Date.now();
+    try{uceUnifiedServiceTick();}
+    finally{
+        const elapsed=Date.now()-start;
+        if(!Number.isFinite(elapsed)||elapsed<0)return;
+        ucePerfStats.ticks++;
+        ucePerfStats.maxTickMs=Math.max(
+            ucePerfStats.maxTickMs,elapsed);
+        if(elapsed>=UCE_PERF_SLOW_TICK_MS){
+            ucePerfStats.slowTicks++;
+            ucePerfNotice('slow_service_tick','elapsed_ms='+elapsed);
+        }
+    }
+}
+function ucePerformancePanel(origin,mode='status'){
+    const entity=origin?.sourceEntity;
+    const say=message=>{
+        if(entity&&typeof entity.sendMessage==='function')
+            entity.sendMessage(message);
+        else log(message.replace(/§./g,''));
+    };
+    if(mode==='on'&&!ucePerfEnabled){
+        ucePerfReset();
+        ucePerfEnabled=true;
+    }else if(mode==='off')ucePerfEnabled=false;
+    say('§6[HL2 performance panel] §fMonitoring: '+
+        (ucePerfEnabled?'§aON':'§7OFF')+
+        ' §7(session-only; resets OFF on server restart)');
+    say('§7Controls: /hartlogistics:perf_on | '+
+        '/hartlogistics:perf_off | /hartlogistics:perf');
+    say('§7Thresholds: service tick '+UCE_PERF_SLOW_TICK_MS+
+        'ms; operation '+UCE_PERF_SLOW_OP_MS+
+        'ms; shard warning '+UCE_PERF_WARN_SHARD_CHARS+
+        '/'+UCE_PERF_SHARD_MAX_CHARS+' chars');
+    if(ucePerfEnabled){
+        say('§7Observed: service ticks '+ucePerfStats.ticks+
+            ', max '+ucePerfStats.maxTickMs+'ms, slow '+
+            ucePerfStats.slowTicks+', slow operations '+
+            ucePerfStats.slowOps);
+        say('§7Transfers observed: MR '+ucePerfStats.mrMoves+
+            ', ordinary '+ucePerfStats.ordinaryMoves+
+            '; gaps >=40 ticks '+ucePerfStats.gaps+
+            ' (max '+ucePerfStats.maxGapTicks+')');
+        say('§7Shard samples '+ucePerfStats.shardSamples+
+            ', max '+ucePerfStats.maxShardChars+
+            ' chars, high-size samples '+ucePerfStats.shardWarnings);
+    }
+    say('§8Numbers are script-local observations, not TPS or '+
+        'hidden native item metadata sizes. No custody records modified.');
+}
+// End optional operational diagnostics.
+
 /**
  * Sorter native-frame filters and mode state are configuration, NOT item
  * custody. Preserve the original two-generation registry commit protocol
@@ -362,17 +504,18 @@ function uceMrServiceTick(authority){
            'egress':'ingress';
         const op=uceNativeReceiptId();
         if(!op){uceBridgeLog('receipt ID exhausted');return;}
-        const result=serviceUnifiedReceiverMR({
+        const result=ucePerfTimedOperation('MR',()=>serviceUnifiedReceiverMR({
             registry,port,ownerId,anchor,direction,
             inputSources:sources,output:outputNative,
             identify:uceClassifyLiveStack,operationId:op,
             receiverPowered:blockIsRedstonePowered(rb),
             collectorPowered:false
-        });
+        }));
         if(!result.ok){
             uceBridgeLog(result.reason,ownerId);
         }else if(result.moved>0){
             considered++;
+            ucePerfRecordMove('MR',result.moved);
         }
         // Stop before touching another owner if this MR operation left an
         // unresolved custody intent. The outer scheduler also holds other
@@ -1171,6 +1314,7 @@ function uceOrdinaryServiceTick(authority){
         });
         if(!shardWriter.ok){uceBridgeLog(shardWriter.reason);continue;}
         const ledger=shardWriter.inspect();
+        ucePerfSampleShard(shardKey);
         if(!ledger.ok){uceBridgeLog(ledger.reason);continue;}
         const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
         if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
@@ -1263,15 +1407,16 @@ function uceOrdinaryServiceTick(authority){
             if(plan.status==='TRANSFER_DRAFT_ONLY'){
                 const op=uceNativeReceiptId();
                 if(!op){uceBridgeLog('Bulk receipt exhausted');return;}
-                const changed=shardWriter.applyInternalTransfer({
+                const changed=ucePerfTimedOperation('bulk',()=>shardWriter.applyInternalTransfer({
                     operationId:op,from:plan.from,to:plan.to,
                     key:plan.key,count:plan.count,
                     expectedRevision:plan.expectedRevision,
                     expectedEpoch:plan.expectedEpoch
-                });
+                }));
                 if(!changed.ok)
                     uceBridgeLog('Bulk transfer '+changed.reason);
                 uceOrdinaryCursor=(index+1)%receivers.length;
+                if(changed.ok===true)ucePerfRecordMove('ordinary');
                 return changed.ok===true;
             }
         }
@@ -1354,7 +1499,7 @@ function uceOrdinaryServiceTick(authority){
                     return;
                 }
                 const fromBank=plan.from.startsWith('bulk:');
-                const result=executeUnifiedFederatedTransfer({
+                const result=ucePerfTimedOperation('federated',()=>executeUnifiedFederatedTransfer({
                     world,worldId:authority.worldId,epoch:authority.epoch,
                     operationId,routeWitness:witness,
                     sourceWriter:fromBank?leaderWriter:shardWriter,
@@ -1364,11 +1509,12 @@ function uceOrdinaryServiceTick(authority){
                     fromAccount:plan.from,toAccount:plan.to,
                     key:plan.key,count:plan.count,
                     externalFence,verifyRoute:tx=>proof(tx,'withdraw')
-                });
+                }));
                 if(!result.ok)
                     uceBridgeLog('federated transfer HOLD '+result.reason,
                         ownerId);
                 uceOrdinaryCursor=(index+1)%receivers.length;
+                if(result.ok===true)ucePerfRecordMove('ordinary');
                 return result.ok===true;
             }
         }
@@ -1636,14 +1782,15 @@ function uceOrdinaryServiceTick(authority){
             carrierSlot,physicalSlot,verifyRoute:routeVerify,
             verifyOrdinary:meta=>meta.key===identityKey&&
                 meta.count===amount&&meta.accountId===accountId};
-        const result=direction==='deposit'?
+        const result=ucePerfTimedOperation('ordinary',()=>direction==='deposit'?
             executeUnifiedOrdinaryDeposit(args):
             executeUnifiedOrdinaryWithdrawal({...args,
                 partialOutput:selectedRoute?.partialOutput===true||
-                    selectedHopper?.partialOutput===true});
+                    selectedHopper?.partialOutput===true}));
         if(!result.ok)uceBridgeLog('ordinary '+result.reason);
         uceOrdinaryCursor=(index+1)%receivers.length;
         // Stop the batch on HOLD, but fairly continue after success.
+        if(result.ok===true)ucePerfRecordMove('ordinary');
         return result.ok===true;
     }
     uceOrdinaryCursor=(uceOrdinaryCursor+1)%receivers.length;
