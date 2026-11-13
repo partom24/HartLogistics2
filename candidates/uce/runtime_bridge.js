@@ -1166,6 +1166,11 @@ function uceFederatedRouteVerified(authority,receiver,tx,direction){
         const item=new ItemStack(def.typeId,1);
         if(uceClassifyLiveStack(item)!=='ORDINARY')
             return false;
+        // A later-bank Filter may be reachable through this Receiver's
+        // Collector-facing Sorter. Do not debit into local Bulk before the
+        // complete bank-to-bank route has a verified custody handoff.
+        if(!bankFrom&&ucePipeHasUnresolvedForwarding(
+            receiver,graph,item))return false;
         const output=receiverOutputHopper(receiver);
         let preferred=false;
         if(!blockIsRedstonePowered(receiverAt(receiver))){
@@ -1296,8 +1301,18 @@ function uceOrdinaryServiceTick(authority){
                 const current=shardWriter.inspect();
                 if(!current.ok)return false;
                 const bank=current.snapshot.accounts.find(a=>a.id===other);
-                if(!bank||bank.kind!=='bulk')return false;
-                return loaded.has(bank.controllerOwnerId);
+                if(!bank||bank.kind!=='bulk'||
+                   !loaded.has(bank.controllerOwnerId))return false;
+                if(tx.from===accountId){
+                    try{
+                        const def=JSON.parse(tx.key);
+                        const item=new ItemStack(def.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY'||
+                           ucePipeHasUnresolvedForwarding(
+                               receiver,graph,item))return false;
+                    }catch(_){return false;}
+                }
+                return true;
             },
             verifyFederatedRoute:(tx,direction)=>
                 uceFederatedRouteVerified(authority,receiver,tx,direction),
@@ -1406,6 +1421,22 @@ function uceOrdinaryServiceTick(authority){
                 return;
             }
             if(plan.status==='TRANSFER_DRAFT_ONLY'){
+                if(plan.direction==='receiver_to_bulk'){
+                    let unresolved=true;
+                    try{
+                        const item=new ItemStack(
+                            JSON.parse(plan.key).typeId,1);
+                        unresolved=ucePipeHasUnresolvedForwarding(
+                            receiver,bankNetwork,item);
+                    }catch(_){}
+                    if(unresolved){
+                        uceBridgeLog(
+                            'Bulk spill HOLD: unresolved downstream Sorter route',
+                            ownerId);
+                        uceOrdinaryCursor=(index+1)%receivers.length;
+                        return;
+                    }
+                }
                 const op=uceNativeReceiptId();
                 if(!op){uceBridgeLog('Bulk receipt exhausted');return;}
                 const changed=ucePerfTimedOperation('bulk',()=>shardWriter.applyInternalTransfer({
@@ -1473,6 +1504,22 @@ function uceOrdinaryServiceTick(authority){
                 uceOrdinaryCursor=(index+1)%receivers.length;
                 return;
             }else if(plan.status==='TRANSFER_DRAFT_ONLY'){
+                if(plan.direction==='receiver_to_bulk'){
+                    let unresolved=true;
+                    try{
+                        const item=new ItemStack(
+                            JSON.parse(plan.key).typeId,1);
+                        unresolved=ucePipeHasUnresolvedForwarding(
+                            receiver,bankNetwork,item);
+                    }catch(_){}
+                    if(unresolved){
+                        uceBridgeLog(
+                            'federated spill HOLD: unresolved downstream Sorter route',
+                            ownerId);
+                        uceOrdinaryCursor=(index+1)%receivers.length;
+                        return;
+                    }
+                }
                 const witness=bankNetwork.fingerprint;
                 if(typeof witness!=='string'||witness.length>8192){
                     uceBridgeLog('federated network witness too large',
