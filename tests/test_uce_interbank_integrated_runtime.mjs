@@ -26,6 +26,8 @@ const bridge=fs.readFileSync(new URL(
   '../candidates/uce/runtime_bridge.js',import.meta.url),'utf8');
 const pipe=fs.readFileSync(new URL(
   '../candidates/uce/runtime_pipe_route.js',import.meta.url),'utf8');
+const remoteBulk=fs.readFileSync(new URL(
+  '../candidates/uce/runtime_remote_bulk_bridge.js',import.meta.url),'utf8');
 function exactFunction(src,name){
   const at=src.indexOf('function '+name+'(');
   assert.ok(at>=0,'source helper missing: '+name);
@@ -48,7 +50,9 @@ const routeNames=[
   'ucePipeRouteNetwork','uceReadOnlyPipeInput',
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
-  'ucePipeHasUnresolvedForwarding','uceSelectInterbankFilteredRoute',
+  'ucePipeHasUnresolvedForwarding',
+  'uceVerifiedNoReachablePreferredOutput','uceLinkedBankBulkRoutes',
+  'uceSelectInterbankFilteredRoute',
   'uceChoosePipeDestination','ucePipeDestinationStillValid',
   'uceSorterColumnWinner','uceSorterCollectorSources',
   'uceSorterSourceStillValid'
@@ -68,6 +72,14 @@ const executable=[
   exactFunction(generated||baseline,'blockContainer'),
   exactFunction(production,'uceDirectStorageOwnerBlock'),
   route,
+  // The production scheduler invokes the existing remote Bulk adapter on
+  // routes where no Receiver→Receiver Filter transfer was available. Keep
+  // the *actual* production adapter in the VM, not an undefined mock seam.
+  generated?[
+    'uceInterbankBulkRouteVerified',
+    'ucePlanInterbankBulkTransfer',
+    'uceTryRemoteBulkTransfer'
+  ].map(name=>exactFunction(generated,name)).join('\n'):remoteBulk,
   'let uceOrdinaryCursor=0;',
   production.slice(start,end)
 ].join('\n');
