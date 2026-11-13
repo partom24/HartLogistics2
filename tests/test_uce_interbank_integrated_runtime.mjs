@@ -203,7 +203,13 @@ function fixture({afterPreparedLinkChange=false,throwAfterDebit=false,
       inspectHost:()=>({ok:false,reason:'carrier_record_missing'}),
       registerEmptyHost:()=>({ok:false,reason:'test-must-not-spawn-host'})}),
     createUnifiedShardWriter,executeUnifiedFederatedTransfer,
-    inspectQ4OrdinaryDefinitionShape,
+    // The source runs in VM while this pure policy module runs in Node.
+    // Recreate an ordinary host-realm JSON value before the production
+    // shape validator's strict Object.prototype check. In the actual
+    // assembled Bedrock script both functions run in the SAME realm.
+    inspectQ4OrdinaryDefinitionShape:definition=>
+      inspectQ4OrdinaryDefinitionShape(
+        JSON.parse(JSON.stringify(definition))),
     uceClassifyLiveStack:()=> 'ORDINARY',
     ItemStack:class{
       constructor(typeId,amount){
