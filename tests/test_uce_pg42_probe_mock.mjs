@@ -21,8 +21,14 @@ function fixture({properties={},spawnThrows=false,abortWriteAt=0}={}){
         getComponent:()=>({
           inventorySize:9,canBeSiphonedFrom:false,
           container:{size:9,isValid:true,
-            getItem:i=>slots[i]===undefined?undefined:
-              structuredClone(slots[i]),
+            getItem:i=>{
+              const raw=slots[i];
+              if(raw===undefined)return undefined;
+              const item=new ItemStack(raw.typeId,raw.amount);
+              item.nameTag=raw.nameTag;
+              item.setLore(raw.lore||[]);
+              return item;
+            },
             setItem:(i,v)=>{slots[i]=structuredClone(v);}}
         })};
       entities.push(entity);
