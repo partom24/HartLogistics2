@@ -23,17 +23,20 @@ const receiver={id:collector.link,d:'minecraft:overworld',
   x:24,y:70,z:4,present:true};
 function fixture({receiverLoaded=false,powered=false,
                  accountSealed=true,sourceIsMR=true,
-                 carrierExisting=false,carrierOccupied=false,
+                 sourceIsOrdinary=false,carrierExisting=false,carrierOccupied=false,
                  sorterInput=false,sourceEligible=true}={}){
   let loaded=receiverLoaded,linked=accountSealed;
   let hasHost=carrierExisting||carrierOccupied;
   const native={typeId:'minecraft:enchanted_book',amount:1,
     nameTag:'Collector waiting MR',getLore:()=>['native payload']};
+  const ordinary={typeId:'minecraft:cobblestone',
+    amount:64,maxAmount:64};
   const slots=Array(9).fill(undefined);
   if(carrierOccupied)slots[0]=native;
   const host={size:9,isValid:true,getItem:i=>slots[i],
     setItem:(i,v)=>{slots[i]=v}};
-  const input={size:5,isValid:true,items:[sourceIsMR?native:undefined],
+  const input={size:5,isValid:true,items:[
+    sourceIsMR?native:sourceIsOrdinary?ordinary:undefined],
     getItem(i){return this.items[i];},
     setItem(i,v){this.items[i]=v}};
   const block={typeId:'hartsorter:collector',powered,
@@ -75,7 +78,22 @@ function fixture({receiverLoaded=false,powered=false,
         stillSelected:()=>sourceEligible}];
     },
     uceLiveHopperOwner:()=>true,
-    uceClassifyLiveStack:stack=>stack===native?'MR':'UNKNOWN',
+    uceClassifyLiveStack:stack=>stack===native?'MR':
+      stack===ordinary?'ORDINARY':'UNKNOWN',
+    ucePlainItemIdentity:stack=>stack===ordinary?
+      'ordinary-key':undefined,
+    ucePerfTimedOperation:(_,call)=>call(),
+    uceCollectorOrdinaryDeposit:(_,fromOwner,toOwner,anchor,candidate,
+                                  carrier,verify)=>{
+      actions.push('ORDINARY');
+      assert.equal(fromOwner.id,collector.id);
+      assert.equal(toOwner.id,receiver.id);
+      assert.equal(candidate.item,ordinary);
+      assert.equal(candidate.key,'ordinary-key');
+      assert.equal(verify(),true);
+      input.setItem(candidate.slot,undefined);
+      return {ok:true,status:'UNIFIED_ORDINARY_BOUNDARY_DELIVERED'};
+    },
     createUnifiedNativePort:()=>{actions.push('PORT');return {ok:true};},
     uceNativeReceiptId:()=> 'collector-native-1',
     serviceUnifiedReceiverMR:({ownerId,direction,inputSources})=>{
@@ -120,6 +138,16 @@ test('unloaded linked Receiver admits MR Hopper input into one Collector-owned n
   assert.equal(f.input.getItem(0),undefined);
   assert.equal(f.slots[0]?.nameTag,'Collector waiting MR');
   assert.equal(f.hasHost,true);
+});
+test('an unloaded linked Receiver is credited through existing ordinary boundary, not a new queue',()=>{
+  const f=fixture({sourceIsMR:false,sourceIsOrdinary:true});
+  f.tick();
+  assert.deepEqual(f.actions,[
+    'REGISTER_COLLECTOR','ORDINARY','METRIC:ordinary:undefined']);
+  assert.equal(f.input.getItem(0),undefined,
+    'one verified ordinary stack is admitted to the sealed Receiver ledger');
+  assert.equal(f.hasHost,true,
+    'Collector carrier is the real native escrow owner');
 });
 test('when Receiver becomes loaded, Collector cargo drains before any new input',()=>{
   const f=fixture({carrierExisting:true,carrierOccupied:true,
