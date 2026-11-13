@@ -177,6 +177,10 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("!supportedStorage(dest)||!uceDirectStorageOwnerBlock(dest)",s)
         self.assertIn("const c=blockContainer(dest);",s)
         self.assertIn("const destId=ucePipeStorageOwnerId(selected.dest.block);",s)
+        self.assertIn("function ucePipeHasUnresolvedForwarding(receiver,graph,item)",s)
+        self.assertIn("if(!bankFrom&&ucePipeHasUnresolvedForwarding(",s)
+        self.assertIn("'Bulk spill HOLD: unresolved downstream Sorter route'",s)
+        self.assertIn("'federated spill HOLD: unresolved downstream Sorter route'",s)
         # The immutable 1.4.1 whitelist is the authority, not a newly
         # invented or reduced set for Transporter-fed columns.
         self.assertIn('id === "minecraft:trapped_chest"',s)
