@@ -205,6 +205,11 @@ jobs:
         run: |
           node --check tests/test_uce_unified_tick_gate.mjs
           node --test tests/test_uce_unified_tick_gate.mjs
+      - name: UCE PG41 BDS 1.26.63.1 carrier and Bulk recipe parser correction exact PG40 predecessor
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m py_compile candidates/uce/pg41_lab_patch.py
+          python -m unittest discover -s tests -p 'test_uce_pg41_lab_patch.py' -v
       - name: UCE PG40 pinned PG37-only read-only PG39 native carrier forensic census
         run: |
           git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
@@ -744,6 +749,10 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: UCE PG41 assets-only exact PG40 frozen BDS synthetic Windows install and rollback
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m unittest discover -s tests -p 'test_uce_pg41_lab_patch.py' -v
       - name: UCE PG40 read-only forensic census exact PG37 predecessor on synthetic Windows
         run: |
           git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
