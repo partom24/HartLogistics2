@@ -212,8 +212,14 @@ function ucePipeRouteNetwork(receiver) {
         const sortedColumns=[...columnRuns.entries()]
             .sort((a,b)=>a[0].localeCompare(b[0]))
             .map(([top,count])=>top+'x'+count);
-        const sortedInputs=[...inputs.keys()].sort().map(
-            key=>key+':'+inputs.get(key).typeId);
+        const sortedInputs=[...inputs.keys()].sort().map(key=>{
+            const source=inputs.get(key);
+            // A 27-slot single chest and its 54-slot double counterpart
+            // can share the canonical coordinate and owner type, but MUST
+            // never share one accepted graph/transaction witness.
+            return key+':'+source.typeId+':'+source.container.size+
+                'x'+source.aliases.length;
+        });
         const sortedBanks=[...banks.keys()].sort();
         const sortedReceivers=[...receiverIds].sort();
         return {receiverId:receiver.id,
