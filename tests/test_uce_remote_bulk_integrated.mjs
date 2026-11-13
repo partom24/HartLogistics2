@@ -113,7 +113,12 @@ function fixture({remoteFull=false,badController=false,
     uceBulkOwnerId:b=>b.ownerId,
     ucePipeRouteNetwork:()=>({receiverIds:[src.id],banks:[]}),
     uceLinkedBankBulkRoutes:()=>routeActive?[route]:undefined,
-    inspectQ4OrdinaryDefinitionShape,
+    // The VM item definition is parsed in a different JS realm from the
+    // imported pure identity validator. Production runs in ONE realm;
+    // normalize only the mock boundary, without relaxing the real gate.
+    inspectQ4OrdinaryDefinitionShape:definition=>
+      inspectQ4OrdinaryDefinitionShape(
+        JSON.parse(JSON.stringify(definition))),
     ItemStack:class {
       constructor(typeId,amount){
         this.typeId=typeId;this.amount=amount;this.maxAmount=64;
