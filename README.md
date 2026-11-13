@@ -5,6 +5,7 @@
 ## Source of truth
 
 - **Protected compatibility baseline:** `addon/behavior_pack/` and `addon/resource_pack/` are the original 72-file 1.4.1 tree; [hashes](BASELINE_HASHES.json). Never rewrite these files or use the baseline archive as an HL2 release.
+- **Owner's required topology:** [original Sorter Array and intended storage-room result](docs/OWNER_LAYOUT_REFERENCE.md) define the stacked, interconnected-bank product target; these images are design requirements, not Bedrock acceptance evidence.
 - **Active product generator:** [`candidates/uce/prepare_candidate.py`](candidates/uce/prepare_candidate.py) derives an integrated unapproved Bedrock BP/RP under ignored `build/uce-integrated/`. The runtime integration is in `candidates/uce/runtime_bridge.js`, `runtime_pipe_route.js`, and `candidates/transport/` unified modules.
 - **Historical predecessors and LAB tools:** `candidates/pgNN/` and the PG35–PG42 patch chain preserve exact-source rollback and forensic reconstruction contracts. They are not alternative HL2 product runtimes. PG42's temporary carrier probe is registered for its isolated diagnostic LAB world and **is not part of the UCE product generator**.
 - **Engineering and evidence:** [current state](docs/CURRENT_DEVELOPMENT_STATE.md), [AGENTS.md](AGENTS.md), [ledger](docs/DEV_LEDGER.md), [evidence register](docs/ENGINEERING_EVIDENCE_REGISTER.md), [code hygiene policy](docs/CODE_HYGIENE_POLICY.md), and [release gates](docs/RELEASE_POLICY.md).
