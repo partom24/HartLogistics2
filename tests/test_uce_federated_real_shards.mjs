@@ -64,6 +64,7 @@ function fixture({failAt,receiverCount=100,bankCount=0}={}){
   const args={world,worldId,epoch,operationId:'federated-safe-op-1',
     sourceWriter,destinationWriter,fromShard,toShard,fromAccount,
     toAccount,key,count:32,externalFence:()=>true,
+    routeWitness:'verified-federated-route',
     verifyRoute:()=>routeValid};
   return {data,world,sourceWriter,destinationWriter,args,
     get writes(){return writes;},
