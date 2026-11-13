@@ -8,8 +8,16 @@ import vm from 'node:vm';
  * @minecraft/server-ui callback shape. The existing UCE link registry is
  * the ONLY commit delegate. No BDS, disk or UI rendering claim.
  */
-const source=fs.readFileSync(new URL(
-  '../candidates/uce/runtime_link_menu.js',import.meta.url),'utf8');
+const source=process.env.UCE_GENERATED_MAIN?
+  (()=>{const compiled=fs.readFileSync(
+    process.env.UCE_GENERATED_MAIN,'utf8');
+    const anchor=compiled.lastIndexOf(
+      '/*\\n * HL2 Collector/Receiver menu for the existing ONE UCE link writer.');
+    assert.ok(anchor>=0,'assembled Bedrock main lacks UCE link menu');
+    return compiled.slice(anchor);
+  })():
+  fs.readFileSync(new URL(
+    '../candidates/uce/runtime_link_menu.js',import.meta.url),'utf8');
 
 function fixture({existing=true,linked=null}={}){
   const dimension={id:'minecraft:overworld'},colId=dimension.id+'|3|70|4',
