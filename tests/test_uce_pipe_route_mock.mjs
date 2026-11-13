@@ -311,6 +311,56 @@ test('all independent bank graph reads reuse one original Sorter index per verif
   assert.ok(f.network());
   assert.equal(scans,4,'registration change invalidates same-tick census');
 });
+test('remote Filter can be discovered through second verified Collector bank branch',()=>{
+  const f=fixture();
+  f.chestA.typeId='hartsorter:collector';
+  f.chestB.typeId='hartsorter:collector';
+  const a={id:f.context.logisticsId(f.dim.id,24,70,4),
+    d:f.dim.id,x:24,y:70,z:4,present:true};
+  const b={id:f.context.logisticsId(f.dim.id,44,70,4),
+    d:f.dim.id,x:44,y:70,z:4,present:true};
+  f.registeredReceivers.push(a,b);
+  const collectors=[
+    {id:f.context.logisticsId(f.dim.id,3,69,5),
+     d:f.dim.id,x:3,y:69,z:5,present:true,link:a.id},
+    {id:f.context.logisticsId(f.dim.id,2,69,5),
+     d:f.dim.id,x:2,y:69,z:5,present:true,link:b.id}
+  ];
+  f.context.logistics={receivers:f.registeredReceivers,
+    collectors};
+  f.context.findCollectorById=id=>collectors.find(c=>c.id===id);
+  f.context.collectorAt=c=>{
+    const block=f.dim.getBlock({x:c.x,y:c.y,z:c.z});
+    return block?.typeId==='hartsorter:collector'?block:undefined;
+  };
+  for(const [owner,mode] of [[a,'wildcard'],[b,'filter']]){
+    f.put('hartsorter:receiver',owner.x,70,4);
+    f.put('hartlogistics:transporter',owner.x-1,70,4);
+    f.put('hartsorter:sorter',owner.x-1,69,4);
+    f.put('minecraft:barrel',owner.x-1,69,5,f.newContainer());
+    f.entries.push({d:f.dim.id,x:owner.x-1,y:69,z:4,
+      m:mode,f:mode==='filter'?
+        {match:{typeId:'minecraft:cobblestone'}}:null});
+  }
+  const authority={worldId:'mock',epoch:7};
+  const direct=f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,authority,true);
+  assert.ok(direct,'alternate linked bank with accepting Filter is reachable');
+  assert.equal(direct.receiver.id,b.id);
+  assert.equal(direct.remote.priority,0);
+  assert.equal(direct.hops,1);
+  assert.equal(direct.entry,f.fallback,
+    'first matching Collector path was verified but had no Filter');
+  assert.equal(direct.witness.startsWith('IB1|'),true);
+  assert.equal(f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,authority,true)?.witness,
+    direct.witness,'witness must be deterministic at commit');
+  // A possibly earlier, stronger but unloaded Collector branch is not
+  // permission to silently route via a second bank.
+  f.missing.add('24,70,4');
+  assert.equal(f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,authority,true),undefined);
+});
 test('duplicate Sorter registration revokes the entire Transporter route',()=>{
   const f=fixture();
   assert.ok(f.network());
