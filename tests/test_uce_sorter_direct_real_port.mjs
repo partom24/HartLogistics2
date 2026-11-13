@@ -111,6 +111,8 @@ test('direct Sorter accepts loaded reciprocal native double chest without aliasi
   const shared={
     size:54,isValid:true,
     getItem:i=>clone(sharedSlots[i]),
+    peek:i=>sharedSlots[i],
+    engineSet:(i,v)=>{sharedSlots[i]=clone(v);},
     moveItem(i,j,to){
       if(i<0||i>=5||j<0||j>=to.size)throw Error('invalid slot');
       const item=f.input.raw[i];
@@ -132,7 +134,9 @@ test('direct Sorter accepts loaded reciprocal native double chest without aliasi
   dim.getBlock=p=>{
     if(p.x===5&&p.y===70&&p.z===3)return a;
     if(p.x===6&&p.y===70&&p.z===3)return b;
-    return originalGet(p);
+    return originalGet(p)||{typeId:'minecraft:air',
+      dimension:dim,location:{...p},
+      getComponent:()=>undefined};
   };
   f.context.PG26_FACES=faces;
   f.context.pg26Neighbor=(block,face)=>dim.getBlock({
