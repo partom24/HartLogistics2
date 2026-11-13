@@ -19,7 +19,8 @@ const rawGraph={leaderId:'lead',receiverIds:['lead','follower'],
   fingerprint:'verified-pipes-and-sorters',
   banks:[{id:'bank-block'}]};
 function fixture(){
-  let validBanks=true,leaderVisible=true,preferredOutput=false;
+  let validBanks=true,leaderVisible=true,preferredOutput=false,
+      unresolvedForwarding=false;
   const network={...rawGraph};
   const ctx={
     world:{},findReceiverById:id=>id===leader.id?leader:undefined,
@@ -44,7 +45,8 @@ function fixture(){
     uceClassifyLiveStack:()=> 'ORDINARY',
     receiverOutputHopper:()=>undefined,
     blockIsRedstonePowered:()=>false,
-    uceChoosePipeDestination:()=>preferredOutput?{slot:0}:undefined
+    uceChoosePipeDestination:()=>preferredOutput?{slot:0}:undefined,
+    ucePipeHasUnresolvedForwarding:()=>unresolvedForwarding
   };
   vm.runInNewContext(code,ctx);
   const normal={worldId:'world',epoch:9,
@@ -56,7 +58,8 @@ function fixture(){
   return {ctx,network,normal,
     set validBanks(x){validBanks=x;},
     set leaderVisible(x){leaderVisible=x;},
-    set preferredOutput(x){preferredOutput=x;}};
+    set preferredOutput(x){preferredOutput=x;},
+    set unresolvedForwarding(x){unresolvedForwarding=x;}};
 }
 test('federated bridge proves both Receiver and elected bank ownership before a debit',()=>{
   const f=fixture();
@@ -71,6 +74,21 @@ test('federated bridge proves both Receiver and elected bank ownership before a 
   f.validBanks=false;
   assert.equal(f.ctx.uceFederatedRouteVerified(
     authority,follower,f.normal,'deposit'),false);
+});
+test('federated write proof forbids Bulk spill while Collector route remains unresolved',()=>{
+  const f=fixture();
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,f.normal,'withdraw'),true);
+  f.unresolvedForwarding=true;
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,f.normal,'withdraw'),false,
+    'unresolved Collector forwarding must block both shard writes');
+  const reverse={...f.normal,fromAccount:'bulk:bank-owner',
+    toAccount:'receiver:follower',fromShard:shardB,toShard:shardA};
+  f.preferredOutput=true;
+  assert.equal(f.ctx.uceFederatedRouteVerified(
+    authority,follower,reverse,'withdraw'),true,
+    'a verified Filter refill must not be blocked by an unrelated frontier');
 });
 test('reverse bank refill must remain attached to the same loaded graph and leader',()=>{
   const f=fixture();
