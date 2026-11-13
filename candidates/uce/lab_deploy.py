@@ -92,7 +92,7 @@ def check_candidate(generated,old,*,historical_modules=None):
         "function uceOrdinaryAccountSource(",
         "function ucePipeRouteNetwork(",
         "function uceNativeReceiptId(",
-        "if (uceLegacyWriterBlocked()) { uceUnifiedServiceTick(); return; }",
+        "if (uceLegacyWriterBlocked()) { ucePerformanceTick(); return; }",
         "UCE_LEGACY_WORLD_WRITER_FENCED",
         "hartlogistics:activate_empty_lab",
         "hartlogistics:migration_preview"
