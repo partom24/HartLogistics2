@@ -11,6 +11,33 @@ The owner has directed uninterrupted integration and code hygiene until a meanin
 - **Verified source features:** Receiver ordinary balance capacity 250,000; Bulk storage 200,000 each; internal and federated revisioned transfers; native nine-slot persistent carrier with conservative journal/restart HOLD; ordinary escrow; Dropper/Dispenser native ingress; multi-Receiver Transporter routing, Sorter Filter/Auto/Wildcard priority, bounded connected pipes, power-aware output, startup seal checks and empty-LAB activation. These are source-tested features, **not individually or collectively an accepted BDS product**.
 - **Current packaging repair:** `tools/build_mcaddon.py` no longer silently packages original 1.4.1 when invoked without an explicit source; `--source baseline` and `--source hl2-uce --acknowledge-unapproved-source` are distinct. The unapproved archive carries its warning and refuses PG40/PG42 test markers in its runtime; tests were added. This change is pending exact-head CI and is not a release artifact.
 
+## Optional performance diagnostics (source-integrated; runtime unverified)
+
+The UCE candidate now supports an **operator-only, session-scoped, OFF-by-default**
+performance panel through the existing Bedrock custom-command registry. It
+does not add a scheduler, queue, persistence key or custody writer:
+
+- `/hartlogistics:perf_on` enables source-side diagnostics for the current
+  server process, resetting counters. `/hartlogistics:perf_off` disables them.
+  `/hartlogistics:perf` shows the current state and metrics.
+- The unified scheduler retains identical execution and safety fences with the
+  toggle either way. While enabled, local JavaScript wall-time measurements flag
+  UCE service ticks at **25 ms**, individual MR/ordinary/Bulk/federated calls at
+  **12 ms**, and observed transfer gaps of at least **40 game ticks**. The
+  optional ledger-shard sampler reads at most **one extra shard every 100 game
+  ticks**, warning at **22,400 characters**, escalating at **26,000**, against
+  the existing **28,000-character** shard limit.
+- Counters and warnings remain in memory; rate-limited warnings use the server
+  script log. No metadata-rich ItemStack payload, item name/lore, arbitrary
+  inventory contents or raw dynamic-property JSON is copied into logs.
+- Transfer gaps may be idle/unloaded or backpressured, rather than lag; wall time
+  is not measured BDS TPS. Native item metadata and actual engine storage bytes
+  cannot be inferred from shard string length. The panel is **not** a crash
+  durability guarantee or substitute for product-scale profiling.
+- This code is not deployed to the LAB or production. Its source-level checks
+  and exact-head CI must pass before BDS validation; no release approval is
+  implied by implementation.
+
 ## Owner's current LAB boundary
 
 The authorized LAB host remains `C:\Servers\Thomas_MCBedrock - Copy (2)`; production `C:\Servers\Thomas_MCBedrock` is prohibited. Owner observations progressed beyond PG27 through PG35 and PG42. The active LAB world `HartUCECarrierLabPG42` has an installed temporary PG42 carrier probe and a persistent named/lore carrier witness. PG35 and earlier ThomasServer LevelDB remain preserved. **Do not run the older PG33-specific UCE installer against this LAB, clear PG42 world records, delete PG42 provenance, or replay unresolved custody.** Historical PG40/PG42 pack-reconstruction and rollback tools are retained because removing them before safe LAB cleanup would strand installed-state rollback. They must not be in the integrated runtime/release archive.
