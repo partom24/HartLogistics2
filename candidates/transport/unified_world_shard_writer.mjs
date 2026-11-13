@@ -405,11 +405,23 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       const seen=read(world,fromShard);
       if(!seen.ok)return false;
       const src=unpack(seen.value,fromShard,worldId,epoch);
-      const r=src.ok?src.value.receipt:undefined;
+      if(!src.ok)return false;
+      const r=src.value.receipt;
+      const snap=src.value.snapshot;
+      const owner=snap.accounts.find(a=>a.id===fromAccount);
+      const remaining=owner?.buckets.find(b=>b.key===key)?.count||0;
+      // Credit requires the *current* source state, not merely a matching
+      // historical operation ID on some syntactically valid shard receipt.
       return r?.kind==='FEDERATED_DEBIT'&&
         r.operationId===operationId&&
         r.accountId===fromAccount&&r.key===key&&r.count===count&&
-        r.fromShard===fromShard&&r.toShard===toShard;
+        r.fromShard===fromShard&&r.toShard===toShard&&
+        r.direction==='withdraw'&&r.epoch===epoch&&
+        r.beforeRevision===tx.fromRevision&&
+        r.revision===tx.fromRevision+1&&
+        snap.revision===r.revision&&
+        snap.total===tx.sourceTotal-count&&
+        remaining===tx.sourceCount-count;
     };
     const routed=()=>{
       try{return verifyFederatedRoute(tx,direction)===true&&
