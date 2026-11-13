@@ -112,8 +112,7 @@ function fixture({remoteFull=false,badController=false,
       id===src.id?srcShard:id===dst.id?dstShard:undefined,
     uceBulkOwnerId:b=>b.ownerId,
     ucePipeRouteNetwork:()=>({receiverIds:[src.id],banks:[]}),
-    uceLinkedBankBulkRoutes:()=>routeActive&&hopperAccepts!==true?
-      [route]:undefined,
+    uceLinkedBankBulkRoutes:()=>routeActive?[route]:undefined,
     // The VM item definition is parsed in a different JS realm from the
     // imported pure identity validator. Production runs in ONE realm;
     // normalize only the mock boundary, without relaxing the real gate.
