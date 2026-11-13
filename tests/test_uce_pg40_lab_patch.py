@@ -109,7 +109,7 @@ class PG40SourceAndSyntheticSafety(unittest.TestCase):
             encoding="utf-8")
         prior=(self.previous/"behavior_pack/scripts/main.js").read_text(
             encoding="utf-8")
-        self.assertIn("// TEMP_DEBUG:PG40-FORENSIC-FREEZE",script)
+        self.assertIn("// PG40 FORENSIC MAINTENANCE:",script)
         self.assertIn("const UCE_PG40_FORENSIC_FREEZE=true;",script)
         self.assertNotIn("UCE_PG40_FORENSIC_FREEZE",prior)
         functions={

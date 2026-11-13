@@ -72,21 +72,20 @@ def diagnostic_method(source: str) -> str:
         raise lab.UnsafeLab("PG40 diagnostic boundary changed")
     return source[begin:end]
 
-# TEMP_DEBUG:PG40-FORENSIC-FREEZE
 def frozen_maintenance_bridge(base: str) -> str:
     """Stop every UCE-originating mutation path during PG39 observation.
 
-    This is NOT a new custody authority or a way to re-enable legacy writers.
-    The original UCE legacy fence is byte-identical; only Hart's active
-    scheduler, ejected-item ingress and operator mutation handlers are held.
-    Remove this task-scoped freeze once the physical custody investigation is
-    complete and before any release candidate.
+    This is a deliberately supported, exact-PG37-only LAB maintenance
+    mode, not a disposable runtime debug hook or a gameplay implementation.
+    The original UCE legacy fence is byte-identical; Hart's active scheduler,
+    ejected-item ingress and all operator mutation handlers are suspended.
+    It must never be part of normal product/release candidate compilation.
     """
     marker="UCE_PG40_FORENSIC_FREEZE"
     if marker in base:
         raise lab.UnsafeLab("PG40 duplicate forensic mutation fence")
     base=replace_exact(base,"function uceAllowsSorterRegistryWrite(key){",
-        "// TEMP_DEBUG:PG40-FORENSIC-FREEZE\n"
+        "// PG40 FORENSIC MAINTENANCE: UCE writes suspended; legacy fence preserved.\n"
         "const UCE_PG40_FORENSIC_FREEZE=true;\n"
         "function uceAllowsSorterRegistryWrite(key){\n"
         "    if(UCE_PG40_FORENSIC_FREEZE)return false;")
