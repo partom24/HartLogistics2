@@ -108,6 +108,20 @@ architecture/evidence documents.
   before describing them as PASS. New 1,536-Sorter geometry is not a 200k
   throughput, 1,400 production-world census, or interbank delivery result.
 
+- **Cross-writer route-fence closure (2026-11-13):** the original pipe
+  destination guard alone was insufficient: an unresolved linked-bank route
+  could still be skipped by a `receiver_to_bulk` planner. Runtime
+  `ucePipeHasUnresolvedForwarding` now reads the original Filter/Auto/
+  Wildcard topology to identify eligible Collector, unloaded, and
+  uncertified outputs. Local Bulk spills HOLD at planning **and** in the
+  existing single-shard writer's live route proof; cross-shard receiver→Bulk
+  spills HOLD at planning **and** `uceFederatedRouteVerified` before each
+  side of its journaled transfer. A known full storage output may still
+  overflow normally; reverse verified Filter refill remains permissible.
+  `tests/test_uce_federated_runtime_route.mjs` and the source/generated
+  pipe tests enforce these distinctions. This is **safe deferral**, not
+  completed cross-bank forwarding, BDS acceptance, or throughput proof.
+
 **OPEN:** logical interbank Filter/Auto/Bulk/Wildcard policy and custody,
 safe MR forwarding, unloaded Receiver ingress, full nonempty Q4 migration,
 incremental >128-pipe discovery, real performance and integrated BDS acceptance.
