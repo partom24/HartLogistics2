@@ -154,8 +154,11 @@ def fresh_world(root: Path, regs: dict[str, bytes], *, bound: bool):
     return new
 
 
-def bind(root: Path, commit: str, apply=False):
+def bind(root: Path, commit: str, probe_hashes, apply=False):
     _, regs = stage_proof(root, commit)
+    for i, (kind, _, _, _) in enumerate(lab.PACKS):
+        if lab.hashes(pg35.guarded(root / PACK_DIRS[i])) != probe_hashes[kind]:
+            raise lab.UnsafeLab("Integrated bind requires unchanged PG42 probe pack")
     new = fresh_world(root, regs, bound=False)
     if not apply:
         return {"phase":"READY_TO_BIND", "world":NEW_WORLD}
@@ -277,15 +280,16 @@ def main(argv=None):
                 print("No LAB, world, original archive or production accessed")
                 return 0
             root = pg08.check_real_root()
+            if mutation:
+                pg08.assert_lab_process_stopped()
             if args.mode in ("check-stage","stage"):
                 result = stage(root, probe_hashes, args.commit, apply=mutation)
             elif args.mode in ("check-bind","bind"):
-                result = bind(root, args.commit, apply=mutation)
+                result = bind(root, args.commit, probe_hashes, apply=mutation)
             elif args.mode in ("check-install","install","check-rollback","rollback"):
                 plan = bound_plan(root,args.commit,probe_hashes,product_hashes,
                                   product,rollback_tag=args.backup_tag)
                 if mutation:
-                    pg08.assert_lab_process_stopped()
                     pg08.plan_is_unchanged(plan)
                     backup = lab.apply_plan(root, plan)
                     result = {"phase":"ROLLED_BACK" if args.backup_tag else "INSTALLED",
@@ -295,9 +299,6 @@ def main(argv=None):
                               else "READY_TO_INSTALL", "world":NEW_WORLD}
             else:
                 result = restore(root,args.commit,probe_hashes,apply=mutation)
-            if mutation and args.mode in ("stage","bind","restore"):
-                # No BDS operation, and do not change unrelated addons.
-                pass
             print("HL2 GUARDED LAB:",json.dumps(result,sort_keys=True))
             print("Historic PG35/PG42 LevelDB and original ZIP preserved")
             return 0
