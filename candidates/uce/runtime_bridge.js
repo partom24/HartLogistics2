@@ -2067,6 +2067,15 @@ function uceOrdinaryServiceTick(authority){
                     bankNetwork.leaderId,governedBanks);
         }
         const onlyPreferred=!wildcardPermitted;
+        // The local Bulk controller being full does NOT prove capacity
+        // exhaustion in downstream Collector-linked controller regions.
+        // Until global bank fullness is witnessed, any reachable unknown
+        // forwarding branch must keep ordinary Wildcard disabled.
+        const uceOnlyProvenOrdinaryOutput=item=>
+            onlyPreferred||(
+                governedBanks.length>0&&
+                ucePipeHasUnresolvedForwarding(
+                    receiver,bankNetwork,item));
         // A shared network's Bank authority is not optional. If the
         // leader shard is unreadable, a follower must not continue to
         // native/ordinary custody on a partially verified route.
@@ -2289,7 +2298,8 @@ function uceOrdinaryServiceTick(authority){
                         }else if(!output){
                             canWithdraw=!!uceChoosePipeDestination(
                                 receiver,item,
-                                onlyPreferred,undefined,true);
+                                uceOnlyProvenOrdinaryOutput(item),
+                                undefined,true);
                         }
                         if(canWithdraw)break;
                     }
@@ -2366,7 +2376,8 @@ function uceOrdinaryServiceTick(authority){
                     if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
                     const route=outgoing?undefined:
                         uceChoosePipeDestination(receiver,item,
-                            onlyPreferred,undefined,true);
+                            uceOnlyProvenOrdinaryOutput(item),
+                            undefined,true);
                     if(!outgoing&&!route)continue;
                     const hopper=outgoing?
                         uceOrdinaryHopperCandidate(outgoing.container,item):
