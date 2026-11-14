@@ -70,8 +70,8 @@ function fixture({ready=true,active=true,sealed=true,
 test('valid ACTIVE sealed world services both lanes under a single authority proof',()=>{
   const f=fixture();
   assert.deepEqual(f.calls,['authority','cold','MR','ORDINARY','SORTER']);
-  assert.equal(f.reads.length,25,
-    'five global journals read at each of five safe lane boundaries');
+  assert.equal(f.reads.length,30,
+    'six global journals read at each of five safe lane boundaries');
 });
 test('missing authority or failed cold seal never invokes either lane',()=>{
   assert.deepEqual(fixture({active:false}).calls,['authority']);
@@ -84,7 +84,8 @@ test('every nonempty native, ordinary, and Q4 journal globally freezes both lane
     'hartsorter:queue_journal_v1',
     'hartlogistics:uce_native_intent_v1',
     'hartlogistics:uce_boundary_intent_v1',
-    'hartlogistics:uce_federated_intent_v1'
+    'hartlogistics:uce_federated_intent_v1',
+    'hartlogistics:uce_empty_bulk_removal_intent_v1'
   ]){
     const f=fixture({journals:{[key]:'PREPARED'}});
     assert.deepEqual(f.calls,['authority','cold'],key);
@@ -153,8 +154,8 @@ test('multiple successful ordinary Receiver operations are bounded to four per t
     'ORDINARY','ORDINARY','ORDINARY','ORDINARY','SORTER']);
   assert.equal(f.calls.filter(x=>x==='MR').length,1);
   assert.equal(f.calls.filter(x=>x==='SORTER').length,1);
-  assert.equal(f.reads.length,40,
-    'eight five-key global custody journal censuses');
+  assert.equal(f.reads.length,48,
+    'eight six-key global custody journal censuses');
 });
 test('ordinary batch stops on no work without spinning the scheduler',()=>{
   const f=fixture({ordinaryBudget:2});
