@@ -176,6 +176,20 @@ class UceBuildTests(unittest.TestCase):
                              "generated HL2 assembled routing/custody failed "
                              +name+":\\n"+result.stdout[-14000:])
 
+    def test_generated_native_call_hotspots_from_owner_cpuprofile(self):
+        # Source-generated 1.5, not an optimized external toy algorithm.
+        # The 1.4.1 profile exposed >1.4m native calls in 12.96 seconds.
+        env=os.environ.copy()
+        env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
+        result=subprocess.run(
+            ["node","--test",str(
+                ROOT/"tests/test_uce_141_cpuprofile_api_regression.mjs")],
+            cwd=ROOT,env=env,stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,text=True,timeout=60)
+        self.assertEqual(result.returncode,0,
+            "HL2 generated native-call regression failed:\\n"+
+            result.stdout[-12000:])
+
     def test_generated_bounded_visual_reconciliation_at_actual_owner_scale(self):
         # The owner's .mcstats 1.4.1 runtime exposes periodic 100-tick
         # 200-378ms global-script spikes. Ensure the 1.5-generated product
