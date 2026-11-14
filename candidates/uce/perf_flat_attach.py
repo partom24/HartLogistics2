@@ -9,8 +9,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import ntpath
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -34,6 +36,56 @@ def read(root,rel):
 
 def digest(raw):
     return hashlib.sha256(raw).hexdigest()
+
+def checked_lab_root_stopped():
+    """Fail closed on unknown BDS paths; never stop an unrelated server.
+
+    The existing PG08 guard reads Get-Process.Path, which may be denied
+    for an unrelated production-owned BDS even when this LAB is stopped.
+    This diagnostic uses the same CIM executable-path verification as the
+    already exercised stopped-LAB flat-world setup script.
+    """
+    if os.name != "nt":
+        raise lab.UnsafeLab("Windows LAB only")
+    lab.assert_lab_name(lab.LAB)
+    root=Path(lab.LAB)
+    lab.assert_no_link(root)
+    if ntpath.normcase(str(root.resolve(strict=True)))!=ntpath.normcase(lab.LAB):
+        raise lab.UnsafeLab("LAB root points outside authorized path")
+    script=(
+        "$ErrorActionPreference='Stop'; "
+        "Get-CimInstance Win32_Process -Filter "
+        "\\"Name='bedrock_server.exe'\\" -ErrorAction Stop | "
+        "ForEach-Object {"
+        " if(-not $_.ExecutablePath){"
+        "  throw ('Cannot resolve running BDS executable PID '+$_.ProcessId)"
+        " };"
+        " Write-Output $_.ExecutablePath"
+        " }"
+    )
+    try:
+        result=subprocess.run(
+            ["powershell.exe","-NoProfile","-NonInteractive","-Command",script],
+            capture_output=True,text=True,check=False,timeout=30)
+    except (OSError,subprocess.TimeoutExpired) as err:
+        raise lab.UnsafeLab("BDS process inspection unavailable; no LAB writes") from err
+    if result.returncode!=0:
+        detail=(result.stderr or result.stdout or
+                "CIM process query failed").strip()
+        raise lab.UnsafeLab(
+            "Cannot prove LAB BDS is stopped; no writes. "
+            "Run elevated if needed. "+detail[:450])
+    prefix=ntpath.normcase(lab.LAB).rstrip("\\\\")+"\\\\"
+    for executable in result.stdout.splitlines():
+        path=ntpath.normcase(ntpath.normpath(executable.strip()))
+        if not ntpath.isabs(path):
+            raise lab.UnsafeLab("Ambiguous running BDS path; no writes")
+        if path.startswith(prefix):
+            raise lab.UnsafeLab(
+                "LAB BDS is still running: "+executable.strip()+
+                " — stop the LAB BDS normally, then rerun Check")
+    return root
+
 
 def check_stage(root):
     props=read(root,"server.properties")
@@ -160,7 +212,7 @@ def main(argv=None):
             raise lab.UnsafeLab("Unexpected backup tag")
         lab.assert_lab_name(lab.LAB)
         lab.assert_clean_git(ROOT,args.commit)
-        root=pg08.check_real_root() # exact Windows LAB; BDS stopped
+        root=checked_lab_root_stopped() # exact Windows LAB, CIM-verified stopped
         with tempfile.TemporaryDirectory(prefix="hl2-perf-flat-") as temp:
             generated,hashes=build(temp)
             plan,missing=( (rollback_plan(root,generated,hashes,args.backup_tag),[])
