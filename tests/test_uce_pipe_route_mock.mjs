@@ -1445,3 +1445,53 @@ test('remote Bulk refill census follows physical Collector links before item-spe
     f.receiver,undefined,authority,f.network(),false),
     undefined,'revoked Collector link fails closed before refill');
 });
+
+test('player-scale pipe graphs finish by bounded read-only jobs, not a 128-pipe topology ceiling',()=>{
+  const f=fixture(),jobs=[];
+  for(let x=1;x>=-450;x--)
+    f.put('hartlogistics:transporter',x,70,4);
+  f.context.system={currentTick:200,runJob:job=>{jobs.push(job);return jobs.length;}};
+  f.context.dirty=false;
+  assert.equal(f.network(),undefined,'incomplete graph never authorizes transfer');
+  assert.equal(jobs.length,1);
+  assert.equal(f.network(),undefined,'duplicate ticks do not restart pending jobs');
+  let slices=0,done=false;
+  while(!done&&slices<10000){
+    f.context.system.currentTick++;
+    done=jobs[0].next().done;
+    slices++;
+  }
+  assert.equal(done,true,'entire graph must eventually be checked');
+  assert.ok(slices>128,'source scan genuinely yields');
+  const graph=f.network();
+  assert.ok(graph,'completed verified graph is usable');
+  assert.equal(graph.entries.length,2);
+  assert.equal(f.choose(COBBLE).entry,f.filter);
+  // Any player/world structural change immediately revokes the complete
+  // graph certificate. The changed graph cannot reuse old route authority.
+  f.missing.add('-450,70,3');
+  f.context.ucePipeTopologyChanged();
+  assert.equal(f.network(),undefined);
+  assert.equal(jobs.length,2);
+  for(let i=0;i<10000;i++){
+    f.context.system.currentTick++;
+    if(jobs[1].next().done)break;
+  }
+  assert.equal(f.network(),undefined,'unloaded frontier remains HOLD');
+});
+
+test('mid-discovery structural mutations revoke pending large network scan',()=>{
+  const f=fixture(),jobs=[];
+  for(let x=1;x>=-250;x--)f.put('hartlogistics:transporter',x,70,4);
+  f.context.system={currentTick:700,runJob:g=>{jobs.push(g);return jobs.length;}};
+  f.context.dirty=false;
+  assert.equal(f.network(),undefined);
+  assert.equal(jobs.length,1);
+  jobs[0].next();
+  f.context.ucePipeTopologyChanged();
+  assert.equal(jobs[0].next().done,true,
+    'revoked old job cannot certify a partly observed graph');
+  f.context.system.currentTick++;
+  assert.equal(f.network(),undefined);
+  assert.equal(jobs.length,2,'new topology requires a new full graph read');
+});
