@@ -3013,9 +3013,17 @@ function uceDirectStorageOwnerBlock(block){
 function uceSorterDirectServiceTick(authority){
     try{
         if(!Array.isArray(columns)||!columns.length)return;
+        // The original 1.4.1 profile records 93k World.getDimension
+        // native calls across ~13 seconds. Keep a per-invocation dimension
+        // handle for every observed world, without persisting block state
+        // across ticks or skipping any Hopper/Sorter column.
+        const dimensions=new Map();
         for(let step=0;step<columns.length;step++){
             const ix=(uceSorterDirectCursor+step)%columns.length;
-            const col=columns[ix],dim=getDimension(col.d);
+            const col=columns[ix];
+            if(!dimensions.has(col.d))
+                dimensions.set(col.d,getDimension(col.d));
+            const dim=dimensions.get(col.d);
             const source=dim?.getBlock(col.source);
             if(!source||source.typeId!=='minecraft:hopper'||
                hopperIsRedstoneLocked(source))continue;
@@ -3033,7 +3041,11 @@ function uceSorterDirectServiceTick(authority){
                 // reconstructing opaque/MR ItemStacks. MR still uses the
                 // strict whole-stack native move to an empty slot.
                 const ordinaryKey=ucePlainItemIdentity(stack);
-                const accepting=ordinaryKey?findAcceptSlot(dest,stack):undefined;
+                // The winner already examined this live destination's
+                // accepting slots. No tick yields between selection and this
+                // initial reservation; the native intent/ACK path continues
+                // to verify the slot and entire physical route independently.
+                const accepting=ordinaryKey?selected.accepting:undefined;
                 const partial=!!accepting&&accepting.before>0&&
                     accepting.room>0&&
                     ucePlainItemIdentity(accepting.existing)===ordinaryKey;
