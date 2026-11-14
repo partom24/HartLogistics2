@@ -103,6 +103,41 @@ def compile_patch(source,bridge):
       "    let firstEmpty = -1;\n"+
       "    const size=container.size;\n"+
       "    for (let i=0; i<size; i++) {")
+    # Legacy (pre-cold-cutover) 1.5 still runs PG23/PG33 processColumn.
+    # An empty Hopper or Transporter source has nothing to compact or route.
+    # Inspect the live native inventory BEFORE touching any downstream Sorter
+    # state. Never persist/cache occupancy across ticks: new arrivals must be
+    # routable on the very next scheduler invocation.
+    original_column = '''    const activeSorters = col.sorters.filter(e => {
+        const b = sorterAt(e);
+        return b && !e.nativeQuarantine && !blockIsRedstonePowered(b) && sorterMode(e) !== "bypass";
+    });
+    if (!activeSorters.length) return 0;
+
+    const src = sourceBlock.getComponent("minecraft:inventory")?.container;
+    if (!src || !src.isValid) return 0;'''
+    inspected_column = '''    const src = sourceBlock.getComponent("minecraft:inventory")?.container;
+    if (!src || !src.isValid) return 0;
+    // Source items must be inspected before expensive live Sorter/target
+    // checks or journaled Hopper compaction. Empty inventory has no writes.
+    const srcSize=src.size;
+    let hasSourceItems=false;
+    for (let scan=0;scan<srcSize;scan++) {
+        if (src.getItem(scan)) { hasSourceItems=true; break; }
+    }
+    if (!hasSourceItems) return 0;
+
+    const activeSorters = col.sorters.filter(e => {
+        const b = sorterAt(e);
+        return b && !e.nativeQuarantine && !blockIsRedstonePowered(b) && sorterMode(e) !== "bypass";
+    });
+    if (!activeSorters.length) return 0;'''
+    source=once(source,original_column,inspected_column)
+    # One synchronous inventory decision requires one Container.size read.
+    # Preserve each slot, filter priority and Hopper/Transporter batch budget.
+    source=once(source,
+      "    for (let si=0; si<src.size && columnBudget>0; si++) {",
+      "    for (let si=0; si<srcSize && columnBudget>0; si++) {")
     # 1.4.1 reconciled every registered Sorter and queried every display
     # entity in three dimensions on a SINGLE 100-tick callback. In the
     # owner's 1,387-Sorter profile, global script spikes recur every 100

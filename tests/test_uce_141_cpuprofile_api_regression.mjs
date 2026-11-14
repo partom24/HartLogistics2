@@ -128,3 +128,70 @@ test('compiled 1.5 still fences the original costly 1.4.1 Sorter writer under UC
   assert.match(compiled,/function uceSorterDirectServiceTick\(authority\)/);
   assert.match(compiled,/const dimensions=new Map\(\);/);
 });
+
+test('compiled legacy 1.5 Sorter skips all downstream work for empty input but sees next-tick cargo', {skip:!compiled},()=>{
+  const begin=compiled.indexOf('function processColumn(col, globalRemaining) {');
+  const end=compiled.indexOf('\nfunction processCollectorIngress(',begin);
+  assert.ok(begin>=0&&end>begin,'assembled legacy processColumn must exist');
+  const actual=compiled.slice(begin,end);
+  assert.match(actual,/const srcSize=src.size;/);
+  assert.match(actual,/if \(!hasSourceItems\) return 0;/);
+  assert.match(actual,/for \(let si=0; si<srcSize && columnBudget>0; si\+\+\)/);
+  let cargo,locked=false,bypass=false;
+  const calls={size:0,reads:0,sorters:0,compactions:0,moves:0};
+  const input={
+    isValid:true,
+    get size(){calls.size++;return 5;},
+    getItem:i=>{calls.reads++;return i===0?cargo:undefined;}
+  };
+  const source={
+    typeId:'minecraft:hopper',
+    getComponent:name=>name==='minecraft:inventory'?{container:input}:undefined
+  };
+  const dest={};
+  const ctx={
+    PG26_PIPE_ID:'hartlogistics:transporter',
+    pg23TransportMayRun:()=>true,
+    getDimension:()=>({getBlock:()=>source}),
+    hopperIsRedstoneLocked:()=>locked,
+    sorterAt:()=>{calls.sorters++;return {};},
+    blockIsRedstonePowered:()=>false,
+    sorterMode:()=>bypass?'bypass':'wildcard',
+    pg23CompactSourceHopper:()=>{calls.compactions++;return true;},
+    destinationFor:()=>({kind:'storage',block:{},container:dest}),
+    findAcceptSlot:()=>({slot:0,room:64}),
+    safeMovePartial:()=>{calls.moves++;cargo=undefined;return 1;},
+    matchesFilter:()=>false,
+    autoSorterMatches:()=>false,
+    recoverJournal:()=>{throw Error('unexpected recovery');},
+    recoverQueueJournal:()=>{throw Error('unexpected recovery');}
+  };
+  vm.runInNewContext(actual,ctx);
+  const col={d:'minecraft:overworld',x:0,z:0,
+    source:{x:0,y:90,z:0},sorters:[{nativeQuarantine:false}]};
+  assert.equal(ctx.processColumn(col,64),0);
+  assert.equal(calls.size,1);
+  assert.equal(calls.reads,5,'empty inventory still inspected every live slot');
+  assert.equal(calls.sorters,0,'empty source must not query sorter block or state');
+  assert.equal(calls.compactions,0,'empty Hopper must not open a physical journal');
+  assert.equal(calls.moves,0);
+  cargo={typeId:'minecraft:cobblestone',amount:1,maxAmount:64};
+  assert.equal(ctx.processColumn(col,64),1,'next tick sees freshly inserted item');
+  assert.equal(calls.size,2,'one size property read per source invocation');
+  assert.equal(calls.sorters,1);
+  assert.equal(calls.compactions,2,'occupied Hopper retains both compaction fences');
+  assert.equal(calls.moves,1);
+  locked=true;
+  cargo={typeId:'minecraft:cobblestone',amount:1,maxAmount:64};
+  const before={...calls};
+  assert.equal(ctx.processColumn(col,64),0);
+  assert.equal(calls.size,before.size,'powered Hopper stays untouched');
+  assert.equal(calls.sorters,before.sorters,'redstone pause precedes routing');
+  assert.equal(calls.compactions,before.compactions);
+  assert.equal(calls.moves,before.moves);
+  locked=false;bypass=true;
+  assert.equal(ctx.processColumn(col,64),0);
+  assert.equal(calls.compactions,before.compactions,
+    'all-bypass column must not compact or move inventory');
+  assert.equal(calls.moves,before.moves);
+});
