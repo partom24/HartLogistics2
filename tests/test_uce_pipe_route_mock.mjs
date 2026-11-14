@@ -1595,10 +1595,19 @@ test('90 ordinary linked Receiver banks route to final Filter without long-witne
   assert.equal(firstGraph.entries.length,1);
   const lastGraph=f.context.ucePipeRouteNetwork(last);
   assert.ok(lastGraph,'90-bank terminal Filter graph must be physically verified');
+  const scans=[],failures=[];
+  const originalRead=f.context.ucePipeRouteNetwork;
+  f.context.ucePipeRouteNetwork=owner=>{
+    scans.push(owner.x);
+    const graph=originalRead(owner);
+    if(!graph)failures.push(owner.x);
+    return graph;
+  };
   const select=()=>f.context.uceSelectInterbankFilteredRoute(
     f.receiver,root,COBBLE,f.context.uceAuthoritySnapshot());
   const found=select();
-  assert.ok(found,'full linked route across 90 verified banks must be usable');
+  assert.ok(found,'full linked route across 90 verified banks must be usable; '+
+    'scanned='+scans.length+', last='+scans.at(-1)+', failed='+failures.join(','));
   assert.equal(found.receiver.id,last.id);
   assert.equal(found.hops,banks-1);
   assert.match(found.witness,/^IB1\|sha256:[a-f0-9]{64}$/);
