@@ -32,6 +32,7 @@ function exactFunction(source,name){
 const generated=process.env.UCE_GENERATED_MAIN?
   fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):undefined;
 const routeFunctions=[
+  'ucePipeSha256','ucePipeFingerprint',
   'ucePipeSameDimension','ucePipeSorterRegistryIndex',
   'ucePipeTopologyChanged','ucePipeCachedGraphValid',
   'ucePipeScanGenerator','ucePipeRouteNetwork',
