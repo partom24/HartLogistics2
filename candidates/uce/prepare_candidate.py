@@ -25,6 +25,7 @@ MODULES=(
     "unified_receiver_mr_service","unified_ordinary_service",
     "unified_bulk_policy","unified_federated_service",
     "unified_link_registry",
+    "unified_empty_bulk_removal",
     "unified_cold_q4_importer","unified_migration_preflight",
     "unified_new_world_activation",
     "q5_world_receiver_census","q5_q4_read_adapter",
@@ -94,10 +95,18 @@ def compile_patch(source,bridge):
       "world.beforeEvents.playerBreakBlock.subscribe(ev => {\n"+
       "    const block=ev.block;\n    if(!block)return;\n"+
       "    if (uceLegacyWriterBlocked() &&\n"+
-      "        (block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||\n"+
-      "         block.typeId === 'hartlogistics:bulk_storage')) {\n"+
+      "        block.typeId === 'hartlogistics:bulk_storage') {\n"+
       "        ev.cancel=true;\n"+
-      "        ev.player?.sendMessage('§e[Hart Logistics] UCE owns this block. Remove through an explicit drained custody operation; breaking is blocked.');\n"+
+      "        const p=block.location;\n"+
+      "        const loc={x:p.x,y:p.y,z:p.z};\n"+
+      "        const dim=block.dimension,player=ev.player;\n"+
+      "        system.run(()=>uceMineEmptyBulkStorage(player,loc,dim));\n"+
+      "        return;\n"+
+      "    }\n"+
+      "    if (uceLegacyWriterBlocked() &&\n"+
+      "        (block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID)) {\n"+
+      "        ev.cancel=true;\n"+
+      "        ev.player?.sendMessage('§e[Hart Logistics] Linked blocks must be disconnected before removal.');\n"+
       "        return;\n"+
       "    }")
     source=once(source,
@@ -186,6 +195,7 @@ def compile_patch(source,bridge):
       'import {serviceUnifiedReceiverMR} from "./uce/unified_receiver_mr_service.js";\n'
       'import {executeUnifiedOrdinaryDeposit,executeUnifiedOrdinaryWithdrawal,executeUnifiedEjectedOrdinaryDeposit} from "./uce/unified_ordinary_service.js";\n'
       'import {createUnifiedShardWriter} from "./uce/unified_world_shard_writer.js";\n'
+      'import {executeUnifiedEmptyBulkRemoval} from "./uce/unified_empty_bulk_removal.js";\n'
       'import {planUnifiedBulkService} from "./uce/unified_bulk_policy.js";\n'
       'import {planUnifiedFederatedNetwork,executeUnifiedFederatedTransfer,inspectUnifiedFederatedPending} from "./uce/unified_federated_service.js";\n'
       'import {createUnifiedLinkRegistry} from "./uce/unified_link_registry.js";\n'
