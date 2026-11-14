@@ -49,6 +49,7 @@ const end=production.indexOf('\n\n/* Bulk Storage',start);
 assert.ok(start>0&&end>start,'exact integrated ordinary scheduler found');
 const routeNames=[
   'ucePipeSha256','ucePipeFingerprint',
+  'ucePipeCompactInterbankWitness',
   'ucePipeSameDimension','ucePipeSorterRegistryIndex',
   'ucePipeTopologyChanged','ucePipeCachedGraphValid',
   'ucePipeScanGenerator','ucePipeRouteNetwork',
