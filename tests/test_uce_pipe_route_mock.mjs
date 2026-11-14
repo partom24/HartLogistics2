@@ -33,7 +33,9 @@ const generated=process.env.UCE_GENERATED_MAIN?
   fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):undefined;
 const routeFunctions=[
   'ucePipeSameDimension','ucePipeSorterRegistryIndex',
-  'ucePipeRouteNetwork','uceReadOnlyPipeInput',
+  'ucePipeTopologyChanged','ucePipeCachedGraphValid',
+  'ucePipeScanGenerator','ucePipeRouteNetwork',
+  'uceReadOnlyPipeInput',
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding',
@@ -52,6 +54,8 @@ const routeCode=generated?[
     return match[0];
   }),
   'let ucePipeSorterIndexCache;',
+  'let ucePipeTopologyEpoch=0;',
+  'const ucePipeGraphTasks=new Map();',
   'let uceSorterCollectorColumnCache;',
   ...routeFunctions.map(name=>exactFunction(generated,name))
 ].join('\n'):src;
