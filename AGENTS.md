@@ -55,7 +55,7 @@ Keep PRs unmerged and do not deploy to a live world without explicit approval.
 5. **MR items require native item fidelity**: do not silently serialize, flatten, delete or duplicate item metadata. **Owner choice:** replace the 1.4.1 direct-only MR Hopper fallback with native persistent MR storage on both Collector and Receiver, but only after copied-world validation proves the preserved *capability*; legacy bypass may remain temporarily during migration. Native container APIs and version/experiment gates must be confirmed before code relies on them.
 6. **New block visual identity**: Bulk Storage and Transporter must use new dedicated models, textures, icons and block-specific resource assets, never repurposing or recoloring 1.4.1 Sorter/Collector/Receiver assets. Bulk Storage cannot resemble Collector or Receiver; original assets remain untouched. See [asset contract](docs/RESOURCE_ASSET_POLICY.md).
 7. **Native hoppers remain valid** in all formerly supported positions; new Transporters are an additive path, not a mandatory replacement.
-8. **Up-front test summary and prior-proof reuse**: every proposed test begins with **what is being tested, why now, prior evidence, action required, and pass condition**. Do not repeat previously accepted, unaffected tests. Reuse previous owner evidence with its scope recorded; only add narrow regression checks where the changed path creates new risk. A manual rig requires a complete [READY test rig card](docs/TEST_RIG_CONTRACT.md) specifying Sorter counts/columns, coordinates, orientation and separation before the owner builds anything.
+8. **Up-front test summary and prior-proof reuse**: every proposed test begins with **what is being tested, why now, prior evidence, action required, and pass condition**. Do not repeat previously accepted, unaffected tests. Reuse previous owner evidence with its scope recorded; only add narrow regression checks where the changed path creates new risk. The next manual session uses the freeform player acceptance contract: do not prescribe coordinates, Sorter counts, block orientation, spacing, build order or connections.
 9. **Testing claims are bounded**: SOURCE REVIEW and OFFLINE PASS are not RUNTIME OBSERVED or INTEGRATION ACCEPTED. Owner-reported native MR testing is valuable but its artifacts have not been imported to Git. **Test by meaningful item behavior/class and failure condition, not arbitrary named item IDs**: cobblestone, glass and sand are interchangeable for ordinary transfer unless a proven mechanical difference matters. Keep targeted MR metadata, distinct identity, stack behavior and item-specific defect coverage. See [test plan](docs/COMPATIBILITY_TEST_PLAN.md).
 10. **Release requires owner approval**, identified source, target-runtime evidence, and release gate. No automatic promotion from a passing build or PR.
 
@@ -63,7 +63,7 @@ Follow [engineering standard](docs/ENGINEERING_STANDARD.md), [repository policy]
 
 ## Deployment boundary
 
-- LAB: `C:\Servers\Thomas_MCBedrock - Copy (2)` is the **only authorized Minecraft integration and release-testing server**. Its existing ThomasServer, PG35 and PG42 world evidence are **not disposable**; create a fresh separately named test world using an exact, guarded stopped-BDS workflow instead of overwriting or rebuilding those worlds. Future updater must use the exact canonical allowlist.
+- LAB: `C:\Servers\Thomas_MCBedrock - Copy (2)` is the **only authorized Minecraft integration and release-testing server**. Its existing ThomasServer, PG35 and PG42 world evidence are **not disposable**; use the existing restored production-derived LAB world for the next gameplay acceptance; any in-place upgrade requires exact stopped-BDS preflight, non-destructive backup, rollback and explicit approval. Future updater must use the exact canonical allowlist.
 - PRODUCTION: `C:\Servers\Thomas_MCBedrock` is a **hard deny for all test activity**. No production edits until a release candidate has been nominated. **Import of a production updater script is permitted, execution (including dry-run) is not permitted before nomination; nomination does not itself authorize a production apply.**
 - Treat [updater deployment design](docs/UPDATER_DEPLOYMENT_DESIGN.md) as mandatory for any build/install/deploy work. HartBots scripts in the uploaded ZIP are references, not authorized executable HartLogistics tools.
 
@@ -77,9 +77,7 @@ automated fault, source and integration tests without interruption. The
 owner's current mandate limits additional hands-on BDS work to **two meaningful
 product-level sessions**: integrated custody/network routing, then archived 1.4.1
 cold migration/full acceptance, except a material unresolved compatibility
-safety issue. A manual session requires a complete [READY test card](docs/TEST_RIG_CONTRACT.md)
-explaining purpose, exact setup, actions, pass/fail and rollback; no unexplained
-micro-rigs. Retain the [temporary instrumentation cleanup policy](docs/TEMPORARY_INSTRUMENTATION_POLICY.md):
+safety issue. A manual session requires a freeform acceptance brief describing what changed, prior evidence, safe upgrade/rollback and observable outcomes, with no mandatory coordinate/count/placement instructions. Retain the [temporary instrumentation cleanup policy](docs/TEMPORARY_INSTRUMENTATION_POLICY.md):
 a historical PG probe remains only while its installed LAB rollback/evidence
 requires it, never in the released runtime. PG-01/02 passed scoped gates,
 PG-03 NO-GO, PG-04/05 blocked; do not imply PG-06–11 acceptance or
@@ -101,9 +99,7 @@ Q5 migration may **investigate the stable `world.tickingAreaManager` Script API*
 Continue implementing, reviewing and testing HL2 on the existing draft development
 PR. Perform code hygiene, integration regressions, fault injection and packaging
 validation without repeat prompts. **Do not automatically install a LAB pack,
-switch worlds, clear custody, run BDS or migrate archived Q4.** As of this mandate,
-the owner LAB is on a separate PG42 diagnostic world, not the original PG33
-installer predecessor. Preserve PG35/PG42 worlds, their native-carrier evidence,
+switch worlds, clear custody, run BDS or migrate archived Q4.** The owner subsequently restored a production-derived 1.4.1 world on the LAB; never assume a PG42/PG33 predecessor without inspecting the exact stopped-LAB source. Preserve PG35/PG42 worlds, their native-carrier evidence,
 and exact historical rollback tools until owner-authorized cleanup. PG42's
 `tests/pg42_probe.js` remains temporary and must never enter generated HL2
 runtime or a release artifact. Existing-world cold Q4 metadata-rich data still
