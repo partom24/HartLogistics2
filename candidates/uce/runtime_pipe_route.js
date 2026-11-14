@@ -189,6 +189,18 @@ function ucePipeCachedGraphValid(task,receiver){
            !receiver||receiver.present===false||
            task.receiver!==receiver.id||
            !receiverAt(receiver))return false;
+        // There is no stable chunk-unload event in WorldAfterEvents.
+        // A completed cross-tick graph MUST independently prove every
+        // neighboring chunk still loaded before authorizing any ledger
+        // writer. One representative per chunk avoids per-pipe rereads.
+        if(task.done&&typeof world!=='undefined'){
+            const dim=receiverAt(receiver)?.dimension;
+            if(typeof dim?.isChunkLoaded!=='function'||
+               !Array.isArray(task.graph?.chunkWitnesses)||
+               task.graph.chunkWitnesses.length<1)return false;
+            for(const position of task.graph.chunkWitnesses)
+                if(dim.isChunkLoaded(position)!==true)return false;
+        }
         return true;
     }catch(_){return false;}
 }
@@ -199,7 +211,8 @@ function ucePipeRouteNetwork(receiver){
         try{tick=system.currentTick;}catch(_){}
         const canDefer=Number.isSafeInteger(tick)&&tick>=0&&
             typeof system!=='undefined'&&typeof system.runJob==='function'&&
-            (typeof world==='undefined'||ucePipeEventFenceReady===true)&&
+            (typeof world==='undefined'||(ucePipeEventFenceReady===true&&
+             typeof receiverAt(receiver)?.dimension?.isChunkLoaded==='function'))&&
             typeof dirty!=='undefined'&&dirty===false;
         const id=receiver.id;
         const task=canDefer?ucePipeGraphTasks.get(id):undefined;
@@ -268,7 +281,13 @@ function ucePipeScanGenerator(receiver){
         if(!root)return undefined;
         const pending=[],seen=new Map(),endpoints=new Map(),
             columnRuns=new Map(),banks=new Map(),inputs=new Map(),
-            receiverIds=new Set([receiver.id]);
+            receiverIds=new Set([receiver.id]),chunkWitnesses=new Map();
+        const trackChunk=p=>{
+            const cx=Math.floor(p.x/16),cz=Math.floor(p.z/16);
+            const key=cx+','+cz;
+            if(!chunkWitnesses.has(key))
+                chunkWitnesses.set(key,{x:cx*16,y:p.y,z:cz*16});
+        };
         for(const face of PG26_FACES) {
             const b=pg26Neighbor(root,face);
             if(!b)return undefined;
@@ -292,7 +311,14 @@ function ucePipeScanGenerator(receiver){
                pipe.typeId!==PG26_PIPE_ID||
                blockIsRedstonePowered(pipe))return undefined;
             seen.set(at,pipe);
+            trackChunk(pipe.location);
             for(const face of PG26_FACES) {
+                // The initial graph checks ALL six neighbors, including
+                // chunks that have no pipes of their own. The completed
+                // certificate must not outlive any of those loaded chunks.
+                trackChunk({x:pipe.location.x+face.x,
+                    y:pipe.location.y+face.y,
+                    z:pipe.location.z+face.z});
                 const next=pg26Neighbor(pipe,face);
                 if(!next)return undefined;
                 const type=next.typeId,p=next.location;
@@ -418,6 +444,7 @@ function ucePipeScanGenerator(receiver){
         const sortedReceivers=[...receiverIds].sort();
         return {receiverId:receiver.id,
             receiverIds:sortedReceivers,leaderId:sortedReceivers[0],
+            chunkWitnesses:[...chunkWitnesses.values()],
             fingerprint:ucePipeFingerprint(sortedReceivers,
               sortedPipes,sortedColumns,sortedInputs,sortedBanks),
             entries:[...endpoints.values()],
