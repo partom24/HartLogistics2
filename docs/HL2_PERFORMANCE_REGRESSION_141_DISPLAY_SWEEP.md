@@ -149,3 +149,30 @@ repeated per-bank topology discovery, and carrier/journal I/O. Any
 scan-budget change must preserve priority, redstone, hopper pass-through,
 Collector reachability, safety and per-tick throughput rather than
 simply hiding work by delaying transfers.
+
+### Follow-up: per-inventory native property reads
+
+The same profile shows 400,436 `Container::size` calls. The frozen
+1.4.1 `findAcceptSlot()` queried `container.size` repeatedly in the
+`for` loop, even though the size of one live inventory is constant during
+that synchronous decision. In the 1.5 candidate's generated main only,
+the builder captures `const size=container.size` once before iterating
+all slots. The UCE direct Sorter executor likewise reads its input Hopper
+size once per invocation rather than once for each Hopper slot.
+
+The compiled regression runs the real `findAcceptSlot` against 27-slot
+mock containers, preserving **partial-stack merge priority over an earlier
+empty slot**, first-empty fallback, full-container refusal, and complete
+slot inspection. Source tests verify the one-size-read property separately
+from the 1,387-physical-column live block census. These are safe
+native-call reductions, NOT permissions to skip idle Hopper inspection.
+
+The previous `compactSourceHopper` still exists for the guarded legacy
+scheduler. Under ACTIVE UCE authority that scheduler is fenced, so the
+new 1.5 custody path does not execute the old compaction pass. No
+migration/custody proof or Bedrock TPS measurement is implied by this.
+
+**Release requirement:** compare native-call profile, TPS and item output
+rate on the actual owner-scale LAB arrangement against the captured
+1.4.1 profile; certify that the same item routes and metadata remain
+correct, not merely that the engine is doing less work.
