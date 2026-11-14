@@ -1,34 +1,230 @@
-# Current Development State — Hart Logistics 2
+# Current Development State — HartLogistics2
 
-**As of 2026-11-08.** Owner authorizes ongoing development, offline checks and GitHub LAB-test deliveries; involve the owner for blocking issues or BDS testing. Development/merge is not production or public release approval. Only repository: **partom24/HartLogistics2**.
+**2026-11-13 · Draft PR [#79](https://github.com/partom24/HartLogistics2/pull/79). Not accepted for release.**
 
-## Active milestone and source
+## Development authority and source
 
-**HL-TRANSPORT-001:** bounded ordinary Transporter input prototype. PG26 adds one ordinary native chest/barrel source, at most 16 pipes and one Sorter column, all within one chunk. Whole stacks move into empty native output slots through the existing journaled writer. Native Hopper paths, Sorter modes/filters/redstone, legacy MR paths and PG25 conservative HOLD remain preserved. No pipe inventory, virtual balance, Bulk/Q5, controller authority or new Collector/Receiver input path.
+The owner has directed uninterrupted integration and code hygiene until a meaningful product-level Bedrock acceptance boundary. The source of truth is the draft UCE branch `dev/uce-shared-ordinary-ledger-20261111`, not the historical PG27 prototype. PR #79 at the previous exact verified checkpoint `3922a97e5bb8f1b061e0270289e704f099972939` passed [13/13 GitHub Actions jobs](https://github.com/partom24/HartLogistics2/actions/runs/43422021084); **all later commits need their own CI classification**. No corresponding full-system Bedrock acceptance, Q4 archive migration or release authorization is established.
 
-The immutable 1.4.1 compatibility reference is `addon/`: **72/72 original files unchanged**, import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`, [hash registry](../BASELINE_HASHES.json). Candidate source/build entry points are under `candidates/`; ignored `build/` output is not source. PG27 derives the exact PG26 predecessor because safe update/rollback validates its installed hashes; there is one inherited gameplay implementation.
+- **Immutable reference:** original 72-file 1.4.1 BP/RP at `addon/`; preserve hashes, UUIDs, IDs, saved links, metadata, filters, redstone and q2/q3/q4 properties. The baseline is not the new product source.
+- **Executable HL2 candidate:** `candidates/uce/prepare_candidate.py` derives PG33 plus the current UCE runtime bridge, pipe router, unified physical/virtual custody and ordinary/native modules into ignored `build/uce-integrated`. No separate Q5 scheduler/queue is active under UCE. Full release builder consolidation remains incomplete.
+- **Verified source features:** Receiver ordinary balance capacity 250,000; Bulk storage 200,000 each; internal and federated revisioned transfers; native nine-slot persistent carrier with conservative journal/restart HOLD; ordinary escrow; Dropper/Dispenser native ingress; multi-Receiver Transporter routing, Sorter Filter/Auto/Wildcard priority, bounded connected pipes, power-aware output, startup seal checks and empty-LAB activation. These are source-tested features, **not individually or collectively an accepted BDS product**.
+- **Current packaging repair:** `tools/build_mcaddon.py` no longer silently packages original 1.4.1 when invoked without an explicit source; `--source baseline` and `--source hl2-uce --acknowledge-unapproved-source` are distinct. The unapproved archive carries its warning and refuses PG40/PG42 test markers in its runtime; tests were added. This change is pending exact-head CI and is not a release artifact.
 
-## Installed LAB and accepted visual scope
+## Optional performance diagnostics (source-integrated; runtime unverified)
 
-**Running:** 1.5.10-LAB-PG27, delivered source `e6442137f238ee55201dafa05068fe1047ea2f43` ([PR #46](https://github.com/partom24/HartLogistics2/pull/46)). Owner screenshot confirms version, 664 Sorters / 56 Collectors (45 linked, 11 unlinked) / 35 Receivers, Q4 paged 35/35 and **sorter clear | queue clear**. PG27 installer backup tag has not been supplied; do not invent it. Preserve older backups lab-d16a31ba5a8e and lab-36ead7340407.
+The UCE candidate now supports an **operator-only, session-scoped, OFF-by-default**
+performance panel through the existing Bedrock custom-command registry. It
+does not add a scheduler, queue, persistence key or custody writer:
 
-**HL-E-074 — scoped visual success:** owner confirms east/west corrected and chest, barrel and double-chest connections pass; screenshots show the placed connections. Close these rendering checks without repeating them. This does not establish item extraction from any container. Explicit removal/replacement behavior and corrected inventory-name feedback were not separately confirmed; do not claim those observations. Receiver nonconnection is an unimplemented endpoint, not another X-axis rendering failure.
+- `/hartlogistics:perf_on` enables source-side diagnostics for the current
+  server process, resetting counters. `/hartlogistics:perf_off` disables them.
+  `/hartlogistics:perf` shows the current state and metrics.
+- The unified scheduler retains identical execution and safety fences with the
+  toggle either way. While enabled, local JavaScript wall-time measurements flag
+  UCE service ticks at **25 ms**, individual MR/ordinary/Bulk/federated calls at
+  **12 ms**, and observed transfer gaps of at least **40 game ticks**. The
+  optional ledger-shard sampler reads at most **one extra shard every 100 game
+  ticks**, warning at **22,400 characters**, escalating at **26,000**, against
+  the existing **28,000-character** shard limit.
+- Counters and warnings remain in memory; rate-limited warnings use the server
+  script log. No metadata-rich ItemStack payload, item name/lore, arbitrary
+  inventory contents or raw dynamic-property JSON is copied into logs.
+- Transfer gaps may be idle/unloaded or backpressured, rather than lag; wall time
+  is not measured BDS TPS. Native item metadata and actual engine storage bytes
+  cannot be inferred from shard string length. The panel is **not** a crash
+  durability guarantee or substitute for product-scale profiling.
+- This code is not deployed to the LAB or production. Its source-level checks
+  and exact-head CI must pass before BDS validation; no release approval is
+  implied by implementation.
 
-PG27 changes only two world-arm origins, English display name and versions. Gameplay is unchanged. **HL-E-073 OFFLINE:** 299 Python / 468 Node pass; [12/12 final main CI jobs PASS](https://github.com/partom24/HartLogistics2/actions/runs/42499886661), including Windows launcher/upgrade/rollback. Original 72-file baseline unchanged; no temporary runtime instrumentation.
+## Transporter-fed legacy vertical Sorter columns (source integrated; BDS unverified)
 
-## Work remaining and next steps
+The original 1.4.1 design has multiple stacked Sorters beneath one input Hopper,
+and the integrated Transporter must feed that same vertical column, **not** a
+single Sorter per pipe. The former UCE pipe reader registered only the top
+Sorter and was a compatibility defect.
 
-1. **Next bounded checkpoint:** complete the pending ordinary native route/redstone validation using the existing PG26 route card, adapting only if the owner's actual layout differs. Single chest/barrel → Transporters → Sorter → native output; exact input/output counts, powered pause/resume and clear journals. Reuse accepted visuals and PG25 evidence; no reinstall or new visual rack.
-2. **Next development slice:** review Receiver Q4 extraction into the Transporter/Sorter path, defining queue debit, physical insertion, pending-receipt HOLD, unload/backpressure and rollback before implementation. Reuse authoritative writers; an arm-only change must not imply working extraction. Automate source/fault checks before requesting a narrow BDS session. Receiver support is not implemented or accepted yet.
-3. **Double-chest extraction:** currently deliberately refused (shared 54-slot inventory/aliasing). Visual connection success does not remove that guard. Establish single inventory identity and exactly-once source admission before expanding support.
-4. Full network/controller, cross-chunk routing, native MR storage, Q5 migration and Bulk remain separate gated work. Maintain ongoing development autonomy; involve owner for actual BDS checks or blocking issues.
+- Draft PR #79 now traverses each physically contiguous, registered Sorter
+  column beneath a loaded Transporter. Every row remains subject to the
+  original Filter > seeded Auto > Wildcard precedence, bottom-to-top
+  deterministic tie-breaking, native destination availability and power
+  gates. Route selection is revalidated before committing item custody.
+- Unknown/unloaded or unregistered lower Sorters, duplicate registry ownership,
+  and graphs beyond the existing **128 connected Transporter** budget HOLD
+  conservatively; neither unknown destinations nor bank capacity are treated
+  as verified. This is not a 128-Sorter limit. Transporter segments and
+  Sorters in columns are counted separately.
+- The registry is indexed once for each graph inspection, avoiding a repeated
+  linear scan of all registered Sorters for every stacked row. The graph route
+  witness encodes each verified **contiguous** column as its top coordinate
+  and row count, instead of repeating every Sorter coordinate; modeled
+  128-pipe/1,024-Sorter witnesses fit the existing 8,192-character federated
+  transfer fence while still changing when a column's membership changes.
+  Source mock regressions include eight-level columns, blocked/unavailable
+  rows, and **128 pipes with 1,024 stacked Sorters**. These are modeled
+  geometry and routing checks, **not** Bedrock throughput/TPS or full-system
+  acceptance.
+- **Still not done:** complete controller-to-controller cross-bank forwarding
+  over Collector→Receiver links and product-scale BDS integration. Stacked
+  Sorter discovery alone does not establish the requested multi-region
+  cohesive logical storage system. No LAB install or world mutation occurred.
 
-[Visual closeout and limits](PG27_TRANSPORTER_VISUAL_CORRECTION.md), [pending ordinary route card](../candidates/pg26/TEST_SESSION.md). No new test is required merely to repeat accepted rendering.
+## 2026-11-13 source compatibility correction (not product acceptance)
 
-## Reusable acceptance and remaining gates
+The original requirements are not new planning tasks: the base storage whitelist,
+Sorter-column geometry, Collector handoff, unloaded queue behavior and
+multi-bank controller routing are in the protected 1.4.1 source and existing
+architecture/evidence documents.
 
-PG25 normal startup/eight-item ordinary route is **accepted at bounded LAB scope (HL-E-070)**: output eight photographed, input empty owner-confirmed, topology and journals clear. PG25 source `e43ad176c1762d0a354893638bac44c9d13fce8d`, backup **lab-36ead7340407**. No repeat PG25 transfer, reinstall, forced crash or extra restart. Earlier menu/linking, native MR and Dropper/Dispenser observations remain bounded by their entries in the [evidence register](ENGINEERING_EVIDENCE_REGISTER.md) and [development ledger](DEV_LEDGER.md).
+- **Runtime correction in PR #79:** `runtime_pipe_route.js` uses the exact
+  1.4.1 `supportedStorage` whitelist and existing `uceDirectStorageOwnerBlock`
+  proof for Sorter output. Single chests, trapped chests, barrels and all
+  Shulker variants are eligible; only verified reciprocal 54-slot double-chest
+  aliases are accepted, with one canonical native owner ID for both halves.
+  Changed/unloaded companion blocks HOLD instead of reusing the old route.
+- **Input correction:** a verified single 27-slot vanilla source may feed a
+  loaded connected Transporter at any vertical position; the former
+  `source.y >= receiver.y` restriction incorrectly rejected legitimate
+  descending pipes. Verified reciprocal 54-slot double-chest sources are now
+  canonicalized to ONE loaded native inventory owner across both aliases;
+  uncertain sizes, unloaded halves, foreign-network contacts, and any input
+  also selected as a Sorter output HOLD. Approved 27-slot single inventory
+  sources remain unchanged. This is source-tested, NOT BDS-certified.
+- **Missing-forwarding safety fence:** a matching Collector-facing Sorter is
+  *not* silently skipped in favor of a later Wildcard or weaker local route.
+  An unloaded or unverifiable higher-priority output also HOLDs. This
+  prevents known misrouting; **it does not implement the missing
+  Transporter→Sorter→Collector→next-bank transfer**.
+- **Enforced regressions:** `tests/test_uce_pipe_route_mock.mjs` exercises
+  exact original `supportedStorage`/`blockContainer` and live HL2
+  `uceDirectStorageOwnerBlock`, including canonical double-chest identity,
+  modes, output precedence, Collector hold, source types/elevation and
+  two independent 48-pipe banks with **1,536 stacked Sorters total**.
+  `tests/test_uce_candidate_build.py` now reruns the same behavioral
+  regressions on the routing function bodies extracted from the *assembled*
+  `main.js`. These are modeled loaded blocks, not a BDS observation.
+- **Evidence boundary:** `a7991368` achieved a completed successful source
+  workflow [43443267166](https://github.com/partom24/HartLogistics2/actions/runs/43443267166).
+  Later commits change runtime/tests; their *own* exact-head CI must finish
+  before describing them as PASS. New 1,536-Sorter geometry is not a 200k
+  throughput, 1,400 production-world census, or interbank delivery result.
 
-Native custom-container MR storage remains **PG03 NO-GO** on stable no-experiments BDS 1.26.63.1; full Q5 migration, spendable Bulk custody, controller authority, crash-atomic persistence and full PG09–11 remain unaccepted. Do not infer those guarantees from normal routing or offline checks. Preserve all existing world state, legacy paths and backups.
+- **Cross-writer route-fence closure (2026-11-13):** the original pipe
+  destination guard alone was insufficient: an unresolved linked-bank route
+  could still be skipped by a `receiver_to_bulk` planner. Runtime
+  `ucePipeHasUnresolvedForwarding` now reads the original Filter/Auto/
+  Wildcard topology to identify eligible Collector, unloaded, and
+  uncertified outputs. Local Bulk spills HOLD at planning **and** in the
+  existing single-shard writer's live route proof; cross-shard receiver→Bulk
+  spills HOLD at planning **and** `uceFederatedRouteVerified` before each
+  side of its journaled transfer. A known full storage output may still
+  overflow normally; reverse verified Filter refill remains permissible.
+  `tests/test_uce_federated_runtime_route.mjs` and the source/generated
+  pipe tests enforce these distinctions. This is **safe deferral**, not
+  completed cross-bank forwarding, BDS acceptance, or throughput proof.
 
-**Only LAB target:** `C:\Servers\Thomas_MCBedrock - Copy (2)`, existing production-derived clone, world ThomasServer. Do not ask for a reset or drain existing Receivers. **Protected production:** `C:\Servers\Thomas_MCBedrock`; no production operation or public release authorized. Environment configuration/publish is unchanged. See [roadmap](ROADMAP.md), [current PG plan](PRELIMINARY_GO_NO_GO.md) and [deployment boundary](UPDATER_DEPLOYMENT_DESIGN.md).
+**OPEN:** logical interbank Filter/Auto/Bulk/Wildcard policy and custody,
+safe MR forwarding, unloaded Receiver ingress, full nonempty Q4 migration,
+incremental >128-pipe discovery, real performance and integrated BDS acceptance.
+No owner world, LAB/PG35/PG42 archive, native item or production pack was touched.
+
+## 2026-11-13 linked-bank ordinary/MR forwarding (source integrated, no BDS acceptance)
+
+- **Ordinary:** `unified_federated_service.mjs` now supports a proved
+  Receiver→Receiver count boundary in addition to prior Receiver↔Bulk. A
+  new `IB1|` route-witness kind fence prevents these transfers from being
+  confused with a Bulk transfer. The existing prepared/debit/credit/receipt
+  global journal, epoch/revision fence, and no-auto-replay HOLD are reused.
+  `runtime_bridge.js::uceOrdinaryServiceTick` finds a physically verified
+  Sorter→Collector link through one or more connected banks to a live final
+  Filter, then transfers up to 64 counts **directly from source to final
+  Receiver sealed shards**. Every intermediate bank is read-only; no
+  additional intermediate queue, writer or item reconstruction is created.
+- **Route:** `uceSelectInterbankFilteredRoute` walks the registered directed
+  bank chain, using original Sorter modes/priority, Collector linkage,
+  redstone, loaded Receiver evidence and a physically accepting filtered
+  destination. Deterministic witness includes the chosen path and output
+  owner and is re-evaluated by the shard writer before each side. Cycles,
+  unavailable first links and unknown stronger destinations HOLD. A mock
+  physical fixture traverses **36 banks / 1,440 stacked Sorters**; this
+  does not measure actual Bedrock TPS or the owner's existing world census.
+- **MR:** `uceTryInterbankMrHandoff` uses the SAME path with ordinary merge
+  disabled and the SAME existing native ItemStack custody writer to transfer
+  the original native payload from the source Receiver carrier to the
+  final bank Receiver carrier. Both original carrier ticket records are
+  staged and independently reconciled before native ACK; interruption
+  preserves the global native intent and never clones/rebuilds opaque data.
+  Initial empty native host registration is restricted to a real item and
+  presently verified link; preexisting RESERVED/ambiguous host still HOLDS.
+- **Source test evidence:** real-shard Receiver conservation/interrupt
+  `tests/test_uce_federated_real_shards.mjs`; exact route mocks and 1,440
+  Sorters `tests/test_uce_pipe_route_mock.mjs`; real production scheduler +
+  shards `tests/test_uce_interbank_integrated_runtime.mjs`; native MR
+  ticket-order/error mocks and **real registry+native port** tests in
+  `tests/test_uce_interbank_mr_mock.mjs` and
+  `tests/test_uce_interbank_mr_real_port.mjs`.
+  The generated Bedrock `main.js` test executes these functions as well.
+  The *earlier* interbank ordinary-only `1b1b324c` had successful
+  13-job Actions [run 43500772651](https://github.com/partom24/HartLogistics2/actions/runs/43500772651).
+  **Newer MR commits have separate CI; no result is inferred.**
+- **Open:** directed-chain-only destination selection (no alternative path
+  search, cross-controller Filter/Bulk advertisements, remote Bulk fallback,
+  safely bounded graph scans above 128 physical Transporter segments),
+  unloaded Receiver and Collector-side MR waiting, full Q4 migration, true
+  Bedrock native move/save verification and 200k-item sustained throughput.
+  No production/LAB/world/backup mutation or owner BDS request.
+
+## 2026-11-13 — Existing PG08 link UX and double-chest source integration (source only)
+
+- The existing Bedrock 2.2.0 `@minecraft/server-ui` dependency and
+  PG08-proven Action/MessageForm concepts now drive actual UCE link/relink,
+  Receiver confirmation, Unlink, details and cancellation via
+  `candidates/uce/runtime_link_menu.js`. Both original player interaction
+  entry points are wired in `prepare_candidate.py`, without duplicate UI
+  imports. The *sole* `unified_link_registry.mjs` writer now accepts a
+  revisioned null-link receipt to unlink; it first independently verifies
+  the native Collector waiting carrier is physically empty with matching
+  tickets. Stale forms, expired selection, disconnected player and uncertain
+  custody refuse mutation. Source and generated Bedrock-main behavioral
+  tests cover these flows. **No new Q4 queue or link writer**.
+- **Transporter double-chest INPUT parity:** `runtime_pipe_route.js` now
+  reuses the existing reciprocal 54-slot native chest proof, canonicalizes
+  either physical chest half to one input owner, deduplicates two pipe
+  attachments, and checks *both* halves for foreign pipe connections.
+  The same canonical owner ID prevents a Sorter output into the opposite
+  half of its OWN connected input. Unloaded/missing half, wrong size, or
+  alias across unconnected pipe graphs HOLD. Physical Bedrock alias
+  behavior and throughput are not certified by mock tests.
+- **Unloaded Collector buffering:** the existing unified scheduler and one
+  native carrier / ordinary boundary are being used to stage MR and ordinary
+  Collector→sealed Receiver custody while a Receiver block is unloaded.
+  The newly added real-source mocks / generated integration tests are
+  **source-only**. No hard-crash flush ordering, accepted unload/reload BDS
+  gameplay or production rollout is claimed.
+- **CI:** PR #79 now groups superseded pull-request workflows for
+  cancellation to favor the newest exact-head validation, preserving
+  main/manual workflow evidence. The present head must be checked
+  independently; older successful jobs are not acceptance of these changes.
+
+Remaining release blockers include global controller/alternate-bank Bulk
+arbitration, more-than-128-segment bounded topology discovery, archived
+nonempty Q4 cutover/opaque metadata migration, real 200,000-item throughput
+and integrated BDS product acceptance. No LAB or production install or
+archive/world mutation occurred.
+
+## Owner's current LAB boundary
+
+The authorized LAB host remains `C:\Servers\Thomas_MCBedrock - Copy (2)`; production `C:\Servers\Thomas_MCBedrock` is prohibited. Owner observations progressed beyond PG27 through PG35 and PG42. The active LAB world `HartUCECarrierLabPG42` has an installed temporary PG42 carrier probe and a persistent named/lore carrier witness. PG35 and earlier ThomasServer LevelDB remain preserved. **Do not run the older PG33-specific UCE installer against this LAB, clear PG42 world records, delete PG42 provenance, or replay unresolved custody.** Historical PG40/PG42 pack-reconstruction and rollback tools are retained because removing them before safe LAB cleanup would strand installed-state rollback. They must not be in the integrated runtime/release archive.
+
+Earlier PG carrier, metadata-rich, custody and journal sessions are bounded evidence and should **not** be repeated as standalone acceptance exercises. The next owner BDS request must be an integrated product session with complete source readiness and an exact pinned, guarded LAB world/pack delivery and rollback plan.
+
+## Critical release path
+
+1. **Code hygiene and integration:** review all shipped runtime/build dependencies, remove genuinely unused debug/prototype paths without deleting historical rollback requirements; enforce one declared HL2 source and one coordinated routing/custody/recovery model; correct source defects with fault-injection tests and exact-head CI.
+2. **Full-product LAB delivery:** establish a guarded installer/rollback from the actual PG42 environment into a *separate safe integrated-world target* without altering PG35 or PG42 evidence; require exact predecessor and unchanged other packs, before owner involvement.
+3. **Integrated Bedrock acceptance:** ordinary and MR real item transfers, multiple Receivers, Bulk, Transporter, Sorter modes, Hopper/Dropper/Dispenser, inventory limits, redstone, blocked/full/unloaded graph, restart and diagnosed HOLD. The owner should run a single coherent product test instead of repeated PG probes.
+4. **Archived 1.4.1 cold migration:** verify access to the original restorable ZIP and its Q4 census, implement repeatable non-destructive activation on a separate restored LAB copy. `unified_cold_q4_importer.mjs` has a source-tested engine for ordinary Q4 but **the compiled runtime only exposes read-only `migration_preview` and empty-world `activate_empty_lab`; no owner-safe nonempty-world activation is currently wired to real backup verification**. Opaque/metadata-rich legacy Q4 rows HOLD because hidden metadata cannot be reconstructed losslessly from unknown serialized definitions. This is **not** completed migration support; do not use empty-world activation on an archive.
+5. **Release:** full compatibility acceptance, complete safety/performance evidence, clean temporary-instrumentation registry, reproducible HL2 archive with checksum/source pin, documented limits and explicit owner release authorization.
+
+**Unchanged hard constraints:** no world deletion/reset to force empty activation; no unrecorded ownership replay; no synthesized native metadata; no automatic install/merge/production action; no assumption that source mocks prove Bedrock save atomicity. All source changes remain reviewable in draft PR #79.

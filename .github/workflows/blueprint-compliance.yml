@@ -9,7 +9,44 @@ on:
 permissions:
   contents: read
 
+# Source development makes many small, auditable commits. Only the newest
+# PR head can establish readiness; don't strand it behind outdated 13-job
+# runs. Retain all main/explicit-dispatch evidence without cancellation.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  hl2-integrated-compatibility:
+    name: HL2 assembled product compatibility (early)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact PR source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up supported builder Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Execute high-priority routing, storage and custody behavior
+        run: |
+          node --test tests/test_uce_pipe_route_mock.mjs
+          node --test tests/test_uce_interbank_integrated_runtime.mjs
+          node --check tests/test_uce_remote_bulk_integrated.mjs
+          node --test tests/test_uce_remote_bulk_integrated.mjs
+          node --test tests/test_uce_interbank_mr_real_port.mjs
+          node --test tests/test_unified_bulk_policy.mjs
+          node --test tests/test_uce_diagnostics_mock.mjs
+          node --test tests/test_uce_empty_bulk_removal.mjs
+          node --test tests/test_uce_display_reconcile_scale.mjs
+          node --test tests/test_uce_141_cpuprofile_api_regression.mjs
+      - name: Build actual candidate and execute generated-main behavior
+        run: python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
+      - name: Confirm freeform new-world handoff needs no previous LAB world
+        run: |
+          python -m py_compile candidates/uce/freeform_lab.py
+          python -m unittest discover -s tests -p 'test_uce_freeform_lab.py' -v
   structural-contract:
     runs-on: ubuntu-latest
     steps:
@@ -121,6 +158,185 @@ jobs:
           node --check candidates/transport/q5_world_ordinary_preview.mjs
           node --check tests/test_q5_world_ordinary_preview.mjs
           node --test tests/test_q5_world_ordinary_preview.mjs
+      - name: UCE shared Receiver and Bulk account cold-Q4 ingestion and conservation (source only)
+        run: |
+          node --check candidates/transport/unified_ordinary_accounts.mjs
+          node --check tests/test_unified_ordinary_accounts.mjs
+          node --test tests/test_unified_ordinary_accounts.mjs
+      - name: UCE one-property world shard writer, ambiguous-save quarantine and restart cuts
+        run: |
+          node --check candidates/transport/unified_world_shard_writer.mjs
+          node --check tests/test_unified_world_shard_writer.mjs
+          node --test tests/test_unified_world_shard_writer.mjs
+      - name: UCE cross-shard, MR scheduling, opaque-item and Bulk integration regressions
+        run: |
+          node --check candidates/transport/unified_federated_service.mjs
+          node --check tests/test_uce_federated_real_shards.mjs
+          node --test tests/test_uce_federated_real_shards.mjs
+          node --check tests/test_uce_federated_runtime_route.mjs
+          node --test tests/test_uce_federated_runtime_route.mjs
+          node --check tests/test_unified_bulk_policy.mjs
+          node --test tests/test_unified_bulk_policy.mjs
+          node --check tests/test_unified_receiver_mr_service.mjs
+          node --test tests/test_unified_receiver_mr_service.mjs
+          node --check tests/test_uce_mr_round_robin_mock.mjs
+          node --test tests/test_uce_mr_round_robin_mock.mjs
+          node --check tests/test_uce_classification_opaque_fallback.mjs
+          node --test tests/test_uce_classification_opaque_fallback.mjs
+      - name: UCE native whole ItemStack port — ACK, ambiguity and restart refusal
+        run: |
+          node --check candidates/transport/unified_native_custody.mjs
+          node --check tests/test_unified_native_custody.mjs
+          node --test tests/test_unified_native_custody.mjs
+      - name: UCE persistent native carrier host, no-respawn and nonexperimental entity asset
+        run: |
+          node --check candidates/transport/unified_carrier_registry.mjs
+          node --check tests/test_unified_carrier_registry.mjs
+          node --test tests/test_unified_carrier_registry.mjs
+      - name: Build unified Bedrock candidate from PG33 and assert old writers frozen under UCE
+        run: |
+          python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
+          python candidates/uce/prepare_candidate.py
+          node --check --input-type=module < build/uce-integrated/behavior_pack/scripts/main.js
+      - name: UCE cold Q4 import with immutable 1.4.1 source, MR holds and torn-stage recovery
+        run: |
+          node --check candidates/transport/unified_cold_q4_importer.mjs
+          node --check tests/test_unified_cold_q4_importer.mjs
+          node --test tests/test_unified_cold_q4_importer.mjs
+      - name: UCE ordinary physical escrow native receipt to ledger account to native ACK
+        run: |
+          node --check tests/test_unified_ordinary_escrow.mjs
+          node --test tests/test_unified_ordinary_escrow.mjs
+      - name: UCE exact Bedrock ejected item handler ticket and native carrier integration
+        run: |
+          node --check tests/test_uce_ejected_runtime_mock.mjs
+          node --test tests/test_uce_ejected_runtime_mock.mjs
+      - name: UCE native item entity from vanilla ejection through shared custody journal
+        run: |
+          node --check tests/test_uce_ejected_native_port.mjs
+          node --test tests/test_uce_ejected_native_port.mjs
+      - name: UCE direct Sorter executor with real native journal and interrupted move
+        run: |
+          node --check tests/test_uce_sorter_direct_real_port.mjs
+          node --test tests/test_uce_sorter_direct_real_port.mjs
+      - name: UCE original direct Sorter native storage executor uses the same journal
+        run: |
+          node --check tests/test_uce_sorter_direct_mock.mjs
+          node --test tests/test_uce_sorter_direct_mock.mjs
+      - name: UCE read-only legacy Sorter to Collector winner selection and source ownership
+        run: |
+          node --check tests/test_uce_sorter_collector_route_mock.mjs
+          node --test tests/test_uce_sorter_collector_route_mock.mjs
+      - name: UCE single-writer Transporter and Sorter route graph, priority and revalidation
+        run: |
+          node --check candidates/uce/runtime_pipe_route.js
+          node --check tests/test_uce_pipe_route_mock.mjs
+          node --test tests/test_uce_pipe_route_mock.mjs
+          node --check tests/test_uce_interbank_integrated_runtime.mjs
+          node --test tests/test_uce_interbank_integrated_runtime.mjs
+          node --check tests/test_uce_remote_bulk_integrated.mjs
+          node --test tests/test_uce_remote_bulk_integrated.mjs
+          node --check tests/test_uce_interbank_mr_mock.mjs
+          node --test tests/test_uce_interbank_mr_mock.mjs
+          node --check tests/test_uce_interbank_mr_real_port.mjs
+          node --test tests/test_uce_interbank_mr_real_port.mjs
+          node --check tests/test_uce_collector_mr_buffer_mock.mjs
+          node --test tests/test_uce_collector_mr_buffer_mock.mjs
+          node --check tests/test_uce_unloaded_collector_ordinary_real.mjs
+          node --test tests/test_uce_unloaded_collector_ordinary_real.mjs
+      - name: UCE multi-network Bulk controller identity uses the shipped runtime reader
+        run: |
+          node --check tests/test_uce_bulk_runtime_ownership.mjs
+          node --test tests/test_uce_bulk_runtime_ownership.mjs
+      - name: UCE exact-PG33 stopped LAB installer source, tamper and refusal tests
+        run: |
+          python -m unittest discover -s tests -p 'test_uce_lab_deploy.py' -v
+          python candidates/uce/lab_deploy.py
+      - name: UCE PG35 guarded new LAB world switch synthetic safety and property backup
+        run: |
+          python -m py_compile candidates/uce/lab_world_switch.py
+          python -m unittest discover -s tests -p 'test_uce_empty_world_switch.py' -v
+      - name: UCE explicit zero-Q4 new LAB world activation via existing cold authority
+        run: |
+          node --check candidates/transport/unified_new_world_activation.mjs
+          node --test tests/test_unified_new_world_activation.mjs
+      - name: UCE archived-world Q4 non-mutating census and item-shape preflight
+        run: |
+          node --check candidates/transport/unified_migration_preflight.mjs
+          node --check tests/test_unified_migration_preflight.mjs
+          node --test tests/test_unified_migration_preflight.mjs
+      - name: UCE one global custody/recovery gate for native and ordinary service
+        run: |
+          node --check tests/test_uce_unified_tick_gate.mjs
+          node --test tests/test_uce_unified_tick_gate.mjs
+      - name: UCE PG42 isolated native carrier fixture and fresh-world restart proof
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          node --check tests/pg42_probe.js
+          node --test tests/test_uce_pg42_probe_mock.mjs
+          python -m py_compile candidates/uce/pg42_world_switch.py candidates/uce/pg42_lab_patch.py
+          python -m unittest discover -s tests -p 'test_uce_pg42_carrier_lab.py' -v
+      - name: HL2 full-product PG42-safe LAB delivery and exact rollback synthetic gate
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m py_compile candidates/uce/full_product_lab.py
+          python -m unittest discover -s tests -p 'test_uce_full_product_lab.py' -v
+      - name: UCE PG41 BDS 1.26.63.1 carrier and Bulk recipe parser correction exact PG40 predecessor
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m py_compile candidates/uce/pg41_lab_patch.py
+          python -m unittest discover -s tests -p 'test_uce_pg41_lab_patch.py' -v
+      - name: UCE PG40 pinned PG37-only read-only PG39 native carrier forensic census
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m py_compile candidates/uce/pg40_lab_patch.py
+          python -m unittest discover -s tests -p 'test_uce_pg40_lab_patch.py' -v
+      - name: UCE PG37 bounded sealed Receiver owner census and guarded same-version patch
+        run: |
+          node --check tests/test_uce_diagnostics_mock.mjs
+          node --test tests/test_uce_diagnostics_mock.mjs
+          python -m py_compile candidates/uce/pg37_lab_patch.py
+          # The PG37 installer is restricted to its original source commit.
+          # Run its exact historical synthetic checks in an isolated worktree;
+          # never make a newer UCE candidate pretend to be the PG37 patch.
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          historical="$(mktemp -d)"
+          git worktree add --quiet --detach "$historical" 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          (cd "$historical" && python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v)
+          git worktree remove --force "$historical"
+      - name: UCE PG36 exact old-to-new same-version patch source and synthetic refusal
+        run: |
+          python -m py_compile candidates/uce/pg36_lab_patch.py
+          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          historical="$(mktemp -d)"
+          git worktree add --quiet --detach "$historical" bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
+          (cd "$historical" && python -m unittest discover -s tests -p 'test_uce_pg36_lab_patch.py' -v)
+          git worktree remove --force "$historical"
+      - name: UCE PG36 fresh sealed new-world first Collector link bootstrap
+        run: |
+          node --check candidates/transport/unified_link_registry.mjs
+          node --test tests/test_unified_link_registry.mjs
+          node --check tests/test_uce_new_world_link_bootstrap.mjs
+          node --test tests/test_uce_new_world_link_bootstrap.mjs
+          node --check tests/test_uce_link_menu_mock.mjs
+          node --test tests/test_uce_link_menu_mock.mjs
+      - name: UCE new Receiver sealed registration runtime hydration and links
+        run: |
+          node --check tests/test_uce_receiver_runtime_registration.mjs
+          node --test tests/test_uce_receiver_runtime_registration.mjs
+      - name: UCE sealed Sorter noncustody configuration gate, legacy link freeze
+        run: |
+          node --check tests/test_uce_sorter_config_fence.mjs
+          node --test tests/test_uce_sorter_config_fence.mjs
+      - name: UCE versioned Collector link and sealed Receiver authority, no Q4 mutation
+        run: |
+          node --check candidates/transport/unified_link_registry.mjs
+          node --check tests/test_unified_link_registry.mjs
+          node --test tests/test_unified_link_registry.mjs
+      - name: UCE unified readonly product status and custody journal alerts
+        run: |
+          node --check tests/test_uce_diagnostics_mock.mjs
+          node --test tests/test_uce_diagnostics_mock.mjs
       - name: Q5 history-first maintenance transition and crash-cutpoint matrix (offline)
         run: |
           node --check candidates/transport/q5_history_first_transition.mjs
@@ -258,6 +474,14 @@ jobs:
           node --check --input-type=module < build/pg26-lab/behavior_pack/scripts/main.js
           node --test tests/test_pg26_transporter_mock.mjs
           python -m unittest discover -s tests -p 'test_pg26_lab_deploy.py' -v
+      - name: Verify PG33 Receiver Q4 to Transporter ordinary output (source-only)
+        run: |
+          python -m unittest discover -s tests -p 'test_pg33_candidate_build.py' -v
+          python -m unittest discover -s tests -p 'test_pg33_lab_deploy.py' -v
+          python candidates/pg33/prepare_candidate.py
+          node --check --input-type=module < build/pg33-lab/behavior_pack/scripts/main.js
+          node --check tests/test_pg33_receiver_q4_mock.mjs
+          node --test tests/test_pg33_receiver_q4_mock.mjs
       - name: Verify PG27 Transporter geometry against actual world-neighbor flags
         run: |
           python -m unittest discover -s tests -p 'test_pg27_candidate_build.py' -v
@@ -583,6 +807,123 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - name: UCE Win LAB installer syntax, source-only checks and CLI refusal
+        shell: powershell
+        run: |
+          $launcher = '.\\candidates\\uce\\Start-HartLogistics-UCELab.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $launcher).Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw ('UCE PowerShell syntax errors: ' + ($errors | Out-String)) }
+          foreach ($argsSet in @(
+            @('-Mode','Install'),
+            @('-Mode','Rollback','-Apply'),
+            @('-Mode','CheckLab','-Apply'),
+            @('-Mode','Plan','-Apply'),
+            @('-Mode','CheckLab')
+          )) {
+            $rejected = $false
+            try { & $launcher @argsSet | Out-Null } catch { $rejected = $true }
+            if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
+          }
+          Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: HL2 freeform two-command launcher syntax and refusal on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\uce\Start-HartLogistics-FreeformLab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $source = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('Prepare','Finish','ExpectedCommit','Assert-Unlinked',
+              'freeform_lab.py','HartLogistics2-FullProduct-LAB')) {
+              if (-not $source.Contains($anchor)) { throw ('HL2 missing freeform source gate: '+$anchor) }
+          }
+          foreach ($argsSet in @(
+              @('-Mode','Prepare'),
+              @('-Mode','Finish','-ExpectedCommit','wrong'),
+              @('-Mode','Plan','-ExpectedCommit','abc')
+          )) {
+              $denied = $false
+              try { & $launcher @argsSet | Out-Null } catch { $denied = $true }
+              if (-not $denied) { throw ('Unsafe freeform mode was accepted: '+($argsSet -join ' ')) }
+          }
+      - name: HL2 integrated product launcher syntax, refusals and synthetic PG42 handoff on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\uce\Start-HartLogistics-FullProductLab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $source = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('dev/uce-shared-ordinary-ledger-20261111',
+              'HartLogistics2-FullProduct-LAB', 'full_product_lab.py',
+              'CheckStage','CheckInstall','CheckRollback','CheckRestore',
+              'ExpectedCommit','Assert-Unlinked','--apply')) {
+              if (-not $source.Contains($anchor)) { throw ('HL2 source gate absent: '+$anchor) }
+          }
+          foreach ($set in @(
+              @('-Mode','Install'),
+              @('-Mode','Stage','-Apply'),
+              @('-Mode','CheckStage','-Apply'),
+              @('-Mode','Rollback','-Apply','-ExpectedCommit','abc'),
+              @('-Mode','Plan','-Apply')
+          )) {
+              $denied = $false
+              try { & $launcher @set | Out-Null } catch { $denied = $true }
+              if (-not $denied) { throw ('HL2 launcher failed to refuse: '+($set -join ' ')) }
+          }
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m py_compile candidates/uce/full_product_lab.py
+          python -m unittest discover -s tests -p 'test_uce_full_product_lab.py' -v
+      - name: UCE PG42 fresh-world-only native carrier probe and rollback on synthetic Windows
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m unittest discover -s tests -p 'test_uce_pg42_carrier_lab.py' -v
+      - name: UCE PG41 assets-only exact PG40 frozen BDS synthetic Windows install and rollback
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m unittest discover -s tests -p 'test_uce_pg41_lab_patch.py' -v
+      - name: UCE PG40 read-only forensic census exact PG37 predecessor on synthetic Windows
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 91389e6bfbc72e1d88e147c507fd473bfc9aef7e
+          python -m unittest discover -s tests -p 'test_uce_pg40_lab_patch.py' -v
+      - name: UCE PG37 read-only owner census exact-source patch synthetic Windows
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin 22637cae8b988b19e6ecadb1280c34f7dbf1c617 bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          $historical = Join-Path $env:RUNNER_TEMP 'hart-pg37-historical'
+          git worktree add --quiet --detach $historical 22637cae8b988b19e6ecadb1280c34f7dbf1c617
+          try {
+            Push-Location $historical
+            python -m unittest discover -s tests -p 'test_uce_pg37_lab_patch.py' -v
+            if ($LASTEXITCODE -ne 0) { throw 'PG37 historical synthetic tests failed' }
+          } finally {
+            Pop-Location
+            git worktree remove --force $historical
+          }
+      - name: UCE PG36 guarded in-place UCE patch synthetic Windows
+        run: |
+          git fetch --quiet --no-tags --depth=1 origin bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb 6e02f29b168caecff5d379795fcd9b5b714ab0be
+          $historical = Join-Path $env:RUNNER_TEMP 'hart-pg36-historical'
+          git worktree add --quiet --detach $historical bc8d2bce5bce62cac8e3a03ec3eb99bf113a31eb
+          try {
+            Push-Location $historical
+            python -m unittest discover -s tests -p 'test_uce_pg36_lab_patch.py' -v
+            if ($LASTEXITCODE -ne 0) { throw 'PG36 historical synthetic tests failed' }
+          } finally {
+            Pop-Location
+            git worktree remove --force $historical
+          }
+      - name: UCE PG35 synthetic empty-world stage, pack binding and restore on Windows
+        run: python -m unittest discover -s tests -p 'test_uce_empty_world_switch.py' -v
+      - name: UCE 1.5.16 synthetic stopped-LAB two-pack install, rollback and fault injection
+        run: python -m unittest discover -s tests -p 'test_uce_lab_deploy_synthetic.py' -v
+      - name: UCE LAB installer synthetic source/hash refusal on Windows
+        run: python -m unittest discover -s tests -p 'test_uce_lab_deploy.py' -v
       - name: Verify PG08 LAB replacement safety on Windows fixture
         run: python -m unittest discover -s tests -p 'test_pg08_lab_deploy.py' -v
       - name: Verify PG13 guarded replacement on Windows synthetic fixture
@@ -833,3 +1174,30 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
           }
+  pg33-python312-launcher-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up Python 3.12 (matching current owner LAB)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Parse PG33 PowerShell launcher and verify exact-LAB synthetic upgrade and rollback
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\pg33\Start-HartLogistics-PG33Lab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $script = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('dev/pg33-receiver-transporter-q4-egress',
+            'HartLogistics2-PG33-LAB', 'CheckLab', 'Rollback', 'ExpectedCommit',
+            'confirm-lab-only', 'Assert-Unlinked')) {
+            if (-not $script.Contains($anchor)) { throw "PG33 launcher safety anchor missing: $anchor" }
+          }
+          python -m unittest discover -s tests -p 'test_pg33_lab_deploy.py' -v

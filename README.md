@@ -1,51 +1,38 @@
-# Hart Logistics 2 — Minecraft Bedrock add-on
+# HartLogistics2 — Minecraft Bedrock add-on
 
-**Status: Bundle 0 foundation complete (original 1.4.1 source imported byte-for-byte; LAB updater passed offline safety tests). No Hart Logistics 2 gameplay features implemented, no Minecraft server accessed and no new release approved.**
+**Status (2026-11-13): integrated development source, NOT release-ready.** The active work is [draft PR #79](https://github.com/partom24/HartLogistics2/pull/79). Its generated UCE candidate includes ordinary and native-item custody, multi-Receiver Transporter routing, per-network Bulk accounts, scoped recovery, and original Sorter filtering. These are source/CI capabilities, **not proof of full Bedrock acceptance**. The finished deliverable is a compatible, working replacement for Hart Logistics 1.4.1, including archived-world migration.
 
-Hart Logistics 2 is the planned evolution of the owner-supplied **Hart Logistics 1.4.1** Bedrock add-on. The requirements are **zero loss of existing 1.4.1 capabilities**, safe upgrades of existing worlds and inventories, and explicit owner approval before implementation or release.
+## Source of truth
 
-## Start here
+- **Protected compatibility baseline:** `addon/behavior_pack/` and `addon/resource_pack/` are the original 72-file 1.4.1 tree; [hashes](BASELINE_HASHES.json). Never rewrite these files or use the baseline archive as an HL2 release.
+- **Owner's required topology:** [original Sorter Array and intended storage-room result](docs/OWNER_LAYOUT_REFERENCE.md) define the stacked, interconnected-bank product target; these images are design requirements, not Bedrock acceptance evidence.
+- **Active product generator:** [`candidates/uce/prepare_candidate.py`](candidates/uce/prepare_candidate.py) derives an integrated unapproved Bedrock BP/RP under ignored `build/uce-integrated/`. The runtime integration is in `candidates/uce/runtime_bridge.js`, `runtime_pipe_route.js`, and `candidates/transport/` unified modules.
+- **Historical predecessors and LAB tools:** `candidates/pgNN/` and the PG35–PG42 patch chain preserve exact-source rollback and forensic reconstruction contracts. They are not alternative HL2 product runtimes. PG42's temporary carrier probe is registered for its isolated diagnostic LAB world and **is not part of the UCE product generator**.
+- **Engineering and evidence:** [current state](docs/CURRENT_DEVELOPMENT_STATE.md), [AGENTS.md](AGENTS.md), [ledger](docs/DEV_LEDGER.md), [evidence register](docs/ENGINEERING_EVIDENCE_REGISTER.md), [code hygiene policy](docs/CODE_HYGIENE_POLICY.md), and [release gates](docs/RELEASE_POLICY.md).
 
-- [Current state](docs/CURRENT_DEVELOPMENT_STATE.md): what is actually in this repository today.
-- [Bundle 0 results](docs/BUNDLE0_RESULTS.md): exact original-source import and nine offline LAB updater safety tests.
-- [Guarded LAB updater](scripts/hartlogistics_lab_updater.py): preview-by-default, exact approved LAB target only; real apply not yet authorized.
-- [Updater and deployment boundaries](docs/UPDATER_DEPLOYMENT_DESIGN.md): lab-only testing, imported production-updater permission, and production execution hold.
-- [1.4.1 ingress/egress matrix](docs/BASELINE_INGRESS_EGRESS_MATRIX.md): source-traced supported routes and prohibited regressions.
-- [Test rig cards and evidence reuse](docs/TEST_RIG_CONTRACT.md): plain-language purpose first, complete physical instructions, and skip previously proven unaffected tests.
-- [Preliminary go/no-go tests](docs/PRELIMINARY_GO_NO_GO.md): two-to-three-check bundles, clear stop/go criteria and minimal reusable LAB setups.
-- [New block asset contract](docs/RESOURCE_ASSET_POLICY.md): new original visuals for Bulk Storage/Transporter; preserve 1.4.1 resource assets.
-- [Roadmap](docs/ROADMAP.md): authorized planning milestone and future candidates.
-- [Logistics design](docs/LOGISTICS_DESIGN.md): agreed requirements for Bulk Storage, Transporters, controllers and dual-lane handling.
-- [Owner's required topology and storage-room visual target](docs/OWNER_LAYOUT_REFERENCE.md): original PNG references for stacked Sorter banks, linked transport regions and integrated scale.
-- [Q4 to Q5 design](docs/Q5_MIGRATION_DESIGN.md): preservation and migration safeguards.
-- [Open questions](docs/IDEA_INBOX.md): decisions needed before implementation.
-- [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md), [baseline registry](docs/BASELINE_REGISTRY.md) and [evidence register](docs/ENGINEERING_EVIDENCE_REGISTER.md).
-- [Contributor rules](AGENTS.md), [engineering standard](docs/ENGINEERING_STANDARD.md) and [project contract](project-blueprint.json).
+## Source-only build and packaging
 
-## Protected input baseline
+```bash
+python candidates/uce/prepare_candidate.py
+python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
+python scripts/validate_blueprint.py
+```
 
-The user supplied a 1.4.1 mcaddon containing a behavior pack and resource pack. That supplied archive is the compatibility reference; **its source is not in GitHub yet**. An import-ready source bundle was prepared outside this repository. Do not confuse that bundle with a Git commit, a validated Bedrock runtime, or an approved release.
+The general archive packager now **requires an explicit source** to prevent accidentally labeling the protected baseline as HL2:
 
-Known baseline: three blocks (Sorter, Collector, Receiver), FIFO q4 Receiver queue with q2/q3 legacy migration, persistent recovery journal, item-frame filtering, hopper compatibility and redstone pause controls. See the detailed baseline registry.
+```bash
+python tools/build_mcaddon.py --source baseline
+python tools/build_mcaddon.py --source hl2-uce --acknowledge-unapproved-source
+```
 
-## Planned expansion (not implemented)
+The second command makes an explicitly marked, **UNAPPROVED SOURCE ONLY** archive for inspection. It is **not permission to manually install**, switch a world, activate the new authority, publish or use production. Any permitted LAB deployment uses exact-commit guarded tooling with stopped BDS, world backups and pack rollback, after a prepared integrated product acceptance milestone. Passing CI never authorizes deployment.
 
-1. **Hart Bulk Storage:** 200,000 ordinary bucketized items per block; overflow, expandable network capacity, controller-based distributed destination selection, wildcard as last resort.
-2. **Hart Transporter:** six-direction, narrow 4×4-in-16 plumbing-style pipe; high-throughput routing from Receiver/Bulk Storage to Sorter; normal containers are *input only*.
-3. **Receiver Q5 / native metadata-rich lane:** safe migration from q4, destination-aware buckets for ordinary items and native ItemStack-preserving MR transfers subject to supported API capabilities.
+## Current integration boundaries
 
-HartBots 1.8.2 Depot source was provided in chat for **reference only**. No HartBots repository access or change is authorized; native Depot integration is deferred.
+The UCE design uses one coordinated ordinary and native-item custody model, an authoritative Reader/Transporter/Sorter route graph, and a guarded persistent transfer/recovery layer. Ordinary Receiver capacity is 250,000 items; Bulk member capacity is 200,000. Per-bank and cross-shard transfers, native nine-slot persistent carriers, multi-Receiver routing, redstone and physical boundaries have source regression coverage; their complete in-game behavior is not accepted.
 
-## Scope and release
+The critical unfinished work remains: a guarded **full-product LAB delivery** from the owner's current PG42 environment without overwriting preserved PG35/PG42 worlds; a **repeatable, non-destructive cold Q4 migration** from the restorable 1.4.1 archive, including metadata-rich records that cannot be reconstructed losslessly; and integrated Bedrock gameplay, restart, fault and release acceptance. Opaque Q4 records intentionally HOLD rather than silently lose metadata. Do not delete Q4 state, clear unresolved journals, re-spawn an uncertain native carrier, or treat a held migration as success.
 
-This repository was created from an engineering blueprint template. Shared policies and the validator remain, but inherited blueprint achievements do **not** describe this add-on. The active root [addon/](addon/) now contains **both original 1.4.1 BP/RP source trees unchanged**, pinned by an import commit and [baseline hash inventory](BASELINE_HASHES.json). There is no approved new release, no world upgrade, and no in-game validation for Hart Logistics 2.
+**Protected environment:** production `C:\Servers\Thomas_MCBedrock` is off limits. Only a separately authorized, guarded operation may touch the LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`. The current PG42 LAB is not the PG33 predecessor assumed by the older UCE install handoff. Keep original archives, LevelDB, backups and unrelated add-ons intact. Follow [the updated LAB handoff](candidates/uce/TEST_SESSION.md) before considering any BDS activity.
 
-The original source import is complete. Future gameplay implementation still requires separate owner authorization and must preserve original pack UUIDs, identifiers, persistent state and 1.4.1 capabilities. CI/source-hash checks alone do not prove runtime compatibility.
-
-**Linking UI:** [Menu-based Collector/Receiver linking design](docs/UI_LINKING_DESIGN.md) documents the explicit link/relink button and compatibility requirements.
-
-## Bundle 1 feasibility result — 2026-11-07
-
-**PG-03 NO-GO** for native custom-block container storage on the current non-experimental 1.26.63.1 LAB; **PG-04/PG-05 BLOCKED**. The owner confirmed successful temporary pack unregistration and LAB registry restoration; all disposable probe files, PowerShell launchers, simulated tests, CI steps and temporary-instrumentation entries have been **removed** from this repository. Preserve the original 1.4.1 runtime and MR bypass until another custody design is approved.
-
-Read [Bundle 1 evidence](docs/BUNDLE1_PREPARATION_RESULTS.md), the [native MR custody alternatives](docs/MR_CUSTODY_ALTERNATIVES_12663.md), and the [Q5 migration gates](docs/Q5_MIGRATION_DESIGN.md). No in-game MR transfers or persistence were claimed.
+The project is **complete only** when a restored 1.4.1 world migrates, ordinary and metadata-rich items survive realistic network/restart conditions, throughput and 1.4.1 gameplay compatibility pass, and a specific release artifact is verified and owner-approved.

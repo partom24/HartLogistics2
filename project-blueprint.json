@@ -28,7 +28,15 @@
     "approval_reference": null,
     "evidence_reference": null
   },
-  "temporary_instrumentation": [],
+  "temporary_instrumentation": [
+    {
+      "id": "PG42-CARRIER",
+      "kind": "test",
+      "task": "Fresh PG42 world only; one native carrier, persistent 9-slot named/lore sample and restart audit; delete probe plus registry after BDS acceptance",
+      "path": "tests/pg42_probe.js",
+      "status": "active"
+    }
+  ],
   "planning": {
     "roadmap": "docs/ROADMAP.md",
     "inbox": "docs/IDEA_INBOX.md",

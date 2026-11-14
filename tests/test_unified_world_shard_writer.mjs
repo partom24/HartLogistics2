@@ -1,0 +1,391 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {q5IdentityKey} from '../candidates/transport/q5_bucket_core.mjs';
+import {
+  createEmptyUnifiedOrdinaryLedger,registerUnifiedEmptyAccount,
+  inspectUnifiedOrdinaryLedger
+} from '../candidates/transport/unified_ordinary_accounts.mjs';
+import {
+  previewUnifiedShard,createUnifiedShardWriter,
+  UCE_AUTHORITY_SCHEMA,UCE_AUTHORITY_KEY,UCE_SHARD_MAX_CHARS
+} from '../candidates/transport/unified_world_shard_writer.mjs';
+
+const key='hartlogistics:uce_shard_region1_v1';
+const worldId='minecraft:overworld:archive-141';
+const epoch=11;
+const item={typeId:'minecraft:cobblestone',lore:[],ench:[],
+  canDestroy:[],canPlaceOn:[]};
+const itemKey=q5IdentityKey(item);
+function snapshot(){
+  let s=createEmptyUnifiedOrdinaryLedger({worldId,epoch}).snapshot;
+  for(const [kind,ownerId] of [['receiver','r1'],['bulk','b1']]){
+    const r=registerUnifiedEmptyAccount(s,{
+      kind,ownerId,expectedRevision:s.revision,expectedEpoch:epoch
+    });
+    assert.equal(r.ok,true,r.reason);
+    s=r.next;
+  }
+  const recv=s.accounts.find(a=>a.id==='receiver:r1');
+  recv.total=12;
+  recv.buckets=[{key:itemKey,count:12}];
+  s.total=12;
+  assert.equal(inspectUnifiedOrdinaryLedger(s).ok,true);
+  return s;
+}
+function fixture(options={}){
+  const initial=snapshot();
+  const plan=previewUnifiedShard({snapshot:initial,shardKey:key});
+  assert.equal(plan.ok,true,plan.reason);
+  const values=new Map([[key,plan.raw]]);
+  if(options.active!==false)values.set(UCE_AUTHORITY_KEY,JSON.stringify({
+    schema:UCE_AUTHORITY_SCHEMA,state:'ACTIVE',worldId,epoch,
+    writer:'UCE_EXCLUSIVE',q4LegacyWritersFenced:true,
+    migrationReconciled:true
+  }));
+  let writes=0;
+  const world={
+    getDynamicProperty(k){
+      if(options.onRead)return options.onRead(k,values,writes);
+      return values.get(k);
+    },
+    setDynamicProperty(k,v){
+      writes++;
+      if(options.onWrite)return options.onWrite(k,v,values,writes);
+      values.set(k,v);
+    }
+  };
+  const writer=createUnifiedShardWriter({world,worldId,shardKey:key,
+    epoch,externalFence:options.externalFence??(()=>true),
+    verifyInternalRoute:options.verifyInternalRoute??(()=>true)});
+  assert.equal(writer.ok,true,writer.reason);
+  const req={operationId:'receipt-world11-rev3',from:'receiver:r1',
+    to:'bulk:b1',key:itemKey,count:8,expectedRevision:initial.revision,
+    expectedEpoch:epoch};
+  return {world,writer,values,req,
+    get writes(){return writes}};
+}
+function holds(r,reason){
+  assert.equal(r.ok,false);
+  assert.equal(r.status,'HOLD');
+  if(reason)assert.equal(r.reason,reason);
+  assert.equal(r.canMoveNative,false);
+}
+test('one Bedrock property write transfers between Receiver and Bulk with readback receipt',()=>{
+  const f=fixture(),before=f.values.get(key);
+  const r=f.writer.applyInternalTransfer(f.req);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'ONE_RECORD_INTERNAL_TRANSFER_READBACK');
+  assert.equal(f.writes,1);
+  assert.notEqual(f.values.get(key),before);
+  const view=f.writer.inspect();
+  assert.equal(view.ok,true,view.reason);
+  assert.equal(view.snapshot.total,12);
+  assert.equal(view.snapshot.accounts.find(a=>a.id==='receiver:r1').total,4);
+  assert.equal(view.snapshot.accounts.find(a=>a.id==='bulk:b1').total,8);
+  assert.equal(view.lastReceipt.operationId,f.req.operationId);
+  assert.equal(view.lastReceipt.revision,r.afterRevision);
+  assert.equal(r.hasHardCrashDiskProof,false);
+});
+test('replayed old revision cannot spend twice even after process recreation',()=>{
+  const f=fixture();
+  assert.equal(f.writer.applyInternalTransfer(f.req).ok,true);
+  holds(f.writer.applyInternalTransfer(f.req),'invalid_or_stale_internal_intent');
+  const fresh=createUnifiedShardWriter({
+    world:f.world,shardKey:key,worldId,epoch,externalFence:()=>true,
+    verifyInternalRoute:()=>true});
+  holds(fresh.applyInternalTransfer(f.req),'invalid_or_stale_internal_intent');
+  assert.equal(f.writes,1);
+});
+test('no authority means no mutation or implicit Q4 migration',()=>{
+  const f=fixture({active:false});
+  holds(f.writer.applyInternalTransfer(f.req),'world_ue_authority_missing');
+  assert.equal(f.writes,0);
+});
+test('forged ACTIVE status without exclusive legacy writer state is refused',()=>{
+  const f=fixture(),authority=JSON.parse(f.values.get(UCE_AUTHORITY_KEY));
+  authority.q4LegacyWritersFenced=false;
+  f.values.set(UCE_AUTHORITY_KEY,JSON.stringify(authority));
+  holds(f.writer.applyInternalTransfer(f.req),'world_ue_authority_not_exclusive');
+  assert.equal(f.writes,0);
+});
+test('pending physical or Q4 journal halts account changes',()=>{
+  for(const journal of ['hartsorter:journal_v1',
+                         'hartsorter:queue_journal_v1']){
+    const f=fixture();
+    f.values.set(journal,'{"uncertain":true}');
+    holds(f.writer.applyInternalTransfer(f.req),'legacy_journal_pending');
+    assert.equal(f.writes,0);
+  }
+});
+test('actual caller writer fence is mandatory and rechecked immediately prewrite',()=>{
+  const f=fixture({externalFence:()=>false});
+  holds(f.writer.applyInternalTransfer(f.req),
+    'legacy_writer_exclusion_unproven');
+  assert.equal(f.writes,0);
+  let calls=0;
+  const x=fixture({externalFence:()=>++calls===1});
+  holds(x.writer.applyInternalTransfer(x.req),
+    'internal_route_or_writer_fence_changed_prewrite');
+  assert.equal(x.writes,0);
+});
+test('read-only inspection rejects corrupt or changed ledger and never repairs it',()=>{
+  const f=fixture();
+  f.values.set(key,'{bad');
+  holds(f.writer.inspect(),'world_shard_invalid_json');
+  holds(f.writer.applyInternalTransfer(f.req),'world_shard_invalid_json');
+  assert.equal(f.writes,0);
+  const g=fixture();
+  const tampered=JSON.parse(g.values.get(key));
+  tampered.snapshot.total=500;
+  g.values.set(key,JSON.stringify(tampered));
+  holds(g.writer.inspect(),'invalid_world_shard_ledger:ledger_conservation_mismatch');
+});
+test('mid-read state drift is detected and not written',()=>{
+  const f=fixture({onRead:(k,values)=>{
+    if(k===key) return values.get(key);
+    return values.get(k);
+  }});
+  assert.equal(f.writer.inspect().ok,true);
+  let reads=0;
+  const g=fixture({onRead:(k,values)=>{
+    if(k===key&&++reads===2)return values.get(key)+' ';
+    return values.get(k);
+  }});
+  holds(g.writer.inspect(),'world_shard_changed_during_inspection');
+  assert.equal(g.writes,0);
+});
+test('write throws even after physically writing: fail closed with per-session quarantine',()=>{
+  const f=fixture({onWrite:(k,v,values)=>{
+    values.set(k,v);
+    throw Error('simulated BDS write-after-commit exception');
+  }});
+  holds(f.writer.applyInternalTransfer(f.req),
+    'world_shard_write_outcome_ambiguous');
+  assert.equal(f.writes,1);
+  holds(f.writer.applyInternalTransfer(f.req),
+    'shard_session_quarantine:write_outcome_ambiguous');
+  assert.equal(f.writes,1);
+  const after=f.writer.inspect();
+  assert.equal(after.ok,true);
+  assert.equal(after.snapshot.accounts.find(a=>a.id==='bulk:b1').total,8);
+});
+test('postwrite receipt mismatch quarantines without a second debit',()=>{
+  const f=fixture({onWrite:(k,v,values)=>{
+    values.set(k,v.replace('receipt-world11-rev3','receipt-drift'));
+  }});
+  holds(f.writer.applyInternalTransfer(f.req),'world_shard_postwrite_mismatch');
+  holds(f.writer.applyInternalTransfer(f.req),
+    'shard_session_quarantine:postwrite_mismatch');
+  assert.equal(f.writes,1);
+});
+test('changed shard between planning and write refuses without overwriting another writer',()=>{
+  let n=0;
+  const f=fixture({onRead:(k,values)=>{
+    if(k===key && ++n===2)return values.get(k)+' ';
+    return values.get(k);
+  }});
+  holds(f.writer.applyInternalTransfer(f.req),'world_shard_changed_prewrite');
+  assert.equal(f.writes,0);
+});
+test('bounded property prevents arbitrary 250k-item world expansion into huge string',()=>{
+  let s=createEmptyUnifiedOrdinaryLedger({worldId,epoch}).snapshot;
+  for(let i=0;i<500;i++){
+    const r=registerUnifiedEmptyAccount(s,{
+      kind:'bulk',ownerId:'member-'+String(i).padStart(4,'0'),
+      expectedRevision:s.revision,expectedEpoch:epoch});
+    assert.equal(r.ok,true,r.reason);
+    s=r.next;
+  }
+  const p=previewUnifiedShard({snapshot:s,shardKey:key});
+  holds(p,'world_shard_capacity_exceeded');
+  assert.equal(UCE_SHARD_MAX_CHARS,28000);
+});
+test('missing shipment source and native move remain out of scope of this writer',()=>{
+  const f=fixture();
+  const wrong={...f.req,from:'receiver:missing'};
+  holds(f.writer.applyInternalTransfer(wrong),'unknown_account');
+  assert.equal(f.writes,0);
+  assert.equal(f.writer.canMoveNative,undefined);
+});
+
+test('unresolved native MR intent blocks all ordinary Receiver/Bulk spends under one writer fence',()=>{
+  const f=fixture();
+  f.values.set('hartlogistics:uce_native_intent_v1',JSON.stringify({
+    schema:'hart-uce-native-intent-v1',worldId,epoch,
+    operationId:'native-op-1',phase:'MOVED_INSPECTED'
+  }));
+  holds(f.writer.applyInternalTransfer(f.req),'native_intent_pending_global');
+  assert.equal(f.writes,0);
+  const inspect=f.writer.inspect();
+  assert.equal(inspect.ok,true); // Read-only inspection remains available.
+  f.values.delete('hartlogistics:uce_native_intent_v1');
+  assert.equal(f.writer.applyInternalTransfer(f.req).ok,true);
+  assert.equal(f.writes,1);
+});
+
+
+function boundaryFixture(opts={}){
+  const f=fixture(opts);
+  const intent={schema:'hart-uce-ordinary-boundary-v1',
+    phase:'ESCROW_READY',worldId,epoch,operationId:'bound-in-1',
+    direction:'deposit',accountId:'receiver:r1',key:itemKey,count:8,
+    expectedRevision:f.req.expectedRevision};
+  f.values.set('hartlogistics:uce_boundary_intent_v1',
+    JSON.stringify(intent));
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyEscrowCustody:()=>opts.escrow!==false});
+  const request={operationId:intent.operationId,accountId:intent.accountId,
+    key:intent.key,count:intent.count,direction:intent.direction,
+    expectedRevision:intent.expectedRevision,expectedEpoch:epoch};
+  return {f,intent,writer,request};
+}
+test('physical boundary credit stays on same UCE ledger writer and denies concurrent internal spending',()=>{
+  const {f,writer,request}=boundaryFixture();
+  holds(f.writer.applyInternalTransfer(f.req),'ordinary_boundary_pending_global');
+  assert.equal(f.writes,0);
+  const step=writer.applyBoundaryCommit(request);
+  assert.equal(step.ok,true,step.reason);
+  assert.equal(step.status,'BOUNDARY_ACCOUNT_WRITE_READBACK');
+  assert.equal(f.writes,1);
+  const view=writer.inspect();
+  assert.equal(view.snapshot.total,20);
+  assert.equal(view.snapshot.accounts.find(a=>a.kind==='receiver').total,20);
+  assert.equal(view.lastReceipt.kind,'BOUNDARY');
+  assert.equal(view.lastReceipt.operationId,'bound-in-1');
+  const repeat=writer.applyBoundaryCommit(request);
+  assert.equal(repeat.ok,true,repeat.reason);
+  assert.equal(repeat.status,'BOUNDARY_ACCOUNT_ALREADY_COMMITTED');
+  assert.equal(f.writes,1);
+});
+test('physical boundary credit requires escrow proof and exact persisted intent',()=>{
+  const a=boundaryFixture({escrow:false});
+  holds(a.writer.applyBoundaryCommit(a.request),
+    'native_escrow_custody_unverified');
+  assert.equal(a.f.writes,0);
+  const b=boundaryFixture();
+  b.intent.phase='PREPARED';
+  b.f.values.set('hartlogistics:uce_boundary_intent_v1',
+    JSON.stringify(b.intent));
+  holds(b.writer.applyBoundaryCommit(b.request),
+    'boundary_intent_not_commit_ready');
+  assert.equal(b.f.writes,0);
+});
+test('physical boundary receipt rejects wrong item/account/revision without credit',()=>{
+  const a=boundaryFixture();
+  holds(a.writer.applyBoundaryCommit({...a.request,count:9}),
+    'boundary_intent_not_commit_ready');
+  holds(a.writer.applyBoundaryCommit({...a.request,accountId:'bulk:b1'}),
+    'boundary_intent_not_commit_ready');
+  holds(a.writer.applyBoundaryCommit({...a.request,expectedRevision:99}),
+    'boundary_intent_not_commit_ready');
+  assert.equal(a.f.writes,0);
+});
+test('boundary write throw after persistence is quarantined, restart sees one committed receipt',()=>{
+  const a=boundaryFixture({onWrite:(k,v,values)=>{
+    values.set(k,v);
+    throw Error('write callback threw after property updated');
+  }});
+  holds(a.writer.applyBoundaryCommit(a.request),'boundary_account_write_ambiguous');
+  holds(a.writer.applyBoundaryCommit(a.request),
+    'shard_session_quarantine:boundary_write_outcome_ambiguous');
+  assert.equal(a.f.writes,1);
+  const clean=createUnifiedShardWriter({world:a.f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyEscrowCustody:()=>true});
+  const r=clean.applyBoundaryCommit(a.request);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'BOUNDARY_ACCOUNT_ALREADY_COMMITTED');
+  assert.equal(a.f.writes,1);
+});
+test('boundary withdraw decreases count once but leaves physical proof requirement external',()=>{
+  const a=boundaryFixture();
+  a.intent.direction='withdraw';
+  a.intent.count=5;
+  a.f.values.set('hartlogistics:uce_boundary_intent_v1',
+    JSON.stringify(a.intent));
+  const req={...a.request,direction:'withdraw',count:5};
+  const r=a.writer.applyBoundaryCommit(req);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(a.writer.inspect().snapshot.total,7);
+  assert.equal(a.writer.inspect().snapshot.accounts.find(a=>a.id==='receiver:r1').total,7);
+});
+
+
+test('new Bulk member is registered in existing Receiver shard as one revision and one readback',()=>{
+  const f=fixture();
+  const before=f.writer.inspect().snapshot;
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,
+    verifyGlobalBulkUniqueness:()=>true});
+  assert.equal(writer.ok,true);
+  const args={ownerId:'bank-new',operationId:'register-bulk-bank-new',
+    expectedRevision:before.revision,expectedEpoch:epoch};
+  const r=writer.registerBulkMember(args);
+  assert.equal(r.ok,true,r.reason);
+  assert.equal(r.status,'BULK_ACCOUNT_REGISTERED_SAME_LEDGER');
+  assert.equal(r.accountId,'bulk:bank-new');
+  assert.equal(r.controllerOwnerId,'b1');
+  assert.equal(f.writes,1);
+  const after=writer.inspect();
+  assert.equal(after.snapshot.total,12);
+  assert.equal(after.snapshot.accounts.find(a=>a.id==='bulk:bank-new').total,0);
+  assert.equal(after.snapshot.accounts.find(a=>a.id==='bulk:bank-new').role,'member');
+  assert.equal(after.lastReceipt.kind,'REGISTER_BULK');
+  holds(writer.registerBulkMember(args),'stale_or_unanchored_bulk_registration');
+  assert.equal(f.writes,1);
+});
+test('unverified Bulk placement, stale revisions, or duplicate owner cannot register',()=>{
+  const f=fixture();
+  const before=f.writer.inspect().snapshot;
+  const noOwner=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>false,verifyGlobalBulkUniqueness:()=>true});
+  const req={ownerId:'bank-new',operationId:'bulk-1',
+    expectedRevision:before.revision,expectedEpoch:epoch};
+  holds(noOwner.registerBulkMember(req),'bulk_placement_or_global_identity_unproven');
+  assert.equal(f.writes,0);
+  const notUnique=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,verifyGlobalBulkUniqueness:()=>false});
+  holds(notUnique.registerBulkMember(req),'bulk_placement_or_global_identity_unproven');
+  assert.equal(f.writes,0);
+  const normal=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,verifyGlobalBulkUniqueness:()=>true});
+  holds(normal.registerBulkMember({...req,ownerId:'b1'}),'duplicate_account');
+  holds(normal.registerBulkMember({...req,expectedRevision:0}),
+    'stale_or_unanchored_bulk_registration');
+  assert.equal(f.writes,0);
+});
+test('ambiguous Bulk registration write quarantines and preserves any resulting account',()=>{
+  const f=fixture({onWrite:(k,v,values)=>{
+    values.set(k,v);
+    throw Error('BDS reported uncertain property persistence');
+  }});
+  const writer=createUnifiedShardWriter({world:f.world,shardKey:key,
+    worldId,epoch,externalFence:()=>true,
+    verifyBulkPlacement:()=>true,verifyGlobalBulkUniqueness:()=>true});
+  const a=f.writer.inspect().snapshot;
+  const args={ownerId:'bank-new',operationId:'bulk-ambiguous',
+    expectedRevision:a.revision,expectedEpoch:epoch};
+  holds(writer.registerBulkMember(args),'bulk_registration_write_ambiguous');
+  holds(writer.registerBulkMember(args),
+    'shard_session_quarantine:bulk_registration_write_ambiguous');
+  assert.equal(f.writes,1);
+  assert.equal(writer.inspect().snapshot.accounts.some(x=>x.id==='bulk:bank-new'),true);
+});
+
+test('internal receiver->bank transfer cannot commit without a live graph proof',()=>{
+  const f=fixture({verifyInternalRoute:()=>false});
+  holds(f.writer.applyInternalTransfer(f.req),'internal_bulk_route_unverified');
+  assert.equal(f.writes,0);
+});
+test('route changes after admission but before write refuse without changing balances',()=>{
+  let checks=0;
+  const f=fixture({verifyInternalRoute:()=>++checks===1});
+  holds(f.writer.applyInternalTransfer(f.req),
+    'internal_route_or_writer_fence_changed_prewrite');
+  assert.equal(f.writes,0);
+});

@@ -1,0 +1,3423 @@
+/*
+ * UCE integration binding inside the SAME HartLogistics2 Bedrock main module.
+ * This is a bridge for the final unified engine, NOT a new scheduler or writer.
+ * The existing logisticsTick owns scheduling. All Q4/legacy entrypoint writers
+ * are stopped if any UCE authority record is present (including malformed);
+ * UCE runs only for a complete ACTIVE authority verified by the native ports.
+ *
+ * Source ready != BDS acceptance. This bridge adds NO authority marker, no
+ * Q4 migration, no Bulk account initialization, no production permission.
+ */
+let uceMrCursor=0;
+let uceMrSequence=0;
+let uceMrBootNonce=undefined;
+// Bounded reason/owner keyed suppression. A second alternating warning must
+// not reset suppression for the first (the PG39 failure mode).
+const uceWarningCounts=new Map();
+const UCE_MAIN_AUTHORITY='hartlogistics:uce_authority_v1';
+
+/* Permanent, optional read-only operational diagnostics. Default OFF on each
+ * BDS start. No extra world keys, item serialization, replay or write path.
+ * Timing is local script wall time, NOT a measured server TPS guarantee. */
+const UCE_PERF_SLOW_TICK_MS=25;
+const UCE_PERF_SLOW_OP_MS=12;
+const UCE_PERF_WARN_SHARD_CHARS=22400;
+const UCE_PERF_CRITICAL_SHARD_CHARS=26000;
+const UCE_PERF_SHARD_MAX_CHARS=28000;
+let ucePerfEnabled=false;
+let ucePerfLastMoveTick=undefined;
+let ucePerfLastShardSampleTick=undefined;
+let ucePerfStartedAtMs=undefined;
+const ucePerfNoticeCounts=new Map();
+const ucePerfStats={ticks:0,maxTickMs:0,slowTicks:0,slowOps:0,
+    moves:0,ordinaryMoves:0,mrMoves:0,
+    ordinaryItems:0,mrItems:0,gaps:0,
+    maxGapTicks:0,maxShardChars:0,shardSamples:0,shardWarnings:0,
+    displaySlices:0,displayChecked:0,maxDisplaySliceMs:0,
+    slowDisplaySlices:0};
+function ucePerfReset(){
+    for(const key of Object.keys(ucePerfStats))ucePerfStats[key]=0;
+    ucePerfNoticeCounts.clear();
+    ucePerfLastMoveTick=undefined;
+    ucePerfLastShardSampleTick=undefined;
+    ucePerfStartedAtMs=Date.now();
+}
+function ucePerfNotice(reason,detail){
+    if(!ucePerfEnabled)return;
+    const count=(ucePerfNoticeCounts.get(reason)||0)+1;
+    ucePerfNoticeCounts.set(reason,count);
+    // One immediate event, then exponentially bounded repetitions.
+    if(count===1||count===16||count===256||count%8192===0)
+        try{log('[UCE performance] '+reason+' '+detail+' occurrences='+count);}catch(_){}
+}
+function ucePerfTimedOperation(kind,operation){
+    if(!ucePerfEnabled)return operation();
+    const start=Date.now();
+    try{return operation();}
+    finally{
+        const elapsed=Date.now()-start;
+        if(Number.isFinite(elapsed)&&elapsed>=UCE_PERF_SLOW_OP_MS){
+            ucePerfStats.slowOps++;
+            ucePerfNotice('slow_operation',
+                'lane='+kind+' elapsed_ms='+elapsed);
+        }
+    }
+}
+function ucePerfRecordMove(kind,count=1){
+    if(!ucePerfEnabled||!Number.isSafeInteger(count)||count<1)return;
+    const tick=system.currentTick;
+    if(Number.isSafeInteger(tick)&&ucePerfLastMoveTick!==undefined){
+        const gap=tick-ucePerfLastMoveTick;
+        if(gap>=40){
+            ucePerfStats.gaps++;
+            ucePerfStats.maxGapTicks=Math.max(
+                ucePerfStats.maxGapTicks,gap);
+            // A quiet interval can be unloaded/idle, not a performance fault.
+            ucePerfNotice('transfer_gap','ticks='+gap+
+                ' (may be idle or blocked; not a TPS measurement)');
+        }
+    }
+    if(Number.isSafeInteger(tick))ucePerfLastMoveTick=tick;
+    // Keep transfer operations distinct from individual item quantities.
+    // A single ordinary Bulk transaction can account for 64 items.
+    ucePerfStats.moves++;
+    if(kind==='MR'){
+        ucePerfStats.mrMoves++;
+        ucePerfStats.mrItems+=count;
+    }else{
+        ucePerfStats.ordinaryMoves++;
+        ucePerfStats.ordinaryItems+=count;
+    }
+}
+function ucePerfSampleShard(shardKey){
+    if(!ucePerfEnabled)return;
+    const tick=system.currentTick;
+    // At most one EXTRA read per 100 game ticks, not one per transfer.
+    if(!Number.isSafeInteger(tick)||tick<0||tick%100!==0||
+       tick===ucePerfLastShardSampleTick)return;
+    ucePerfLastShardSampleTick=tick;
+    try{
+        const raw=world.getDynamicProperty(shardKey);
+        if(typeof raw!=='string'){
+            ucePerfNotice('shard_read','non_string');
+            return;
+        }
+        const chars=raw.length; // ASCII shard JSON: chars, not native NBT bytes.
+        ucePerfStats.shardSamples++;
+        ucePerfStats.maxShardChars=Math.max(
+            ucePerfStats.maxShardChars,chars);
+        if(chars>=UCE_PERF_WARN_SHARD_CHARS){
+            ucePerfStats.shardWarnings++;
+            const level=chars>=UCE_PERF_CRITICAL_SHARD_CHARS?
+                'shard_critical':'shard_high';
+            ucePerfNotice(level,'shard='+shardKey+
+                ' chars='+chars+'/'+UCE_PERF_SHARD_MAX_CHARS);
+        }
+    }catch(_){ucePerfNotice('shard_read','exception');}
+}
+function ucePerformanceTick(){
+    if(!ucePerfEnabled){uceUnifiedServiceTick();return;}
+    const start=Date.now();
+    try{uceUnifiedServiceTick();}
+    finally{
+        const elapsed=Date.now()-start;
+        if(Number.isFinite(elapsed)&&elapsed>=0){
+            ucePerfStats.ticks++;
+            ucePerfStats.maxTickMs=Math.max(
+                ucePerfStats.maxTickMs,elapsed);
+            if(elapsed>=UCE_PERF_SLOW_TICK_MS){
+                ucePerfStats.slowTicks++;
+                ucePerfNotice('slow_service_tick','elapsed_ms='+elapsed);
+            }
+        }
+    }
+}
+function ucePerformancePanel(origin,mode='status'){
+    const entity=origin?.sourceEntity;
+    const say=message=>{
+        if(entity&&typeof entity.sendMessage==='function')
+            entity.sendMessage(message);
+        else log(message.replace(/§./g,''));
+    };
+    if(mode==='on'&&!ucePerfEnabled){
+        ucePerfReset();
+        ucePerfEnabled=true;
+    }else if(mode==='off')ucePerfEnabled=false;
+    say('§6[HL2 performance panel] §fMonitoring: '+
+        (ucePerfEnabled?'§aON':'§7OFF')+
+        ' §7(session-only; resets OFF on server restart)');
+    say('§7Controls: /hartlogistics:perf_on | '+
+        '/hartlogistics:perf_off | /hartlogistics:perf');
+    say('§7Thresholds: service tick '+UCE_PERF_SLOW_TICK_MS+
+        'ms; operation '+UCE_PERF_SLOW_OP_MS+
+        'ms; shard warning '+UCE_PERF_WARN_SHARD_CHARS+
+        '/'+UCE_PERF_SHARD_MAX_CHARS+' chars');
+    if(ucePerfEnabled){
+        say('§7Observed: service ticks '+ucePerfStats.ticks+
+            ', max '+ucePerfStats.maxTickMs+'ms, slow '+
+            ucePerfStats.slowTicks+', slow operations '+
+            ucePerfStats.slowOps);
+        say('§7Display maintenance: '+ucePerfStats.displaySlices+
+            ' bounded slices / '+ucePerfStats.displayChecked+
+            ' Sorter checks, slow '+ucePerfStats.slowDisplaySlices+
+            ', max '+ucePerfStats.maxDisplaySliceMs+'ms');
+        say('§7Committed transfer operations: MR '+ucePerfStats.mrMoves+
+            ', ordinary '+ucePerfStats.ordinaryMoves+
+            '; gaps >=40 ticks '+ucePerfStats.gaps+
+            ' (max '+ucePerfStats.maxGapTicks+')');
+        const elapsed=Number.isFinite(ucePerfStartedAtMs)?
+            Math.max(1000,Date.now()-ucePerfStartedAtMs):undefined;
+        const items=ucePerfStats.mrItems+ucePerfStats.ordinaryItems;
+        const rate=elapsed===undefined?'unknown':
+            (items*1000/elapsed).toFixed(1);
+        say('§7Committed items: MR '+ucePerfStats.mrItems+
+            ', ordinary '+ucePerfStats.ordinaryItems+
+            '; observed wall-clock rate '+rate+' items/s');
+        say('§7Shard samples '+ucePerfStats.shardSamples+
+            ', max '+ucePerfStats.maxShardChars+
+            ' chars, high-size samples '+ucePerfStats.shardWarnings);
+    }
+    say('§8Numbers are script-local observations, not TPS or '+
+        'hidden native item metadata sizes. No custody records modified.');
+}
+// End optional operational diagnostics.
+
+/**
+ * Sorter native-frame filters and mode state are configuration, NOT item
+ * custody. Preserve the original two-generation registry commit protocol
+ * only after an ACTIVE sealed UCE world has been verified. No queue, journal
+ * or Collector/Receiver registry key is whitelisted.
+ */
+function uceAllowsSorterRegistryWrite(key){
+    if(key!==REGISTRY_META_KEY&&
+       !(typeof key==='string'&&/^hartsorter:r2_[01]_[0-9]+$/.test(key)))
+        return false;
+    const authority=uceAuthoritySnapshot();
+    if(!authority)return false;
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    return cold.ok===true;
+}
+
+// Legacy mode is allowed only when this process has actually established
+// that the world has NO prior unified-custody footprint. If the authority
+// key is lost after UCE was active, neither Q4 nor UCE may resume writing.
+let uceEverHadAuthority=false;
+let uceLegacyOriginChecked=false;
+function uceLegacyWriterBlocked(){
+    try{
+        const raw=world.getDynamicProperty(UCE_MAIN_AUTHORITY);
+        if(raw!==undefined&&raw!==null&&raw!==''){
+            uceEverHadAuthority=true;
+            return true;
+        }
+        if(uceEverHadAuthority)return true;
+        // A missing authority marker is NOT evidence of a LEGACY world:
+        // the cold seal or any durable UCE shard/journal still fences Q4.
+        if(world.getDynamicProperty('hartlogistics:uce_cold_seal_v1')!==undefined){
+            uceEverHadAuthority=true;
+            return true;
+        }
+        if(!uceLegacyOriginChecked){
+            const keys=world.getDynamicPropertyIds();
+            if(!Array.isArray(keys)||
+               keys.some(k=>typeof k!=='string'))return true;
+            uceLegacyOriginChecked=true;
+            if(keys.some(k=>k.startsWith('hartlogistics:uce_'))){
+                uceEverHadAuthority=true;
+                return true;
+            }
+        }
+        return false;
+    }catch(_){return true;} // Never default to Q4 on an unreadable world.
+}
+function uceAuthoritySnapshot(){
+    let raw;
+    try{raw=world.getDynamicProperty(UCE_MAIN_AUTHORITY);}
+    catch(_){return undefined;}
+    if(typeof raw!=='string'||raw.length>4096)return undefined;
+    let value;
+    try{value=JSON.parse(raw);}catch(_){return undefined;}
+    if(!value || value.schema!=='hart-uce-world-authority-v1' ||
+       value.state!=='ACTIVE'||value.writer!=='UCE_EXCLUSIVE'||
+       value.q4LegacyWritersFenced!==true||
+       value.migrationReconciled!==true||
+       typeof value.worldId!=='string'||!value.worldId||
+       !Number.isSafeInteger(value.epoch)||value.epoch<1)return undefined;
+    return value;
+}
+function uceCarrierRegistrationReason(result){
+    // Keep engine errors actionable without revealing arbitrary exception
+    // messages or silently changing the durable RESERVED evidence.
+    return result.reason+(result.spawnErrorClass?
+        ' ['+result.spawnErrorClass+']':'');
+}
+function uceBridgeLog(reason,ownerId=undefined){
+    const owner=typeof ownerId==='string'&&ownerId?
+        ownerId:'global';
+    const key=owner+'|'+String(reason);
+    const count=uceWarningCounts.get(key)||0;
+    if(count<Number.MAX_SAFE_INTEGER)
+        uceWarningCounts.set(key,count+1);
+    // First warning always visible. Exponential summaries bound per-tick
+    // noise without erasing the underlying HOLD or the affected owner.
+    if(count===0 || count===16 || count===256 ||
+       (count>0 && count%8192===0))
+        log('[UCE unified service] '+reason+
+            (ownerId?' owner='+owner:'')+
+            (count?' repeated='+count:''));
+}
+function uceNativeReceiptId(){
+    // This is a bounded per-process uniqueness witness, not a durable
+    // generator or proof of exactly-once crash recovery. The global PREPARED
+    // native journal blocks any concurrent/adversarial reuse after a crash.
+    if(uceMrBootNonce===undefined){
+        uceMrBootNonce=(Math.floor(Math.random()*0x7fffffff)).toString(36) +
+          '-' + Date.now().toString(36);
+    }
+    uceMrSequence++;
+    if(!Number.isSafeInteger(uceMrSequence))return undefined;
+    return 'u'+uceMrBootNonce+'-'+uceMrSequence.toString(36);
+}
+function uceLiveReceiverOwner(ownerId,anchor){
+    try{
+        const receiver=findReceiverById(ownerId);
+        if(!receiver||receiver.present===false||
+           receiver.d!==anchor.dimensionId||
+           receiver.x!==anchor.x||receiver.y!==anchor.y||
+           receiver.z!==anchor.z)return false;
+        const b=receiverAt(receiver);
+        return !!b&&b.typeId===RECEIVER_ID;
+    }catch(_){return false;}
+}
+function uceLiveCollectorOwner(ownerId,anchor){
+    try{
+        const collector=findCollectorById(ownerId);
+        if(!collector||collector.present===false||
+           collector.d!==anchor.dimensionId||
+           collector.x!==anchor.x||collector.y!==anchor.y||
+           collector.z!==anchor.z)return false;
+        const b=collectorAt(collector);
+        return !!b&&b.typeId===COLLECTOR_ID;
+    }catch(_){return false;}
+}
+function uceLiveHopperOwner(owner){
+    try{
+        const block=getBlock(owner.d,owner.x,owner.y,owner.z);
+        return !!block&&block.typeId==='minecraft:hopper'&&
+            !hopperIsRedstoneLocked(block)&&
+            !!block.getComponent('minecraft:inventory')?.container;
+    }catch(_){return false;}
+}
+function uceClassifyLiveStack(stack){
+    // False ORDINARY classification must not flatten native opaque data.
+    // The native MR lane accepts the conservative complement. This bridge
+    // never credits the ordinary ledger or constructs another ItemStack.
+    if(!stack||typeof stack.typeId!=='string')return 'UNKNOWN';
+    try{
+        const dyn=typeof stack.getDynamicPropertyIds==='function'
+          ? stack.getDynamicPropertyIds():[];
+        const lore=typeof stack.getLore==='function'?stack.getLore():[];
+        if(!Array.isArray(dyn)||!Array.isArray(lore))return 'UNKNOWN';
+        if(!Number.isSafeInteger(stack.maxAmount)||
+           stack.maxAmount<=1 || stack.maxAmount>64 || stack.nameTag ||
+           dyn.length || lore.length)return 'MR';
+        // Q4's ordinary-account key contract is intentionally narrower
+        // than runtime stackability. Unknown namespaces, opaque variants
+        // and metadata-risk item types MUST use the native MR lane instead
+        // of entering a virtual bucket the ledger can never validate.
+        const candidate={typeId:stack.typeId,lore:[],ench:[],
+            canDestroy:[],canPlaceOn:[]};
+        if(inspectQ4OrdinaryDefinitionShape(candidate).ok!==true)
+            return 'MR';
+        // Ordinary classification is only a refusal decision for THIS MR
+        // service. It never creates/credits a virtual balance. Compare both
+        // native directions against a fresh one-item canonical stack; a
+        // differing/unknown stack remains native, preserving original bytes.
+        const plain=new ItemStack(stack.typeId,1);
+        if(plain.maxAmount===stack.maxAmount &&
+           stack.isStackableWith(plain)===true &&
+           plain.isStackableWith(stack)===true)return 'ORDINARY';
+        return 'MR';
+    }catch(_){return 'UNKNOWN';}
+}
+function uceReceiverHasNewMRInput(receiver){
+    const linked=logistics.collectors.filter(c=>
+      c.link===receiver.id&&c.present!==false);
+    for(const col of linked){
+        const cb=collectorAt(col);
+        if(!cb||blockIsRedstonePowered(cb))continue;
+        for(const source of collectorInputSources(col)){
+            if(source.kind!=='hopper'||source.locked===true||
+               !source.container?.isValid)continue;
+            for(let slot=0;slot<source.container.size;slot++){
+                let item;
+                try{item=source.container.getItem(slot);}
+                catch(_){return false;}
+                if(item && uceClassifyLiveStack(item)==='MR')return true;
+            }
+        }
+    }
+    // The same Receiver may also admit metadata-rich stacks from any
+    // verified pipe-attached native source without reconstruction.
+    const pipe=ucePipeRouteNetwork(receiver);
+    for(const source of pipe?.leaderId===receiver.id?
+        pipe.inputs:[]){
+        for(let slot=0;slot<source.container.size;slot++){
+            let item;
+            try{item=source.container.getItem(slot);}
+            catch(_){return false;}
+            if(item&&uceClassifyLiveStack(item)==='MR')return true;
+        }
+    }
+    // Preserve the 1.4.1 Sorter->Collector input path without letting the
+    // obsolete Q4 writer run. Only a loaded, winning Sorter destination is
+    // eligible to move into the Receiver's existing native carrier.
+    for(const source of uceSorterCollectorSources(receiver)){
+        for(let slot=0;slot<source.container.size;slot++){
+            let item;
+            try{item=source.container.getItem(slot);}
+            catch(_){return false;}
+            if(item&&uceClassifyLiveStack(item)==='MR'&&
+               source.eligibleSlot(slot,item))return true;
+        }
+    }
+    return false;
+}
+/*
+ * ONE native ItemStack handoff from the source Receiver's already-owned
+ * nine-slot carrier to the final Filter-bank Receiver's carrier.
+ *
+ * The same existing native journal is PREPARED before Container.moveItem.
+ * Both original carrier ticket records must be independently updated to
+ * RELEASED/ADMITTED and physically reconciled before ACK. At no point is
+ * an MR ItemStack serialized, reconstructed, copied, or placed into an
+ * ordinary count ledger. A failed move, ticket write or ACK remains HOLD.
+ *
+ * Return undefined only if no authenticated interbank Filter path exists.
+ * A selected path with unavailable target capacity/owner returns HOLD and
+ * MUST NOT be replaced by a weaker Wildcard output.
+ */
+function uceTryInterbankMrHandoff(authority,receiver,registry,host,
+                                  sourceAnchor,sourceSlot,item,
+                                  bufferedCollectorRoute=undefined){
+    try{
+        if(!authority||!receiver||!registry||!host?.container||
+           !Number.isSafeInteger(sourceSlot)||sourceSlot<0||
+           sourceSlot>=host.container.size||
+           !item||uceClassifyLiveStack(item)!=='MR')
+            return undefined;
+        const buffered=bufferedCollectorRoute!==undefined;
+        if(buffered&&
+           (!bufferedCollectorRoute||
+            !bufferedCollectorRoute.witness?.startsWith('CB1|')||
+            typeof bufferedCollectorRoute.verify!=='function'||
+            !bufferedCollectorRoute.receiver))
+            return {ok:false,status:'HOLD',
+                reason:'collector_buffer_route_invalid'};
+        const network=buffered?undefined:ucePipeRouteNetwork(receiver);
+        const selected=buffered?{
+            receiver:bufferedCollectorRoute.receiver,
+            witness:bufferedCollectorRoute.witness,hops:0}:
+            uceSelectInterbankFilteredRoute(
+                receiver,network,item,authority,false);
+        if(!selected)return undefined;
+        const target=selected.receiver;
+        const targetAnchor={dimensionId:target.d,
+            x:target.x,y:target.y,z:target.z};
+        const checked=()=> {
+            if(buffered){
+                let verified=false;
+                try{verified=bufferedCollectorRoute.verify()===true;}
+                catch(_){}
+                return verified&&
+                    uceLiveCollectorOwner(receiver.id,sourceAnchor)&&
+                    uceLiveReceiverOwner(target.id,targetAnchor);
+            }
+            const fresh=uceSelectInterbankFilteredRoute(
+                receiver,ucePipeRouteNetwork(receiver),
+                item,authority,false);
+            return !!fresh&&fresh.witness===selected.witness&&
+                fresh.receiver.id===target.id&&
+                uceLiveReceiverOwner(receiver.id,sourceAnchor)&&
+                uceLiveReceiverOwner(target.id,targetAnchor);
+        };
+        if(!checked())return {ok:false,status:'HOLD',
+            reason:'interbank_mr_route_changed'};
+        let targetHost=registry.inspectHost({
+            ownerId:target.id,anchor:targetAnchor});
+        if(!targetHost.ok&&targetHost.reason==='carrier_record_missing'){
+            // Exactly one new empty target host for a present MR item and
+            // authenticated live route. RESERVED/ambiguous older hosts never
+            // auto-respawn. A failed creation remains frozen for manual audit.
+            const created=registry.registerEmptyHost({
+                ownerId:target.id,anchor:targetAnchor});
+            if(!created.ok)return {ok:false,status:'HOLD',
+                reason:'interbank_mr_target_host:'+created.reason};
+            targetHost=registry.inspectHost({
+                ownerId:target.id,anchor:targetAnchor});
+        }
+        if(!targetHost.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_host:'+targetHost.reason};
+        const ownedSource=registry.inspectCustody({
+            ownerId:receiver.id,anchor:sourceAnchor});
+        const ownedTarget=registry.inspectCustody({
+            ownerId:target.id,anchor:targetAnchor});
+        if(!ownedSource.ok||!ownedTarget.ok||
+           !ownedSource.slots.includes(sourceSlot))
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_carrier_ticket_not_verified'};
+        if(ownedTarget.free<1)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_carrier_full'};
+        let destinationSlot=-1;
+        for(let i=0;i<targetHost.container.size;i++){
+            if(targetHost.container.getItem(i)===undefined){
+                destinationSlot=i;break;
+            }
+        }
+        if(destinationSlot<0)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_slots_full'};
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_operation_id_exhausted'};
+        const from={ownerId:receiver.id,
+            container:host.container,slot:sourceSlot};
+        const to={ownerId:target.id,
+            container:targetHost.container,slot:destinationSlot};
+        const ownership=ref=>{
+            if(!checked())return false;
+            if(ref.ownerId===receiver.id&&
+               ref.container===host.container&&
+               ref.slot===sourceSlot)
+                return registry.inspectHost({
+                    ownerId:receiver.id,anchor:sourceAnchor}).ok;
+            if(ref.ownerId===target.id&&
+               ref.container===targetHost.container&&
+               ref.slot===destinationSlot)
+                return registry.inspectHost({
+                    ownerId:target.id,anchor:targetAnchor}).ok;
+            return false;
+        };
+        const bothTickets=intent=>{
+            if(intent?.operationId!==operationId||
+               intent.from?.ownerId!==from.ownerId||
+               intent.to?.ownerId!==to.ownerId||
+               intent.from.slot!==sourceSlot||
+               intent.to.slot!==destinationSlot||
+               !registry.durableOwnershipWitness(intent))return false;
+            const old=registry.inspectCustody({
+                ownerId:receiver.id,anchor:sourceAnchor});
+            const next=registry.inspectCustody({
+                ownerId:target.id,anchor:targetAnchor});
+            return old.ok&&next.ok&&
+                !old.slots.includes(sourceSlot)&&
+                next.slots.includes(destinationSlot);
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:ownership,
+            durableOwnershipWitness:bothTickets
+        });
+        if(!port.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_native_port:'+port.reason};
+        const moved=port.moveWhole({operationId,from,to});
+        if(!moved.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_move:'+moved.reason};
+        if(moved.status!=='NATIVE_MOVED_PENDING_OWNERSHIP_ACK')
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_move_unexpected_result'};
+        // NEVER acknowledge after only one ownership record changes.
+        // Both records persist independently; a crash between them
+        // deliberately leaves the global native intent for reconciliation.
+        const released=registry.stageMovedTicket({
+            ownerId:receiver.id,anchor:sourceAnchor});
+        if(!released.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_source_ticket:'+released.reason};
+        const admitted=registry.stageMovedTicket({
+            ownerId:target.id,anchor:targetAnchor});
+        if(!admitted.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_target_ticket:'+admitted.reason};
+        if(!bothTickets({operationId,from,to}))
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_two_owner_custody_unverified'};
+        const ack=port.ackWhole({operationId,from,to});
+        if(!ack.ok)return {ok:false,status:'HOLD',
+            reason:'interbank_mr_ack:'+ack.reason};
+        if(ack.status!=='NATIVE_CUSTODY_ACK_READBACK')
+            return {ok:false,status:'HOLD',
+                reason:'interbank_mr_ack_unexpected_result'};
+        return {ok:true,status:'INTERBANK_MR_NATIVE_CUSTODY_ACK',
+            moved:moved.destinationWitness?.amount||0,
+            fromOwner:receiver.id,toOwner:target.id,
+            operationId,routeHops:selected.hops};
+    }catch(_){return {ok:false,status:'HOLD',
+        reason:'interbank_mr_runtime_unreadable'};}
+}
+/*
+ * Collector-owned MR waiting custody for linked Receivers whose chunks are
+ * unloaded. A Collector already has a stable original block identity, so
+ * the EXISTING persistent nine-slot native-carrier registry can use it as an
+ * owner without introducing a second queue, journal, item serializer or
+ * scheduler. Only the original physically selected Hopper/Sorter sources
+ * may stage the native ItemStack. When the Receiver loads, BOTH carrier
+ * tickets are updated under ONE existing native PREPARED intent before ACK.
+ */
+/*
+ * Credit an UNLOADED linked Receiver's existing sealed ordinary account
+ * from a LOADED Collector Hopper/Sorter source, using the SAME ordinary
+ * physical-boundary coordinator and the Collector's existing carrier as
+ * a short-lived native escrow. No Q4 writer, queue, extra account, or
+ * second recovery journal is created. One whole ordinary stack per call.
+ * The Receiver block need not be loaded; the saved Receiver identity and
+ * sealed shard are the durable virtual owner, while all physical custody
+ * stays on the loaded Collector until the ledger receipt is saved.
+ */
+function uceCollectorOrdinaryDeposit(authority,col,linked,anchor,
+                                    candidate,carrier,routeVerified){
+    try{
+        if(!authority||!col||!linked||!candidate||!carrier?.container||
+           typeof routeVerified!=='function')return {
+            ok:false,reason:'collector_ordinary_binding_invalid'};
+        const accountId='receiver:'+linked.id;
+        const shardKey=uceOrdinaryAccountSource(authority,linked.id);
+        if(!shardKey||!routeVerified())return {
+            ok:false,reason:'collector_ordinary_link_not_verified'};
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return {
+            ok:false,reason:'collector_ordinary_receipt_exhausted'};
+        const ownerId=col.id;
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:uceLiveCollectorOwner,
+            boundaryOperationId:operationId
+        });
+        if(!registry.ok)return registry;
+        const owned=registry.inspectCustody({ownerId,anchor});
+        if(!owned.ok)return owned;
+        if(owned.free<1)return {ok:false,
+            reason:'collector_ordinary_native_escrow_full'};
+        const index=uceNativeOutputSlot(carrier.container);
+        if(index<0)return {ok:false,
+            reason:'collector_ordinary_escrow_slot_unavailable'};
+        const carrierSlot={ownerId,container:carrier.container,slot:index};
+        const physicalSlot={ownerId:candidate.source.ownerId,
+            container:candidate.source.container,slot:candidate.slot};
+        const key=candidate.key,count=candidate.item.amount;
+        const identity=stack=>{
+            if(!stack||stack.amount!==count||
+               uceClassifyLiveStack(stack)!=='ORDINARY'|| 
+               ucePlainItemIdentity(stack)!==key)return false;
+            try{
+                const def=JSON.parse(key);
+                return inspectQ4OrdinaryDefinitionShape(def).ok===true&&
+                    def.typeId===stack.typeId;
+            }catch(_){return false;}
+        };
+        if(!Number.isSafeInteger(count)||count<1||
+           count>64||!identity(candidate.item))return {
+            ok:false,reason:'collector_ordinary_item_shape_unverified'};
+        const escrowProved=tx=>{
+            if(tx.accountId!==accountId||tx.key!==key||
+               tx.count!==count||tx.direction!=='deposit'||
+               !routeVerified())return false;
+            const owned=registry.inspectCustody({ownerId,anchor});
+            if(!owned.ok||!owned.slots.includes(index))return false;
+            const stack=carrier.container.getItem(index);
+            return identity(stack);
+        };
+        const writer=createUnifiedShardWriter({
+            world,shardKey,worldId:authority.worldId,
+            epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEscrowCustody:escrowProved
+        });
+        if(!writer.ok)return writer;
+        const receiptProof=meta=>{
+            const view=writer.inspect();
+            let prepared;
+            try{prepared=JSON.parse(world.getDynamicProperty(
+                'hartlogistics:uce_boundary_intent_v1'));}
+            catch(_){return false;}
+            const receipt=view?.lastReceipt;
+            return !!view?.ok&&
+                prepared?.operationId===operationId&&
+                prepared.phase==='ESCROW_READY'&&
+                receipt?.kind==='BOUNDARY'&&
+                receipt.operationId===operationId&&
+                receipt.accountId===accountId&&
+                receipt.direction===meta.direction&&
+                receipt.key===key&&receipt.count===count;
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            boundaryOperationId:operationId,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:ref=>{
+                if(ref.ownerId===ownerId)
+                    return ref.container===carrier.container&&
+                        routeVerified()&&
+                        registry.inspectHost({ownerId,anchor}).ok;
+                return ref.ownerId===physicalSlot.ownerId&&
+                    ref.container===physicalSlot.container&&
+                    ref.slot===physicalSlot.slot&&routeVerified();
+            },
+            durableOwnershipWitness:registry.durableOwnershipWitness,
+            certifyOrdinaryEscrow:(stack,k,n)=>
+                k===key&&n===count&&identity(stack),
+            verifyLedgerBoundaryReceipt:receiptProof
+        });
+        if(!port.ok)return port;
+        return executeUnifiedOrdinaryDeposit({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            operationId,accountId,key,count,
+            registry,port,writer,ownerId,anchor,
+            carrierSlot,physicalSlot,
+            verifyRoute:routeVerified,
+            verifyOrdinary:meta=>meta.accountId===accountId&&
+                meta.key===key&&meta.count===count&&
+                meta.direction==='deposit'
+        });
+    }catch(_){return {ok:false,
+        reason:'collector_ordinary_deposit_unreadable'};}
+}
+const UCE_COLLECTOR_MR_SCAN_BUDGET=16;
+let uceCollectorMrCursor=0;
+function uceCollectorMrBufferTick(authority){
+    const collectors=logistics.collectors;
+    if(!Array.isArray(collectors)||!collectors.length)return;
+    let scanned=0;
+    for(let step=0;step<Math.min(collectors.length,
+                              UCE_COLLECTOR_MR_SCAN_BUDGET);step++){
+        scanned++;
+        const ix=(uceCollectorMrCursor+step)%collectors.length;
+        const col=collectors[ix];
+        if(!col||col.present===false||!col.link)continue;
+        const cb=collectorAt(col);
+        if(!cb||blockIsRedstonePowered(cb))continue;
+        const linked=findReceiverById(col.link);
+        if(!linked||linked.present===false||
+           !uceOrdinaryAccountSource(authority,linked.id))continue;
+        const anchor={dimensionId:col.d,x:col.x,y:col.y,z:col.z};
+        const receiverLoaded=!!receiverAt(linked);
+        const verifiedLink=()=> {
+            const live=findCollectorById(col.id);
+            const next=live&&findReceiverById(live.link);
+            return !!live&&live.present!==false&&
+                live.link===linked.id&&
+                uceLiveCollectorOwner(col.id,anchor)&&
+                next?.id===linked.id&&next.present!==false&&
+                !!uceOrdinaryAccountSource(authority,next.id);
+        };
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:(ownerId,at)=>
+                ownerId===col.id?uceLiveCollectorOwner(ownerId,at):
+                ownerId===linked.id?uceLiveReceiverOwner(ownerId,at):
+                false
+        });
+        if(!registry.ok){uceBridgeLog(
+            'collector MR registry '+registry.reason,col.id);continue;}
+        let carrier=registry.inspectHost({ownerId:col.id,anchor});
+        if(receiverLoaded){
+            // If this Collector has never needed its own native carrier,
+            // leave the original direct loaded-Receiver route unchanged.
+            if(!carrier.ok){
+                if(carrier.reason!=='carrier_record_missing')
+                    uceBridgeLog('collector MR host '+
+                        carrier.reason,col.id);
+                continue;
+            }
+            const owned=registry.inspectCustody({
+                ownerId:col.id,anchor});
+            if(!owned.ok){uceBridgeLog('collector MR custody '+
+                owned.reason,col.id);continue;}
+            if(!owned.slots.length)continue;
+            const slot=owned.slots[0];
+            let stack;
+            try{stack=carrier.container.getItem(slot);}catch(_){}
+            if(!stack||uceClassifyLiveStack(stack)!=='MR'){
+                uceBridgeLog('collector MR waiting identity HOLD',col.id);
+                continue;
+            }
+            const witness='CB1|'+col.id+'>'+linked.id;
+            const result=uceTryInterbankMrHandoff(
+                authority,col,registry,carrier,anchor,slot,stack,{
+                    receiver:linked,witness,
+                    verify:()=>verifiedLink()&&!!receiverAt(linked)&&
+                        !blockIsRedstonePowered(collectorAt(col))
+                });
+            if(!result?.ok)
+                uceBridgeLog('collector MR drain HOLD '+
+                    (result?.reason||'route_unavailable'),col.id);
+            else if(result.moved>0)ucePerfRecordMove('MR',result.moved);
+            uceCollectorMrCursor=(ix+1)%collectors.length;
+            return;
+        }
+        // Receiver is truly unloaded. Only the loaded Collector and its
+        // physically eligible Hopper or winning Sorter column may own MR.
+        // Ordinary is NOT captured by this native-only waiting lane.
+        const sources=[],endpoints=new Map();
+        const add=(src,isSorter=false)=>{
+            const block=src.block,p=block?.location;
+            if(!block||!p||src.locked===true||
+               !src.container?.isValid||block.typeId!=='minecraft:hopper')
+                return;
+            const ownerId=(isSorter?'sorter-input|':'input|')+
+                block.dimension.id+'|'+p.x+','+p.y+','+p.z;
+            let lastWitness;
+            const eligible=(slot,item)=>{
+                if(!isSorter)return true;
+                const allowed=src.eligibleSlot(slot,item)===true;
+                if(allowed)lastWitness=item;
+                return allowed;
+            };
+            endpoints.set(ownerId,{verify:()=>verifiedLink()&&
+                uceLiveHopperOwner({d:block.dimension.id,
+                    x:p.x,y:p.y,z:p.z})&&
+                (isSorter?!!lastWitness&&src.stillSelected(lastWitness):
+                    collectorInputSources(col).some(next=>
+                        next.kind==='hopper'&&!next.locked&&
+                        uceSameLoadedBlock(next.block,block)))});
+            sources.push({
+                ownerId,block,container:src.container,
+                locked:false,blockVerified:true,eligibleSlot:eligible
+            });
+        };
+        for(const src of collectorInputSources(col)){
+            if(src.kind==='hopper')add(src);
+        }
+        for(const src of uceSorterCollectorSources(linked,col.id))
+            add(src,true);
+        if(!sources.length)continue;
+        let waiting=false;
+        try{
+            for(const src of sources){
+                for(let i=0;i<src.container.size;i++){
+                    const item=src.container.getItem(i);
+                    if(item&&uceClassifyLiveStack(item)==='MR'&&
+                       src.eligibleSlot(i,item)===true){
+                        waiting=true;break;
+                    }
+                }
+                if(waiting)break;
+            }
+        }catch(_){uceBridgeLog(
+            'collector MR source unreadable',col.id);continue;}
+        // Ordinary does not need an unloaded Receiver's native host.
+        // The loaded Collector's carrier serves as the SAME journaled
+        // short-lived escrow, then the RECEIVER'S already sealed virtual
+        // account is credited directly. MR remains native and has priority.
+        let ordinary;
+        if(!waiting){
+            for(const src of sources){
+                for(let sl=0;sl<src.container.size;sl++){
+                    let stack,key;
+                    try{
+                        stack=src.container.getItem(sl);
+                        key=ucePlainItemIdentity(stack);
+                        if(key&&src.eligibleSlot(sl,stack)===true){
+                            ordinary={source:src,slot:sl,item:stack,key};
+                            break;
+                        }
+                    }catch(_){/* Unknown inventory remains unadmitted. */}
+                }
+                if(ordinary)break;
+            }
+        }
+        if(!waiting&&!ordinary)continue;
+        if(!carrier.ok&&carrier.reason==='carrier_record_missing'){
+            const created=registry.registerEmptyHost({
+                ownerId:col.id,anchor});
+            if(!created.ok){uceBridgeLog('collector MR initialize HOLD '+
+                uceCarrierRegistrationReason(created),col.id);
+                continue;}
+            carrier=registry.inspectHost({ownerId:col.id,anchor});
+        }
+        if(!carrier.ok){uceBridgeLog(
+            'collector MR host HOLD '+carrier.reason,col.id);continue;}
+        if(ordinary){
+            const routeVerified=()=>verifiedLink()&&
+                !receiverAt(linked)&&
+                endpoints.get(ordinary.source.ownerId)?.verify()===true;
+            const changed=ucePerfTimedOperation('ordinary',()=>
+                uceCollectorOrdinaryDeposit(
+                    authority,col,linked,anchor,ordinary,carrier,
+                    routeVerified));
+            if(!changed.ok)uceBridgeLog(
+                'collector ordinary unloaded ingress HOLD '+
+                changed.reason,col.id);
+            else ucePerfRecordMove('ordinary',ordinary.item.amount);
+            uceCollectorMrCursor=(ix+1)%collectors.length;
+            // An interrupted virtual credit cannot permit any later
+            // native/ordinary writer in this same unified tick.
+            return;
+        }
+        const endpoint=ref=>{
+            if(ref.ownerId===col.id)return verifiedLink()&&
+                registry.inspectHost({ownerId:col.id,anchor}).ok;
+            const evidence=endpoints.get(ref.ownerId);
+            return !!evidence&&evidence.verify();
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:endpoint,
+            durableOwnershipWitness:registry.durableOwnershipWitness
+        });
+        if(!port.ok){uceBridgeLog(
+            'collector MR port HOLD '+port.reason,col.id);continue;}
+        const operationId=uceNativeReceiptId();
+        if(!operationId){uceBridgeLog(
+            'collector MR receipt exhausted',col.id);return;}
+        const moved=serviceUnifiedReceiverMR({
+            registry,port,ownerId:col.id,anchor,
+            direction:'ingress',inputSources:sources,
+            identify:uceClassifyLiveStack,operationId,
+            collectorPowered:false,receiverPowered:false
+        });
+        if(!moved.ok)uceBridgeLog(
+            'collector MR waiting HOLD '+moved.reason,col.id);
+        else if(moved.moved>0)ucePerfRecordMove('MR',moved.moved);
+        uceCollectorMrCursor=(ix+1)%collectors.length;
+        if(uceUnifiedJournalHold())return;
+        if(moved.moved>0)return;
+    }
+    uceCollectorMrCursor=(uceCollectorMrCursor+scanned)%
+        collectors.length;
+}
+const UCE_MR_SCAN_BUDGET=16;
+const UCE_MR_MOVE_BUDGET=8;
+function uceMrServiceTick(authority){
+    // uceUnifiedServiceTick is the only caller. It has already validated
+    // world-wide cold authority and all native/ordinary/legacy journals.
+    // Each physical writer still performs its own fresh mutation fence.
+    const receivers=logistics.receivers;
+    if(!receivers.length)return;
+    let considered=0,scanned=0;
+    // Bounded round-robin: do not walk hundreds of potentially unloaded
+    // Receiver hosts, ticket properties and pipe graphs in a single tick.
+    // Every Receiver eventually gets its turn, even when earlier ones HOLD.
+    for(let step=0;step<Math.min(receivers.length,UCE_MR_SCAN_BUDGET);step++){
+        scanned++;
+        const ix=(uceMrCursor+step)%receivers.length;
+        const receiver=receivers[ix];
+        // A historical/unexpected registry row is not custody authority.
+        // MR has no Q4 account bypass: the Receiver must be in the same
+        // readback-validated sealed UCE ledger as ordinary item ownership.
+        if(receiver.present===false||
+           !uceOrdinaryAccountSource(authority,receiver.id))continue;
+        const rb=receiverAt(receiver);
+        if(!rb)continue;
+        const anchor={dimensionId:receiver.d,x:receiver.x,
+                      y:receiver.y,z:receiver.z};
+        const ownerId=receiver.id;
+        const endpoints=new Map();
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                uceAuthoritySnapshot()!==undefined,
+            ownerVerifier:uceLiveReceiverOwner
+        });
+        if(!registry.ok){uceBridgeLog(registry.reason);continue;}
+        let host=registry.inspectHost({ownerId,anchor});
+        if(!host.ok && host.reason==='carrier_record_missing'){
+            // Do not create idle entities for hundreds of historical Receivers.
+            // First prove an actually loaded linked Collector has MR cargo.
+            if(!uceReceiverHasNewMRInput(receiver))continue;
+            // New empty host ONLY; an already reserved or absent historical
+            // host must HOLD. A fresh registration has no ItemStack to clone.
+            const registered=registry.registerEmptyHost({ownerId,anchor});
+            if(!registered.ok){
+                uceBridgeLog(uceCarrierRegistrationReason(registered),ownerId);
+                continue;
+            }
+            host=registry.inspectHost({ownerId,anchor});
+        }
+        if(!host.ok){uceBridgeLog(host.reason,ownerId);continue;}
+        const hopperOwner=(block,prefix)=>{
+            const p=block.location;
+            const owner={
+                id:prefix+'|'+block.dimension.id+'|'+p.x+','+p.y+','+p.z,
+                d:block.dimension.id,x:p.x,y:p.y,z:p.z
+            };
+            endpoints.set(owner.id,owner);
+            return owner.id;
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                uceAuthoritySnapshot()!==undefined,
+            verifyEndpointOwner:ref=>{
+                if(ref.ownerId===ownerId)
+                    return uceLiveReceiverOwner(ownerId,anchor)&&
+                        registry.inspectHost({ownerId,anchor}).ok;
+                const e=endpoints.get(ref.ownerId);
+                return !!e&&(typeof e.verify==='function'
+                    ? e.verify(ref):uceLiveHopperOwner(e));
+            },
+            durableOwnershipWitness:registry.durableOwnershipWitness
+        });
+        if(!port.ok){uceBridgeLog(port.reason);continue;}
+        const linked=logistics.collectors.filter(c=>
+            c.link===receiver.id&&c.present!==false);
+        const sources=[];
+        for(const col of linked){
+            const cb=collectorAt(col);
+            if(!cb||blockIsRedstonePowered(cb))continue;
+            for(const source of collectorInputSources(col)){
+                if(source.kind!=='hopper'||!source.block||
+                   source.locked===true||!source.container?.isValid)continue;
+                sources.push({
+                    container:source.container,
+                    ownerId:hopperOwner(source.block,'input'),
+                    locked:false,blockVerified:true
+                });
+            }
+        }
+        // Transporter inputs use this exact same native port and carrier
+        // ticket writer as Collector/Hopper ingress.
+        const pipeNetwork=ucePipeRouteNetwork(receiver);
+        for(const src of pipeNetwork?.leaderId===receiver.id?
+            pipeNetwork.inputs:[]){
+            const p=src.block.location;
+            const id='pipe-input|'+src.block.dimension.id+'|'+
+                p.x+','+p.y+','+p.z;
+            endpoints.set(id,{verify:()=>
+                ucePipeSourceStillConnected(receiver,src)});
+            sources.push({container:src.container,ownerId:id,
+                locked:false,blockVerified:true});
+        }
+        // A Sorter column facing a linked Collector uses the SAME native
+        // carrier port and receipt. Only the winner for that exact stack may
+        // claim the source Hopper; other Sorter destinations retain priority.
+        for(const source of uceSorterCollectorSources(receiver)){
+            const p=source.block.location;
+            const id='sorter-input|'+source.block.dimension.id+
+                '|'+p.x+','+p.y+','+p.z;
+            const selected=new Map();
+            endpoints.set(id,{verify:ref=>{
+                const witness=selected.get(ref.slot);
+                return !!witness&&
+                    uceLiveHopperOwner({d:source.block.dimension.id,
+                      x:p.x,y:p.y,z:p.z})&&
+                    uceSorterSourceStillValid(
+                        source,ref,witness,uceClassifyLiveStack);
+            }});
+            sources.push({container:source.container,ownerId:id,
+                locked:false,blockVerified:true,
+                eligibleSlot:(slot,item)=>{
+                    const chosen=source.eligibleSlot(slot,item);
+                    if(chosen)selected.set(slot,item);
+                    return chosen;
+                }});
+        }
+        const output=receiverOutputHopper(receiver);
+        let outputNative=output && !output.locked ?
+          {ownerId:hopperOwner(output.block,'output'),
+           container:output.container,blockVerified:true,locked:false}:
+          undefined;
+        // The original output Hopper always wins, even if powered/locked.
+        // Without one, a single revalidated Transporter graph may select
+        // the Filter -> Auto -> Wildcard native destination.
+        if(!output&&!blockIsRedstonePowered(rb)){
+            const custody=registry.inspectCustody({ownerId,anchor});
+            if(custody.ok&&custody.slots.length){
+                const native=host.container.getItem(custody.slots[0]);
+                const route=uceChoosePipeDestination(receiver,native);
+                if(route){
+                    endpoints.set(route.ownerId,{verify:()=>
+                        ucePipeDestinationStillValid(receiver,native,route,
+                            route.dest.container.getItem(route.slot)!==undefined)});
+                    outputNative={ownerId:route.ownerId,
+                        container:route.dest.container,
+                        blockVerified:true,locked:false};
+                }
+            }
+        }
+        // An authenticated downstream Filter in the linked-bank chain
+        // outranks a local Auto/Wildcard for native MR too. The host-to-host
+        // transfer is the SAME global native journal and two ticket records.
+        // The input and existing Hopper output rules remain unchanged.
+        if(!output&&!blockIsRedstonePowered(rb)){
+            const owned=registry.inspectCustody({ownerId,anchor});
+            if(owned.ok&&owned.slots.length){
+                const fromSlot=owned.slots[0];
+                const stack=host.container.getItem(fromSlot);
+                if(stack&&uceClassifyLiveStack(stack)==='MR'){
+                    const forwarded=uceTryInterbankMrHandoff(
+                        authority,receiver,registry,host,anchor,
+                        fromSlot,stack);
+                    if(forwarded!==undefined){
+                        if(!forwarded.ok)
+                            uceBridgeLog(forwarded.reason,ownerId);
+                        else if(forwarded.moved>0){
+                            considered++;
+                            ucePerfRecordMove('MR',forwarded.moved);
+                        }
+                        if(uceUnifiedJournalHold()||
+                           considered>=UCE_MR_MOVE_BUDGET)break;
+                        // Exactly ONE MR operation is attempted per owner:
+                        // never fall back to weaker local output after an
+                        // interbank attempt fails or completes.
+                        continue;
+                    }
+                }
+            }
+        }
+        // MR-first, independent of ordinary admission. A powered Receiver
+        // blocks output only; Collector ingress remains eligible.
+        const direction=outputNative&&!blockIsRedstonePowered(rb)&&
+           registry.inspectCustody({ownerId,anchor}).occupied>0 ?
+           'egress':'ingress';
+        const op=uceNativeReceiptId();
+        if(!op){uceBridgeLog('receipt ID exhausted');return;}
+        const result=ucePerfTimedOperation('MR',()=>serviceUnifiedReceiverMR({
+            registry,port,ownerId,anchor,direction,
+            inputSources:sources,output:outputNative,
+            identify:uceClassifyLiveStack,operationId:op,
+            receiverPowered:blockIsRedstonePowered(rb),
+            collectorPowered:false
+        }));
+        if(!result.ok){
+            uceBridgeLog(result.reason,ownerId);
+        }else if(result.moved>0){
+            considered++;
+            ucePerfRecordMove('MR',result.moved);
+        }
+        // Stop before touching another owner if this MR operation left an
+        // unresolved custody intent. The outer scheduler also holds other
+        // lanes on that exact journal in the same tick.
+        if(uceUnifiedJournalHold()||considered>=UCE_MR_MOVE_BUDGET)
+            break;
+    }
+    uceMrCursor=(uceMrCursor+scanned)%receivers.length;
+}
+
+
+/* One scheduler, two storage representations. The existing logisticsTick
+ * invokes this function; neither representation registers its own timer.
+ */
+let uceOrdinaryCursor=0;
+function uceUnifiedJournalHold(){
+    try{
+        for(const key of [
+            'hartsorter:journal_v1',
+            'hartsorter:queue_journal_v1',
+            'hartlogistics:uce_native_intent_v1',
+            'hartlogistics:uce_boundary_intent_v1',
+            'hartlogistics:uce_federated_intent_v1',
+            'hartlogistics:uce_empty_bulk_removal_intent_v1'
+        ]){
+            const value=world.getDynamicProperty(key);
+            if(value!==undefined&&value!==null&&value!==''){
+                uceBridgeLog('global custody HOLD: pending '+key);
+                return true;
+            }
+        }
+    }catch(_){
+        uceBridgeLog('global custody HOLD: journal unreadable');
+        return true;
+    }
+    return false;
+}
+function uceUnifiedServiceTick(){
+    // One cold authority and one coordinated transfer/recovery gate. No
+    // global saved transaction can coexist with a new physical custody move.
+    const authority=uceAuthoritySnapshot();
+    if(!authority||!ready){
+        if(!authority)uceBridgeLog(
+            'authority not ACTIVE; original writers remain frozen');
+        return;
+    }
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold.ok){
+        uceBridgeLog('incomplete cold authority: '+cold.reason);
+        return;
+    }
+    if(uceUnifiedJournalHold())return;
+    // The original scheduler is fenced in ACTIVE UCE. Reuse its read-only
+    // source-column census in this ONE unified scheduler; no legacy writer.
+    try{if(dirty)rebuildTopology();}
+    catch(_){uceBridgeLog('Sorter topology reconstruction HOLD');return;}
+    // The SAME global native journal first protects MR held by loaded
+    // Collectors when their linked Receiver chunks are unavailable.
+    uceCollectorMrBufferTick(authority);
+    if(uceUnifiedJournalHold())return;
+    uceMrServiceTick(authority);
+    // MR may have left an uncertain PREPARED intent in this same tick.
+    // The ordinary lane must not even start until its recovery is resolved.
+    if(uceUnifiedJournalHold())return;
+    // Four bounded successful Receiver/account operations per tick reuse the
+    // SAME authority, journal and cursor. On any HOLD or stalled operation,
+    // stop batching; every next operation gets a fresh global journal gate.
+    for(let op=0;op<4;op++){
+        const committed=uceOrdinaryServiceTick(authority);
+        if(uceUnifiedJournalHold())return;
+        if(committed!==true)break;
+    }
+    // The same native custody journal also covers original direct Sorter
+    // outputs to ordinary vanilla storage: never run them in parallel with
+    // an unsettled Receiver boundary.
+    if(uceUnifiedJournalHold())return;
+    uceSorterDirectServiceTick(authority);
+}
+/**
+ * Read the immutable cold seal, not an additional Receiver registry. Original
+ * Q4 owners use sealed keys; new Receiver identity lives inside a presealed
+ * empty shard and is rehydrated read-only after every restart.
+ */
+function uceSealedRegions(authority){
+    try{
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||seal.worldId!==authority.worldId||
+           seal.epoch!==authority.epoch||!Array.isArray(seal.shards))
+            return undefined;
+        return seal.shards;
+    }catch(_){return undefined;}
+}
+function uceInspectReceiverRegion(authority,shardKey){
+    const reader=createUnifiedShardWriter({
+        world,shardKey,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false
+    });
+    return reader.ok?reader.inspect():reader;
+}
+function uceOrdinaryAccountSource(authority,ownerId){
+    const regions=uceSealedRegions(authority);
+    if(!regions)return undefined;
+    // Original Q4 Receivers are indexed directly by the immutable seal.
+    // The global cold inspector, called before every custody service, already
+    // refuses any new account duplicating their historical owner identity.
+    // Avoid O(receivers * reserved-shards) JSON reads every tick.
+    const source=regions.filter(s=>s.owner==='receiver:'+ownerId);
+    if(source.length>1)return undefined;
+    if(source.length===1)return source[0].key;
+    let found=undefined;
+    for(const region of regions){
+        if(!region.owner.startsWith('reserve:'))continue;
+        const view=uceInspectReceiverRegion(authority,region.key);
+        if(!view.ok)return undefined;
+        if(view.snapshot.accounts.some(a=>
+           a.id==='receiver:'+ownerId&&a.kind==='receiver')){
+            if(found!==undefined)return undefined;
+            found=region.key;
+        }
+    }
+    return found;
+}
+/**
+ * Hydration is intentionally MEMORY ONLY. New Receiver rows live in their
+ * existing immutable-seal ledger property; the legacy logistics_v2 registry
+ * never becomes a second source of item ownership or a new Q4 queue.
+ */
+function uceHydrateNewReceivers(){
+    const authority=uceAuthoritySnapshot();
+    if(!authority)return false;
+    const active=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!active.ok){uceBridgeLog('receiver hydration HOLD '+active.reason);return false;}
+    const regions=uceSealedRegions(authority);
+    if(!regions)return false;
+    for(const region of regions){
+        if(!region.owner.startsWith('reserve:'))continue;
+        const view=uceInspectReceiverRegion(authority,region.key);
+        if(!view.ok)return false;
+        for(const account of view.snapshot.accounts){
+            if(account.kind!=='receiver')continue;
+            const a=account.uceAnchor;
+            if(!a)return false;
+            const existing=findReceiverById(account.ownerId);
+            if(existing){
+                if(existing.d!==a.dimensionId||existing.x!==a.x||
+                   existing.y!==a.y||existing.z!==a.z)return false;
+                continue;
+            }
+            logistics.receivers.push({
+                id:account.ownerId,d:a.dimensionId,
+                x:a.x,y:a.y,z:a.z,present:true,
+                queued:account.total,received:account.lifetime.received,
+                delivered:account.lifetime.delivered
+            });
+        }
+    }
+    return true;
+}
+function uceNewReceiverIdentityUnclaimed(authority,ownerId){
+    if(logistics.receivers.some(r=>r.id===ownerId))return false;
+    const regions=uceSealedRegions(authority);
+    if(!regions)return false;
+    for(const region of regions){
+        if(region.owner==='receiver:'+ownerId)return false;
+        const view=uceInspectReceiverRegion(authority,region.key);
+        if(!view.ok)return false;
+        if(view.snapshot.accounts.some(a=>
+           a.kind==='receiver'&&a.ownerId===ownerId))return false;
+    }
+    return true;
+}
+function uceRegisterNewReceiver(player,block){
+    if(!block||block.typeId!==RECEIVER_ID)return;
+    const authority=uceAuthoritySnapshot();
+    if(!authority){
+        player?.sendMessage('§c[Receiver] Authority unverified; registration HOLD.');
+        return;
+    }
+    const proof=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!proof.ok){
+        player?.sendMessage('§c[Receiver] Custody HOLD: '+proof.reason);
+        return;
+    }
+    const p=block.location;
+    const anchor={dimensionId:block.dimension.id,x:p.x,y:p.y,z:p.z};
+    const ownerId=logisticsId(anchor.dimensionId,p.x,p.y,p.z);
+    if(findReceiverById(ownerId)){
+        uceShowReceiverLinkedStatus(player,block);
+        return;
+    }
+    const regions=uceSealedRegions(authority);
+    if(!regions)return;
+    const placement=(id,at)=>{
+        try{
+            if(id!==ownerId||at.dimensionId!==anchor.dimensionId||
+               at.x!==anchor.x||at.y!==anchor.y||at.z!==anchor.z)
+                return false;
+            const b=getBlock(at.dimensionId,at.x,at.y,at.z);
+            return !!b&&b.typeId===RECEIVER_ID&&
+                b.dimension.id===at.dimensionId&&
+                b.location.x===at.x&&b.location.y===at.y&&
+                b.location.z===at.z;
+        }catch(_){return false;}
+    };
+    for(const region of regions){
+        if(!region.owner.startsWith('reserve:'))continue;
+        const writer=createUnifiedShardWriter({
+            world,shardKey:region.key,
+            worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyReceiverReserveShard:key=>{
+                const latest=uceSealedRegions(authority);
+                return !!latest&&latest.filter(s=>
+                    s.key===key&&s.owner===region.owner).length===1;
+            },
+            verifyReceiverPlacement:placement,
+            verifyGlobalReceiverUniqueness:id=>
+                uceNewReceiverIdentityUnclaimed(authority,id)
+        });
+        if(!writer.ok)continue;
+        const view=writer.inspect();
+        if(!view.ok||view.snapshot.accounts.length!==0)continue;
+        const operationId=uceNativeReceiptId();
+        if(!operationId)return;
+        const saved=writer.registerNewReceiver({ownerId,anchor,
+            operationId,expectedEpoch:authority.epoch,
+            expectedRevision:view.snapshot.revision});
+        if(!saved.ok){
+            player?.sendMessage('§c[Receiver] Registration HOLD: '+saved.reason);
+            return;
+        }
+        if(!uceHydrateNewReceivers()){
+            player?.sendMessage('§c[Receiver] Registered on disk, but in-memory refresh HOLD; restart for reconciliation.');
+            return;
+        }
+        player?.sendMessage('§a[Receiver] Registered in unified custody; no legacy Q4 queue created.');
+        uceShowReceiverLinkedStatus(player,block);
+        return;
+    }
+    player?.sendMessage('§c[Receiver] No sealed empty Receiver slots available; registration HOLD.');
+}
+function ucePlainItemIdentity(stack){
+    if(uceClassifyLiveStack(stack)!=='ORDINARY')return undefined;
+    const def={typeId:stack.typeId,lore:[],ench:[],
+        canDestroy:[],canPlaceOn:[]};
+    const key=q5IdentityKey(def);
+    return typeof key==='string'?key:undefined;
+}
+// Preserve native Hopper output merge semantics without creating a second
+// ordinary ledger or native writer. Unknown/metadata-rich item shapes HOLD.
+function uceOrdinaryHopperCandidate(container,item){
+    try{
+        if(!container?.isValid||!Number.isSafeInteger(container.size)||
+           container.size<1||!item||!Number.isSafeInteger(item.maxAmount)||
+           item.maxAmount<1)return undefined;
+        const wanted=ucePlainItemIdentity(item);
+        if(wanted===undefined)return undefined;
+        let empty=-1;
+        // Bedrock's vanilla findAcceptSlot prefers a compatible merge.
+        // A metadata-rich or uncertain occupied slot must not hide a
+        // genuinely empty slot later in the same vanilla Hopper.
+        for(let i=0;i<container.size;i++){
+            const existing=container.getItem(i);
+            if(existing===undefined){
+                if(empty<0)empty=i;
+                continue;
+            }
+            if(!Number.isSafeInteger(existing.amount)||
+               !Number.isSafeInteger(existing.maxAmount)||
+               existing.amount<1||existing.amount>=existing.maxAmount||
+               existing.maxAmount!==item.maxAmount||
+               ucePlainItemIdentity(existing)!==wanted)continue;
+            if(existing.isStackableWith(item)!==true||
+               item.isStackableWith(existing)!==true)continue;
+            return {slot:i,partialOutput:true,
+                beforeAmount:existing.amount,
+                room:existing.maxAmount-existing.amount};
+        }
+        return empty<0?undefined:{slot:empty,
+            partialOutput:false,beforeAmount:0,room:item.maxAmount};
+    }catch(_){return undefined;}
+}
+function uceNativeOutputSlot(container){
+    if(!container||!Number.isInteger(container.size))return -1;
+    try{
+        for(let i=0;i<container.size;i++)
+            if(container.getItem(i)===undefined)return i;
+    }catch(_){return -1;}
+    return -1;
+}
+const ucePendingLinkBlocks=new Map();
+function uceSelectCollectorForLink(player,block){
+    if(!player||!block||block.typeId!==COLLECTOR_ID)return;
+    const authority=uceAuthoritySnapshot();
+    const cold=authority&&inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold?.ok){
+        player.sendMessage('§c[Collector] UCE ownership authority is not sealed.');
+        return;
+    }
+    const p=block.location;
+    const selected={id:logisticsId(block.dimension.id,p.x,p.y,p.z),
+        d:block.dimension.id,x:p.x,y:p.y,z:p.z};
+    ucePendingLinkBlocks.set(player.id,selected);
+    uceShowCollectorLinkedStatus(player,block);
+    player.sendMessage('§b[Collector] Selected for UCE linkage. Interact with a registered Receiver to commit the relationship.');
+}
+/**
+ * PG36: only a zero-Q4 cold-activated NEW world may bootstrap the missing
+ * original link registry. New Receiver identities already live in sealed
+ * reserved shards; the old registry must still have no historical owner.
+ * This proof is evaluated before read-only inspect AND immediately before
+ * the ONE link commit; it cannot synthesize or overwrite a Q4 registry.
+ */
+function uceEmptyLinkRegistryBootProof(authority){
+    try{
+        if(!authority)return false;
+        const cold=inspectUnifiedActiveColdImport({world,
+            worldId:authority.worldId,epoch:authority.epoch});
+        if(!cold.ok||cold.currentLedgerTotal!==0)return false;
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||seal.worldId!==authority.worldId||
+           seal.epoch!==authority.epoch||
+           seal.receivers!==0||seal.initialItemCount!==0||
+           !Array.isArray(seal.q4Sources)||seal.q4Sources.length!==0||
+           !Array.isArray(seal.shards)||seal.shards.length<32||
+           seal.shards.length>512||
+           seal.shards.some(s=>!s.owner?.startsWith('reserve:')||
+               s.initialCount!==0))
+            return false;
+        // Undefined means never initialized. An empty string, null or
+        // malformed saved registry is an ambiguity and must remain HOLD.
+        if(world.getDynamicProperty(LOGISTICS_KEY)!==undefined)return false;
+        const keys=world.getDynamicPropertyIds();
+        return Array.isArray(keys)&&keys.length<=200000&&
+          !keys.some(k=>typeof k!=='string'||
+            k==='hartsorter:logistics_v1'||
+            k===LOGISTICS_KEY||
+            k==='hartsorter:journal_v1'||
+            k.startsWith('hartsorter:queue_journal')||
+            k.startsWith('hartsorter:q2')||
+            k.startsWith('hartsorter:q3')||
+            k.startsWith('hartsorter:q4'));
+    }catch(_){return false;}
+}
+function uceUseReceiverLinkOrStatus(player,block){
+    if(!player||!block||block.typeId!==RECEIVER_ID)return;
+    const pending=ucePendingLinkBlocks.get(player.id);
+    if(!pending){
+        uceShowReceiverLinkedStatus(player,block);
+        return;
+    }
+    const p=block.location;
+    const receiverId=logisticsId(block.dimension.id,p.x,p.y,p.z);
+    const receiver=findReceiverById(receiverId);
+    const authority=uceAuthoritySnapshot();
+    const cold=authority&&inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    const shardKey=authority&&uceOrdinaryAccountSource(authority,receiverId);
+    if(!receiver||!cold?.ok||!shardKey||!receiverAt(receiver)){
+        player.sendMessage('§c[Receiver] Target not sealed/registered; no Collector link changed.');
+        return;
+    }
+    const candidate=()=>{
+        const at=collectorAt(pending);
+        return !!at&&at.typeId===COLLECTOR_ID&&
+            at.dimension.id===pending.d&&
+            at.location.x===pending.x&&
+            at.location.y===pending.y&&at.location.z===pending.z;
+    };
+    // Changing a Collector's link with unretired native waiting cargo
+    // would silently redirect that exact original ItemStack to another
+    // Receiver. The Collector host is independent persistent custody:
+    // only an empty, fully reconciled host may be relinked.
+    const heldRegistry=createUnifiedCarrierRegistry({
+        world,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false,ownerVerifier:uceLiveCollectorOwner
+    });
+    if(!heldRegistry.ok){
+        player.sendMessage('§c[Collector] Native custody inspection unavailable; link HOLD.');
+        return;
+    }
+    const pendingAnchor={dimensionId:pending.d,
+        x:pending.x,y:pending.y,z:pending.z};
+    const heldHost=heldRegistry.inspectHost({
+        ownerId:pending.id,anchor:pendingAnchor});
+    if(heldHost.ok){
+        const ownership=heldRegistry.inspectCustody({
+            ownerId:pending.id,anchor:pendingAnchor});
+        if(!ownership.ok||ownership.occupied!==0){
+            player.sendMessage('§c[Collector] Native waiting cargo or unreadable tickets; relink HOLD until cargo drains.');
+            return;
+        }
+    }else if(heldHost.reason!=='carrier_record_missing'){
+        player.sendMessage('§c[Collector] Existing native host ambiguous; relink HOLD: '+
+            heldHost.reason);
+        return;
+    }
+    const receiverVerified=rid=>{
+        if(rid!==receiverId||!receiverAt(receiver))return false;
+        const proof=inspectUnifiedActiveColdImport({world,
+            worldId:authority.worldId,epoch:authority.epoch});
+        if(!proof.ok)return false;
+        const shard=createUnifiedShardWriter({world,shardKey,
+            worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>false});
+        if(!shard.ok)return false;
+        const view=shard.inspect();
+        return view.ok&&view.snapshot.accounts.some(a=>
+            a.id==='receiver:'+receiverId);
+    };
+    const editor=createUnifiedLinkRegistry({world,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        verifyCollectorBlock:c=>c.id===pending.id&&candidate(),
+        verifySealedReceiver:receiverVerified,
+        verifyEmptyNewWorld:()=>uceEmptyLinkRegistryBootProof(authority)
+    });
+    if(!editor.ok){
+        player.sendMessage('§c[Collector] Link authority unavailable: '+editor.reason);
+        return;
+    }
+    const old=editor.inspect();
+    if(!old.ok){
+        player.sendMessage('§c[Collector] Registry HOLD: '+old.reason);
+        return;
+    }
+    const operationId=uceNativeReceiptId();
+    const linked=editor.linkCollector({operationId,
+        collector:pending,receiverId,expectedRevision:old.revision});
+    if(!linked.ok){
+        player.sendMessage('§c[Collector] UCE link HOLD: '+linked.reason);
+        return;
+    }
+    try{
+        const updated=safeJsonParse(world.getDynamicProperty(LOGISTICS_KEY),undefined);
+        if(!updated||!Array.isArray(updated.collectors)||
+           !Array.isArray(updated.receivers))
+            throw new Error('registry readback not parseable');
+        logistics=updated;
+        if(!uceHydrateNewReceivers())throw new Error('new Receiver hydration HOLD');
+    }catch(_){
+        player.sendMessage('§c[Collector] Link record committed but live refresh is ambiguous; stop routing and restart for reconciliation.');
+        return;
+    }
+    ucePendingLinkBlocks.delete(player.id);
+    player.sendMessage('§a[Collector] UCE linked to sealed Receiver '+receiverId+'.');
+    uceShowReceiverLinkedStatus(player,block);
+}
+
+/* Read-only status for already linked 1.4.1 Collector/Receiver entries.
+ * No implicit registration or Q4 migration from a player interaction.
+ */
+function uceShowCollectorLinkedStatus(player,block){
+    if(!player||!block)return;
+    const p=block.location;
+    const id=logisticsId(block.dimension.id,p.x,p.y,p.z);
+    const collector=findCollectorById(id);
+    if(!collector){
+        player.sendMessage('§e[Collector] Not registered with the sealed UCE network. Original Q4 registration is paused.');
+        return;
+    }
+    const receiver=collector.link&&findReceiverById(collector.link);
+    const linked=receiver&&receiverAt(receiver);
+    player.sendMessage('§7[Collector] §f'+
+        (linked?'Linked Receiver: '+receiver.id:
+         'Linked Receiver unavailable; custody is on HOLD')+
+        '§7 | redstone '+(blockIsRedstonePowered(block)?'paused':'active'));
+}
+function uceShowReceiverLinkedStatus(player,block){
+    if(!player||!block)return;
+    const p=block.location;
+    const id=logisticsId(block.dimension.id,p.x,p.y,p.z);
+    const receiver=findReceiverById(id);
+    if(!receiver){
+        player.sendMessage('§e[Receiver] Not registered in the sealed UCE world. No queue or new link was created.');
+        return;
+    }
+    const authority=uceAuthoritySnapshot(),shardKey=authority&&
+        uceOrdinaryAccountSource(authority,id);
+    if(!shardKey){
+        player.sendMessage('§c[Receiver] No sealed ordinary account. Q4 evidence held; do not remove this block.');
+        return;
+    }
+    const writer=createUnifiedShardWriter({world,shardKey,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false});
+    const inspected=writer.ok&&writer.inspect();
+    if(!inspected?.ok){
+        player.sendMessage('§c[Receiver] Account unreadable; ownership HOLD.');
+        return;
+    }
+    const own=inspected.snapshot.accounts.find(a=>
+        a.id==='receiver:'+id);
+    if(!own){
+        player.sendMessage('§c[Receiver] Sealed source account missing; HOLD.');
+        return;
+    }
+    const banks=inspected.snapshot.accounts.filter(x=>x.kind==='bulk');
+    const bulkTotal=banks.reduce((n,a)=>n+a.total,0);
+    const totalCapacity=banks.reduce((n,a)=>n+a.capacity,0);
+    const registry=createUnifiedCarrierRegistry({world,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>false,ownerVerifier:uceLiveReceiverOwner});
+    const claims=registry.ok?registry.inspectCustody({
+        ownerId:id,anchor:{dimensionId:receiver.d,
+            x:receiver.x,y:receiver.y,z:receiver.z}}):undefined;
+    const mrText=claims?.ok?
+        claims.occupied+' / '+(claims.occupied+claims.free)+' native slots':
+        'native custody '+(claims?.reason||'not registered');
+    player.sendMessage('§7[Receiver] §fOrdinary '+
+        own.total+'/250000 | Bulk '+bulkTotal+'/'+totalCapacity+
+        ' ('+banks.length+' banks) | MR '+mrText+
+        ' | Lifetime '+own.lifetime.received+'/'+own.lifetime.delivered+
+        ' | output '+(blockIsRedstonePowered(block)?'PAUSED':'active'));
+}
+
+function uceBulkOwnerId(block){
+    if(!block||block.typeId!=='hartlogistics:bulk_storage')return undefined;
+    const p=block.location;
+    return block.dimension.id+'|'+p.x+','+p.y+','+p.z;
+}
+function uceBulkPlacementVerified(receiver,ownerId){
+    const route=ucePipeRouteNetwork(receiver);
+    if(!route||route.leaderId!==receiver.id||
+       !Array.isArray(route.banks))return false;
+    const matching=route.banks.filter(b=>uceBulkOwnerId(b)===ownerId);
+    if(matching.length!==1)return false;
+    const registered=logistics.receivers.filter(r=>
+        r.id!==receiver.id&&r.present!==false);
+    for(const other of registered){
+        const competitor=ucePipeRouteNetwork(other);
+        if(competitor?.banks?.some(b=>uceBulkOwnerId(b)===ownerId)&&
+           (competitor.leaderId!==route.leaderId||
+            competitor.fingerprint!==route.fingerprint))
+            return false;
+    }
+    return true;
+}
+function uceBulkGlobalUniqueness(ownerId,shardKey,authority){
+    try{
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||!Array.isArray(seal.shards))return false;
+        let matchedRegion=0;
+        for(const region of seal.shards){
+            if(region.key===shardKey)matchedRegion++;
+            const reader=createUnifiedShardWriter({world,shardKey:region.key,
+                worldId:authority.worldId,epoch:authority.epoch,
+                externalFence:()=>false});
+            if(!reader.ok)return false;
+            const state=reader.inspect();
+            if(!state.ok)return false;
+            for(const member of state.snapshot.accounts){
+                if(member.kind!=='bulk')continue;
+                // Controllers are per verified network, not global singleton.
+                // The same physical bank still cannot join two shards.
+                if(member.ownerId===ownerId)return false;
+            }
+        }
+        return matchedRegion===1;
+    }catch(_){return false;}
+}
+/**
+ * Append at most one VERIFIED empty Bulk member to the same Receiver shard.
+ * The caller must not continue using an old revision after this write.
+ * This is registration ONLY; the first real item transfer uses the same
+ * versioned ledger writer on a later scheduler tick.
+ */
+function uceMaybeRegisterBulk(receiver,shardKey,authority){
+    const network=ucePipeRouteNetwork(receiver);
+    if(!network?.banks?.length||
+       network.leaderId!==receiver.id)return false;
+    const bankBlocks=[...network.banks].sort((a,b)=>
+        uceBulkOwnerId(a)<uceBulkOwnerId(b)?-1:
+        uceBulkOwnerId(a)>uceBulkOwnerId(b)?1:0);
+    const writer=createUnifiedShardWriter({world,shardKey,
+        worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        verifyBulkPlacement:(owner)=>
+            uceBulkPlacementVerified(receiver,owner),
+        verifyGlobalBulkUniqueness:(owner,region)=>
+            uceBulkGlobalUniqueness(owner,region,authority)
+    });
+    if(!writer.ok){uceBridgeLog('Bulk writer '+writer.reason);return true;}
+    const view=writer.inspect();
+    if(!view.ok){uceBridgeLog('Bulk shard '+view.reason);return true;}
+    for(const block of bankBlocks){
+        const ownerId=uceBulkOwnerId(block);
+        if(view.snapshot.accounts.some(x=>x.id==='bulk:'+ownerId))
+            continue;
+        const op=uceNativeReceiptId();
+        if(!op){uceBridgeLog('Bulk receipt exhausted');return true;}
+        const r=writer.registerBulkMember({ownerId,
+            operationId:op,expectedEpoch:authority.epoch,
+            expectedRevision:view.snapshot.revision});
+        if(!r.ok)uceBridgeLog('Bulk registration '+r.reason);
+        return true;
+    }
+    return false;
+}
+
+function uceSameLoadedBlock(a,b){
+    if(!a||!b||a.typeId!==b.typeId||
+       a.dimension?.id!==b.dimension?.id)return false;
+    const x=a.location,y=b.location;
+    return !!x&&!!y&&x.x===y.x&&x.y===y.y&&x.z===y.z;
+}
+function uceBulkWildcardPermitted(snapshot,receiverOwnerId,connectedBankOwnerIds){
+    // Reuse the exact existing Bulk membership/controller validator.
+    // Never introduce a second physical or virtual custody writer.
+    const p=planUnifiedBulkService({snapshot,receiverOwnerId,
+        connectedBankOwnerIds,sourceWaiting:false,
+        outputEligibleKeys:[],preferredOutputKeys:[]});
+    return p.ok===true&&p.status==='IDLE'&&
+        p.reason==='all_connected_banks_full';
+}
+/*
+ * Authenticate a Receiver→Receiver ordinary count handoff through one
+ * physically placed Sorter→Collector link and one remote usable Filter.
+ * The same proof is rerun before PREPARED, before source debit, and before
+ * destination credit by the EXISTING two-shard journal/ledger writer.
+ */
+function uceInterbankRouteVerified(authority,receiver,tx,direction){
+    try{
+        if(!authority||!receiver||!tx||
+           !['withdraw','deposit'].includes(direction)||
+           tx.worldId!==authority.worldId||
+           tx.epoch!==authority.epoch||
+           tx.fromAccount!=='receiver:'+receiver.id||
+           !tx.toAccount?.startsWith('receiver:')||
+           tx.fromShard!==uceOrdinaryAccountSource(
+               authority,receiver.id)||!tx.routeWitness?.startsWith('IB1|'))
+            return false;
+        const def=JSON.parse(tx.key);
+        if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+            return false;
+        const item=new ItemStack(def.typeId,1);
+        if(uceClassifyLiveStack(item)!=='ORDINARY')return false;
+        const graph=ucePipeRouteNetwork(receiver);
+        const route=uceSelectInterbankFilteredRoute(
+            receiver,graph,item,authority);
+        if(!route||route.witness!==tx.routeWitness||
+           tx.toAccount!=='receiver:'+route.receiver.id||
+           tx.toShard!==uceOrdinaryAccountSource(
+               authority,route.receiver.id)||
+           tx.fromShard===tx.toShard)return false;
+        return !!receiverAt(route.receiver);
+    }catch(_){return false;}
+}
+function uceFederatedRouteVerified(authority,receiver,tx,direction){
+    // A graph leader owns the physical Bulk accounts in exactly ONE sealed
+    // shard. Other Receiver shards may exchange virtual ordinary counts
+    // only with this already verified graph, global intent, and leader.
+    try{
+        if(!authority||!receiver||!tx||![
+            'withdraw','deposit'].includes(direction)||
+           tx.worldId!==authority.worldId||tx.epoch!==authority.epoch)
+            return false;
+        const graph=ucePipeRouteNetwork(receiver);
+        if(!graph||!graph.banks?.length||
+           graph.leaderId===receiver.id||
+           graph.fingerprint!==tx.routeWitness||
+           !graph.receiverIds.includes(receiver.id))return false;
+        const leader=findReceiverById(graph.leaderId);
+        if(!leader||leader.present===false||!receiverAt(leader))
+            return false;
+        const leaderGraph=ucePipeRouteNetwork(leader);
+        if(!leaderGraph||leaderGraph.leaderId!==leader.id||
+           leaderGraph.fingerprint!==graph.fingerprint)return false;
+        const followerShard=uceOrdinaryAccountSource(authority,receiver.id);
+        const leaderShard=uceOrdinaryAccountSource(authority,leader.id);
+        if(!followerShard||!leaderShard||followerShard===leaderShard)
+            return false;
+        const followerAccount='receiver:'+receiver.id;
+        const bankAccount=tx.fromAccount===followerAccount?
+            tx.toAccount:tx.toAccount===followerAccount?
+            tx.fromAccount:undefined;
+        if(!bankAccount?.startsWith('bulk:'))return false;
+        const bankFrom=tx.fromAccount===bankAccount;
+        if(tx.fromShard!==(bankFrom?leaderShard:followerShard)||
+           tx.toShard!==(bankFrom?followerShard:leaderShard))
+            return false;
+        const connected=[...new Set(graph.banks.map(
+            b=>uceBulkOwnerId(b)))].sort();
+        if(!connected.includes(bankAccount.slice(5)))return false;
+        const readOnly=createUnifiedShardWriter({world,
+            shardKey:leaderShard,worldId:authority.worldId,
+            epoch:authority.epoch,externalFence:()=>false});
+        if(!readOnly.ok)return false;
+        const state=readOnly.inspect();
+        if(!state.ok)return false;
+        // The same Bulk policy validates all registered bank members and
+        // the single controller. Never borrow an unproven foreign account.
+        const governed=planUnifiedBulkService({
+            snapshot:state.snapshot,receiverOwnerId:leader.id,
+            connectedBankOwnerIds:connected
+        });
+        if(!governed.ok)return false;
+        // Graph coordinates alone do not prove the Sorter filter/mode is
+        // still eligible. Re-evaluate the actual item and Receiver output
+        // priority immediately before EACH of the two shard commits.
+        const def=JSON.parse(tx.key);
+        if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+            return false;
+        const item=new ItemStack(def.typeId,1);
+        if(uceClassifyLiveStack(item)!=='ORDINARY')
+            return false;
+        // A later-bank Filter may be reachable through this Receiver's
+        // Collector-facing Sorter. Do not debit into local Bulk before the
+        // complete bank-to-bank route has a verified custody handoff.
+        if(!bankFrom&&!uceVerifiedNoReachablePreferredOutput(
+            receiver,item,authority))return false;
+        const output=receiverOutputHopper(receiver);
+        let preferred=false;
+        if(!blockIsRedstonePowered(receiverAt(receiver))){
+            if(output&&!output.locked)
+                preferred=!!uceOrdinaryHopperCandidate(output.container,item);
+            else if(!output)
+                preferred=!!uceChoosePipeDestination(
+                    receiver,item,true,undefined,true);
+        }
+        // Overflow cannot bypass a newly available Filter/Auto output.
+        // Refill from Bulk requires a genuinely usable preferred output.
+        return bankFrom?preferred:!preferred;
+    }catch(_){return false;}
+}
+function uceOrdinaryServiceTick(authority){
+    // This lane shares the MR lane's global preflight. Every later ledger
+    // credit/debit and native move rechecks its own mutation fence.
+    const receivers=logistics.receivers;
+    if(!receivers.length)return;
+    // At most ONE ordinary Receiver service per invocation. The outer
+    // scheduler may commit four bounded account operations per tick, but
+    // scanning every one of 33+ Receivers (and their full Sorter/pipe graph)
+    // on each empty invocation can create an unbounded tick-latency spike.
+    //
+    // An empty/HOLD scan advances by its ENTIRE inspected window. No owner
+    // permanently starves simply because the first eight are unloaded or
+    // have no routable ordinary cargo. Physical and ledger authority is
+    // still independently revalidated for every actual transfer.
+    const scanLimit=Math.min(receivers.length,8);
+    for(let step=0;step<scanLimit;step++){
+        const index=(uceOrdinaryCursor+step)%receivers.length;
+        const receiver=receivers[index];
+        if(receiver.present===false||!receiverAt(receiver))continue;
+        const ownerId=receiver.id;
+        const accountId='receiver:'+ownerId;
+        const shardKey=uceOrdinaryAccountSource(authority,ownerId);
+        if(!shardKey)continue;
+        if(uceMaybeRegisterBulk(receiver,shardKey,authority)){
+            uceOrdinaryCursor=(index+1)%receivers.length;
+            return;
+        }
+        const anchor={dimensionId:receiver.d,
+            x:receiver.x,y:receiver.y,z:receiver.z};
+        const linked=logistics.collectors.filter(c=>
+            c.link===ownerId&&c.present!==false);
+        let sourceSlot=undefined,sourceRecord=undefined,sourceKey;
+        for(const collector of linked){
+            const cb=collectorAt(collector);
+            if(!cb||blockIsRedstonePowered(cb))continue;
+            for(const source of collectorInputSources(collector)){
+                if(source.kind!=='hopper'||source.locked||
+                   !source.container?.isValid)continue;
+                for(let i=0;i<source.container.size;i++){
+                    let item;
+                    try{item=source.container.getItem(i);}
+                    catch(_){continue;}
+                    const key=ucePlainItemIdentity(item);
+                    if(!key)continue;
+                    sourceSlot=i;
+                    sourceRecord=source;
+                    sourceKey=key;
+                    break;
+                }
+                if(sourceRecord)break;
+            }
+            if(sourceRecord)break;
+        }
+        // A pipe-attached chest/barrel is a native INPUT (never a final
+        // storage output). Collector sources retain admission priority.
+        // Every candidate passes through the same escrow->ledger credit
+        // coordinator, so no second ordinary Transporter queue is created.
+        if(!sourceRecord){
+            const pipe=ucePipeRouteNetwork(receiver);
+            for(const input of pipe?.leaderId===receiver.id?
+                pipe.inputs:[]){
+                for(let i=0;i<input.container.size;i++){
+                    let item;
+                    try{item=input.container.getItem(i);}
+                    catch(_){continue;}
+                    const key=ucePlainItemIdentity(item);
+                    if(!key)continue;
+                    sourceRecord={...input,kind:'pipe',locked:false};
+                    sourceSlot=i;
+                    sourceKey=key;
+                    break;
+                }
+                if(sourceRecord)break;
+            }
+        }
+        // Sorter->Collector uses the same one physical escrow/ordinary
+        // ledger credit path as a direct Collector Hopper or pipe source.
+        // Storage sorters retain priority even when their separate direct
+        // native output executor is not yet enabled.
+        if(!sourceRecord){
+            for(const source of uceSorterCollectorSources(receiver)){
+                for(let i=0;i<source.container.size;i++){
+                    let item;
+                    try{item=source.container.getItem(i);}
+                    catch(_){continue;}
+                    const key=ucePlainItemIdentity(item);
+                    if(!key||!source.eligibleSlot(i,item))continue;
+                    sourceRecord=source;
+                    sourceSlot=i;
+                    sourceKey=key;
+                    break;
+                }
+                if(sourceRecord)break;
+            }
+        }
+        const output=receiverOutputHopper(receiver);
+        const outgoing=output&&!output.locked&&
+            !blockIsRedstonePowered(receiverAt(receiver))?
+            output:undefined;
+        const registry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:uceLiveReceiverOwner
+        });
+        if(!registry.ok){uceBridgeLog(registry.reason);continue;}
+        let host;
+        const shardWriter=createUnifiedShardWriter({
+            world,shardKey,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyInternalRoute:tx=>{
+                const graph=ucePipeRouteNetwork(receiver);
+                if(!graph||graph.leaderId!==receiver.id||
+                   !Array.isArray(graph.banks))return false;
+                const loaded=new Set(graph.banks.map(b=>uceBulkOwnerId(b)));
+                const other=tx.from===accountId?tx.to:
+                    tx.to===accountId?tx.from:undefined;
+                if(!other||!other.startsWith('bulk:')||
+                   !loaded.has(other.slice(5)))return false;
+                const current=shardWriter.inspect();
+                if(!current.ok)return false;
+                const bank=current.snapshot.accounts.find(a=>a.id===other);
+                if(!bank||bank.kind!=='bulk'||
+                   !loaded.has(bank.controllerOwnerId))return false;
+                if(tx.from===accountId){
+                    try{
+                        const def=JSON.parse(tx.key);
+                        const item=new ItemStack(def.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY'||
+                           !uceVerifiedNoReachablePreferredOutput(
+                               receiver,item,authority))return false;
+                    }catch(_){return false;}
+                }
+                return true;
+            },
+            verifyFederatedRoute:(tx,direction)=>
+                tx?.routeWitness?.startsWith('IB1|')?
+                    uceInterbankRouteVerified(
+                        authority,receiver,tx,direction):
+                tx?.routeWitness?.startsWith('IBB1|')?
+                    uceInterbankBulkRouteVerified(
+                        authority,receiver,tx,direction):
+                    uceFederatedRouteVerified(
+                        authority,receiver,tx,direction),
+            verifyEscrowCustody:tx=>{
+                const current=registry.inspectCustody({ownerId,anchor});
+                if(!current.ok)return false;
+                for(const slot of current.slots){
+                    const s=host.container.getItem(slot);
+                    if(!s||ucePlainItemIdentity(s)!==tx.key||
+                       s.amount!==tx.count)continue;
+                    return true;
+                }
+                return false;
+            }
+        });
+        if(!shardWriter.ok){uceBridgeLog(shardWriter.reason);continue;}
+        const ledger=shardWriter.inspect();
+        ucePerfSampleShard(shardKey);
+        if(!ledger.ok){uceBridgeLog(ledger.reason);continue;}
+        const account=ledger.snapshot.accounts.find(a=>a.id===accountId);
+        if(!account){uceBridgeLog('receiver ordinary account absent');continue;}
+        const bankNetwork=ucePipeRouteNetwork(receiver);
+        // A verifiably accepting remote Filter outranks local Bulk and
+        // terminal Wildcard. A matching Collector must not be consumed by
+        // an unjournaled native output: count ownership changes directly
+        // between the two PREEXISTING sealed Receiver accounts. The global
+        // federated intent fences all other UCE writers until both shards
+        // save their exact receipt; partial-save ambiguity remains HOLD.
+        if(account.total>0&&bankNetwork&&!output&&
+           !blockIsRedstonePowered(receiverAt(receiver))){
+            for(const bucket of account.buckets){
+                let item,forward;
+                try{
+                    const def=JSON.parse(bucket.key);
+                    if(inspectQ4OrdinaryDefinitionShape(def).ok!==true)
+                        continue;
+                    item=new ItemStack(def.typeId,1);
+                    if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
+                    forward=uceSelectInterbankFilteredRoute(
+                        receiver,bankNetwork,item,authority);
+                }catch(_){continue;}
+                if(!forward)continue;
+                const toShard=uceOrdinaryAccountSource(
+                    authority,forward.receiver.id);
+                if(!toShard||toShard===shardKey)continue;
+                const targetWriter=createUnifiedShardWriter({
+                    world,shardKey:toShard,
+                    worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence:()=>uceLegacyWriterBlocked()&&
+                        !!uceAuthoritySnapshot(),
+                    verifyFederatedRoute:(tx,direction)=>
+                        uceInterbankRouteVerified(
+                            authority,receiver,tx,direction)
+                });
+                if(!targetWriter.ok){
+                    uceBridgeLog('interbank destination writer HOLD '+
+                        targetWriter.reason,ownerId);
+                    return;
+                }
+                const target=targetWriter.inspect();
+                const toAccount='receiver:'+forward.receiver.id;
+                const receiverAccount=target.ok?
+                    target.snapshot.accounts.find(a=>a.id===toAccount):
+                    undefined;
+                if(!receiverAccount||receiverAccount.kind!=='receiver'){
+                    uceBridgeLog('interbank destination account HOLD',
+                        ownerId);
+                    return;
+                }
+                const count=Math.min(64,bucket.count,
+                    receiverAccount.capacity-receiverAccount.total);
+                if(!Number.isSafeInteger(count)||count<=0)continue;
+                if(forward.witness.length>8192){
+                    uceBridgeLog('interbank route witness over limit',
+                        ownerId);
+                    return;
+                }
+                const op=uceNativeReceiptId();
+                if(!op){uceBridgeLog('interbank receipt exhausted');return;}
+                const proof=(tx,direction)=>
+                    uceInterbankRouteVerified(
+                        authority,receiver,tx,direction);
+                const result=ucePerfTimedOperation('federated',()=>
+                    executeUnifiedFederatedTransfer({
+                        world,worldId:authority.worldId,
+                        epoch:authority.epoch,operationId:op,
+                        sourceWriter:shardWriter,
+                        destinationWriter:targetWriter,
+                        fromShard:shardKey,toShard,
+                        fromAccount:accountId,toAccount,
+                        key:bucket.key,count,
+                        routeWitness:forward.witness,
+                        externalFence:()=>uceLegacyWriterBlocked()&&
+                            !!uceAuthoritySnapshot(),
+                        verifyRoute:tx=>proof(tx,'withdraw')
+                    }));
+                if(!result.ok)uceBridgeLog(
+                    'interbank Receiver handoff HOLD '+result.reason,
+                    ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                if(result.ok===true)
+                    ucePerfRecordMove('ordinary',result.count);
+                return result.ok===true;
+            }
+        }
+        // Wildcard is lawful only when every connected bank in the SAME
+        // sealed shard is verified full. A nonleader Receiver cannot borrow
+        // authority from a different shard or assume unknown banks are full.
+        const governedBanks=bankNetwork?.banks?.length?
+            [...new Set(bankNetwork.banks.map(b=>uceBulkOwnerId(b)))].sort():[];
+        let leaderShardKey,leaderLedger;
+        if(governedBanks.length&&bankNetwork.leaderId!==receiver.id){
+            leaderShardKey=uceOrdinaryAccountSource(
+                authority,bankNetwork.leaderId);
+            if(leaderShardKey&&leaderShardKey!==shardKey){
+                const reader=createUnifiedShardWriter({
+                    world,shardKey:leaderShardKey,
+                    worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence:()=>false
+                });
+                const view=reader.ok?reader.inspect():reader;
+                if(view.ok)leaderLedger=view;
+                else uceBridgeLog('federated leader shard HOLD '+
+                    view.reason,ownerId);
+            }
+        }
+        let wildcardPermitted=governedBanks.length===0;
+        if(governedBanks.length){
+            const governingLedger=bankNetwork.leaderId===receiver.id?
+                ledger:leaderLedger;
+            wildcardPermitted=!!governingLedger&&
+                uceBulkWildcardPermitted(governingLedger.snapshot,
+                    bankNetwork.leaderId,governedBanks);
+        }
+        const onlyPreferred=!wildcardPermitted;
+        // The local Bulk controller being full does NOT prove capacity
+        // exhaustion in downstream Collector-linked controller regions.
+        // Until global bank fullness is witnessed, any reachable unknown
+        // forwarding branch must keep ordinary Wildcard disabled.
+        const uceOnlyProvenOrdinaryOutput=item=>
+            onlyPreferred||(
+                governedBanks.length>0&&
+                ucePipeHasUnresolvedForwarding(
+                    receiver,bankNetwork,item));
+        // A shared network's Bank authority is not optional. If the
+        // leader shard is unreadable, a follower must not continue to
+        // native/ordinary custody on a partially verified route.
+        if(governedBanks.length&&
+           bankNetwork.leaderId!==receiver.id&&!leaderLedger){
+            uceBridgeLog('federated leader ledger unavailable',ownerId);
+            uceOrdinaryCursor=(index+1)%receivers.length;
+            return;
+        }
+        let preferredOutputReady=false;
+        if(bankNetwork?.banks?.length&&
+           bankNetwork.leaderId===receiver.id){
+            const members=[...new Set(bankNetwork.banks
+                .map(b=>uceBulkOwnerId(b)))].sort();
+            const outputKeys=[],preferredKeys=[];
+            if(!blockIsRedstonePowered(receiverAt(receiver))){
+                const canDeliver=(key)=>{
+                    try{
+                        const def=JSON.parse(key);
+                        const item=new ItemStack(def.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY')
+                            return false;
+                        return outgoing?
+                            !!uceOrdinaryHopperCandidate(
+                                outgoing.container,item):
+                            (!output&&!!uceChoosePipeDestination(
+                                receiver,item,true,undefined,true));
+                    }catch(_){return false;}
+                };
+                // Only Filter/seeded Auto (or the preserved native Hopper)
+                // outranks governed Bulk. Wildcard is never a Bulk bypass.
+                for(const entry of account.buckets)
+                    if(canDeliver(entry.key))preferredKeys.push(entry.key);
+                if(!sourceRecord&&account.total===0){
+                    for(const bank of ledger.snapshot.accounts){
+                        if(bank.kind!=='bulk'||
+                           !members.includes(bank.ownerId))continue;
+                        for(const entry of bank.buckets)
+                            if(canDeliver(entry.key))outputKeys.push(entry.key);
+                    }
+                }
+            }
+            preferredOutputReady=preferredKeys.length>0;
+            const plan=planUnifiedBulkService({
+                snapshot:ledger.snapshot,receiverOwnerId:ownerId,
+                connectedBankOwnerIds:members,
+                sourceWaiting:!!sourceRecord,
+                preferredOutputKeys:preferredKeys,
+                outputEligibleKeys:outputKeys
+            });
+            if(!plan.ok){
+                uceBridgeLog('Bulk planner '+plan.reason);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+            if(plan.status==='TRANSFER_DRAFT_ONLY'){
+                if(plan.direction==='receiver_to_bulk'){
+                    let unresolved=true;
+                    try{
+                        const item=new ItemStack(
+                            JSON.parse(plan.key).typeId,1);
+                        unresolved=!uceVerifiedNoReachablePreferredOutput(
+                            receiver,item,authority);
+                    }catch(_){}
+                    if(unresolved){
+                        uceBridgeLog(
+                            'Bulk spill HOLD: unresolved downstream Sorter route',
+                            ownerId);
+                        uceOrdinaryCursor=(index+1)%receivers.length;
+                        return;
+                    }
+                }
+                const op=uceNativeReceiptId();
+                if(!op){uceBridgeLog('Bulk receipt exhausted');return;}
+                const changed=ucePerfTimedOperation('bulk',()=>shardWriter.applyInternalTransfer({
+                    operationId:op,from:plan.from,to:plan.to,
+                    key:plan.key,count:plan.count,
+                    expectedRevision:plan.expectedRevision,
+                    expectedEpoch:plan.expectedEpoch
+                }));
+                if(!changed.ok)
+                    uceBridgeLog('Bulk transfer '+changed.reason);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                if(changed.ok===true)
+                    ucePerfRecordMove('ordinary',plan.count);
+                return changed.ok===true;
+            }
+        }
+
+        // Multi-Receiver graphs have one Bulk leader, but a linked
+        // secondary Receiver's ordinary balance lives in its own immutable
+        // shard. This is a virtual internal transfer, not an ItemStack hop.
+        // The same UCE ledger writer commits both sides under ONE globally
+        // prepared federated journal; no cross-shard replay is permitted.
+        if(governedBanks.length&&bankNetwork.leaderId!==receiver.id&&
+           leaderLedger&&leaderShardKey){
+            const preferredKeys=[],outputKeys=[];
+            if(!blockIsRedstonePowered(receiverAt(receiver))){
+                const canDeliver=(key)=>{
+                    try{
+                        const def=JSON.parse(key);
+                        const item=new ItemStack(def.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY')
+                            return false;
+                        return outgoing?
+                            !!uceOrdinaryHopperCandidate(
+                                outgoing.container,item):
+                            (!output&&!!uceChoosePipeDestination(
+                                receiver,item,true,undefined,true));
+                    }catch(_){return false;}
+                };
+                for(const entry of account.buckets)
+                    if(canDeliver(entry.key))
+                        preferredKeys.push(entry.key);
+                if(!sourceRecord&&account.total===0){
+                    for(const bank of leaderLedger.snapshot.accounts){
+                        if(bank.kind!=='bulk'||
+                           !governedBanks.includes(bank.ownerId))continue;
+                        for(const entry of bank.buckets)
+                            if(canDeliver(entry.key))
+                                outputKeys.push(entry.key);
+                    }
+                }
+            }
+            preferredOutputReady=preferredKeys.length>0;
+            const plan=planUnifiedFederatedNetwork({
+                followerSnapshot:ledger.snapshot,
+                leaderSnapshot:leaderLedger.snapshot,
+                receiverOwnerId:ownerId,
+                leaderOwnerId:bankNetwork.leaderId,
+                connectedBankOwnerIds:governedBanks,
+                sourceWaiting:!!sourceRecord,
+                preferredOutputKeys:preferredKeys,
+                outputEligibleKeys:outputKeys
+            });
+            if(!plan.ok){
+                uceBridgeLog('federated planner HOLD '+plan.reason,ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }else if(plan.status==='TRANSFER_DRAFT_ONLY'){
+                if(plan.direction==='receiver_to_bulk'){
+                    let unresolved=true;
+                    try{
+                        const item=new ItemStack(
+                            JSON.parse(plan.key).typeId,1);
+                        unresolved=!uceVerifiedNoReachablePreferredOutput(
+                            receiver,item,authority);
+                    }catch(_){}
+                    if(unresolved){
+                        uceBridgeLog(
+                            'federated spill HOLD: unresolved downstream Sorter route',
+                            ownerId);
+                        uceOrdinaryCursor=(index+1)%receivers.length;
+                        return;
+                    }
+                }
+                const witness=bankNetwork.fingerprint;
+                if(typeof witness!=='string'||witness.length>8192){
+                    uceBridgeLog('federated network witness too large',
+                        ownerId);
+                    return;
+                }
+                const operationId=uceNativeReceiptId();
+                if(!operationId){
+                    uceBridgeLog('federated receipt exhausted');
+                    return;
+                }
+                const proof=(tx,direction)=>
+                    uceFederatedRouteVerified(
+                        authority,receiver,tx,direction);
+                const externalFence=()=>uceLegacyWriterBlocked()&&
+                    !!uceAuthoritySnapshot();
+                const leaderWriter=createUnifiedShardWriter({
+                    world,shardKey:leaderShardKey,
+                    worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence,verifyFederatedRoute:proof
+                });
+                if(!leaderWriter.ok){
+                    uceBridgeLog('federated bank writer '+
+                        leaderWriter.reason,ownerId);
+                    return;
+                }
+                const fromBank=plan.from.startsWith('bulk:');
+                const result=ucePerfTimedOperation('federated',()=>executeUnifiedFederatedTransfer({
+                    world,worldId:authority.worldId,epoch:authority.epoch,
+                    operationId,routeWitness:witness,
+                    sourceWriter:fromBank?leaderWriter:shardWriter,
+                    destinationWriter:fromBank?shardWriter:leaderWriter,
+                    fromShard:fromBank?leaderShardKey:shardKey,
+                    toShard:fromBank?shardKey:leaderShardKey,
+                    fromAccount:plan.from,toAccount:plan.to,
+                    key:plan.key,count:plan.count,
+                    externalFence,verifyRoute:tx=>proof(tx,'withdraw')
+                }));
+                if(!result.ok)
+                    uceBridgeLog('federated transfer HOLD '+result.reason,
+                        ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                if(result.ok===true)
+                    ucePerfRecordMove('ordinary',plan.count);
+                return result.ok===true;
+            }
+        }
+
+        // Connected via the ORIGINAL Sorter→Collector→Receiver topology, a
+        // different sealed bank may have spendable Bulk capacity even when
+        // this Receiver's local bank/controller is full or absent. Never
+        // invent an item hop: move only the certified ordinary count through
+        // the existing globally journaled TWO-shard federated writer.
+        if(account.total>0&&bankNetwork&&!preferredOutputReady&&
+           !blockIsRedstonePowered(receiverAt(receiver))){
+            const remote=uceTryRemoteBulkTransfer(
+                authority,receiver,shardKey,shardWriter,
+                account,!!sourceRecord);
+            if(!remote.ok){
+                uceBridgeLog('remote Bulk HOLD '+remote.reason,ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+            if(remote.status==='REMOTE_BULK_TRANSFER_COMMITTED'){
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                ucePerfRecordMove('ordinary',remote.count);
+                return true;
+            }
+        }
+
+        // Remote Bulk remains governed by its original bank controller.
+        // When the local account is empty, a verified Hopper/Filter/Auto
+        // may draw ordinary counts from a linked bank through the SAME
+        // globally prepared two-shard journal; no Wildcard Bulk drain.
+        if(account.total===0&&!sourceRecord&&bankNetwork&&
+           !blockIsRedstonePowered(receiverAt(receiver))){
+            const refilled=uceTryRemoteBulkRefill(
+                authority,receiver,shardKey,shardWriter,account);
+            if(!refilled.ok){
+                uceBridgeLog('remote Bulk refill HOLD '+
+                    refilled.reason,ownerId);
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                return;
+            }
+            if(refilled.status==='REMOTE_BULK_REFILL_COMMITTED'){
+                uceOrdinaryCursor=(index+1)%receivers.length;
+                ucePerfRecordMove('ordinary',refilled.count);
+                return true;
+            }
+        }
+
+        // Initialize an empty native host only for actual eligible work.
+        // Mere presence of an output Hopper or pipe is NOT a transfer.
+        host=registry.inspectHost({ownerId,anchor});
+        if(!host.ok&&host.reason==='carrier_record_missing'){
+            let canDeposit=false,canWithdraw=false;
+            try{
+                const source=sourceRecord?.container?.getItem(sourceSlot);
+                canDeposit=!!source&&!preferredOutputReady&&
+                    account.total+source.amount<=account.capacity;
+                if(account.total>0&&!blockIsRedstonePowered(receiverAt(receiver))){
+                    for(const entry of account.buckets){
+                        const itemDef=JSON.parse(entry.key);
+                        const item=new ItemStack(itemDef.typeId,1);
+                        if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
+                        if(outgoing){
+                            canWithdraw=!!uceOrdinaryHopperCandidate(
+                                outgoing.container,item);
+                        }else if(!output){
+                            canWithdraw=!!uceChoosePipeDestination(
+                                receiver,item,
+                                uceOnlyProvenOrdinaryOutput(item),
+                                undefined,true);
+                        }
+                        if(canWithdraw)break;
+                    }
+                }
+            }catch(_){
+                // Unknown route/item identity remains unadmitted; do not
+                // reserve a native entity for an unprovable transfer.
+            }
+            if(!canDeposit&&!canWithdraw)continue;
+            const created=registry.registerEmptyHost({ownerId,anchor});
+            if(!created.ok){
+                uceBridgeLog(uceCarrierRegistrationReason(created),ownerId);
+                continue;
+            }
+            host=registry.inspectHost({ownerId,anchor});
+        }
+        if(!host.ok){
+            uceBridgeLog(host.reason,ownerId);
+            continue;
+        }
+        const custody=registry.inspectCustody({ownerId,anchor});
+        if(!custody.ok){
+            uceBridgeLog(custody.reason,ownerId);
+            continue;
+        }
+        if(custody.free<1)continue;
+        const slot=uceNativeOutputSlot(host.container);
+        if(slot<0)continue;
+        let direction,physicalSlot,identityKey,amount,routeVerify,
+            selectedHopper;
+        const origin=sourceRecord?.block;
+        if(sourceRecord&&account.total<account.capacity&&
+           !preferredOutputReady){
+            const stack=sourceRecord.container.getItem(sourceSlot);
+            if(!stack)continue;
+            // Snapshot for route-proof ACK after native move empties source.
+            // The native port separately verifies exact ItemStack identity.
+            const sorterWitness=sourceRecord.kind==='sorter-collector'?
+                stack:undefined;
+            direction='deposit';identityKey=sourceKey;amount=stack.amount;
+            const p=origin.location;
+            const endpointId='input|'+origin.dimension.id+
+                '|'+p.x+','+p.y+','+p.z;
+            physicalSlot={ownerId:endpointId,
+                container:sourceRecord.container,slot:sourceSlot};
+            routeVerify=()=>{
+                if(sourceRecord.kind==='pipe')
+                    return ucePipeSourceStillConnected(receiver,sourceRecord);
+                if(sourceRecord.kind==='sorter-collector')
+                    return !!sorterWitness&&
+                        uceLiveHopperOwner({d:origin.dimension.id,
+                            x:p.x,y:p.y,z:p.z})&&
+                        sourceRecord.stillSelected(sorterWitness);
+                const cb=linked.some(c=>{
+                    const b=collectorAt(c);
+                    return b && !blockIsRedstonePowered(b) &&
+                      collectorInputSources(c).some(x=>
+                        uceSameLoadedBlock(x.block,origin)&&!x.locked);
+                });
+                return cb&&uceLiveHopperOwner({
+                    d:origin.dimension.id,x:p.x,y:p.y,z:p.z
+                });
+            };
+        }else if(account.total>0 && (outgoing ||
+                  (!output&&ucePipeRouteNetwork(receiver)))){
+            let bucket,selectedRoute,selectedItem;
+            // Search all available item buckets; a Filter can accept one type
+            // while another bucket must HOLD or wait for Wildcard. Do not
+            // discard or reclassify any unselected ledger identity.
+            for(const entry of account.buckets){
+                try{
+                    const def=JSON.parse(entry.key);
+                    const item=new ItemStack(def.typeId,1);
+                    if(uceClassifyLiveStack(item)!=='ORDINARY')continue;
+                    const route=outgoing?undefined:
+                        uceChoosePipeDestination(receiver,item,
+                            uceOnlyProvenOrdinaryOutput(item),
+                            undefined,true);
+                    if(!outgoing&&!route)continue;
+                    const hopper=outgoing?
+                        uceOrdinaryHopperCandidate(outgoing.container,item):
+                        undefined;
+                    if(outgoing&&!hopper)continue;
+                    bucket=entry;selectedRoute=route;
+                    selectedHopper=hopper;selectedItem=item;
+                    break;
+                }catch(_){}
+            }
+            if(!bucket)continue;
+            direction='withdraw';identityKey=bucket.key;
+            amount=Math.min(bucket.count,64,selectedItem.maxAmount,
+                selectedRoute?.partialOutput?selectedRoute.room:64,
+                selectedHopper?.partialOutput?selectedHopper.room:64);
+            if(!Number.isSafeInteger(amount)||amount<1)continue;
+            if(selectedRoute){
+                physicalSlot={ownerId:selectedRoute.ownerId,
+                    container:selectedRoute.dest.container,
+                    slot:selectedRoute.slot};
+                routeVerify=()=>{
+                    let current;
+                    try{
+                        current=selectedRoute.dest.container.getItem(
+                            selectedRoute.slot);
+                    }catch(_){return false;}
+                    // A previously occupied partial slot is NOT post-move
+                    // merely because it is occupied. Check the exact prior
+                    // amount or the exact expected committed amount.
+                    let stackable=false;
+                    try{
+                        stackable=!!current&&
+                            current.isStackableWith(selectedItem)===true&&
+                            selectedItem.isStackableWith(current)===true;
+                    }catch(_){}
+                    const before=selectedRoute.partialOutput?
+                        stackable&&current.amount===
+                            selectedRoute.beforeAmount:
+                        current===undefined;
+                    const after=selectedRoute.partialOutput?
+                        stackable&&current.amount===
+                            selectedRoute.beforeAmount+amount:
+                        !!current&&current.typeId===selectedItem.typeId&&
+                            current.amount===amount;
+                    if(!before&&!after)return false;
+                    return !receiverOutputHopper(receiver)&&
+                        !blockIsRedstonePowered(receiverAt(receiver))&&
+                        ucePipeDestinationStillValid(
+                            receiver,selectedItem,selectedRoute,after);
+                };
+            }else{
+                const outputIndex=selectedHopper?.slot;
+                if(!Number.isSafeInteger(outputIndex)||outputIndex<0)
+                    continue;
+                const p=outgoing.block.location;
+                const endpointId='output|'+outgoing.block.dimension.id+
+                    '|'+p.x+','+p.y+','+p.z;
+                physicalSlot={ownerId:endpointId,
+                    container:outgoing.container,slot:outputIndex};
+                routeVerify=()=>{
+                    let current,stackable=false;
+                    try{
+                        current=outgoing.container.getItem(outputIndex);
+                        stackable=!!current&&
+                            ucePlainItemIdentity(current)===identityKey&&
+                            current.isStackableWith(selectedItem)===true&&
+                            selectedItem.isStackableWith(current)===true;
+                    }catch(_){return false;}
+                    const before=selectedHopper.partialOutput?
+                        stackable&&current.amount===
+                            selectedHopper.beforeAmount:
+                        current===undefined;
+                    const after=selectedHopper.partialOutput?
+                        stackable&&current.amount===
+                            selectedHopper.beforeAmount+amount:
+                        stackable&&current.amount===amount;
+                    return (before||after)&&uceSameLoadedBlock(
+                        receiverOutputHopper(receiver)?.block,outgoing.block)&&
+                        !blockIsRedstonePowered(receiverAt(receiver))&&
+                        !hopperIsRedstoneLocked(outgoing.block);
+                };
+            }
+        }else continue;
+        const operationId=uceNativeReceiptId();
+        if(!operationId){uceBridgeLog('ordinary receipt exhausted');return;}
+        const carrierSlot={ownerId,container:host.container,slot};
+        const scopedRegistry=createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:uceLiveReceiverOwner,
+            boundaryOperationId:operationId
+        });
+        const liveOwner=ref=>{
+            if(ref.ownerId===ownerId)
+                return uceLiveReceiverOwner(ownerId,anchor)&&
+                    scopedRegistry.inspectHost({ownerId,anchor}).ok;
+            if(ref.ownerId!==physicalSlot.ownerId)return false;
+            return routeVerify();
+        };
+        const receiptProof=meta=>{
+            const r=shardWriter.inspect(),raw=world.getDynamicProperty(
+                'hartlogistics:uce_boundary_intent_v1');
+            let tx;
+            try{tx=JSON.parse(raw);}catch(_){return false;}
+            const receipt=r?.lastReceipt;
+            return !!r?.ok&&tx?.operationId===operationId&&
+                tx.phase==='ESCROW_READY'&&
+                receipt?.kind==='BOUNDARY'&&
+                receipt.operationId===operationId&&
+                receipt.accountId===accountId&&
+                receipt.direction===meta.direction&&
+                receipt.key===identityKey&&
+                receipt.count===amount;
+        };
+        const ordinaryProof=(item,k,n)=>{
+            if(!item||item.amount!==n||k!==identityKey||
+               uceClassifyLiveStack(item)!=='ORDINARY')return false;
+            // Original Q4 may encode empty optional fields differently
+            // from newly admitted item definitions. Refuse metadata-bearing
+            // saved types but do not invent a different delivered item.
+            try{
+                const def=JSON.parse(k);
+                return inspectQ4OrdinaryDefinitionShape(def).ok===true &&
+                    def.typeId===item.typeId;
+            }catch(_){return false;}
+        };
+        const port=createUnifiedNativePort({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            boundaryOperationId:operationId,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEndpointOwner:liveOwner,
+            durableOwnershipWitness:scopedRegistry.durableOwnershipWitness,
+            makeCertifiedOrdinaryItem:(key,count)=>{
+                if(key!==identityKey)return undefined;
+                try{
+                    const def=JSON.parse(key);
+                    const item=new ItemStack(def.typeId,count);
+                    return ordinaryProof(item,key,count)?item:undefined;
+                }catch(_){return undefined;}
+            },
+            certifyOrdinaryEscrow:ordinaryProof,
+            verifyLedgerBoundaryReceipt:receiptProof,
+            verifyLedgerWithdrawalReservation:meta=>{
+                const r=shardWriter.inspect(),raw=world.getDynamicProperty(
+                    'hartlogistics:uce_boundary_intent_v1');
+                let tx;
+                try{tx=JSON.parse(raw);}catch(_){return false;}
+                return !!r?.ok&&tx?.operationId===operationId&&
+                    tx.phase==='PREPARED'&&meta.direction==='withdraw'&&
+                    meta.operationId===operationId&&
+                    meta.accountId===accountId&&meta.key===identityKey&&
+                    meta.count===amount&&
+                    (r.snapshot.accounts.find(a=>a.id===accountId)
+                      ?.buckets.find(b=>b.key===identityKey)?.count||0)>=amount;
+            }
+        });
+        if(!port.ok){uceBridgeLog(port.reason);continue;}
+        const args={world,worldId:authority.worldId,epoch:authority.epoch,
+            operationId,accountId,key:identityKey,count:amount,
+            registry:scopedRegistry,port,writer:shardWriter,ownerId,anchor,
+            carrierSlot,physicalSlot,verifyRoute:routeVerify,
+            verifyOrdinary:meta=>meta.key===identityKey&&
+                meta.count===amount&&meta.accountId===accountId};
+        const result=ucePerfTimedOperation('ordinary',()=>direction==='deposit'?
+            executeUnifiedOrdinaryDeposit(args):
+            executeUnifiedOrdinaryWithdrawal({...args,
+                partialOutput:selectedRoute?.partialOutput===true||
+                    selectedHopper?.partialOutput===true}));
+        if(!result.ok)uceBridgeLog('ordinary '+result.reason);
+        uceOrdinaryCursor=(index+1)%receivers.length;
+        // Stop the batch on HOLD, but fairly continue after success.
+        if(result.ok===true)
+            ucePerfRecordMove('ordinary',amount);
+        return result.ok===true;
+    }
+    uceOrdinaryCursor=(uceOrdinaryCursor+scanLimit)%receivers.length;
+}
+
+
+/* Bulk Storage block uses its own asset and this read-only menu. No old
+ * Collector/Receiver/Sorter interface is replaced. Actual account
+ * registration is a separate authenticated one-shard UCE writer operation.
+ */
+function uceBulkAccountAt(block){
+    try{
+        const authority=uceAuthoritySnapshot();
+        if(!authority)return undefined;
+        const cold=inspectUnifiedActiveColdImport({world,
+            worldId:authority.worldId,epoch:authority.epoch});
+        if(!cold.ok)return undefined;
+        const p=block.location;
+        const ownerId=block.dimension.id+'|'+p.x+','+p.y+','+p.z;
+        const seal=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_cold_seal_v1'));
+        if(!seal||!Array.isArray(seal.shards))return undefined;
+        for(const region of seal.shards){
+            const s=createUnifiedShardWriter({world,
+                shardKey:region.key,worldId:authority.worldId,
+                epoch:authority.epoch,
+                externalFence:()=>false});
+            if(!s.ok)continue;
+            const read=s.inspect();
+            if(!read.ok)continue;
+            const bank=read.snapshot.accounts.find(x=>
+                x.id==='bulk:'+ownerId);
+            if(bank)return {bank,ownerId,region:region.key};
+        }
+        return {ownerId};
+    }catch(_){return undefined;}
+}
+function uceShowBulkStatus(player,block){
+    if(!player||!block||block.typeId!=='hartlogistics:bulk_storage')
+        return;
+    const state=uceBulkAccountAt(block);
+    const status=state?.bank ?
+       ('Stored '+state.bank.total+' / 200000\\n'+
+        'Item kinds: '+state.bank.buckets.length+
+        '\\nOwner: '+state.ownerId) :
+       ('Not registered. No verified UCE network account is spendable.'+
+        '\\nConnect a verified Receiver before service is enabled.');
+    // Existing chat/status UI avoids an undeclared server-ui dependency.
+    player.sendMessage('§6[Hart Bulk Storage] §7'+status);
+}
+
+// An ordinary player mining an empty Bulk block is a normal operation, not
+// a maintenance mode. beforeEvents cancels the vanilla edit; this callback
+// performs one authenticated account+block retirement next tick.
+const uceBulkMiningPending=new Set();
+function uceMineEmptyBulkStorage(player,location,dimension){
+    const key=dimension?.id+'|'+location.x+','+location.y+','+location.z;
+    if(uceBulkMiningPending.has(key))return;
+    uceBulkMiningPending.add(key);
+    try{
+        const block=dimension?.getBlock(location);
+        if(!block||block.typeId!=='hartlogistics:bulk_storage')return;
+        const auth=uceAuthoritySnapshot();
+        const result=auth&&executeUnifiedEmptyBulkRemoval({
+            world,worldId:auth.worldId,epoch:auth.epoch,
+            operationId:uceNativeReceiptId(),block,
+            operatorAuthorized:true,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot()
+        });
+        if(!result?.ok){
+            const reason=result?.reason||'storage_authority_unavailable';
+            if(reason==='storage_contains_items')
+                player?.sendMessage('§e[Bulk] This storage has items in it. Empty it before breaking.');
+            else
+                player?.sendMessage('§e[Bulk] Could not pick up this storage safely ('+
+                    reason+'). Your items were not discarded.');
+            return;
+        }
+        // The block itself is ordinary inventory. Return one block to the
+        // survival player after both physical and virtual ownership retire.
+        // Creative already has unlimited copies in its palette.
+        let mode;
+        try{mode=String(player?.getGameMode?.()||'').toLowerCase();}
+        catch(_){}
+        if(mode!=='creative'){
+            try{
+                dimension.spawnItem(new ItemStack('hartlogistics:bulk_storage',1),
+                    {x:location.x+0.5,y:location.y+0.5,z:location.z+0.5});
+            }catch(_){
+                player?.sendMessage('§e[Bulk] Storage removed, but the block item could not be dropped.');
+            }
+        }
+        player?.sendMessage('§a[Bulk] Empty storage picked up.');
+    }finally{uceBulkMiningPending.delete(key);}
+}
+function uceRegisterBulkComponent(registry){
+    registry.registerCustomComponent('hartlogistics:bulk_storage_surface',{
+        onPlayerInteract(e){
+            if(!e?.player||e.block?.typeId!=='hartlogistics:bulk_storage')
+                return;
+            const p=e.player,b=e.block;
+            system.run(()=>uceShowBulkStatus(p,b));
+        }
+    });
+}
+
+
+/* Unified administrative diagnostics through the existing
+ * hartlogistics:status command. Read-only; no recovery, election,
+ * migration, item creation, or Q4 mutation is ever triggered.
+ */
+function uceSendDiagnostics(origin){
+    const lines=['§6[Hart Logistics UCE] §fUnified product status'];
+    const auth=uceAuthoritySnapshot();
+    if(!auth){
+        lines.push('§cUCE authority not ACTIVE: all legacy custody writers frozen.');
+    }else{
+        const cold=inspectUnifiedActiveColdImport({world,
+            worldId:auth.worldId,epoch:auth.epoch});
+        if(!cold.ok){
+            lines.push('§cCOLD AUTHORITY HOLD: '+cold.reason);
+        }else{
+            let ordinary=0,receiverCount=0,bankCount=0,bulkTotal=0,
+                bankCapacity=0,unreadable=0,controllerCount=0;
+            const receiverOwners=[],seenReceiverOwners=new Set();
+            let duplicateReceiverOwners=0,invalidReceiverOwners=0;
+            try{
+                const seal=JSON.parse(world.getDynamicProperty(
+                    'hartlogistics:uce_cold_seal_v1'));
+                for(const region of seal.shards){
+                    const reader=createUnifiedShardWriter({
+                        world,shardKey:region.key,
+                        worldId:auth.worldId,epoch:auth.epoch,
+                        externalFence:()=>false
+                    });
+                    const v=reader.ok&&reader.inspect();
+                    if(!v?.ok){unreadable++;continue;}
+                    for(const account of v.snapshot.accounts){
+                        if(account.kind==='receiver'){
+                            receiverCount++;ordinary+=account.total;
+                            // Read-only ledger census. A count alone cannot
+                            // distinguish extra physical placements from
+                            // ambiguous duplicate Receiver ownership.
+                            const id=account.ownerId,at=account.uceAnchor;
+                            if(typeof id!=='string'||!id||
+                               typeof account.total!=='number'||
+                               !Number.isSafeInteger(account.total)||
+                               !at||typeof at.dimensionId!=='string'||
+                               !Number.isInteger(at.x)||
+                               !Number.isInteger(at.y)||
+                               !Number.isInteger(at.z)||
+                               id!==at.dimensionId+'|'+at.x+'|'+at.y+'|'+at.z)
+                                invalidReceiverOwners++;
+                            else{
+                                if(seenReceiverOwners.has(id))
+                                    duplicateReceiverOwners++;
+                                else seenReceiverOwners.add(id);
+                                receiverOwners.push({id,total:account.total,
+                                    shardKey:region.key,anchor:at});
+                            }
+                        }else if(account.kind==='bulk'){
+                            bankCount++;bulkTotal+=account.total;
+                            bankCapacity+=account.capacity;
+                            if(account.role==='controller')controllerCount++;
+                        }
+                    }
+                }
+            }catch(_){unreadable++;}
+            lines.push('§7Receivers: §f'+receiverCount+
+                ' | Ordinary: §f'+ordinary);
+            lines.push('§7Bulk: §f'+bulkTotal+'/'+bankCapacity+
+                ' in '+bankCount+' members | controllers '+controllerCount);
+            lines.push('§7Shard/authority: §f'+
+                (unreadable===0?'verified':'HOLD '+unreadable+' unreadable'));
+            // Never guess the two unaccounted PG36 owners. Report their
+            // exact sealed IDs, in a deterministic bounded view; read only.
+            receiverOwners.sort((a,b)=>a.id.localeCompare(b.id));
+            const maxOwners=12;
+            lines.push('§7Sealed Receiver owners (read-only): §f'+
+                receiverOwners.length+' listed'+
+                (receiverOwners.length>maxOwners?
+                    ', first '+maxOwners+' shown':''));
+            for(const a of receiverOwners.slice(0,maxOwners))
+                lines.push('§7R §f'+a.id+' §7stored '+a.total+
+                    ' §8['+a.shardKey+']');
+            if(invalidReceiverOwners||duplicateReceiverOwners)
+                lines.push('§cReceiver owner census HOLD: invalid '+
+                    invalidReceiverOwners+' | duplicate '+duplicateReceiverOwners);
+            // The global MR journal can be clear while a host is RESERVED.
+            // Read live entities and tickets, without initializing anything.
+            if(typeof createUnifiedCarrierRegistry==='function'){
+                const registry=createUnifiedCarrierRegistry({world,
+                    worldId:auth.worldId,epoch:auth.epoch,
+                    externalFence:()=>false,ownerVerifier:uceLiveReceiverOwner});
+                if(!registry.ok){
+                    lines.push('§cNative host census unavailable: '+registry.reason);
+                }else{
+                    let held=0,reserved=0,missing=0,active=0;
+                    const maxHosts=8;
+                    for(const a of receiverOwners.slice(0,maxHosts)){
+                        const audit=registry.inspectHostEvidence({
+                            ownerId:a.id,anchor:a.anchor});
+                        if(!audit.ok){
+                            held++;
+                            lines.push('§cCarrier §f'+a.id+' §cHOLD '+audit.reason);
+                            continue;
+                        }
+                        if(audit.recordState==='RESERVED')reserved++;
+                        else if(audit.recordState==='ACTIVE')active++;
+                        else missing++;
+                        if(audit.custodyState.startsWith('HOLD:'))held++;
+                        lines.push('§7Carrier §f'+a.id+' §7state '+
+                            audit.recordState+' | saved ID '+
+                            (audit.recordEntityId||'none')+
+                            ' | physical '+audit.liveEntityCount+
+                            ' | others≤16 '+(audit.vicinityCount??'UNKNOWN')+
+                            ' | tickets '+(audit.ticketSlotCount??'UNKNOWN')+
+                            '@'+(audit.ticketRevision??'UNKNOWN')+
+                            ' '+(audit.ticketStatus||'UNVERIFIED')+
+                            ' | intent '+audit.nativeIntentPhase+
+                            ' | block '+(audit.ownerVerified?'present':'UNVERIFIED')+
+                            ' | '+audit.custodyState);
+                        for(const observed of audit.entities.slice(0,2))
+                            lines.push('§7  Entity §f'+observed.id+
+                                ' §7occupied '+observed.occupied+
+                                ' | '+observed.inventoryStatus);
+                        for(const other of (audit.vicinityEntities||[]).slice(0,2))
+                            lines.push('§7  Other loaded carrier (unattributed) §f'+other.id);
+                    }
+                    lines.push('§7Native hosts (read-only, first '+maxHosts+
+                        '): §factive '+active+' | RESERVED '+reserved+
+                        ' | missing '+missing+' | HOLD '+held);
+                }
+            }
+            lines.push('§7Q4 archive: §fretained unchanged; items migrated only by verified seal');
+        }
+    }
+    try{
+        const native=world.getDynamicProperty(
+            'hartlogistics:uce_native_intent_v1');
+        const boundary=world.getDynamicProperty(
+            'hartlogistics:uce_boundary_intent_v1');
+        const federated=world.getDynamicProperty(
+            'hartlogistics:uce_federated_intent_v1');
+        const q4native=world.getDynamicProperty('hartsorter:journal_v1');
+        const q4queue=world.getDynamicProperty('hartsorter:queue_journal_v1');
+        const pending=v=>v!==undefined&&v!==null&&v!=='';
+        lines.push('§7Pending custody: §fMR '+(pending(native)?'HOLD':'clear')+
+            ' | Ordinary '+(pending(boundary)?'HOLD':'clear')+
+            ' | Federated '+(pending(federated)?'HOLD':'clear')+
+            ' | Q4 '+(pending(q4native)||pending(q4queue)?'HOLD':'clear'));
+        if(pending(federated)){
+            let tx;
+            try{tx=JSON.parse(federated);}catch(_){}
+            if(tx?.schema==='hart-uce-federated-intent-v1'){
+                lines.push('§cFederated HOLD: '+tx.phase+
+                    ' §f'+tx.fromAccount+' -> '+tx.toAccount+
+                    ' x'+tx.count+' §c(no automatic replay)');
+                if(auth){
+                    const source=createUnifiedShardWriter({
+                        world,shardKey:tx.fromShard,worldId:auth.worldId,
+                        epoch:auth.epoch,externalFence:()=>false});
+                    const destination=createUnifiedShardWriter({
+                        world,shardKey:tx.toShard,worldId:auth.worldId,
+                        epoch:auth.epoch,externalFence:()=>false});
+                    const audit=source.ok&&destination.ok?
+                        inspectUnifiedFederatedPending({
+                            world,worldId:auth.worldId,epoch:auth.epoch,
+                            sourceWriter:source,destinationWriter:destination
+                        }):{ok:false,reason:'shard_reader_unavailable'};
+                    lines.push('§cFederated read-only evidence: '+
+                        (audit.ok?audit.evidenceState||audit.status:
+                            'HOLD:'+audit.reason));
+                }
+            }else lines.push('§cFederated journal unreadable; global HOLD');
+        }
+    }catch(_){
+        lines.push('§cCustody journals unreadable: global HOLD');
+    }
+    lines.push('§7Build: §fSOURCE ONLY; no BDS acceptance or hard-crash disk proof');
+    const target=origin?.sourceEntity;
+    if(target&&typeof target.sendMessage==='function'){
+        for(const line of lines)target.sendMessage(line);
+    }else for(const line of lines)log(line.replace(/§./g,''));
+}
+
+// Read-only LAB migration census, never a live Q4->UCE writer. Displaying
+// an ordinary count does not certify actual ItemStack roundtrip or backup.
+function uceSendMigrationPreview(origin){
+    const result=previewUnifiedMigrationPreflight({world});
+    const lines=['§6[Hart Logistics] §fArchived Q4 migration preflight'];
+    if(!result.ok)
+        lines.push('§cHOLD: '+result.reason);
+    else
+        lines.push('§aQ4 source census observed (read only).');
+    if(Number.isSafeInteger(result.receiverCount)){
+        lines.push('§7Receivers: §f'+result.receiverCount+
+            ' | Q4 items: §f'+result.q4ItemCount);
+        lines.push('§7Ordinary shape: §f'+
+            result.ordinaryShapeCandidateCount+
+            ' | Metadata-rich/unknown: §f'+
+            result.metadataRichOrUnknownCount);
+        if(result.opaqueReasons?.length)
+            lines.push('§eOpaque item reasons: '+
+                result.opaqueReasons.join(', '));
+        if(result.opaqueReceiverCount>0){
+            lines.push('§eAffected Receiver queues: '+
+                result.opaqueReceiverCount);
+            for(const row of (result.opaqueReceiverExamples||[])
+                .slice(0,3)){
+                lines.push('§7'+row.receiverId+
+                    ' | opaque: '+row.opaqueItemCount+
+                    ' | queue: '+row.queueKey);
+            }
+        }
+    }
+    lines.push('§7NOT a freeze, backup proof, native item proof, migration, or release.');
+    lines.push('§7No items, Q4 properties or authority were changed.');
+    const target=origin?.sourceEntity;
+    if(target&&typeof target.sendMessage==='function'){
+        for(const line of lines)target.sendMessage(line);
+    }else for(const line of lines)log(line.replace(/§./g,''));
+}
+
+/*
+ * Direct Hopper->Sorter->vanilla storage, using UCE's existing native
+ * physical movement journal (NOT the old 1.4.1 safeMovePartial writer).
+ * Storage is the native inventory owner; no synthetic Receiver queue,
+ * separate bank balance or second scheduler is introduced.
+ *
+ * This deliberately moves WHOLE stacks into EMPTY slots only. It will HOLD
+ * when partial merge or chest alias identity is uncertain; the full 1.4.1
+ * merge/throughput compatibility gate is still pending Bedrock acceptance.
+ * A persisted PREPARED intent is never auto-cleared or replayed on restart.
+ */
+let uceSorterDirectCursor=0;
+function uceDirectStorageOwnerBlock(block){
+    try{
+        if(!block||!supportedStorage(block))return false;
+        const c=blockContainer(block);
+        if(!c?.isValid)return false;
+        if(block.typeId!=='minecraft:chest'&&
+           block.typeId!=='minecraft:trapped_chest')return true;
+        // A Bedrock double chest is ONE 54-slot native inventory reached
+        // through two adjacent block aliases. Require both live halves,
+        // reciprocal loaded topology and a 54-slot view from each side.
+        // No secondary writer, serialization or heuristic item rebuilding.
+        const paired=[];
+        for(const face of PG26_FACES){
+            if(face.y!==0)continue;
+            const neighbor=pg26Neighbor(block,face);
+            if(!neighbor||neighbor.dimension?.id!==block.dimension?.id)
+                return false;
+            if(neighbor.typeId===block.typeId)
+                paired.push(neighbor);
+        }
+        if(paired.length===0)return c.size===27;
+        if(paired.length!==1||c.size!==54)return false;
+        const other=paired[0],oc=blockContainer(other);
+        if(!oc?.isValid||oc.size!==54)return false;
+        let back=0;
+        for(const face of PG26_FACES){
+            if(face.y!==0)continue;
+            const neighbor=pg26Neighbor(other,face);
+            if(!neighbor||neighbor.dimension?.id!==block.dimension?.id)
+                return false;
+            if(neighbor.typeId===block.typeId){
+                if(!uceSameLoadedBlock(neighbor,block))return false;
+                back++;
+            }
+        }
+        return back===1;
+    }catch(_){return false;}
+}
+function uceSorterDirectServiceTick(authority){
+    try{
+        if(!Array.isArray(columns)||!columns.length)return;
+        // The original 1.4.1 profile records 93k World.getDimension
+        // native calls across ~13 seconds. Keep a per-invocation dimension
+        // handle for every observed world, without persisting block state
+        // across ticks or skipping any Hopper/Sorter column.
+        const dimensions=new Map();
+        for(let step=0;step<columns.length;step++){
+            const ix=(uceSorterDirectCursor+step)%columns.length;
+            const col=columns[ix];
+            if(!dimensions.has(col.d))
+                dimensions.set(col.d,getDimension(col.d));
+            const dim=dimensions.get(col.d);
+            const source=dim?.getBlock(col.source);
+            if(!source||source.typeId!=='minecraft:hopper'||
+               hopperIsRedstoneLocked(source))continue;
+            const input=blockContainer(source);
+            if(!input||!input.isValid)continue;
+            // Slot count cannot change during this synchronous inspection.
+            // Native Container.size is not a free JavaScript array length.
+            const inputSize=input.size;
+            for(let slot=0;slot<inputSize;slot++){
+                const stack=input.getItem(slot);
+                if(!stack)continue;
+                const selected=uceSorterColumnWinner(col,stack);
+                if(!selected||selected.kind!=='storage'||
+                   !uceDirectStorageOwnerBlock(selected.block))continue;
+                const dest=selected.container;
+                if(!dest?.isValid||dest===input)continue;
+                // Preserve 1.4.1 ordinary stack merges without ever
+                // reconstructing opaque/MR ItemStacks. MR still uses the
+                // strict whole-stack native move to an empty slot.
+                const ordinaryKey=ucePlainItemIdentity(stack);
+                // The winner already examined this live destination's
+                // accepting slots. No tick yields between selection and this
+                // initial reservation; the native intent/ACK path continues
+                // to verify the slot and entire physical route independently.
+                const accepting=ordinaryKey?selected.accepting:undefined;
+                const partial=!!accepting&&accepting.before>0&&
+                    accepting.room>0&&
+                    ucePlainItemIdentity(accepting.existing)===ordinaryKey;
+                const destSlot=partial?accepting.slot:uceNativeOutputSlot(dest);
+                if(destSlot<0)continue;
+                const mergeCount=partial?
+                    Math.min(stack.amount,accepting.room):0;
+                const p=source.location,q=selected.block.location;
+                const fromId='sorter-native-in|'+source.dimension.id+
+                    '|'+p.x+','+p.y+','+p.z;
+                const toId='sorter-native-out|'+selected.block.dimension.id+
+                    '|'+q.x+','+q.y+','+q.z;
+                // Slot/winner revalidation must not depend on source occupancy
+                // AFTER a successful move, because ACK sees that slot empty.
+                const routeStillSelected=item=>{
+                    const occupied=dest.getItem(destSlot)!==undefined;
+                    const current=uceSorterColumnWinner(
+                        col,item,occupied?selected:undefined);
+                    return !!current&&current.kind==='storage'&&
+                        current.entry===selected.entry&&
+                        uceSameLoadedBlock(current.source.block,source)&&
+                        uceSameLoadedBlock(current.block,selected.block)&&
+                        uceDirectStorageOwnerBlock(current.block);
+                };
+                const endpointValid=ref=>{
+                    if(ref.ownerId===fromId){
+                        if(ref.container!==input||ref.slot!==slot||
+                           !uceLiveHopperOwner({d:source.dimension.id,
+                             x:p.x,y:p.y,z:p.z}))return false;
+                        const now=input.getItem(slot);
+                        return routeStillSelected(now||stack);
+                    }
+                    if(ref.ownerId===toId){
+                        if(ref.container!==dest||ref.slot!==destSlot)
+                            return false;
+                        const live=getBlock(selected.block.dimension.id,
+                            q.x,q.y,q.z);
+                        return uceSameLoadedBlock(live,selected.block)&&
+                            uceDirectStorageOwnerBlock(live)&&
+                            routeStillSelected(stack);
+                    }
+                    return false;
+                };
+                const operationId=uceNativeReceiptId();
+                if(!operationId){uceBridgeLog('direct sorter receipt exhausted');return;}
+                const port=createUnifiedNativePort({
+                    world,worldId:authority.worldId,epoch:authority.epoch,
+                    externalFence:()=>uceLegacyWriterBlocked()&&
+                        !!uceAuthoritySnapshot(),
+                    verifyEndpointOwner:endpointValid,
+                    // A loaded, stable vanilla inventory is the destination
+                    // owner, not a UCE count account. This is independent
+                    // native block identity corroborating the saved intent.
+                    // It is NOT a hard-crash disk-atomicity proof.
+                    durableOwnershipWitness:j=>
+                        j.operationId===operationId&&
+                        j.from.ownerId===fromId&&j.to.ownerId===toId&&
+                        routeStillSelected(stack),
+                    certifyOrdinaryEscrow:(item,key,count)=>
+                        !!item&&item.amount===count&&
+                        ucePlainItemIdentity(item)===key&&
+                        uceClassifyLiveStack(item)==='ORDINARY'
+                });
+                if(!port.ok){uceBridgeLog('direct sorter port '+port.reason);return;}
+                const from={ownerId:fromId,container:input,slot};
+                const to={ownerId:toId,container:dest,slot:destSlot};
+                const moved=partial?
+                    port.moveCertifiedPartial({operationId,from,to,
+                        key:ordinaryKey,count:mergeCount}):
+                    port.moveWhole({operationId,from,to});
+                if(!moved.ok){
+                    uceBridgeLog('direct sorter move HOLD '+moved.reason);
+                    return;
+                }
+                if(moved.status!=='NATIVE_MOVED_PENDING_OWNERSHIP_ACK'){
+                    uceBridgeLog('direct sorter unexpected move receipt');return;
+                }
+                const ack=partial?
+                    port.ackCertifiedPartial({operationId,from,to,
+                        key:ordinaryKey,count:mergeCount}):
+                    port.ackWhole({operationId,from,to});
+                if(!ack.ok){
+                    uceBridgeLog('direct sorter ACK HOLD '+ack.reason);
+                    return;
+                }
+                uceSorterDirectCursor=(ix+1)%columns.length;
+                return;
+            }
+        }
+        uceSorterDirectCursor=(uceSorterDirectCursor+1)%columns.length;
+    }catch(_){uceBridgeLog('direct sorter runtime HOLD');}
+}
+
+/*
+ * Original Dropper/Dispenser item ejection into an existing Collector,
+ * without re-enabling the old Q4 entity_enqueue writer. Uses ONE existing
+ * UCE native intent and carrier-ticket writer. Native ItemStack is copied
+ * without metadata reconstruction, then the exact source entity is removed
+ * only AFTER destination custody is saved/read back.
+ *
+ * Interrupted duplication ambiguity remains globally HELD for audit.
+ */
+function uceProcessEjectedItemEntity(entity,retries=0,spawnLoc=undefined){
+    if(!ready||!entity?.isValid||entity.typeId!=='minecraft:item')return;
+    const authority=uceAuthoritySnapshot();
+    if(!authority)return;
+    const cold=inspectUnifiedActiveColdImport({
+        world,worldId:authority.worldId,epoch:authority.epoch});
+    if(!cold.ok){
+        uceBridgeLog('ejected-item cold authority HOLD '+cold.reason);
+        return;
+    }
+    if(uceUnifiedJournalHold())return;
+    const found=ejectedItemCollector(entity,spawnLoc);
+    if(!found){
+        // Retry observation only, never retry a custody write. Vanilla can
+        // publish a dropped entity before its triggered_bit becomes visible.
+        if(retries<4)
+            system.runTimeout(()=>
+              uceProcessEjectedItemEntity(entity,retries+1,spawnLoc),1);
+        return;
+    }
+    const receiver=findReceiverById(found.collector.link);
+    if(!receiver||receiver.present===false||
+       !uceOrdinaryAccountSource(authority,receiver.id))return;
+    const stack=itemEntityStack(entity);
+    if(!stack||stack.amount<1)return;
+    const receiverLoaded=!!receiverAt(receiver);
+    const itemClass=uceClassifyLiveStack(stack);
+    if(itemClass!=='MR'&&itemClass!=='ORDINARY')return;
+    // MR is physically retained in this same ticketed carrier and later
+    // drains to the Receiver. Ordinary must instead receive a certified
+    // virtual Receiver credit and retire its short-lived native escrow.
+    // Leaving ordinary in an MR-only carrier would strand ownership.
+    const ordinaryKey=itemClass==='ORDINARY'?
+        ucePlainItemIdentity(stack):undefined;
+    if(itemClass==='ORDINARY'&&!ordinaryKey)return;
+    const owner=receiverLoaded?receiver:found.collector;
+    const ownerId=owner.id,anchor={dimensionId:owner.d,
+        x:owner.x,y:owner.y,z:owner.z};
+    // Every registration and native-ticket mutation must re-prove that
+    // the same loaded Collector still points to the sealed Receiver, and
+    // that the target chunk has not changed load state mid-transaction.
+    // Either transition during a prepared operation HOLDS the journal.
+    const liveCollectorWaiting=()=> {
+        if(receiverLoaded)return false;
+        const col=findCollectorById(found.collector.id);
+        return !!col&&col.present!==false&&
+            col.link===receiver.id&&!receiverAt(receiver)&&
+            !!uceOrdinaryAccountSource(authority,receiver.id)&&
+            uceLiveCollectorOwner(ownerId,anchor)&&
+            // Keep the original 1.4.1 pulse-local grace for a real
+            // Dropper/Dispenser rising edge; a held-powered Collector
+            // remains inhibited. The ejected source proof uses this same
+            // predicate, so custody revalidation must not contradict it.
+            collectorAllowsEjectedPulse(collectorAt(col));
+    };
+    if(!receiverLoaded&&!liveCollectorWaiting())return;
+    const verifyHost=(id,at)=>receiverLoaded?
+        uceLiveReceiverOwner(id,at)&&!!receiverAt(receiver):
+        id===ownerId&&at.dimensionId===anchor.dimensionId&&
+        at.x===anchor.x&&at.y===anchor.y&&at.z===anchor.z&&
+        liveCollectorWaiting();
+    const registry=createUnifiedCarrierRegistry({
+        world,worldId:authority.worldId,epoch:authority.epoch,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        ownerVerifier:verifyHost
+    });
+    if(!registry.ok){uceBridgeLog('ejected registry '+registry.reason);return;}
+    let host=registry.inspectHost({ownerId,anchor});
+    if(!host.ok&&host.reason==='carrier_record_missing'){
+        const created=registry.registerEmptyHost({ownerId,anchor});
+        if(!created.ok){uceBridgeLog('ejected host '+
+            uceCarrierRegistrationReason(created),ownerId);return;}
+        host=registry.inspectHost({ownerId,anchor});
+    }
+    if(!host.ok){uceBridgeLog('ejected host '+host.reason);return;}
+    const custody=registry.inspectCustody({ownerId,anchor});
+    if(!custody.ok){uceBridgeLog('ejected ticket '+custody.reason);return;}
+    if(custody.free<=0)return; // Preserve the original vanilla item.
+    const slot=uceNativeOutputSlot(host.container);
+    if(slot<0)return;
+    const sourceOwnerId='ejected-item|'+entity.id;
+    const to={ownerId,container:host.container,slot};
+    const verifyEndpointOwner=ref=>{
+        if(ref.ownerId===ownerId)
+            return verifyHost(ownerId,anchor)&&
+                registry.inspectHost({ownerId,anchor}).ok;
+        if(ref.ownerId!==sourceOwnerId||ref.entity!==entity||
+           !entity.isValid||entity.typeId!=='minecraft:item')
+            return false;
+        const current=ejectedItemCollector(entity,spawnLoc);
+        return !!current&&
+            current.collector.id===found.collector.id&&
+            uceSameLoadedBlock(current.source,found.source)&&
+            current.collector.link===receiver.id&&
+            (receiverLoaded?!!receiverAt(receiver):
+                liveCollectorWaiting());
+    };
+    const op=uceNativeReceiptId();
+    if(!op){uceBridgeLog('ejected native receipt exhausted');return;}
+    // The ordinary entity path places the SAME outer UCE boundary in
+    // PREPARED before it stages a native move. A new scoped view of the
+    // original carrier registry must therefore explicitly bind that
+    // boundary operation when claiming/releasing its real native tickets.
+    // The already inspected/spawned host is reused; there is no second
+    // carrier, journal or ownership authority. MR stays on the original
+    // unbound native registry path.
+    const custodyRegistry=itemClass==='ORDINARY'?
+        createUnifiedCarrierRegistry({
+            world,worldId:authority.worldId,epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            ownerVerifier:verifyHost,boundaryOperationId:op
+        }):registry;
+    if(!custodyRegistry.ok){
+        uceBridgeLog('ejected scoped registry '+
+            custodyRegistry.reason,ownerId);
+        return;
+    }
+    // This proof survives entity removal: the separately persisted carrier
+    // ticket and actual native ItemStack now own the escrow. Both Collector
+    // link and Receiver load state must remain unchanged for the ledger
+    // credit, or the common boundary intent HOLDS.
+    const linkedRoute=()=> {
+        const col=findCollectorById(found.collector.id);
+        const at={dimensionId:found.collector.d,
+            x:found.collector.x,y:found.collector.y,
+            z:found.collector.z};
+        return !!col&&col.present!==false&&
+            col.link===receiver.id&&
+            uceLiveCollectorOwner(col.id,at)&&
+            collectorAllowsEjectedPulse(collectorAt(col))&&
+            !!uceOrdinaryAccountSource(authority,receiver.id)&&
+            (!!receiverAt(receiver))===receiverLoaded&&
+            verifyHost(ownerId,anchor);
+    };
+    const identity=item=>!!item&&itemClass==='ORDINARY'&&
+        item.amount===stack.amount&&
+        uceClassifyLiveStack(item)==='ORDINARY'&&
+        ucePlainItemIdentity(item)===ordinaryKey;
+    let writer;
+    if(itemClass==='ORDINARY'){
+        const shardKey=uceOrdinaryAccountSource(authority,receiver.id);
+        const accountId='receiver:'+receiver.id;
+        const escrowProved=tx=>{
+            if(tx.accountId!==accountId||tx.key!==ordinaryKey||
+               tx.count!==stack.amount||tx.direction!=='deposit'||
+               !linkedRoute())return false;
+            const owned=custodyRegistry.inspectCustody({ownerId,anchor});
+            if(!owned.ok||!owned.slots.includes(slot))return false;
+            return identity(host.container.getItem(slot));
+        };
+        writer=createUnifiedShardWriter({
+            world,shardKey,worldId:authority.worldId,
+            epoch:authority.epoch,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot(),
+            verifyEscrowCustody:escrowProved
+        });
+        if(!writer.ok){
+            uceBridgeLog('ejected ordinary writer '+writer.reason);return;
+        }
+    }
+    const receiptProof=meta=>{
+        if(!writer)return false;
+        const view=writer.inspect();
+        let prepared;
+        try{prepared=JSON.parse(world.getDynamicProperty(
+            'hartlogistics:uce_boundary_intent_v1'));}
+        catch(_){return false;}
+        const receipt=view?.lastReceipt;
+        return !!view?.ok&&prepared?.operationId===op&&
+            prepared.phase==='ESCROW_READY'&&
+            receipt?.kind==='BOUNDARY'&&
+            receipt.operationId===op&&
+            receipt.accountId==='receiver:'+receiver.id&&
+            receipt.direction===meta.direction&&
+            receipt.key===ordinaryKey&&receipt.count===stack.amount;
+    };
+    const port=createUnifiedNativePort({
+        world,worldId:authority.worldId,epoch:authority.epoch,
+        boundaryOperationId:itemClass==='ORDINARY'?op:null,
+        externalFence:()=>uceLegacyWriterBlocked()&&
+            !!uceAuthoritySnapshot(),
+        verifyEndpointOwner,
+        durableOwnershipWitness:custodyRegistry.durableOwnershipWitness,
+        certifyOrdinaryEscrow:(item,key,count)=>
+            key===ordinaryKey&&count===stack.amount&&identity(item),
+        verifyLedgerBoundaryReceipt:receiptProof
+    });
+    if(!port.ok){uceBridgeLog('ejected native port '+port.reason);return;}
+    if(itemClass==='ORDINARY'){
+        const changed=ucePerfTimedOperation('ordinary',()=>
+            executeUnifiedEjectedOrdinaryDeposit({
+                world,worldId:authority.worldId,epoch:authority.epoch,
+                operationId:op,accountId:'receiver:'+receiver.id,
+                key:ordinaryKey,count:stack.amount,
+                registry:custodyRegistry,port,writer,ownerId,anchor,
+                carrierSlot:to,
+                entity,sourceOwnerId,verifyRoute:linkedRoute,
+                verifyOrdinary:meta=>meta.accountId===
+                    'receiver:'+receiver.id&&
+                    meta.key===ordinaryKey&&
+                    meta.count===stack.amount&&
+                    meta.direction==='deposit'&&
+                    identity(itemEntityStack(entity))
+            }));
+        if(!changed.ok)uceBridgeLog(
+            'ejected ordinary boundary HOLD '+changed.reason,ownerId);
+        else ucePerfRecordMove('ordinary',stack.amount);
+        return;
+    }
+    const staged=port.stageEjectedItem({
+        operationId:op,entity,sourceOwnerId,to});
+    if(!staged.ok){
+        uceBridgeLog('ejected item stage HOLD '+staged.reason);
+        return;
+    }
+    const ticket=registry.stageMovedTicket({ownerId,anchor});
+    if(!ticket.ok){
+        uceBridgeLog('ejected item ticket HOLD '+ticket.reason);
+        return;
+    }
+    const ack=port.ackEjectedItem({
+        operationId:op,entity,sourceOwnerId,to});
+    if(!ack.ok)uceBridgeLog('ejected item ACK HOLD '+ack.reason);
+}
+
+/*
+ * Explicit empty-LAB-world bootstrap to enable BDS integration acceptance
+ * WITHOUT endangering the archived 1.4.1 baseline. Any Q4 history, legacy
+ * Collector/Receiver, journal or preexisting UCE authority refuses before
+ * writing. No archived-world migration is performed or approved here.
+ */
+function uceActivateEmptyLabWorld(origin){
+    const entity=origin?.sourceEntity;
+    const say=message=>{
+        if(entity&&typeof entity.sendMessage==='function')
+            entity.sendMessage(message);
+        else log(message.replace(/§./g,''));
+    };
+    if(!ready){
+        say('§c[UCE] Startup incomplete; empty-LAB activation HOLD.');
+        return;
+    }
+    const receipt=uceNativeReceiptId();
+    if(!receipt){
+        say('§c[UCE] No safe world ID available; HOLD.');
+        return;
+    }
+    const worldId='minecraft:overworld:uce-empty-'+receipt;
+    const result=activateUnifiedEmptyWorld({
+        world,logistics,worldId,epoch:1,
+        operatorAuthorized:true,
+        actualWorldFence:()=>uceLegacyWriterBlocked()
+    });
+    if(!result.ok){
+        say('§c[UCE] Empty-LAB activation HOLD: '+result.reason);
+        return;
+    }
+    const checked=inspectUnifiedActiveColdImport({
+        world,worldId:result.worldId,epoch:result.epoch});
+    if(!checked.ok||!uceHydrateNewReceivers()){
+        say('§c[UCE] Readback/refresh ambiguous. Preserve LAB world; no automatic retry.');
+        return;
+    }
+    say('§a[UCE] EMPTY LAB world activated with '+result.shardCount+
+        ' sealed new-Receiver reservations. No Q4 items were moved.');
+    say('§7SOURCE CANDIDATE ONLY: BDS gameplay acceptance and release approval still required.');
+}
