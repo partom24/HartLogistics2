@@ -16,7 +16,7 @@ import {inspectUnifiedOrdinaryLedger,
   transitionUnifiedOrdinaryAccounts,
   transitionUnifiedOrdinaryBoundary,
   registerUnifiedEmptyAccount,
-  retireUnifiedUnusedBulkAccount} from './unified_ordinary_accounts.mjs';
+  retireUnifiedEmptyBulkAccount} from './unified_ordinary_accounts.mjs';
 
 export const UCE_SHARD_SCHEMA='hart-uce-world-shard-v1';
 export const UCE_AUTHORITY_SCHEMA='hart-uce-world-authority-v1';
@@ -574,7 +574,7 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
 
 
   /**
-   * Remove exactly one already vacant, NEVER USED Bulk member in this shard.
+   * Remove exactly one fully drained Bulk member in this shard.
    * Global PREPARED marker must be owned by the requesting operation, and
    * physical AIR must be authenticated again before the one-property write.
    */
@@ -602,12 +602,13 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       catch(_){return false;}
     };
     if(!proved())return hold('bulk_physical_vacancy_not_verified');
-    const step=retireUnifiedUnusedBulkAccount(before,{
+    const step=retireUnifiedEmptyBulkAccount(before,{
       ownerId,expectedRevision,expectedEpoch});
     if(!step.ok)return hold(step.reason);
     const receipt={kind:'RETIRE_EMPTY_BULK',operationId,epoch,
       revision:step.next.revision,beforeRevision:before.revision,
-      accountId:'bulk:'+ownerId,shardKey};
+      accountId:'bulk:'+ownerId,shardKey,
+      retiredLifetime:step.retiredLifetime};
     const updated=pack(shardKey,step.next,receipt);
     if(!updated.ok)return updated;
     const current=read(world,shardKey);
