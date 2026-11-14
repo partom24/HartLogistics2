@@ -77,15 +77,96 @@ def checked_lab_root_stopped():
     return root
 
 
+
+def rebuild_v2_staged_properties(original: bytes) -> bytes:
+    """Recreate the exact v2 PowerShell Prepare transformation, read-only.
+
+    The SHA in the unchanged original receipt authenticates this output;
+    it must equal the recorded stagedSha256 before any live drift is evaluated.
+    """
+    try:
+        text=original.decode("utf-8")
+    except UnicodeError as err:
+        raise lab.UnsafeLab("Original settings are not exact UTF-8") from err
+    newline="\r\n" if "\r\n" in text else "\n"
+    after=text
+    for key,value in (
+        ("level-name",WORLD),("level-type","FLAT"),
+        ("gamemode","creative"),("allow-cheats","true")
+    ):
+        pattern=r"^[ \t]*"+re.escape(key)+r"[ \t]*=[^\r\n]*"
+        found=list(re.finditer(pattern,after,re.MULTILINE))
+        if len(found)>1:
+            raise lab.UnsafeLab("Ambiguous original property "+key)
+        if not found:
+            if key=="level-name":
+                raise lab.UnsafeLab("Original settings missing level-name")
+            if after and not after.endswith("\n"):
+                after+=newline
+            after+=key+"="+value+newline
+        else:
+            # Match the v2 PowerShell script's single-line Regex.Replace.
+            after=re.sub(pattern,lambda _match:key+"="+value,after,
+                         flags=re.MULTILINE)
+    return after.encode("utf-8")
+
+
+def active_property_lines(raw: bytes) -> list[str]:
+    """Retain exact ordered active configuration lines, excluding ONLY
+    comments and completely blank lines. Do not normalize values, discard
+    duplicate keys, or accept an unreviewed changed active server setting.
+    """
+    try:
+        lines=raw.decode("utf-8").splitlines()
+    except UnicodeError as err:
+        raise lab.UnsafeLab("Unreadable live server.properties") from err
+    return [line for line in lines
+            if line.strip() and not line.lstrip().startswith("#")]
+
+
+def assert_authenticated_stage(props: bytes, receipt: dict, prior: bytes) -> None:
+    if (receipt.get("schema")!="hl-diagnostic-flat-v1" or
+        receipt.get("worldName")!=WORLD or
+        receipt.get("originalSha256")!=digest(prior)):
+        raise lab.UnsafeLab(
+            "Flat-world stage identity/original backup SHA mismatch; no writes")
+    expected=rebuild_v2_staged_properties(prior)
+    if digest(expected)!=receipt.get("stagedSha256"):
+        raise lab.UnsafeLab(
+            "Staged snapshot cannot be reconstructed from original; "
+            "receipt or backup differs from actual v2 Prepare; no writes")
+    if digest(props)==receipt["stagedSha256"]:
+        return
+    # BDS may change comments, blank lines or line endings on startup.
+    # Allow these representation-only changes ONLY if every active line,
+    # including every unrelated setting and its exact value, is unchanged.
+    saved=active_property_lines(expected)
+    live=active_property_lines(props)
+    if saved!=live:
+        first=next((i for i in range(min(len(saved),len(live)))
+                    if saved[i]!=live[i]),min(len(saved),len(live)))
+        def label(lines):
+            if first>=len(lines):return "<no line>"
+            return lines[first].split("=",1)[0].strip()[:64]
+        raise lab.UnsafeLab(
+            "Live server.properties changed an active setting or its order "
+            "since staging; refusing. First differing keys: staged="+
+            label(saved)+" live="+label(live)+
+            "; staged SHA="+digest(expected)+
+            "; live SHA="+digest(props)+
+            ". Do NOT edit the receipt or backup; inspect differences read-only.")
+    print(
+        "LAB STAGE NOTE: changed server.properties bytes are limited to "
+        "comments, blank lines or line endings. All ordered active "
+        "settings and values match the original SHA-authenticated v2 stage. "
+        "No receipt or world files were changed.")
+
+
 def check_stage(root):
     props=read(root,"server.properties")
     receipt=json.loads(read(root,STATE+"/staged.json"))
     prior=read(root,STATE+"/server.properties.original")
-    if (receipt.get("schema")!="hl-diagnostic-flat-v1" or
-        receipt.get("worldName")!=WORLD or
-        receipt.get("stagedSha256")!=digest(props) or
-        receipt.get("originalSha256")!=digest(prior)):
-        raise lab.UnsafeLab("Diagnostic-world stage/rollback SHA receipt mismatch")
+    assert_authenticated_stage(props,receipt,prior)
     lines=props.decode("utf-8-sig").splitlines()
     for key,value in (("level-name",WORLD),("level-type","FLAT"),
                       ("gamemode","creative"),("allow-cheats","true")):
