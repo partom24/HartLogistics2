@@ -29,8 +29,11 @@ function ucePipeSameDimension(root,block) {
  * topology-dirty flag is clear. Entries are referenced (not copied), so
  * live Filter/mode/redstone checks still inspect their current values.
  *
- * No pipe graph, inventory, neighbor, link or native destination is cached:
- * each custody operation revalidates physical topology and item capacity.
+ * Small graphs are still fully reread for each transaction. Larger graphs
+ * have a short-lived, mutation-epoch-fenced complete topology certificate,
+ * assembled by a time-sliced read-only job; native item destinations and
+ * physical/ledger owners remain independently checked at every operation.
+ * Gameplay integration must verify that foreign block mutations are fenced.
  * Unknown tick authority or any pending Sorter topology rebuild disables
  * the optimization completely.
  */
@@ -65,7 +68,95 @@ function ucePipeSorterRegistryIndex(){
         tick,owner:registry,length:registry.length,index}:undefined;
     return index;
 }
-function ucePipeRouteNetwork(receiver) {
+// Monotonic, process-local invalidation for player/piston/explosion edits.
+// This is not a persisted custody authorizer. Restart must rediscover.
+let ucePipeTopologyEpoch=0;
+const ucePipeGraphTasks=new Map();
+function ucePipeTopologyChanged(){
+    ucePipeTopologyEpoch++;
+    ucePipeGraphTasks.clear();
+}
+function ucePipeCachedGraphValid(task,receiver){
+    try{
+        const tick=system.currentTick;
+        if(!Number.isSafeInteger(tick)||tick<task.started||
+           tick-task.finished>40||
+           task.epoch!==ucePipeTopologyEpoch||
+           task.registry!==registry||
+           task.count!==registry.length||
+           typeof dirty==='undefined'||dirty!==false||
+           !receiver||receiver.present===false||
+           task.receiver!==receiver.id||
+           !receiverAt(receiver))return false;
+        return true;
+    }catch(_){return false;}
+}
+function ucePipeRouteNetwork(receiver){
+    try{
+        if(!receiver||receiver.present===false)return undefined;
+        const tick=system.currentTick;
+        const canDefer=Number.isSafeInteger(tick)&&tick>=0&&
+            typeof system.runJob==='function'&&
+            typeof dirty!=='undefined'&&dirty===false;
+        const id=receiver.id;
+        const task=canDefer?ucePipeGraphTasks.get(id):undefined;
+        if(task){
+            if(!ucePipeCachedGraphValid(task,receiver)){
+                ucePipeGraphTasks.delete(id);
+            }else if(task.done)return task.graph;
+            else return undefined; // incomplete topology NEVER authorizes custody
+        }
+        // No transaction may use a PARTIAL scan. Short networks preserve
+        // their original synchronous full read and live native checks.
+        const scan=ucePipeScanGenerator(receiver);
+        for(let i=0;i<=UCE_MAX_LOADED_PIPES;i++){
+            const next=scan.next();
+            if(next.done)return next.value;
+        }
+        if(!canDefer)return undefined;
+        const state={receiver:id,epoch:ucePipeTopologyEpoch,
+            registry,count:registry.length,started:tick,
+            finished:tick,done:false,graph:undefined};
+        ucePipeGraphTasks.set(id,state);
+        try{
+            system.runJob((function*(){
+                while(true){
+                    if(ucePipeGraphTasks.get(id)!==state||
+                       state.epoch!==ucePipeTopologyEpoch||
+                       registry!==state.registry||
+                       registry.length!==state.count||
+                       typeof dirty==='undefined'||dirty!==false){
+                        if(ucePipeGraphTasks.get(id)===state)
+                            ucePipeGraphTasks.delete(id);
+                        return;
+                    }
+                    const next=scan.next();
+                    if(next.done){
+                        if(next.value&&
+                           ucePipeGraphTasks.get(id)===state&&
+                           receiverAt(receiver)){
+                            state.graph=next.value;
+                            state.finished=system.currentTick;
+                            state.done=true;
+                        }else if(ucePipeGraphTasks.get(id)===state)
+                            ucePipeGraphTasks.delete(id);
+                        return;
+                    }
+                    yield; // the Bedrock job scheduler decides work per tick
+                }
+            })());
+        }catch(_){
+            if(ucePipeGraphTasks.get(id)===state)
+                ucePipeGraphTasks.delete(id);
+        }
+        return undefined;
+    }catch(_){return undefined;}
+}
+// The complete reader is a generator: its large graphs are time-sliced,
+// but an incomplete, unloaded, conflicting or invalid topology always HOLDS.
+function ucePipeScanGenerator(receiver){
+    return (function*(){
+
     try{
         if(!receiver||receiver.present===false)return undefined;
         const root=receiverAt(receiver);
@@ -178,6 +269,7 @@ function ucePipeRouteNetwork(receiver) {
                     return undefined;
                 }
             }
+            yield;
         }
         if(!endpoints.size&&!banks.size&&!inputs.size)return undefined;
         // A Bulk block touching TWO disconnected pipe graphs would create
@@ -234,6 +326,7 @@ function ucePipeRouteNetwork(receiver) {
                 pg26PositionKey(a.block.location).localeCompare(
                   pg26PositionKey(b.block.location)))};
     }catch(_){return undefined;}
+    })();
 }
 function uceReadOnlyPipeInput(block,root){
     try{
