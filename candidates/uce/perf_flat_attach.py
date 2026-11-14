@@ -143,6 +143,23 @@ def assert_authenticated_stage(props: bytes, receipt: dict, prior: bytes) -> Non
     saved=active_property_lines(expected)
     live=active_property_lines(props)
     if saved!=live:
+        # Exactly ONE changed active property is permitted in this
+        # performance-only world: auto-attach disabled. The staging receipt
+        # still proves every original byte; all unrelated settings remain
+        # an exact ordered match. Never accept debugger connect/listen live.
+        changes=[(a,b) for a,b in zip(saved,live) if a!=b]
+        if (len(saved)==len(live) and len(changes)==1 and
+            changes[0][0] in (
+                "script-debugger-auto-attach=connect",
+                "script-debugger-auto-attach=listen") and
+            changes[0][1]=="script-debugger-auto-attach=disabled"):
+            print(
+                "LAB STAGE VERIFIED: exactly one active setting changed: "
+                +changes[0][0]+" -> script-debugger-auto-attach=disabled. "
+                "All other active settings and order match the SHA-verified "
+                "staging snapshot. Comments/line endings may differ. "
+                "No LAB files changed.")
+            return
         first=next((i for i in range(min(len(saved),len(live)))
                     if saved[i]!=live[i]),min(len(saved),len(live)))
         def label(lines):

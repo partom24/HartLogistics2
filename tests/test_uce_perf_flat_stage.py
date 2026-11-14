@@ -65,6 +65,54 @@ class FlatStageReceiptTests(unittest.TestCase):
             self.check(live,self.receipt,self.original)
         self.assertIn("All ordered active",output.getvalue())
 
+    def test_debugger_auto_attach_enabled_to_disabled_is_safe_for_perf(self):
+        for initial in (b"connect",b"listen"):
+            original=self.original+b"script-debugger-auto-attach="+initial+b"\r\n"
+            staged=self.api["rebuild_v2_staged_properties"](original)
+            receipt={
+                **self.receipt,
+                "originalSha256":self.api["digest"](original),
+                "stagedSha256":self.api["digest"](staged),
+            }
+            live=staged.replace(b"script-debugger-auto-attach="+initial,
+                                b"script-debugger-auto-attach=disabled")
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.check(live,receipt,original)
+            self.assertIn("exactly one active setting changed",output.getvalue())
+            self.assertIn("script-debugger-auto-attach=disabled",output.getvalue())
+
+    def test_debugger_auto_attach_disabled_to_listen_is_refused(self):
+        original=self.original+b"script-debugger-auto-attach=disabled\r\n"
+        staged=self.api["rebuild_v2_staged_properties"](original)
+        receipt={
+            **self.receipt,
+            "originalSha256":self.api["digest"](original),
+            "stagedSha256":self.api["digest"](staged),
+        }
+        live=staged.replace(b"script-debugger-auto-attach=disabled",
+                            b"script-debugger-auto-attach=listen")
+        with self.assertRaisesRegex(Refused,"script-debugger-auto-attach"):
+            self.check(live,receipt,original)
+
+    def test_two_active_setting_changes_refused_even_with_debugger_disabled(self):
+        original=self.original+b"script-debugger-auto-attach=listen\r\n"
+        staged=self.api["rebuild_v2_staged_properties"](original)
+        receipt={
+            **self.receipt,
+            "originalSha256":self.api["digest"](original),
+            "stagedSha256":self.api["digest"](staged),
+        }
+        live=staged.replace(b"script-debugger-auto-attach=listen",
+                            b"script-debugger-auto-attach=disabled")
+        live=live.replace(b"server-port=19132",b"server-port=19133")
+        with self.assertRaisesRegex(Refused,"staged=server-port"):
+            self.check(live,receipt,original)
+
+    def test_added_debugger_setting_not_whitelisted(self):
+        live=self.staged+b"script-debugger-auto-attach=disabled\r\n"
+        with self.assertRaisesRegex(Refused,"active setting or its order"):
+            self.check(live,self.receipt,self.original)
+
     def test_modified_unrelated_active_setting_is_refused(self):
         changed=self.staged.replace(b"server-port=19132",b"server-port=19133")
         with self.assertRaisesRegex(Refused,"staged=server-port"):
