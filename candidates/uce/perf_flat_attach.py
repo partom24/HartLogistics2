@@ -255,13 +255,54 @@ def report_legacy_pack_diff(root: Path) -> None:
     print("END read-only comparison. No packs, worlds or receipts changed.")
 
 
+# One authorized performance-modified LAB 1.4.1 predecessor.
+# Both changes were owner-inspected in git diff: only reconcileDisplays()
+# (incremental pass) and processColumn() (empty Hopper fast exit).
+# Keep frozen addon/ and BASELINE_HASHES.json unchanged.
+PERF_141_BASE_MAIN_SHA256="6be6be0c22fd3d6694feb7cb25e642eaa62bed667c17045be57ce4268293c461"
+PERF_141_PATCHED_MAIN_SHA256="f0340e332025790c12f986eb1e126836333f7907883b415381ac86e944d"
+
+
+def exact_perf_141_pack_hashes(kind: str) -> dict[str, str]:
+    if kind not in ("behavior_pack", "resource_pack"):
+        raise lab.UnsafeLab("Unsupported LAB predecessor pack type")
+    if lab.validate_source(ROOT)!=(1,4,1):
+        raise lab.UnsafeLab("Original 1.4.1 source is not SHA-authenticated")
+    expected=lab.hashes(ROOT/"addon"/kind)
+    if kind=="behavior_pack":
+        if expected.get("scripts/main.js")!=PERF_141_BASE_MAIN_SHA256:
+            raise lab.UnsafeLab("Frozen original 1.4.1 script fingerprint changed")
+        expected["scripts/main.js"]=PERF_141_PATCHED_MAIN_SHA256
+    return expected
+
+
 def targets(root):
     try:
-        return common.pack_targets(root) # Existing immutable 1.4.1/1.5 gate.
+        return common.pack_targets(root) # Unchanged original/UCE branch.
     except lab.UnsafeLab as err:
-        if "Installed legacy pack differs from immutable baseline:" in str(err):
-            report_legacy_pack_diff(root)
-        raise
+        # Do not broaden the predecessor allowlist for *any* other refusal.
+        if str(err)!="Installed legacy pack differs from immutable baseline: behavior_pack":
+            raise
+        verified=[]
+        for i,(kind,folder,identifier,_) in enumerate(lab.PACKS):
+            target=root/common.PACK_DIRS[i]
+            lab.assert_no_link(target)
+            if not target.is_dir() or target.parent.name!=folder:
+                raise lab.UnsafeLab("Unexpected performance predecessor pack path")
+            manifest=json.loads(read(target,"manifest.json"))
+            if (manifest.get("header",{}).get("uuid")!=identifier or
+                lab.v3(manifest.get("header",{}).get("version"))!=(1,4,1)):
+                raise lab.UnsafeLab("Unexpected performance predecessor UUID/version")
+            expected=exact_perf_141_pack_hashes(kind)
+            if lab.hashes(target)!=expected:
+                report_legacy_pack_diff(root)
+                raise lab.UnsafeLab(
+                    "LAB predecessor not the exact single-file allowlisted 1.4.1 performance candidate: "+kind)
+            verified.append(target)
+        print("LAB PREDECESSOR VERIFIED: 1.4.1 72-file pack tree; only BP scripts/main.js "
+              "has the exact owner-inspected performance SHA-256 "+PERF_141_PATCHED_MAIN_SHA256)
+        print("Rollback preserves original installed patched 1.4.1 files byte for byte.")
+        return verified
 
 def build(temp):
     source=Path(temp)/"uce"
@@ -291,9 +332,9 @@ def install_plan(root,source,hashes):
         else:
             raw=b"[]\n"
             missing.append(reg)
-        expected=lab.hashes(ROOT/"addon"/kind)
+        expected=exact_perf_141_pack_hashes(kind)
         if lab.hashes(p)!=expected:
-            raise lab.UnsafeLab("Installed 1.4.1 pack changed from frozen baseline")
+            raise lab.UnsafeLab("Installed 1.4.1 pack differs from exact approved performance predecessor")
         plan.append({
             "target":p,"registry":reg,"source":source/kind,
             "old_bytes":raw,"old_hashes":expected,
@@ -325,10 +366,11 @@ def rollback_plan(root,source,hashes,tag):
         oldreg=backup/f"registry-{i}.bin"
         lab.assert_no_link(oldpack)
         lab.assert_no_link(oldreg)
-        previous=lab.hashes(ROOT/"addon"/kind)
+        previous=exact_perf_141_pack_hashes(kind)
         if (not oldpack.is_dir() or lab.hashes(oldpack)!=previous or
             read(backup,oldreg.name)!=b"[]\n"):
-            raise lab.UnsafeLab("Previous exact 1.4.1 pack/registry backup mismatch")
+            raise lab.UnsafeLab(
+                "Previous exact performance-patched 1.4.1 pack/registry backup mismatch")
         plan.append({
             "target":live,"registry":reg,"source":oldpack,
             "old_bytes":raw,"old_hashes":hashes[kind],

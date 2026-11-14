@@ -44,6 +44,7 @@ jobs:
           node --test tests/test_uce_perf_flat_diag.mjs
           python -m py_compile candidates/uce/perf_flat_attach.py
           python -m unittest discover -s tests -p 'test_uce_perf_flat_stage.py' -v
+          python -m unittest discover -s tests -p 'test_uce_perf_flat_predecessor.py' -v
       - name: Build actual candidate and execute generated-main behavior
         run: python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
       - name: Confirm freeform new-world handoff needs no previous LAB world
