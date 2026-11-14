@@ -52,17 +52,7 @@ def checked_lab_root_stopped():
     lab.assert_no_link(root)
     if ntpath.normcase(str(root.resolve(strict=True)))!=ntpath.normcase(lab.LAB):
         raise lab.UnsafeLab("LAB root points outside authorized path")
-    script=(
-        "$ErrorActionPreference='Stop'; "
-        "Get-CimInstance Win32_Process -Filter "
-        "\\"Name='bedrock_server.exe'\\" -ErrorAction Stop | "
-        "ForEach-Object {"
-        " if(-not $_.ExecutablePath){"
-        "  throw ('Cannot resolve running BDS executable PID '+$_.ProcessId)"
-        " };"
-        " Write-Output $_.ExecutablePath"
-        " }"
-    )
+    script="""$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Filter "Name='bedrock_server.exe'" -ErrorAction Stop | ForEach-Object { if(-not $_.ExecutablePath) { throw ('Cannot resolve running BDS executable PID '+$_.ProcessId) }; Write-Output $_.ExecutablePath }"""
     try:
         result=subprocess.run(
             ["powershell.exe","-NoProfile","-NonInteractive","-Command",script],
@@ -75,7 +65,7 @@ def checked_lab_root_stopped():
         raise lab.UnsafeLab(
             "Cannot prove LAB BDS is stopped; no writes. "
             "Run elevated if needed. "+detail[:450])
-    prefix=ntpath.normcase(lab.LAB).rstrip("\\\\")+"\\\\"
+    prefix=ntpath.normcase(lab.LAB).rstrip("\\")+"\\"
     for executable in result.stdout.splitlines():
         path=ntpath.normcase(ntpath.normpath(executable.strip()))
         if not ntpath.isabs(path):
