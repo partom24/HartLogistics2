@@ -18,6 +18,7 @@ DISPLAY_RECONCILE=ROOT/"candidates/uce/runtime_display_reconcile.js"
 PIPE_ROUTE=ROOT/"candidates/uce/runtime_pipe_route.js"
 LINK_MENU=ROOT/"candidates/uce/runtime_link_menu.js"
 REMOTE_BULK=ROOT/"candidates/uce/runtime_remote_bulk_bridge.js"
+PERF_FLAT=ROOT/"candidates/uce/runtime_perf_flat_diag.js"
 ASSET=ROOT/"candidates/uce/assets/entities/uce_native_carrier.json"
 VERSION=[1,5,16]
 MODULES=(
@@ -250,7 +251,7 @@ def compile_patch(source,bridge):
       "        },\n"+
       "        origin => { system.run(() => uceActivateEmptyLabWorld(origin)); }\n"+
       "    );"+
-      "\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf',\n            description: 'HL2 read-only performance panel and thresholds.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'status')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf_on',\n            description: 'Enable session-only HL2 performance monitoring.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'on')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf_off',\n            description: 'Disable HL2 performance monitoring.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'off')); }\n    );")
+      "\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf',\n            description: 'HL2 read-only performance panel and thresholds.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'status')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf_on',\n            description: 'Enable session-only HL2 performance monitoring.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'on')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:perf_off',\n            description: 'Disable HL2 performance monitoring.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerformancePanel(origin,'off')); }\n    );\n    event.customCommandRegistry.registerCommand(\n        {\n            name: 'hartlogistics:diag_index_flat',\n            description: 'OP-only one-time 1387-Sorter flat benchmark index.',\n            permissionLevel: CommandPermissionLevel.GameDirectors,\n            cheatsRequired: false\n        },\n        origin => { system.run(() => ucePerfFlatIndex(origin)); }\n    );")
     source=once(source,
       "    system.runTimeout(() => processEjectedItemEntity(ev.entity, 0, spawnLoc), 1);",
       "    system.runTimeout(() => {\n"+
@@ -392,7 +393,8 @@ def prepare(target):
               DISPLAY_RECONCILE.read_text(encoding="utf-8")+"\n"+
               PIPE_ROUTE.read_text(encoding="utf-8")+"\n"+
               LINK_MENU.read_text(encoding="utf-8")+"\n"+
-              REMOTE_BULK.read_text(encoding="utf-8")),encoding="utf-8")
+              REMOTE_BULK.read_text(encoding="utf-8")+"\n"+
+              PERF_FLAT.read_text(encoding="utf-8")),encoding="utf-8")
             (target/"NOT_APPROVED_FOR_INSTALL.txt").write_text(
               "UCE integrated SOURCE build ONLY by default. NO manual install.\n"
               "For owner-approved stopped-LAB acceptance, use ONLY the exact-SHA\n"
