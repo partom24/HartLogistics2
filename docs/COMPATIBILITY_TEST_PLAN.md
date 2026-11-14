@@ -1,5 +1,10 @@
 # Hart Logistics — Compatibility and Acceptance Matrix
 
+## Next owner acceptance overrides historic rig plan (2026-11-14)
+
+The next hands-on session is unrestricted player building and normal gameplay in the existing restored production-derived LAB world. No new world, exact coordinates, mandatory Sorter count, item list/quantity, construction order, special spacing or dictated connection pattern. The old exact-rig instructions below are historical only and are not permitted as future acceptance instructions. Retain accepted evidence without replay. In-place nonempty-Q4 migration, metadata preservation, safe unrestricted network discovery and explicit authorized stopped-LAB rollback must be ready first. Any normal valid build rejected because of a hidden size/order/shape assumption is a product defect.
+
+
 **Planning checklist, not execution evidence.** Target reported by owner: **Dedicated server 1.26.63.1; client 26.63**. The original 1.4.1 pack minimum **1.26.50** remains a separate compatibility claim requiring testing. All **in-game, release and migration tests occur exclusively** at LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`, on copied/disposable worlds; production `C:\Servers\Thomas_MCBedrock` is out of bounds. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
