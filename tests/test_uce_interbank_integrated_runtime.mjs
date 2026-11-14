@@ -49,7 +49,9 @@ const end=production.indexOf('\n\n/* Bulk Storage',start);
 assert.ok(start>0&&end>start,'exact integrated ordinary scheduler found');
 const routeNames=[
   'ucePipeSameDimension','ucePipeSorterRegistryIndex',
-  'ucePipeRouteNetwork','uceReadOnlyPipeInput',
+  'ucePipeTopologyChanged','ucePipeCachedGraphValid',
+  'ucePipeScanGenerator','ucePipeRouteNetwork',
+  'uceReadOnlyPipeInput',
   'ucePipeSourceStillConnected','uceReadOnlySorterDestination',
   'ucePipeStorageOwnerId','ucePipeEmptySlot','ucePipeAutoSeed',
   'ucePipeHasUnresolvedForwarding',
@@ -67,6 +69,8 @@ const route=generated?[
     return match[0];
   }),
   'let ucePipeSorterIndexCache;',
+  'let ucePipeTopologyEpoch=0;',
+  'const ucePipeGraphTasks=new Map();',
   'let uceSorterCollectorColumnCache;',
   ...routeNames.map(name=>exactFunction(generated,name))
 ].join('\n'):pipe;
