@@ -1,5 +1,17 @@
 # Hart Logistics 2 — contributor operating contract
 
+## Owner override: unrestricted, existing-world player acceptance (2026-11-14)
+
+This supersedes prior instructions requiring new worlds, exact-coordinate rigs, fixed component or item counts, prescribed build order or network connection patterns for the NEXT gameplay acceptance.
+The next player test must happen in the existing production-derived, restored LAB world. The player freely builds, connects, links, expands, configures, breaks and rebuilds supported components in any location, number, order or supported arrangement allowed by ordinary Minecraft mechanics. Existing 1.4.1 world items, Q4 records, links, native metadata and other addons must survive the upgrade. The owner-provided stacked bank diagram is a compatibility reference, not a required test layout.
+
+No arbitrary HartLogistics network-size ceilings are acceptable. Native Minecraft world-height and inventory rules, per-block capacity and valid connection semantics remain. Internal processing budgets may protect server TPS but cannot prohibit large player-built networks. Unloaded or unknown ownership must safely HOLD; never lose, duplicate, reconstruct opaque item data or silently choose lower-priority destinations.
+
+NOT READY: runtime_pipe_route.js still has a hard 128-loaded-pipe graph refusal; authenticated nonempty 1.4.1 Q4 migration with opaque/MR fidelity is not yet runtime-wired. Fix these with safe incremental topology work and a guarded in-place upgrade, preserving the single custody writer. Simply removing the traversal safety guard without a bounded replacement would be unsafe.
+
+Do not use the newly added fresh-world freeform launcher, empty-world activation, a world reset or manual draining of an existing Receiver as a substitute. No LAB installation or data migration is automatically authorized; require independently approved exact stopped-LAB pack/world verification, backup and rollback. Treat all previously recorded PG test evidence as accepted without repetition. Synthetic CI fixtures may use coordinates/counts internally but must never constrain the player.
+
+
 ## Current owner engineering mandate (2026-11-13)
 
 The owner explicitly authorizes continued HartLogistics2 implementation,
