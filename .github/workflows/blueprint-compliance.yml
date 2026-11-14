@@ -41,6 +41,10 @@ jobs:
           node --test tests/test_uce_empty_bulk_removal.mjs
       - name: Build actual candidate and execute generated-main behavior
         run: python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
+      - name: Confirm freeform new-world handoff needs no previous LAB world
+        run: |
+          python -m py_compile candidates/uce/freeform_lab.py
+          python -m unittest discover -s tests -p 'test_uce_freeform_lab.py' -v
   structural-contract:
     runs-on: ubuntu-latest
     steps:
@@ -821,6 +825,29 @@ jobs:
             if (-not $rejected) { throw ('UCE did not refuse unsafe arguments: ' + ($argsSet -join ' ')) }
           }
           Write-Host 'UCE launcher syntax and fail-closed CLI PASS'
+      - name: HL2 freeform two-command launcher syntax and refusal on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path '.\candidates\uce\Start-HartLogistics-FreeformLab.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw ($errors | Out-String) }
+          $source = Get-Content -LiteralPath $launcher -Raw
+          foreach ($anchor in @('Prepare','Finish','ExpectedCommit','Assert-Unlinked',
+              'freeform_lab.py','HartLogistics2-FullProduct-LAB')) {
+              if (-not $source.Contains($anchor)) { throw ('HL2 missing freeform source gate: '+$anchor) }
+          }
+          foreach ($argsSet in @(
+              @('-Mode','Prepare'),
+              @('-Mode','Finish','-ExpectedCommit','wrong'),
+              @('-Mode','Plan','-ExpectedCommit','abc')
+          )) {
+              $denied = $false
+              try { & $launcher @argsSet | Out-Null } catch { $denied = $true }
+              if (-not $denied) { throw ('Unsafe freeform mode was accepted: '+($argsSet -join ' ')) }
+          }
       - name: HL2 integrated product launcher syntax, refusals and synthetic PG42 handoff on Windows
         shell: pwsh
         run: |
