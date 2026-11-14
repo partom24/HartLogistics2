@@ -1558,8 +1558,8 @@ test('compact IB1/IBB1 path receipts preserve old short witnesses and full long-
   assert.equal(encode('unknown|'+'x'.repeat(9000)),undefined);
 });
 
-test('90 ordinary linked Receiver banks route to final Filter without long-witness refusal',()=>{
-  const f=fixture(),banks=90;
+test('120 ordinary linked Receiver banks route to final Filter without long-witness refusal',()=>{
+  const f=fixture(),banks=120;
   f.filter.m='bypass';f.fallback.m='wildcard';
   f.chestB.typeId='hartsorter:collector';
   const addLink=(block,receiver)=>{
@@ -1594,14 +1594,14 @@ test('90 ordinary linked Receiver banks route to final Filter without long-witne
   assert.equal(f.context.collectorAt(f.collectors[0]),f.chestB);
   assert.equal(f.context.findReceiverById(f.collectors[0].link),f.registeredReceivers[1]);
   const root=f.network();
-  assert.ok(root,'90-bank source network must resolve before remote routing');
+  assert.ok(root,'120-bank source network must resolve before remote routing');
   assert.equal(root.entries.length,2);
   const firstRemote=f.registeredReceivers[1];
   const firstGraph=f.context.ucePipeRouteNetwork(firstRemote);
-  assert.ok(firstGraph,'90-bank first remote graph must be physically verified');
+  assert.ok(firstGraph,'120-bank first remote graph must be physically verified');
   assert.equal(firstGraph.entries.length,1);
   const lastGraph=f.context.ucePipeRouteNetwork(last);
-  assert.ok(lastGraph,'90-bank terminal Filter graph must be physically verified');
+  assert.ok(lastGraph,'120-bank terminal Filter graph must be physically verified');
   const scans=[],failures=[];
   const originalRead=f.context.ucePipeRouteNetwork;
   f.context.ucePipeRouteNetwork=owner=>{
@@ -1613,7 +1613,7 @@ test('90 ordinary linked Receiver banks route to final Filter without long-witne
   const select=()=>f.context.uceSelectInterbankFilteredRoute(
     f.receiver,root,COBBLE,f.context.uceAuthoritySnapshot());
   const found=select();
-  assert.ok(found,'full linked route across 90 verified banks must be usable; '+
+  assert.ok(found,'full linked route across 120 verified banks must be usable; '+
     'scanned='+scans.length+', last='+scans.at(-1)+', failed='+failures.join(','));
   assert.equal(found.receiver.id,last.id);
   assert.equal(found.hops,banks-1);
