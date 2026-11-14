@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {createHash} from 'node:crypto';
 
 /**
  * Exercise the exact source spliced into the Bedrock UCE main module, with
@@ -1495,4 +1496,47 @@ test('mid-discovery structural mutations revoke pending large network scan',()=>
   f.context.system.currentTick++;
   assert.equal(f.network(),undefined);
   assert.equal(jobs.length,2,'new topology requires a new full graph read');
+});
+
+test('route witness SHA-256 matches Node crypto for ASCII and Unicode',()=>{
+  const f=fixture();
+  for(const value of ['', 'abc',
+    'minecraft:overworld|3,70,4;37,69,4',
+    'metadata-\u2728-\ud83c\udf1f']){
+    const expected=createHash('sha256').update(value).digest('hex');
+    assert.equal(f.context.ucePipeSha256(value),expected);
+  }
+});
+
+test('large player network compact SHA witness stays within custody journal size',()=>{
+  const f=fixture(),jobs=[];
+  for(let x=1;x>=-900;x--)
+    f.put('hartlogistics:transporter',x,70,4);
+  f.context.system={currentTick:90,runJob:job=>{jobs.push(job);return jobs.length;}};
+  f.context.dirty=false;
+  assert.equal(f.network(),undefined);
+  let done=false;
+  for(let i=0;i<10000&&!done;i++){
+    f.context.system.currentTick++;
+    done=jobs[0].next().done;
+  }
+  assert.ok(done);
+  const first=f.network();
+  assert.ok(first);
+  assert.match(first.fingerprint,/^UCEG2-sha256:[a-f0-9]{64}$/);
+  assert.ok(first.fingerprint.length<200);
+  f.context.ucePipeTopologyChanged();
+  f.put('hartlogistics:transporter',-901,70,4);
+  assert.equal(f.network(),undefined);
+  assert.equal(jobs.length,2);
+  done=false;
+  for(let i=0;i<10000&&!done;i++){
+    f.context.system.currentTick++;
+    done=jobs[1].next().done;
+  }
+  assert.ok(done);
+  const second=f.network();
+  assert.ok(second);
+  assert.notEqual(second.fingerprint,first.fingerprint,
+    'a changed distant pipe invalidates the full canonical graph digest');
 });
