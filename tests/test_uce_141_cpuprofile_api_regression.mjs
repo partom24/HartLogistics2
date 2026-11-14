@@ -31,6 +31,7 @@ function sourceFixture(count=1387){
     source:{x:i,y:90,z:0}
   }));
   let dimensionLookups=0,blockLookups=0,inventoryReads=0;
+  let inventorySizeReads=0;
   const logs=[],ctx={
     columns,uceBridgeLog:s=>logs.push(s),
     getDimension:id=>{
@@ -43,25 +44,28 @@ function sourceFixture(count=1387){
     },
     hopperIsRedstoneLocked:()=>false,
     blockContainer:()=>({
-      isValid:true,size:5,
+      isValid:true,get size(){inventorySizeReads++;return 5;},
       getItem:()=>{inventoryReads++;return undefined;}
     })
   };
   vm.runInNewContext('let uceSorterDirectCursor=0;\n'+direct,ctx);
   return {columns,ctx,logs,
     tick:()=>ctx.uceSorterDirectServiceTick({worldId:'w',epoch:1}),
-    counts:()=>({dimensionLookups,blockLookups,inventoryReads})};
+    counts:()=>({dimensionLookups,blockLookups,inventoryReads,
+      inventorySizeReads})};
 }
 
 test('all 1387 scattered columns are checked, but each dimension is resolved once per service tick',()=>{
   const f=sourceFixture();
   f.tick();
   assert.deepEqual(f.counts(),
-    {dimensionLookups:3,blockLookups:1387,inventoryReads:5});
+    {dimensionLookups:3,blockLookups:1387,inventoryReads:5,
+      inventorySizeReads:1});
   assert.deepEqual(f.logs,[]);
   f.tick();
   assert.deepEqual(f.counts(),
-    {dimensionLookups:6,blockLookups:2774,inventoryReads:10},
+    {dimensionLookups:6,blockLookups:2774,inventoryReads:10,
+      inventorySizeReads:2},
     'loaded block and Hopper state must be re-observed on the NEXT tick');
 });
 test('direct Sorter does not scan a destination inventory twice before creating a native move',()=>{
@@ -77,6 +81,45 @@ test('route winner stores exactly one native preflight slot without replacing au
   assert.match(route,/block:target,container:dest,accepting/);
   assert.match(route,/function uceSorterColumnWinner\(column,item,settledSelection=undefined\)/);
   assert.match(route,/settledSelection\?\.entry===entry/);
+});
+test('compiled 1.5 reads destination inventory size ONCE per findAcceptSlot call',()=>{
+  if(!compiled)return;
+  const begin=compiled.indexOf('function findAcceptSlot(container, stack) {');
+  const end=compiled.indexOf('\n}\n\nfunction slotState(',begin);
+  assert.ok(begin>=0&&end>begin);
+  const ctx={};
+  vm.runInNewContext(compiled.slice(begin,end+2),ctx);
+  const stack={typeId:'minecraft:stone',amount:4,maxAmount:64};
+  let sizes=0,reads=0;
+  const slots=Array.from({length:27},()=>({
+    typeId:'minecraft:dirt',amount:64,maxAmount:64,
+    isStackableWith:other=>other.typeId==='minecraft:dirt'
+  }));
+  const container={get size(){sizes++;return slots.length;},
+    getItem:i=>{reads++;return slots[i];}};
+  slots[0]=undefined;
+  slots[20]={typeId:'minecraft:stone',amount:60,maxAmount:64,
+    isStackableWith:other=>other.typeId==='minecraft:stone'};
+  const chosen=ctx.findAcceptSlot(container,stack);
+  assert.equal(chosen?.slot,20,'partial stack outranks earlier empty slot');
+  assert.equal(chosen?.before,60);
+  assert.equal(chosen?.room,4);
+  assert.equal(sizes,1,'27-slot native container size must be read once');
+  assert.equal(reads,21,'every slot before the matching stack stays checked');
+  slots[20]={typeId:'minecraft:stone',amount:64,maxAmount:64,
+    isStackableWith:other=>other.typeId==='minecraft:stone'};
+  sizes=reads=0;
+  assert.equal(ctx.findAcceptSlot(container,stack)?.slot,0,
+    'when the matching stack is full, preserve original first empty');
+  assert.equal(sizes,1);
+  assert.equal(reads,27);
+  slots[0]={typeId:'minecraft:dirt',amount:64,maxAmount:64,
+    isStackableWith:other=>other.typeId==='minecraft:dirt'};
+  sizes=reads=0;
+  assert.equal(ctx.findAcceptSlot(container,stack),undefined,
+    'full destination must not accept extra items');
+  assert.equal(sizes,1);
+  assert.equal(reads,27);
 });
 test('compiled 1.5 still fences the original costly 1.4.1 Sorter writer under UCE',()=>{
   if(!compiled)return;
