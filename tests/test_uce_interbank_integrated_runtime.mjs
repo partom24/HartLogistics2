@@ -71,6 +71,7 @@ const route=generated?[
   }),
   'let ucePipeSorterIndexCache;',
   'let ucePipeTopologyEpoch=0;',
+  'let ucePipeEventFenceReady=false;',
   'const ucePipeGraphTasks=new Map();',
   'let uceSorterCollectorColumnCache;',
   ...routeNames.map(name=>exactFunction(generated,name))
