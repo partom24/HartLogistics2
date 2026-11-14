@@ -81,8 +81,10 @@ def compile_patch(source,bridge):
     # signal means large discoveries safely HOLD rather than cache stale
     # physical authority. Other packs' direct setType writes still require
     # separate BDS integration evidence before release.
+    # system.run defers event readiness until all appended UCE globals
+    # have initialized, avoiding top-level lexical TDZ in the compiled main.
     source += (
-      "\ntry {\n"+
+      "\nsystem.run(()=>{try {\n"+
       "  const events=world.afterEvents;\n"+
       "  if(events.playerPlaceBlock?.subscribe &&\n"+
       "     events.playerBreakBlock?.subscribe &&\n"+
@@ -94,7 +96,7 @@ def compile_patch(source,bridge):
       "    events.buttonPush?.subscribe(()=>ucePipeTopologyChanged());\n"+
       "    ucePipeEventFenceReady=true;\n"+
       "  }\n"+
-      "}catch(_){ucePipeEventFenceReady=false;}\n"
+      "}catch(_){ucePipeEventFenceReady=false;}});\n"
     )
     source=once(source,
       "onRedstoneUpdate: (ev) => {\n"+
