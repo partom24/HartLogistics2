@@ -45,9 +45,13 @@ function fixture({locked=false,occupied=false,ordinary=false}={}){
     supportedStorage:b=>b?.typeId==='minecraft:barrel',
     blockContainer:b=>b?.inventory,
     hopperIsRedstoneLocked:b=>locked||b.powered,
+    // Real route winner now supplies the accepting slot observed in its
+    // native storage preflight. The executor must reuse that snapshot,
+    // rather than issue a duplicate findAcceptSlot before the journal.
     uceSorterColumnWinner:(_,stack)=>
       stack?{kind:'storage',entry,source:{block:hopper},
-        block:dest,container:dest.inventory}:undefined,
+        block:dest,container:dest.inventory,
+        accepting:ctx.findAcceptSlot(dest.inventory,stack)}:undefined,
     uceNativeOutputSlot:c=>c.items.findIndex(x=>x===undefined),
     ucePlainItemIdentity:s=>s&&!s.lore?.length&&s.maxAmount===64?
       'minecraft:stone':undefined,
