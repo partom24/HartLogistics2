@@ -34,6 +34,7 @@ const generated=process.env.UCE_GENERATED_MAIN?
   fs.readFileSync(process.env.UCE_GENERATED_MAIN,'utf8'):undefined;
 const routeFunctions=[
   'ucePipeSha256','ucePipeFingerprint',
+  'ucePipeCompactInterbankWitness',
   'ucePipeSameDimension','ucePipeSorterRegistryIndex',
   'ucePipeTopologyChanged','ucePipeCachedGraphValid',
   'ucePipeScanGenerator','ucePipeRouteNetwork',
