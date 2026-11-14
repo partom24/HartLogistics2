@@ -1,5 +1,10 @@
 # Hart Logistics 2 — Roadmap
 
+## Owner mandate: freeform existing-LAB product acceptance (2026-11-14)
+
+The next manual test uses the existing restored production-derived LAB world. No fresh worlds, exact XYZ coordinates, fixed Sorter/Transporter/Collector/Receiver/Bulk quantities, preselected item amounts, build order or prescribed connection layout. Preserve native Minecraft mechanics and block capacity, but no arbitrary Hart network-size ceilings. Current P0 blockers: 128 connected-pipe graph hard refusal, construction-order independence not yet proven, and incomplete nonempty Q4 cutover preserving opaque item data. Implement incremental bounded graph discovery with live custody revalidation, and guarded in-place legacy-world migration. No repeat of accepted PG tests.
+
+
 ## Outcome
 
 Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bulk Storage, a high-throughput Transporter, and a safer/higher-throughput Q5 dual-lane Receiver architecture **without losing any 1.4.1 capability or existing world data**. Release is separate from design, code review, tests and merge.
