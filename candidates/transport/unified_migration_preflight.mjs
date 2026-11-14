@@ -39,6 +39,74 @@ function readLegacyRegistry(world){
   }
   return {ok:true,raw,receivers};
 }
+// Read the exact original 1.4.1 generation-switched Sorter registry. The
+// owner's storage room has nine 24k-shard records, not one 32k JSON value.
+// Never silently use a stale v1 backup if the authoritative v2 is damaged.
+const SORTER_META='hartsorter:registry_v2';
+const SORTER_V1='hartsorter:registry_v1';
+function readOriginalSorterRegistry(world){
+  let metaRaw,legacyRaw;
+  try {
+    metaRaw=world.getDynamicProperty(SORTER_META);
+    if(metaRaw===undefined||metaRaw===null||metaRaw==='')
+      legacyRaw=world.getDynamicProperty(SORTER_V1);
+  } catch(_){return refuse('legacy_sorter_registry_read_failed');}
+  let source,raw,count,shards=0;
+  if(typeof metaRaw==='string'&&metaRaw.length){
+    let m;
+    try { m=JSON.parse(metaRaw); }
+    catch(_){return refuse('legacy_sorter_registry_meta_invalid');}
+    if(!m||m.version!==2||(m.gen!==0&&m.gen!==1)||
+       !natural(m.shards)||m.shards<1||!natural(m.count)||
+       !natural(m.chars)||m.chars<2)
+      return refuse('legacy_sorter_registry_meta_invalid');
+    let keys;
+    try {keys=world.getDynamicPropertyIds();}
+    catch(_){return refuse('legacy_sorter_registry_keys_unreadable');}
+    if(!Array.isArray(keys)||m.shards>keys.length)
+      return refuse('legacy_sorter_registry_shards_missing');
+    const parts=[];
+    for(let i=0;i<m.shards;i++){
+      let piece;
+      try {piece=world.getDynamicProperty('hartsorter:r2_'+m.gen+'_'+i);}
+      catch(_){return refuse('legacy_sorter_registry_shard_unreadable');}
+      if(typeof piece!=='string'||piece.length<1||piece.length>24000)
+        return refuse('legacy_sorter_registry_shard_invalid');
+      parts.push(piece);
+    }
+    raw=parts.join('');shards=m.shards;count=m.count;source='v2';
+    if(raw.length!==m.chars)
+      return refuse('legacy_sorter_registry_chars_mismatch');
+  }else if(metaRaw===undefined||metaRaw===null||metaRaw===''){
+    if(legacyRaw===undefined||legacyRaw===null||legacyRaw==='')
+      return {ok:true,source:'none',count:0,shards:0,
+        raw:'',metaRaw:'',signature:'none'};
+    if(typeof legacyRaw!=='string'||legacyRaw.length>32767)
+      return refuse('legacy_sorter_v1_invalid');
+    raw=legacyRaw;count=undefined;source='v1';
+  }else return refuse('legacy_sorter_registry_meta_invalid');
+  let records;
+  try {records=JSON.parse(raw);}
+  catch(_){return refuse('legacy_sorter_registry_payload_invalid');}
+  if(!Array.isArray(records)||
+     (count!==undefined&&records.length!==count))
+    return refuse('legacy_sorter_registry_count_mismatch');
+  const seen=new Set();
+  for(const entry of records){
+    if(!entry||!id(entry.d)||
+       !Number.isSafeInteger(entry.x)||
+       !Number.isSafeInteger(entry.y)||
+       !Number.isSafeInteger(entry.z))
+      return refuse('legacy_sorter_registry_entry_invalid');
+    const key=entry.d+'|'+entry.x+'|'+entry.y+'|'+entry.z;
+    if(seen.has(key))return refuse('legacy_sorter_registry_duplicate');
+    seen.add(key);
+  }
+  return {ok:true,source,count:records.length,shards,
+    chars:raw.length,metaRaw:metaRaw||'',
+    signature:(metaRaw||'')+'|'+raw};
+}
+
 function declaredTotal(world,receivers){
   let total=0;
   for(const r of receivers){
@@ -66,6 +134,8 @@ export function previewUnifiedMigrationPreflight({world}={}){
     return refuse('uce_authority_already_present');
   const registry=readLegacyRegistry(world);
   if(!registry.ok)return registry;
+  const sorters=readOriginalSorterRegistry(world);
+  if(!sorters.ok)return sorters;
   const declared=declaredTotal(world,registry.receivers);
   if(!declared.ok)return declared;
   const census=previewQ5WorldQ4Census({
@@ -115,6 +185,10 @@ export function previewUnifiedMigrationPreflight({world}={}){
     }
   }
   const final=readLegacyRegistry(world);
+  const finalSorters=readOriginalSorterRegistry(world);
+  if(!finalSorters.ok||!sorters.ok||
+     finalSorters.signature!==sorters.signature)
+    return refuse('legacy_sorter_registry_changed_during_preflight');
   if(!final.ok||final.raw!==registry.raw)
     return refuse('legacy_registry_changed_during_preflight');
   const after=declaredTotal(world,registry.receivers);
@@ -122,6 +196,9 @@ export function previewUnifiedMigrationPreflight({world}={}){
      ordinary+opaque!==census.itemCount)
     return refuse('legacy_q4_count_changed_during_preflight');
   const details={
+    sorterCount:sorters.count,sorterRegistryShards:sorters.shards,
+    sorterRegistryChars:sorters.chars||0,
+    sorterRegistryFormat:sorters.source,
     receiverCount:census.receiverCount,q4ItemCount:census.itemCount,
     ordinaryShapeCandidateCount:ordinary,
     metadataRichOrUnknownCount:opaque,
