@@ -1586,6 +1586,12 @@ test('90 ordinary linked Receiver banks route to final Filter without long-witne
       last=owner;
     }else prevCollector=f.put('hartsorter:collector',rx-1,69,5);
   }
+  assert.equal(f.context.logistics.receivers.length,banks);
+  assert.equal(f.context.logistics.collectors.length,banks-1);
+  assert.equal(f.context.sorterAt(f.fallback),f.fartherSorter);
+  assert.equal(f.context.findCollectorById(f.collectors[0].id),f.collectors[0]);
+  assert.equal(f.context.collectorAt(f.collectors[0]),f.chestB);
+  assert.equal(f.context.findReceiverById(f.collectors[0].link),f.registeredReceivers[1]);
   const root=f.network();
   assert.ok(root,'90-bank source network must resolve before remote routing');
   assert.equal(root.entries.length,2);
