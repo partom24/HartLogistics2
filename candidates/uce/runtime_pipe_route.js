@@ -159,6 +159,7 @@ function ucePipeSorterRegistryIndex(){
 // Monotonic, process-local invalidation for player/piston/explosion edits.
 // This is not a persisted custody authorizer. Restart must rediscover.
 let ucePipeTopologyEpoch=0;
+let ucePipeEventFenceReady=false;
 const ucePipeGraphTasks=new Map();
 function ucePipeTopologyChanged(){
     ucePipeTopologyEpoch++;
@@ -186,6 +187,7 @@ function ucePipeRouteNetwork(receiver){
         try{tick=system.currentTick;}catch(_){}
         const canDefer=Number.isSafeInteger(tick)&&tick>=0&&
             typeof system!=='undefined'&&typeof system.runJob==='function'&&
+            (typeof world==='undefined'||ucePipeEventFenceReady===true)&&
             typeof dirty!=='undefined'&&dirty===false;
         const id=receiver.id;
         const task=canDefer?ucePipeGraphTasks.get(id):undefined;
