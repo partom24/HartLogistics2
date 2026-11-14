@@ -1586,8 +1586,17 @@ test('90 ordinary linked Receiver banks route to final Filter without long-witne
       last=owner;
     }else prevCollector=f.put('hartsorter:collector',rx-1,69,5);
   }
+  const root=f.network();
+  assert.ok(root,'90-bank source network must resolve before remote routing');
+  assert.equal(root.entries.length,2);
+  const firstRemote=f.registeredReceivers[1];
+  const firstGraph=f.context.ucePipeRouteNetwork(firstRemote);
+  assert.ok(firstGraph,'90-bank first remote graph must be physically verified');
+  assert.equal(firstGraph.entries.length,1);
+  const lastGraph=f.context.ucePipeRouteNetwork(last);
+  assert.ok(lastGraph,'90-bank terminal Filter graph must be physically verified');
   const select=()=>f.context.uceSelectInterbankFilteredRoute(
-    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+    f.receiver,root,COBBLE,f.context.uceAuthoritySnapshot());
   const found=select();
   assert.ok(found,'full linked route across 90 verified banks must be usable');
   assert.equal(found.receiver.id,last.id);
