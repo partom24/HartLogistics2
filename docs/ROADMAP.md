@@ -2,7 +2,7 @@
 
 ## Owner mandate: freeform existing-LAB product acceptance (2026-11-14)
 
-The next manual test uses the existing restored production-derived LAB world. No fresh worlds, exact XYZ coordinates, fixed Sorter/Transporter/Collector/Receiver/Bulk quantities, preselected item amounts, build order or prescribed connection layout. Preserve native Minecraft mechanics and block capacity, but no arbitrary Hart network-size ceilings. Current P0 blockers: 128 connected-pipe graph hard refusal, construction-order independence not yet proven, and incomplete nonempty Q4 cutover preserving opaque item data. Implement incremental bounded graph discovery with live custody revalidation, and guarded in-place legacy-world migration. No repeat of accepted PG tests.
+The next manual test uses the existing restored production-derived LAB world. No fresh worlds, exact XYZ coordinates, fixed Sorter/Transporter/Collector/Receiver/Bulk quantities, preselected item amounts, build order or prescribed connection layout. Preserve native Minecraft mechanics and block capacity, but no arbitrary Hart network-size ceilings. Current P0 blockers: in-Bedrock acceptance of newly time-sliced >128-pipe routing, still-fixed shard/Receiver allocation and long interbank path witness limits, construction-order independence not yet proven, and incomplete nonempty Q4 cutover preserving opaque item data. Implement incremental bounded graph discovery with live custody revalidation, and guarded in-place legacy-world migration. No repeat of accepted PG tests.
 
 
 ## Outcome

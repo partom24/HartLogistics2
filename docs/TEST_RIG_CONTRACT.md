@@ -4,7 +4,7 @@
 
 ## Readiness
 
-The whole assembled product is NOT READY while it requires a new world, empty-Q4 activation, a prescribed build sequence, special separation, or fixed component/item counts. Complete safe in-place migration of existing world, Q4 and MR/native metadata plus safe scale-independent graph discovery before owner testing. The observed source currently rejects a connected Transporter network above 128 loaded pipes. Remove that player-facing ceiling through safe bounded incremental work, not by permitting uncontrolled per-tick scans.
+The whole assembled product is NOT READY while it requires a new world, empty-Q4 activation, a prescribed build sequence, special separation, or fixed component/item counts. Complete safe in-place migration of existing world, Q4 and MR/native metadata plus safe scale-independent graph discovery before owner testing. The source candidate now time-slices discovery beyond 128 pipes; prove its event invalidation, chunk unload, actual throughput and interbank route authority in Bedrock before declaring arbitrary player-created networks accepted. Fixed 512-shard/Receiver staging and long path-witness constraints remain open.
 
 Only the already authorized copied LAB is eligible. Production is prohibited. Actual LAB deployment requires separate exact-head approval, stopped-server verification, backups and rollback. Previous PG carrier, metadata, journal, Hopper, ejection, visual and link evidence is accepted and should not be repeated.
 
