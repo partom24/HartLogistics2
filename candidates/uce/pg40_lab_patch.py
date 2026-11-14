@@ -117,22 +117,22 @@ def frozen_pg40_assets(bp: Path):
     # Recognize ONLY this exact modern source delta, then reconstruct the
     # prior verified builder for historical identity comparison.
     old_mining=(
-        '          # An inventory-owning bank must never silently drop its virtual\\n'
-        '          # balance. Safe operator removal is a separate custody operation.\\n'
+        '          # An inventory-owning bank must never silently drop its virtual\n'
+        '          # balance. Safe operator removal is a separate custody operation.\n'
         '          "minecraft:destructible_by_mining":False,'
     )
     new_mining=(
-        '          # Ordinary mining is allowed; active UCE intercepts break BEFORE\\n'
-        '          # Bedrock changes the block, retires any empty account, and only\\n'
-        '          # then removes it. Nonempty/uncertain custody stays protected.\\n'
+        '          # Ordinary mining is allowed; active UCE intercepts break BEFORE\n'
+        '          # Bedrock changes the block, retires any empty account, and only\n'
+        '          # then removes it. Nonempty/uncertain custody stays protected.\n'
         '          "minecraft:destructible_by_mining":{"seconds_to_destroy":0.7},'
     )
     old_comment=(
-        '    # No block loot table while removal/evacuation has not been implemented.\\n'
+        '    # No block loot table while removal/evacuation has not been implemented.\n'
         '    # The item remains placeable in Creative; survival recipe is added.'
     )
     new_comment=(
-        '    # UCE intercepts mining and returns the block item after verified removal.\\n'
+        '    # UCE intercepts mining and returns the block item after verified removal.\n'
         '    # The item remains placeable in Creative; survival recipe is retained.'
     )
     if current_bulk.count(new_mining)!=1 or current_bulk.count(new_comment)!=1:
@@ -147,7 +147,7 @@ def frozen_pg40_assets(bp: Path):
     if current_mining!={"seconds_to_destroy":0.7}:
         raise lab.UnsafeLab("PG40 modern Bulk block asset unexpected")
     legacy["minecraft:block"]["components"]["minecraft:destructible_by_mining"]=False
-    legacy_block.write_text(json.dumps(legacy,indent=2)+"\\n",encoding="utf-8")
+    legacy_block.write_text(json.dumps(legacy,indent=2)+"\n",encoding="utf-8")
     carrier_path="candidates/uce/assets/entities/uce_native_carrier.json"
     old_carrier=at_pin(carrier_path)
     obsolete=(
