@@ -80,7 +80,7 @@ function ucePipeCachedGraphValid(task,receiver){
     try{
         const tick=system.currentTick;
         if(!Number.isSafeInteger(tick)||tick<task.started||
-           tick-task.finished>40||
+           (task.done&&tick-task.finished>40)||
            task.epoch!==ucePipeTopologyEpoch||
            task.registry!==registry||
            task.count!==registry.length||
@@ -94,9 +94,10 @@ function ucePipeCachedGraphValid(task,receiver){
 function ucePipeRouteNetwork(receiver){
     try{
         if(!receiver||receiver.present===false)return undefined;
-        const tick=system.currentTick;
+        let tick;
+        try{tick=system.currentTick;}catch(_){}
         const canDefer=Number.isSafeInteger(tick)&&tick>=0&&
-            typeof system.runJob==='function'&&
+            typeof system!=='undefined'&&typeof system.runJob==='function'&&
             typeof dirty!=='undefined'&&dirty===false;
         const id=receiver.id;
         const task=canDefer?ucePipeGraphTasks.get(id):undefined;
@@ -187,8 +188,7 @@ function ucePipeScanGenerator(receiver){
             if(seen.has(at))continue;
             if(!ucePipeSameDimension(root,pipe)||
                pipe.typeId!==PG26_PIPE_ID||
-               blockIsRedstonePowered(pipe) ||
-               seen.size>=UCE_MAX_LOADED_PIPES)return undefined;
+               blockIsRedstonePowered(pipe))return undefined;
             seen.set(at,pipe);
             for(const face of PG26_FACES) {
                 const next=pg26Neighbor(pipe,face);
