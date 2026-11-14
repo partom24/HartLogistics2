@@ -199,6 +199,49 @@ export function registerUnifiedEmptyAccount(snapshot,{kind,ownerId,
 }
 
 /**
+ * Propose retirement of a NEVER USED empty Bulk account. A controller can
+ * relinquish ownership to the lowest-ID surviving member in the same sealed
+ * shard. No other account, item, or historical lifetime counter is discarded.
+ * Physical vacancy, global journals and durable readback are separate gates.
+ */
+export function retireUnifiedUnusedBulkAccount(snapshot,{
+  ownerId,expectedRevision,expectedEpoch
+}={}){
+  const valid=inspectUnifiedOrdinaryLedger(snapshot);
+  if(!valid.ok)return valid;
+  if(!idOK(ownerId)||!nat(expectedRevision)||
+     expectedRevision!==snapshot.revision||
+     expectedEpoch!==snapshot.epoch||!nat(snapshot.revision+1))
+    return denied('invalid_or_stale_bulk_retirement');
+  const id='bulk:'+ownerId;
+  const target=snapshot.accounts.find(a=>a.id===id);
+  if(!target||target.kind!=='bulk')
+    return denied('bulk_account_not_found');
+  if(target.total!==0||target.buckets.length!==0||
+     target.lifetime.received!==0||target.lifetime.delivered!==0)
+    return denied('bulk_account_not_unused_and_empty');
+  const next=JSON.parse(JSON.stringify(snapshot));
+  next.accounts=next.accounts.filter(a=>a.id!==id);
+  if(target.role==='controller'){
+    const remaining=next.accounts.filter(a=>a.kind==='bulk')
+      .sort((a,b)=>order(a.ownerId,b.ownerId));
+    const elected=remaining[0]?.ownerId;
+    for(const member of remaining){
+      member.controllerOwnerId=elected;
+      member.role=member.ownerId===elected?'controller':'member';
+    }
+  }
+  next.revision++;
+  const checked=inspectUnifiedOrdinaryLedger(next);
+  if(!checked.ok||next.total!==snapshot.total)
+    return denied('bulk_retirement_invariant_failure');
+  return {ok:true,status:'UNUSED_BULK_RETIREMENT_DRAFT_ONLY',
+    next,retiredId:id,controllerOwnerId:next.accounts.find(a=>
+      a.kind==='bulk'&&a.role==='controller')?.ownerId||null,
+    hasPhysicalRemovalProof:false,...noAuthority};
+}
+
+/**
  * Build accounts from actual-shape, read-only q4 snapshot objects.
  *
  * worldCensus: output from previewQ5WorldQ4Census (source-only).
