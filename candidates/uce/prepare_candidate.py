@@ -76,14 +76,32 @@ def compile_patch(source,bridge):
       "world.afterEvents.playerBreakBlock.subscribe(ev => {\n"+
       "    ucePipeTopologyChanged();\n"+
       '    let typeId = "";')
-    # Optional availability is handled fail-closed by declining deferred
-    # graph caching when the expected world mutation signals are absent.
+    # Defer large-graph authorization ONLY if the required stable physics
+    # and player mutation signals are all present and subscribed. A missing
+    # signal means large discoveries safely HOLD rather than cache stale
+    # physical authority. Other packs' direct setType writes still require
+    # separate BDS integration evidence before release.
     source += (
-      "\nworld.afterEvents.blockExplode?.subscribe(()=>ucePipeTopologyChanged());\n"+
-      "world.afterEvents.pistonActivate?.subscribe(()=>ucePipeTopologyChanged());\n"+
-      "world.afterEvents.leverAction?.subscribe(()=>ucePipeTopologyChanged());\n"+
-      "world.afterEvents.buttonPush?.subscribe(()=>ucePipeTopologyChanged());\n"
+      "\ntry {\n"+
+      "  const events=world.afterEvents;\n"+
+      "  if(events.playerPlaceBlock?.subscribe &&\n"+
+      "     events.playerBreakBlock?.subscribe &&\n"+
+      "     events.blockExplode?.subscribe &&\n"+
+      "     events.pistonActivate?.subscribe){\n"+
+      "    events.blockExplode.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "    events.pistonActivate.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "    events.leverAction?.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "    events.buttonPush?.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "    ucePipeEventFenceReady=true;\n"+
+      "  }\n"+
+      "}catch(_){ucePipeEventFenceReady=false;}\n"
     )
+    source=once(source,
+      "onRedstoneUpdate: (ev) => {\n"+
+      "                updateHartRedstoneState(ev);",
+      "onRedstoneUpdate: (ev) => {\n"+
+      "                ucePipeTopologyChanged();\n"+
+      "                updateHartRedstoneState(ev);")
     source=once(source,"function logisticsTick() {",
       "function logisticsTick() {\n"+
       "    if (uceLegacyWriterBlocked()) { ucePerformanceTick(); return; }")
