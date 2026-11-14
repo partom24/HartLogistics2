@@ -61,6 +61,29 @@ def guard_function(s,name,return_body="return;"):
 def compile_patch(source,bridge):
     source=once(source,'const VERSION = "1.5.15-LAB-PG33";',
       'const VERSION = "1.5.16-DEV-UCE";')
+    # Any ordinary player place/break, explosion or piston movement
+    # invalidates the read-only, time-sliced topology certificate. Do not
+    # allow a large graph's old snapshot to authorize new item custody.
+    source=once(source,
+      "world.afterEvents.playerPlaceBlock.subscribe(ev => {\n"+
+      "    if (ev.block.typeId === SORTER_ID)",
+      "world.afterEvents.playerPlaceBlock.subscribe(ev => {\n"+
+      "    ucePipeTopologyChanged();\n"+
+      "    if (ev.block.typeId === SORTER_ID)")
+    source=once(source,
+      "world.afterEvents.playerBreakBlock.subscribe(ev => {\n"+
+      '    let typeId = "";',
+      "world.afterEvents.playerBreakBlock.subscribe(ev => {\n"+
+      "    ucePipeTopologyChanged();\n"+
+      '    let typeId = "";')
+    # Optional availability is handled fail-closed by declining deferred
+    # graph caching when the expected world mutation signals are absent.
+    source += (
+      "\nworld.afterEvents.blockExplode?.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "world.afterEvents.pistonActivate?.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "world.afterEvents.leverAction?.subscribe(()=>ucePipeTopologyChanged());\n"+
+      "world.afterEvents.buttonPush?.subscribe(()=>ucePipeTopologyChanged());\n"
+    )
     source=once(source,"function logisticsTick() {",
       "function logisticsTick() {\n"+
       "    if (uceLegacyWriterBlocked()) { ucePerformanceTick(); return; }")
