@@ -304,7 +304,8 @@ class UceBuildTests(unittest.TestCase):
         bp=self.bp
         definition=json.loads((bp/"blocks/bulk_storage.json").read_text())
         components=definition["minecraft:block"]["components"]
-        self.assertFalse(components["minecraft:destructible_by_mining"])
+        self.assertEqual(components["minecraft:destructible_by_mining"],
+                         {"seconds_to_destroy":0.7})
         self.assertFalse(components["minecraft:destructible_by_explosion"])
         self.assertIn("hartlogistics:bulk_storage_surface",components)
         self.assertTrue((bp/"recipes/bulk_storage.json").is_file())
