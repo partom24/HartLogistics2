@@ -81,8 +81,6 @@ export function executeUnifiedEmptyBulkRemoval({
     const account=matched.account;
     if(account.total!==0||account.buckets.length!==0)
       return hold('storage_contains_items');
-    if(account.lifetime.received!==0||account.lifetime.delivered!==0)
-      return hold('storage_has_item_history');
     const intent={schema:UCE_EMPTY_BULK_REMOVAL_SCHEMA,
       worldId,epoch,operationId,ownerId,shardKey:matched.region,
       location,phase:'PREPARED'};
