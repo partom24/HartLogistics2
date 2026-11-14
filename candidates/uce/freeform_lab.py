@@ -28,6 +28,7 @@ uce = uce_deploy.uce
 ROOT = uce_deploy.ROOT
 WORLD = "HartUCEFreeformLab"
 VERSION = (1, 5, 16)
+LEGACY_VERSION = (1, 4, 1)
 PACK_DIRS = (
     "behavior_packs/HartMods_HartLogistics_BP",
     "resource_packs/HartMods_HartLogistics_RP",
@@ -108,22 +109,38 @@ def replace_file(path: Path, raw: bytes):
 
 
 def pack_targets(root: Path) -> list[Path]:
+    """Accept only an exact original 1.4.1 or an integrated 1.5 predecessor."""
     targets = []
+    versions = set()
     for i, (kind, folder, identifier, _) in enumerate(lab.PACKS):
         target = root / PACK_DIRS[i]
         lab.assert_no_link(target)
-        if not target.is_dir() or not target.parent.name == folder:
+        if not target.is_dir() or target.parent.name != folder:
             raise lab.UnsafeLab("Installed Hart Logistics pack missing: " + kind)
         manifest = json.loads(read(target, "manifest.json"))
-        if (manifest.get("header", {}).get("uuid") != identifier or
-                lab.v3(manifest.get("header", {}).get("version")) != VERSION):
-            raise lab.UnsafeLab("Existing LAB pack identity/version differs: " + kind)
+        if manifest.get("header", {}).get("uuid") != identifier:
+            raise lab.UnsafeLab("Installed pack UUID differs: " + kind)
+        version = lab.v3(manifest.get("header", {}).get("version"))
+        if version not in (LEGACY_VERSION, VERSION):
+            raise lab.UnsafeLab("Unapproved LAB predecessor version: " + kind)
+        versions.add(version)
         targets.append(target)
-    main = read(targets[0], "scripts/main.js").decode("utf-8")
-    if ('const VERSION = "1.5.16-DEV-UCE"' not in main or
-            "hartlogistics:activate_empty_lab" not in main or
-            "TEMP_TEST:PG42-CARRIER" in main):
-        raise lab.UnsafeLab("Expected installed integrated HL2, not PG42 probe")
+    if len(versions) != 1:
+        raise lab.UnsafeLab("Mixed Hart Logistics predecessor versions")
+    if LEGACY_VERSION in versions:
+        # Repository source, manifest IDs and all 72 frozen 1.4.1 files
+        # are verified independently before trusting on-disk LAB packs.
+        if lab.validate_source(ROOT) != LEGACY_VERSION:
+            raise lab.UnsafeLab("Frozen original baseline verification failed")
+        for i, (kind, _, _, _) in enumerate(lab.PACKS):
+            if lab.hashes(targets[i]) != lab.hashes(ROOT / "addon" / kind):
+                raise lab.UnsafeLab("Installed legacy pack differs from immutable baseline: " + kind)
+    else:
+        main = read(targets[0], "scripts/main.js").decode("utf-8")
+        if ('const VERSION = "1.5.16-DEV-UCE"' not in main or
+                "hartlogistics:activate_empty_lab" not in main or
+                "TEMP_TEST:PG42-CARRIER" in main):
+            raise lab.UnsafeLab("Expected integrated HL2, not PG42 probe")
     return targets
 
 
@@ -132,7 +149,11 @@ def prepare(root: Path, commit: str, *, apply=False) -> dict:
     lab.assert_no_link(root)
     if not (root / "bedrock_server.exe").is_file():
         raise lab.UnsafeLab("Not the LAB Bedrock Dedicated Server")
-    pack_targets(root)
+    predecessor_packs = pack_targets(root)
+    predecessor_version = lab.v3(json.loads(read(
+        predecessor_packs[0], "manifest.json"))["header"]["version"])
+    predecessor_hashes = {kind: lab.hashes(predecessor_packs[i])
+                          for i, (kind, _, _, _) in enumerate(lab.PACKS)}
     props = read(root, "server.properties")
     old_world = level_name(props)
     destination = root / "worlds" / WORLD
@@ -152,6 +173,8 @@ def prepare(root: Path, commit: str, *, apply=False) -> dict:
         "commit": commit,
         "world": WORLD,
         "previous_world_name": old_world,
+        "predecessor_version": list(predecessor_version),
+        "predecessor_hashes": predecessor_hashes,
         "original_properties_sha256": digest(props),
         "staged_properties_sha256": digest(target),
     }
@@ -187,6 +210,15 @@ def finish_plan(root: Path, commit: str, product: Path,
         raise lab.UnsafeLab("BDS did not generate the new LevelDB")
     installed = pack_targets(root)
     previous = [lab.hashes(path) for path in installed]
+    if (record.get("predecessor_version") !=
+            json.loads(read(installed[0], "manifest.json"))["header"]["version"] or
+            record.get("predecessor_hashes") !=
+            {kind: previous[i] for i, (kind, _, _, _) in enumerate(lab.PACKS)}):
+        raise lab.UnsafeLab("Staged predecessor changed before product install")
+    # Do not enable a 1.4.1 shared-pack switch until an authenticated
+    # packs-first restore path is implemented and source-tested.
+    if record.get("predecessor_version") == list(LEGACY_VERSION):
+        raise lab.UnsafeLab("Legacy predecessor needs guarded pack restore before Install")
     target_hashes = [source_hashes[pack[0]] for pack in lab.PACKS]
     change = previous != target_hashes
     plan = []
