@@ -1043,12 +1043,19 @@ function uceSorterColumnWinner(column,item,settledSelection=undefined){
                     continue;
                 // ACK retains the exact pre-move selection even when the
                 // completed move filled its last free slot.
-                if(!findAcceptSlot(dest,item) &&
+                // The original 1.4.1 capture spent 439k of 1.49m
+                // native API samples walking findAcceptSlot. Retain the
+                // verified first choice for this synchronous evaluation:
+                // the direct native executor must not scan the SAME
+                // destination inventory again before reserving the move.
+                // Port validation and ACK still re-prove physical ownership.
+                const accepting=findAcceptSlot(dest,item);
+                if(!accepting &&
                    !(settledSelection?.entry===entry &&
                      uceSameLoadedBlock(settledSelection.block,target)))
                     continue;
                 eligible.push({entry,priority,kind:'storage',
-                    block:target,container:dest});
+                    block:target,container:dest,accepting});
             }
         }
         eligible.sort((a,b)=>a.priority-b.priority||
