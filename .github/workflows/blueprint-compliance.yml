@@ -39,6 +39,7 @@ jobs:
           node --test tests/test_unified_bulk_policy.mjs
           node --test tests/test_uce_diagnostics_mock.mjs
           node --test tests/test_uce_empty_bulk_removal.mjs
+          node --test tests/test_uce_display_reconcile_scale.mjs
       - name: Build actual candidate and execute generated-main behavior
         run: python -m unittest discover -s tests -p 'test_uce_candidate_build.py' -v
       - name: Confirm freeform new-world handoff needs no previous LAB world
