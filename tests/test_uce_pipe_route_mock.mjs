@@ -1625,3 +1625,34 @@ test('120 ordinary linked Receiver banks route to final Filter without long-witn
   assert.notEqual(select()?.witness,found.witness,
     'a changed distant Collector route can never verify the old receipt');
 });
+
+test('large cached network checks loaded frontier chunks before any custody route',()=>{
+  const f=fixture(),jobs=[];
+  // x=-255 is the final physical pipe. Its x=-256 neighbor is in an
+  // entirely different chunk without any Transporter of its own.
+  for(let x=1;x>=-255;x--)f.put('hartlogistics:transporter',x,70,4);
+  f.context.system={currentTick:400,runJob:job=>{jobs.push(job);return jobs.length;}};
+  f.context.world={}; // emulate live Bedrock world with stable chunk API
+  f.context.dirty=false;
+  vm.runInContext('ucePipeEventFenceReady=true',f.context);
+  const unloaded=new Set();
+  f.dim.isChunkLoaded=location=>!unloaded.has(location.x);
+  assert.equal(f.network(),undefined);
+  assert.equal(jobs.length,1);
+  let done=false;
+  for(let i=0;i<10000&&!done;i++){
+    f.context.system.currentTick++;
+    done=jobs[0].next().done;
+  }
+  assert.ok(done,'complete time-sliced scan must finish before admission');
+  const graph=f.network();
+  assert.ok(graph,'all neighboring chunks initially loaded');
+  assert.ok(graph.chunkWitnesses.some(p=>p.x===-256),
+    'include unloaded-edge frontier chunks even with zero pipes');
+  unloaded.add(-256);
+  assert.equal(f.network(),undefined,
+    'an unloaded neighboring chunk revokes the cached graph before custody');
+  assert.equal(jobs.length,2,'after unload the route must be recertified');
+  unloaded.clear();
+  f.context.ucePipeTopologyChanged();
+});
