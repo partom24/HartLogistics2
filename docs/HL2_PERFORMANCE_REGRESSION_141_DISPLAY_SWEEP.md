@@ -176,3 +176,49 @@ migration/custody proof or Bedrock TPS measurement is implied by this.
 rate on the actual owner-scale LAB arrangement against the captured
 1.4.1 profile; certify that the same item routes and metadata remain
 correct, not merely that the engine is doing less work.
+
+## 2026-11-14 carry-forward checklist: idle Sorters, compaction and Transporter API cost
+
+**Owner direction:** The 1.4.1 CPU/profile review is an **HL2 1.5 integration
+diagnostic**, not a request to edit or redeploy 1.4.1. Keep the frozen 72-file
+baseline, unchanged scheduler semantics, item custody, and accepted build
+boundaries. Review both the **LEGACY compatibility runtime** and **ACTIVE UCE
+runtime**: the UCE writer fence only disables the inherited
+`schedulerTick()` after unified authority is active. An unconverted world can
+still exercise the legacy sorter scan and PG23 hopper compaction.
+
+### Source-review disposition (draft 1.5.16-DEV-UCE, PR #79)
+
+| Original 1.4.1 hotspot | HL2 source state | Required next proof |
+| --- | --- | --- |
+| Empty Hopper column scans powered/mode/filter states for its stacked Sorters before checking occupancy | **ACTIVE UCE already has an empty fast path:** `uceSorterDirectServiceTick` reads each loaded Hopper's slots before `uceSorterColumnWinner`. It still examines each column on each eligible service tick, with no stale inventory cache. **LEGACY** `processColumn` inherits the older Sorter-first order. | Test both authority modes: an empty Hopper does zero downstream Sorter/destination inspection; newly inserted items are observed at the next eligible tick; redstone locking and original bypass/priority remain unchanged. Any LEGACY patch must be made in the editable candidate builder, never in `addon/`. |
+| Two `compactSourceHopper` passes, including a second when no transfer occurred | **ACTIVE UCE fences legacy PG23 compaction**, so that exact extra scan is not on the unified direct-Sorter path. **LEGACY** PG23 still has pre- and post-transfer journaled compaction, even with `movedTotal === 0`. | Benchmark a conditional LEGACY second pass before changing it; prove unmatched stacks cannot starve behind Hopper gaps, no compaction mutates a powered Hopper, every PG23 journal/recovery HOLD remains correct. Independently check whether the ACTIVE UCE native move path needs a non-destructive equivalent to preserve vanilla Hopper pass-through fairness. Do not simply delete the original safety behavior. |
+| `findAcceptSlot` scans occupied/full/different-item slots and calls `isStackableWith` | Generated 1.5 already reads `Container.size` once per call, and ACTIVE UCE reuses the route winner's preflight result instead of repeating the initial destination scan. **The metadata-aware compatibility call still runs for occupied slots in the inherited finder.** | Compare the original acceptance order against type/available-room prechecks in real compiled-source regressions; retain `isStackableWith` as the final compatibility gate, partial stack before empty-slot preference, inventory-full refusal, and exact native ItemStack metadata. Benchmark the additional property reads rather than assuming a win. |
+| Many physical Sorter/Transporter blocks may multiply API lookups | ACTIVE UCE has a within-tick Sorter-registry index, but `ucePipeRouteNetwork` still traverses loaded pipes/adjacent blocks and custody routes intentionally revalidate physical authority. A graph-discovery hotspot is **plausible, not yet profile-proven**. | Measure no-cargo, backpressured, partial/full destination, active transfer, multi-Receiver, and multi-bank graphs at owner-scale topology; identify redundant work that can be avoided **before** admission while retaining live network/ownership/slot checks at mutation and ACK. Never cache a custody-authorizing pipe graph across ticks or transactions without a separate correctness proof. |
+
+### Performance and compatibility acceptance for the integrated product
+
+Use the owner's restored 1.4.1 `.mcstats` and single distinct
+12.962-second `.cpuprofile` capture as **baseline evidence**, not as an HL2
+performance measurement. Compare source-level native-API call counts and
+instrumented Bedrock script-time p50/p95/p99, spikes, actual TPS and
+items-per-second throughput in matched loaded layouts. Cover idle,
+saturated, blocked, power-locked, metadata-rich, and Q4-backlog scenarios.
+Verify exactly-once native/journal custody, Collector/Receiver links,
+Filter > Auto > Wildcard, bottom-to-top order, Hopper pass-through,
+unloaded-chunk HOLD, and no silent route fallback. Compare actual item
+counts and identities; merely reducing API calls does not pass.
+
+Acceptance must include the **owner's multi-bank, vertically stacked
+~1,400-Sorter design**, not only the single-column/128-pipe source mocks.
+The existing `tests/test_uce_141_cpuprofile_api_regression.mjs` is bounded
+**OFFLINE source proof**, not a claim that Bedrock CPU or Transporter TPS has
+improved. Reuse accepted LAB evidence and current guarded LAB procedures;
+no new server, repeated unrelated test sessions, production installation, or
+release promotion is authorized by this diagnostic.
+
+**Evidence classification:** Owner CPU capture = 1.4.1 runtime profiling;
+1.5 behavior above = SOURCE REVIEW + existing source-level regression;
+remaining candidate optimizations = PROPOSED / UNVERIFIED. This section is
+an explicit carry-forward requirement for PR #79, **not completed performance
+acceptance**.
