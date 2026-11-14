@@ -139,3 +139,72 @@ test('opaque migration preflight pinpoints affected Receiver queues without leak
   assert.equal(JSON.stringify([...f.values]),before,
     'preflight cannot alter any source property or item count');
 });
+
+function installSharded141SorterRegistry(f,count=1400){
+  const records=[];
+  for(let i=0;i<count;i++)records.push({
+    d:'minecraft:overworld',x:100+(i%70),y:32+Math.floor(i/70),
+    z:20,m:'filter',f:{item:'minecraft:stone',
+      data:'owner-scale-filter-metadata-'.repeat(3)}
+  });
+  const raw=JSON.stringify(records),shards=[];
+  for(let at=0;at<raw.length;at+=24000)
+    shards.push(raw.slice(at,at+24000));
+  const gen=1;
+  f.values.set('hartsorter:registry_v2',JSON.stringify({
+    version:2,gen,shards:shards.length,count,chars:raw.length
+  }));
+  shards.forEach((s,i)=>f.values.set('hartsorter:r2_'+gen+'_'+i,s));
+  return {raw,shards};
+}
+
+test('owner-sized original sharded 1.4.1 Sorter census is verified without world writes',()=>{
+  const f=fixture(),saved=installSharded141SorterRegistry(f);
+  assert.ok(saved.shards.length>=9,'exercise original multi-shard scale');
+  const before=JSON.stringify([...f.values]);
+  const p=previewUnifiedMigrationPreflight({world:f.world});
+  assert.equal(p.ok,true,p.reason);
+  assert.equal(p.sorterCount,1400);
+  assert.equal(p.sorterRegistryShards,saved.shards.length);
+  assert.equal(p.sorterRegistryChars,saved.raw.length);
+  assert.equal(p.sorterRegistryFormat,'v2');
+  assert.equal(p.q4ItemCount,11);
+  assert.equal(f.writes,0);
+  assert.equal(JSON.stringify([...f.values]),before);
+});
+
+test('missing or tampered original sorter shard HOLDS without legacy v1 fallback',()=>{
+  const f=fixture();installSharded141SorterRegistry(f);
+  f.values.set('hartsorter:registry_v1','[]');
+  f.values.delete('hartsorter:r2_1_2');
+  const p=previewUnifiedMigrationPreflight({world:f.world});
+  assert.equal(p.ok,false);
+  assert.match(p.reason,/legacy_sorter_registry_shard/);
+  assert.equal(f.writes,0);
+});
+
+test('duplicate original Sorter positions and changed registry generation HOLD',()=>{
+  const dup=fixture();
+  const rows=[{d:'minecraft:overworld',x:1,y:70,z:1},
+    {d:'minecraft:overworld',x:1,y:70,z:1}];
+  const raw=JSON.stringify(rows);
+  dup.values.set('hartsorter:registry_v2',JSON.stringify({
+    version:2,gen:0,shards:1,count:2,chars:raw.length}));
+  dup.values.set('hartsorter:r2_0_0',raw);
+  assert.equal(previewUnifiedMigrationPreflight({world:dup.world}).reason,
+    'legacy_sorter_registry_duplicate');
+  const drift=fixture();installSharded141SorterRegistry(drift,20);
+  const meta=drift.values.get('hartsorter:registry_v2');
+  const original=drift.world.getDynamicProperty;
+  let n=0;
+  drift.world.getDynamicProperty=k=>{
+    if(k==='hartsorter:registry_v2'&&++n===2){
+      const m=JSON.parse(meta);m.gen=0;
+      return JSON.stringify(m);
+    }
+    return original(k);
+  };
+  assert.equal(previewUnifiedMigrationPreflight({world:drift.world}).reason,
+    'legacy_sorter_registry_changed_during_preflight');
+  assert.equal(drift.writes,0);
+});
