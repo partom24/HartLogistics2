@@ -94,6 +94,24 @@ test('mining an EMPTY registered controller retires only it and elects the survi
   assert.equal(verifyUnifiedMutationFence(
     f.world,worldId,epoch,()=>true).ok,true);
 });
+test('a fully drained previously used Bulk can be picked up; lifetime audit is receipted',()=>{
+  const f=fixture();
+  const before=f.register.inspect().snapshot;
+  const updated=JSON.parse(JSON.stringify(before));
+  const account=updated.accounts.find(a=>a.id==='bulk:'+owner(first));
+  account.lifetime.received=64;account.lifetime.delivered=64;
+  const revised=previewUnifiedShard({snapshot:updated,shardKey:f.shardKey});
+  assert.equal(revised.ok,true,revised.reason);
+  f.values.set(f.shardKey,revised.raw);
+  const r=f.remove();
+  assert.equal(r.ok,true,r.reason);
+  const after=f.register.inspect();
+  assert.equal(after.ok,true,after.reason);
+  assert.deepEqual(after.lastReceipt.retiredLifetime,
+    {received:64,delivered:64});
+  assert.equal(after.snapshot.accounts.some(a=>a.id==='bulk:'+owner(first)),false);
+  assert.equal(f.block.typeId,'minecraft:air');
+});
 test('unregistered, physically placed Bulk block can be picked up without touching accounts',()=>{
   const f=fixture();
   const unused={x:30,y:145,z:56};
