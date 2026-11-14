@@ -184,5 +184,99 @@ class FreeformSyntheticWorld(unittest.TestCase):
             self.prepare()
 
 
+    def install_original_141(self):
+        """Copy immutable 1.4.1 packs into a wholly synthetic LAB."""
+        import shutil
+        for i, (kind, _, _, _) in enumerate(lab.PACKS):
+            shutil.rmtree(self.current[i])
+            shutil.copytree(ROOT / "addon" / kind, self.current[i])
+
+    def test_original_141_to_integrated_product_and_back_to_original(self):
+        self.install_original_141()
+        legacy_hashes = [lab.hashes(path) for path in self.current]
+        old_props = (self.root / "server.properties").read_bytes()
+        old_world = self.root / "worlds" / "AlreadyDeletedOldLab"
+        old_world.mkdir()
+        (old_world / "level.dat").write_bytes(b"original populated LevelDB")
+        (old_world / "world_behavior_packs.json").write_bytes(b"old registry bytes")
+        self.assertEqual(self.prepare()["phase"], "READY_FOR_WORLD_GENERATION")
+        fresh = self.generate_world()
+        self.assertTrue(self.finish(apply=False)["shared_pack_update"])
+        finished = self.finish()
+        self.assertTrue(finished["updated_shared_packs"])
+        tag = Path(finished["pack_rollback"]).name
+        self.assertNotEqual([lab.hashes(path) for path in self.current], legacy_hashes)
+        self.assertEqual((old_world / "level.dat").read_bytes(),
+                         b"original populated LevelDB")
+        self.assertEqual((old_world / "world_behavior_packs.json").read_bytes(),
+                         b"old registry bytes")
+        with self.assertRaisesRegex(lab.UnsafeLab, "rollback tag required"):
+            freeform.restore(self.root, self.pin, self.source_hashes(), apply=True)
+        self.assertEqual(freeform.restore(
+            self.root, self.pin, self.source_hashes(), backup_tag=tag)["phase"],
+            "READY_TO_ROLLBACK_PACKS_FIRST")
+        result = freeform.restore(self.root, self.pin, self.source_hashes(),
+                                  backup_tag=tag, apply=True)
+        self.assertEqual(result["phase"], "ORIGINAL_WORLD_SELECTED")
+        self.assertEqual([lab.hashes(path) for path in self.current], legacy_hashes)
+        self.assertEqual((self.root / "server.properties").read_bytes(), old_props)
+        self.assertEqual((old_world / "level.dat").read_bytes(),
+                         b"original populated LevelDB")
+        self.assertEqual((old_world / "world_behavior_packs.json").read_bytes(),
+                         b"old registry bytes")
+        self.assertEqual((fresh / "db" / "CURRENT").read_bytes(), b"LevelDB")
+        self.assertEqual(json.loads((fresh / "world_behavior_packs.json").read_text()), [])
+
+    def test_original_141_tampering_and_mixed_version_refuse_before_stage(self):
+        self.install_original_141()
+        old_props = (self.root / "server.properties").read_bytes()
+        main = self.current[0] / "scripts" / "main.js"
+        original = main.read_bytes()
+        main.write_bytes(original + b"// unauthorized source")
+        with self.assertRaisesRegex(lab.UnsafeLab, "immutable baseline"):
+            self.prepare()
+        self.assertEqual((self.root / "server.properties").read_bytes(), old_props)
+        main.write_bytes(original)
+        manifest = self.current[1] / "manifest.json"
+        modified = json.loads(manifest.read_text())
+        modified["header"]["version"] = [1, 5, 16]
+        manifest.write_text(json.dumps(modified))
+        with self.assertRaisesRegex(lab.UnsafeLab, "Mixed Hart Logistics"):
+            self.prepare()
+        self.assertEqual((self.root / "server.properties").read_bytes(), old_props)
+
+    def test_staged_141_source_drift_cannot_install_or_touch_old_world(self):
+        self.install_original_141()
+        self.prepare()
+        self.generate_world()
+        old_script = self.current[0] / "scripts" / "main.js"
+        old_script.write_bytes(old_script.read_bytes() + b"// changed poststage")
+        with self.assertRaises(lab.UnsafeLab):
+            self.finish()
+        self.assertFalse((self.root / "_HartLogisticsDeployBackups").exists())
+
+    def test_original_stage_can_restore_before_world_generated(self):
+        self.install_original_141()
+        original = (self.root / "server.properties").read_bytes()
+        self.prepare()
+        result = freeform.restore(self.root, self.pin, self.source_hashes(),
+                                  apply=True)
+        self.assertEqual(result["phase"], "ORIGINAL_WORLD_SELECTED")
+        self.assertEqual((self.root / "server.properties").read_bytes(), original)
+
+    def test_changed_new_world_registration_refuses_legacy_rollback(self):
+        self.install_original_141()
+        self.prepare()
+        fresh = self.generate_world()
+        finished = self.finish()
+        reg = fresh / "world_behavior_packs.json"
+        reg.write_text('[{"pack_id":"foreign","version":[1,0,0]}]')
+        with self.assertRaisesRegex(lab.UnsafeLab, "registration changed"):
+            freeform.restore(self.root, self.pin, self.source_hashes(),
+                             backup_tag=Path(finished["pack_rollback"]).name,
+                             apply=True)
+        self.assertEqual(json.loads(reg.read_text())[0]["pack_id"], "foreign")
+
+
 if __name__ == "__main__":
     unittest.main()

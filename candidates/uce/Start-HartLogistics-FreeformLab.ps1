@@ -9,9 +9,10 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Plan','Prepare','Finish')]
+    [ValidateSet('Plan','Prepare','Finish','Restore')]
     [string]$Mode = 'Plan',
-    [string]$ExpectedCommit = ''
+    [string]$ExpectedCommit = '',
+    [string]$BackupTag = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -89,9 +90,19 @@ $script=Join-Path $checkout 'candidates\uce\freeform_lab.py'
 if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
     Refuse 'Fresh-world HL2 launcher source missing'
 }
-$modes=@{ Plan='plan'; Prepare='prepare'; Finish='finish' }
+$modes=@{ Plan='plan'; Prepare='prepare'; Finish='finish'; Restore='restore' }
 $arguments=@($script,'--mode',$modes[$Mode],'--commit',$head)
 if ($Mode -ne 'Plan') { $arguments+='--apply' }
+if ($Mode -eq 'Restore' -and $BackupTag) {
+    if ($BackupTag -cnotmatch '^lab-[0-9a-f]{12}
+Write-Output ('Pinned HL2 source: '+$head)
+Write-Output 'Authorized target: LAB Bedrock server only'
+& $pyName @pyArgs @arguments
+if ($LASTEXITCODE -ne 0) { Refuse 'Fresh-world operation refused; LAB unchanged or safely held' }
+) { Refuse 'Invalid original-pack rollback tag' }
+    $arguments+=@('--backup-tag',$BackupTag)
+}
+if ($Mode -ne 'Restore' -and $BackupTag) { Refuse 'BackupTag only applies to Restore' }
 Write-Output ('Pinned HL2 source: '+$head)
 Write-Output 'Authorized target: LAB Bedrock server only'
 & $pyName @pyArgs @arguments
