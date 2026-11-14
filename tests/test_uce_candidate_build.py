@@ -150,9 +150,11 @@ class UceBuildTests(unittest.TestCase):
         self.assertIn("function uceOrdinaryAccountSource(authority,ownerId)",s)
         self.assertIn("function uceRegisterNewReceiver(player,block)",s)
         self.assertIn("function uceHydrateNewReceivers()",s)
-        self.assertIn("UCE owns this block. Remove through an explicit drained custody operation",s)
-        self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID ||",s)
+        self.assertIn("system.run(()=>uceMineEmptyBulkStorage(player,loc,dim));",s)
+        self.assertIn("function uceMineEmptyBulkStorage(player,location,dimension)",s)
         self.assertIn("block.typeId === 'hartlogistics:bulk_storage'",s)
+        self.assertIn("block.typeId === RECEIVER_ID || block.typeId === COLLECTOR_ID",s)
+        self.assertNotIn("Remove through an explicit drained custody operation",s)
 
     def test_generated_pipe_route_executes_same_behavior_as_source(self):
         # Run the very same runtime behavior fixtures against helper functions
