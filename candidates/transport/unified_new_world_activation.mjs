@@ -35,7 +35,13 @@ export function inspectEmptyLegacyWorld({world,logistics}={}){
      new Set(ids).size!==ids.length||ids.length>200000)
     return denied('world_property_listing_invalid');
   for(const key of ids){
-    if(key.startsWith('hartsorter:q2')||
+    // A world with placed original Sorters is NOT a new empty-world LAB,
+    // even if it has zero Receiver/Collector records or empty Q4 queues.
+    // 1.4.1 keeps Sorters in generation-switched registry_v2/r2_* shards.
+    if(key==='hartsorter:registry_v1'||
+       key==='hartsorter:registry_v2'||
+       key.startsWith('hartsorter:r2_')||
+       key.startsWith('hartsorter:q2')||
        key.startsWith('hartsorter:q3')||
        key.startsWith('hartsorter:q4')||
        key.startsWith('hartlogistics:uce_')||
