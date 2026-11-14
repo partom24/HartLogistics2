@@ -52,7 +52,8 @@ test('first-playable zero-item world uses SAME sealed cold UCE authority',()=>{
   assert.ok(f.writes>2);
 });
 test('existing owner, Q4 sidecar, journal, old Q2/3, or UCE data forbids activation',()=>{
-  const cases=['hartsorter:q4p_q1_0','hartsorter:q4d_q1_d0',
+  const cases=['hartsorter:registry_v1','hartsorter:registry_v2',
+    'hartsorter:r2_1_0','hartsorter:q4p_q1_0','hartsorter:q4d_q1_d0',
     'hartsorter:q2m_q1','hartsorter:q3m_q1',
     'hartsorter:queue_journal_v1',
     'hartsorter:journal_v1','hartlogistics:uce_native_intent_v1',
@@ -126,5 +127,19 @@ test('native entity enumeration failures never imply that a lab world is empty',
   const r=f.activate();
   assert.equal(r.ok,false);
   assert.equal(r.reason,'native_entity_census_unreadable');
+  assert.equal(f.writes,0);
+});
+
+test('original 1.4.1 Sorter-only world must never be declared empty',()=>{
+  const f=fixture();
+  const raw=JSON.stringify([{d:'minecraft:overworld',
+    x:14,y:69,z:8,m:'filter',f:{typeId:'minecraft:stone'}}]);
+  f.values.set('hartsorter:registry_v2',JSON.stringify({
+    version:2,gen:1,shards:1,count:1,chars:raw.length}));
+  f.values.set('hartsorter:r2_1_0',raw);
+  assert.equal(f.logistics.receivers.length,0);
+  const x=f.activate();
+  assert.equal(x.ok,false);
+  assert.match(x.reason,/preexisting_custody_or_legacy_history/);
   assert.equal(f.writes,0);
 });
