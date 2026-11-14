@@ -103,6 +103,18 @@ function ucePipeFingerprint(receivers,pipes,columns,inputs,banks){
         receivers,pipes,columns,inputs,banks]));
 }
 
+// Compact only the over-limit journal witness; the complete chain, final
+// output, sorter order and optional Auto mode stay in its SHA-256 preimage.
+// Small existing IB1/IBB1 strings remain identical for compatibility.
+function ucePipeCompactInterbankWitness(raw){
+    if(typeof raw!=='string'||/[^\x20-\x7e]/.test(raw))return undefined;
+    if(raw.length<=8192)return raw;
+    if(raw.startsWith('IB1|'))
+        return 'IB1|sha256:'+ucePipeSha256(raw);
+    if(raw.startsWith('IBB1|'))
+        return 'IBB1|sha256:'+ucePipeSha256(raw);
+    return undefined;
+}
 function ucePipeSameDimension(root,block) {
     return !!root&&!!block&&
         root.dimension.id===block.dimension.id;
@@ -758,11 +770,10 @@ function uceLinkedBankBulkRoutes(receiver,item,authority,sourceGraph,
                     const ownerId=uceBulkOwnerId(bank);
                     if(typeof ownerId!=='string'||!ownerId)
                         return undefined;
-                    const witness='IBB1|'+receiver.id+'|'+chain+'|'+
-                        graph.leaderId+'|'+ownerId;
-                    if(witness.length>8192||
-                       /[^\x20-\x7e]/.test(witness))
-                        return undefined;
+                    const witness=ucePipeCompactInterbankWitness(
+                        'IBB1|'+receiver.id+'|'+chain+'|'+
+                        graph.leaderId+'|'+ownerId);
+                    if(!witness)return undefined;
                     found.push({receiver:current,
                         leaderId:graph.leaderId,bankOwnerId:ownerId,
                         graph,path,witness});
@@ -889,11 +900,11 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
                         edge.collector.id+'>'+edge.receiver.id;
                 });
                 const last=local.entry;
-                const witness='IB1|'+receiver.id+'|'+segments.join('~')+
+                const witness=ucePipeCompactInterbankWitness(
+                    'IB1|'+receiver.id+'|'+segments.join('~')+
                     '|'+current.id+'|'+last.d+'|'+
-                    last.x+','+last.y+','+last.z+'|'+local.ownerId;
-                if(witness.length>8192||
-                   /[^\x20-\x7e]/.test(witness))return undefined;
+                    last.x+','+last.y+','+last.z+'|'+local.ownerId);
+                if(!witness)return undefined;
                 return {...first,receiver:current,remote:local,
                     hops:path.length,witness};
             }
@@ -928,11 +939,11 @@ function uceSelectInterbankFilteredRoute(receiver,graph,item,authority,
                 });
                 // The suffix distinguishes a seeded-Auto handoff from a
                 // Filter using the same physical destination identity.
-                const witness='IB1|'+receiver.id+'|'+segments.join('~')+
+                const witness=ucePipeCompactInterbankWitness(
+                    'IB1|'+receiver.id+'|'+segments.join('~')+
                     '|'+current.id+'|'+last.d+'|'+
-                    last.x+','+last.y+','+last.z+'|'+local.ownerId+'|A';
-                if(witness.length>8192||
-                   /[^\x20-\x7e]/.test(witness))return undefined;
+                    last.x+','+last.y+','+last.z+'|'+local.ownerId+'|A');
+                if(!witness)return undefined;
                 deferredRemoteAuto={...first,receiver:current,
                     remote:local,hops:path.length,witness};
             }
