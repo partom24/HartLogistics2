@@ -1562,7 +1562,8 @@ test('90 ordinary linked Receiver banks route to final Filter without long-witne
   const f=fixture(),banks=90;
   f.filter.m='bypass';f.fallback.m='wildcard';
   f.chestB.typeId='hartsorter:collector';
-  const addLink=(at,receiver)=>{
+  const addLink=(block,receiver)=>{
+    const at=block.location;
     const id=f.context.logisticsId(f.dim.id,at.x,at.y,at.z);
     f.collectors.push({id,d:f.dim.id,x:at.x,y:at.y,z:at.z,
       link:receiver.id,present:true});
