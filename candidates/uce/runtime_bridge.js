@@ -3029,7 +3029,10 @@ function uceSorterDirectServiceTick(authority){
                hopperIsRedstoneLocked(source))continue;
             const input=blockContainer(source);
             if(!input||!input.isValid)continue;
-            for(let slot=0;slot<input.size;slot++){
+            // Slot count cannot change during this synchronous inspection.
+            // Native Container.size is not a free JavaScript array length.
+            const inputSize=input.size;
+            for(let slot=0;slot<inputSize;slot++){
                 const stack=input.getItem(slot);
                 if(!stack)continue;
                 const selected=uceSorterColumnWinner(col,stack);
