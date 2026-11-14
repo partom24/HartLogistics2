@@ -215,10 +215,6 @@ def finish_plan(root: Path, commit: str, product: Path,
             record.get("predecessor_hashes") !=
             {kind: previous[i] for i, (kind, _, _, _) in enumerate(lab.PACKS)}):
         raise lab.UnsafeLab("Staged predecessor changed before product install")
-    # Do not enable a 1.4.1 shared-pack switch until an authenticated
-    # packs-first restore path is implemented and source-tested.
-    if record.get("predecessor_version") == list(LEGACY_VERSION):
-        raise lab.UnsafeLab("Legacy predecessor needs guarded pack restore before Install")
     target_hashes = [source_hashes[pack[0]] for pack in lab.PACKS]
     change = previous != target_hashes
     plan = []
@@ -298,19 +294,145 @@ def finish(root: Path, commit: str, product: Path,
     }
 
 
+def restore(root: Path, commit: str, source_hashes: dict, *,
+            backup_tag=None, apply=False) -> dict:
+    """Return to the previous LAB world only AFTER restoring its exact packs.
+
+    Do not open, edit, delete or back up the previous world's LevelDB or
+    registrations. An ambiguous shared-pack state refuses automatic recovery.
+    """
+    root = Path(root)
+    lab.assert_no_link(root)
+    record = json.loads(read(root, RECEIPT))
+    props = read(root, "server.properties")
+    if (record.get("schema") != SCHEMA or record.get("commit") != commit or
+            record.get("world") != WORLD or
+            record.get("staged_properties_sha256") != digest(props) or
+            level_name(props) != WORLD):
+        raise lab.UnsafeLab("Fresh-world stage not authenticated for restore")
+    old_name = record.get("previous_world_name")
+    if not isinstance(old_name, str):
+        raise lab.UnsafeLab("Original world name missing")
+    original = set_level(props, old_name)
+    if digest(original) != record.get("original_properties_sha256"):
+        raise lab.UnsafeLab("Original server.properties receipt changed")
+    previous = record.get("predecessor_hashes")
+    if not isinstance(previous, dict):
+        raise lab.UnsafeLab("Original pack snapshot missing")
+    prior_hashes = [previous.get(kind) for kind, _, _, _ in lab.PACKS]
+    if any(not isinstance(h, dict) for h in prior_hashes):
+        raise lab.UnsafeLab("Original pack file hashes unavailable")
+    product_hashes = [source_hashes[kind] for kind, _, _, _ in lab.PACKS]
+    targets = [root / path for path in PACK_DIRS]
+    for target in targets:
+        lab.assert_no_link(target)
+    observed = [lab.hashes(target) for target in targets]
+    fresh = root / "worlds" / WORLD
+    lab.assert_no_link(fresh)
+    if fresh.exists():
+        if not read(fresh, "level.dat"):
+            raise lab.UnsafeLab("New LAB world level evidence missing")
+        db = fresh / "db"
+        lab.assert_no_link(db)
+        if not db.is_dir() or not any(db.iterdir()):
+            raise lab.UnsafeLab("New LAB world database evidence missing")
+    registries = [fresh / reg for reg in REGISTRY_NAMES]
+    raws = []
+    for p in registries:
+        lab.assert_no_link(p)
+        raws.append(p.read_bytes() if p.is_file() else None)
+    empty_regs = all(r is None or
+                     json.loads(lab.remove_jsonc(r.decode("utf-8-sig"))) == []
+                     for r in raws)
+
+    # Safe to restore a stage that was never installed, or finish a
+    # previously completed pack rollback after a process interruption.
+    if observed == prior_hashes and empty_regs:
+        if not apply:
+            return {"phase": "READY_TO_RESTORE", "world": old_name}
+        replace_file(root / "server.properties", original)
+        return {"phase": "ORIGINAL_WORLD_SELECTED", "world": old_name,
+                "original_world_untouched": True}
+
+    if not fresh.exists() or observed != product_hashes:
+        raise lab.UnsafeLab("Cannot re-enter original world with unknown packs")
+    for i, (_, _, identifier, _) in enumerate(lab.PACKS):
+        if (raws[i] is None or
+            json.loads(lab.remove_jsonc(raws[i].decode("utf-8-sig"))) !=
+                [{"pack_id": identifier, "version": list(VERSION)}]):
+            raise lab.UnsafeLab("New-world HL2 registration changed")
+
+    # If the exact previous pack is the current product, no pack rollback
+    # is necessary. Never allow a different pinned source to skip rollback.
+    if observed == prior_hashes == product_hashes:
+        if backup_tag is not None:
+            raise lab.UnsafeLab("Unexpected rollback tag for unchanged packs")
+        if not apply:
+            return {"phase": "READY_TO_RESTORE", "world": old_name}
+        replace_file(root / "server.properties", original)
+        return {"phase": "ORIGINAL_WORLD_SELECTED", "world": old_name,
+                "original_world_untouched": True}
+
+    if not isinstance(backup_tag, str) or not re.fullmatch(
+            r"lab-[0-9a-f]{12}", backup_tag):
+        raise lab.UnsafeLab("Exact original-pack rollback tag required")
+    backup = root / "_HartLogisticsDeployBackups" / backup_tag
+    lab.assert_no_link(backup)
+    if not backup.is_dir():
+        raise lab.UnsafeLab("Original pack rollback backup absent")
+    plan = []
+    for i, (kind, _, identifier, reg) in enumerate(lab.PACKS):
+        old_pack = backup / f"pack-{i}"
+        old_registry = backup / f"registry-{i}.bin"
+        lab.assert_no_link(old_pack)
+        lab.assert_no_link(old_registry)
+        if not old_registry.is_file() or lab.hashes(old_pack) != prior_hashes[i]:
+            raise lab.UnsafeLab("Original pack rollback source differs")
+        old_raw = old_registry.read_bytes()
+        if json.loads(lab.remove_jsonc(old_raw.decode("utf-8-sig"))) != []:
+            raise lab.UnsafeLab("Fresh-world predecessor registration not empty")
+        plan.append({
+            "source": old_pack,
+            "target": targets[i],
+            "registry": registries[i],
+            "old_bytes": raws[i],
+            "new_registry": old_raw.decode("utf-8-sig"),
+            "old_hashes": product_hashes[i],
+            "files": prior_hashes[i]
+        })
+    if not apply:
+        return {"phase": "READY_TO_ROLLBACK_PACKS_FIRST", "world": old_name}
+    # This existing two-pack transaction restores and hashes the predecessor
+    # BEFORE the old-world selection can change. It leaves prior world
+    # inventories and all saved Q4/metadata untouched.
+    product_backup = lab.apply_plan(root, plan)
+    if [lab.hashes(path) for path in targets] != prior_hashes:
+        raise lab.UnsafeLab("Pack rollback readback mismatch")
+    for i, p in enumerate(registries):
+        if p.read_bytes() != (plan[i]["new_registry"].encode("utf-8") if
+                not raws[i].startswith(b"\xef\xbb\xbf") else
+                b"\xef\xbb\xbf" + plan[i]["new_registry"].encode("utf-8")):
+            raise lab.UnsafeLab("Fresh-world registration rollback readback mismatch")
+    replace_file(root / "server.properties", original)
+    return {"phase": "ORIGINAL_WORLD_SELECTED", "world": old_name,
+            "original_world_untouched": True,
+            "product_pack_backup": str(product_backup)}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("plan", "prepare", "finish"),
+    parser.add_argument("--mode", choices=("plan", "prepare", "finish", "restore"),
                         default="plan")
     parser.add_argument("--commit", required=True)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--backup-tag")
     args = parser.parse_args(argv)
     try:
         lab.assert_lab_name(lab.LAB)
         if not re.fullmatch(r"[a-f0-9]{40}", args.commit):
             raise lab.UnsafeLab("Exact source commit required")
-        if args.apply != (args.mode in ("prepare", "finish")):
-            raise lab.UnsafeLab("Only Prepare/Finish perform authorized LAB changes")
+        if args.apply != (args.mode in ("prepare", "finish", "restore")):
+            raise lab.UnsafeLab("Only Prepare/Finish/Restore perform authorized LAB changes")
         lab.assert_clean_git(ROOT, args.commit)
         with tempfile.TemporaryDirectory(prefix="hl2-freeform-source-") as td:
             tmp = Path(td)
@@ -323,9 +445,13 @@ def main(argv=None):
                 print("HL2 freeform product source verified; no LAB accessed")
                 return 0
             root = pg08.check_real_root()  # exact authorized LAB; stopped BDS
-            result = (prepare(root, args.commit, apply=True)
-                      if args.mode == "prepare"
-                      else finish(root, args.commit, product, hashes, apply=True))
+            if args.mode == "prepare":
+                result = prepare(root, args.commit, apply=True)
+            elif args.mode == "finish":
+                result = finish(root, args.commit, product, hashes, apply=True)
+            else:
+                result = restore(root, args.commit, hashes,
+                                 backup_tag=args.backup_tag, apply=True)
             print("HL2 FREEFORM LAB:", json.dumps(result, sort_keys=True))
             print("No production server or historic/test-world LevelDB opened")
             return 0
