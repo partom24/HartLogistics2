@@ -150,6 +150,7 @@ test('compiled legacy 1.5 Sorter skips all downstream work for empty input but s
   };
   const dest={};
   const ctx={
+    PER_COLUMN_BATCH:16,PG26_COLUMN_BATCH:64,
     PG26_PIPE_ID:'hartlogistics:transporter',
     pg23TransportMayRun:()=>true,
     getDimension:()=>({getBlock:()=>source}),
