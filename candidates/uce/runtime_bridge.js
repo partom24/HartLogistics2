@@ -32,7 +32,9 @@ const ucePerfNoticeCounts=new Map();
 const ucePerfStats={ticks:0,maxTickMs:0,slowTicks:0,slowOps:0,
     moves:0,ordinaryMoves:0,mrMoves:0,
     ordinaryItems:0,mrItems:0,gaps:0,
-    maxGapTicks:0,maxShardChars:0,shardSamples:0,shardWarnings:0};
+    maxGapTicks:0,maxShardChars:0,shardSamples:0,shardWarnings:0,
+    displaySlices:0,displayChecked:0,maxDisplaySliceMs:0,
+    slowDisplaySlices:0};
 function ucePerfReset(){
     for(const key of Object.keys(ucePerfStats))ucePerfStats[key]=0;
     ucePerfNoticeCounts.clear();
@@ -155,6 +157,10 @@ function ucePerformancePanel(origin,mode='status'){
             ', max '+ucePerfStats.maxTickMs+'ms, slow '+
             ucePerfStats.slowTicks+', slow operations '+
             ucePerfStats.slowOps);
+        say('§7Display maintenance: '+ucePerfStats.displaySlices+
+            ' bounded slices / '+ucePerfStats.displayChecked+
+            ' Sorter checks, slow '+ucePerfStats.slowDisplaySlices+
+            ', max '+ucePerfStats.maxDisplaySliceMs+'ms');
         say('§7Committed transfer operations: MR '+ucePerfStats.mrMoves+
             ', ordinary '+ucePerfStats.ordinaryMoves+
             '; gaps >=40 ticks '+ucePerfStats.gaps+
