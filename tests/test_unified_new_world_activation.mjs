@@ -4,6 +4,8 @@ import {inspectEmptyLegacyWorld,activateUnifiedEmptyWorld} from
   '../candidates/transport/unified_new_world_activation.mjs';
 import {UCE_AUTHORITY_KEY} from
   '../candidates/transport/unified_world_shard_writer.mjs';
+import {UCE_NEW_RECEIVER_RESERVES} from
+  '../candidates/transport/unified_cold_q4_importer.mjs';
 const id='minecraft:overworld:explicit-empty-lab-world';
 function fixture(options={}){
   const values=new Map(),logistics={collectors:[],receivers:[],
@@ -37,6 +39,12 @@ test('first-playable zero-item world uses SAME sealed cold UCE authority',()=>{
   assert.equal(result.ok,true,result.reason);
   assert.equal(result.status,'EMPTY_UCE_WORLD_ACTIVATED_AND_READBACK');
   assert.equal(result.q4ItemCount,0);
+  assert.ok(UCE_NEW_RECEIVER_RESERVES>=33,
+    'fresh world must hold all 33 owner-reported Receiver identities');
+  assert.equal(result.shardCount,UCE_NEW_RECEIVER_RESERVES);
+  assert.equal([...f.values.keys()].filter(k=>
+    /^hartlogistics:uce_shard_[0-9]{4}_v1$/.test(k)).length,
+    UCE_NEW_RECEIVER_RESERVES);
   assert.equal(result.canDeleteQ4,false);
   assert.equal(JSON.parse(f.values.get(UCE_AUTHORITY_KEY)).state,'ACTIVE');
   assert.equal([...f.values.keys()].filter(x=>x.startsWith('hartsorter:q4'))

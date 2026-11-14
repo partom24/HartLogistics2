@@ -1416,7 +1416,8 @@ function uceEmptyLinkRegistryBootProof(authority){
            seal.epoch!==authority.epoch||
            seal.receivers!==0||seal.initialItemCount!==0||
            !Array.isArray(seal.q4Sources)||seal.q4Sources.length!==0||
-           !Array.isArray(seal.shards)||seal.shards.length!==32||
+           !Array.isArray(seal.shards)||seal.shards.length<32||
+           seal.shards.length>512||
            seal.shards.some(s=>!s.owner?.startsWith('reserve:')||
                s.initialCount!==0))
             return false;

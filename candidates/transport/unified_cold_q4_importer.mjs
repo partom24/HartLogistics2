@@ -25,7 +25,11 @@ export const UCE_COLD_SEAL_SCHEMA='hart-uce-cold-seal-v1';
 const maxReceivers=512,maxShards=512,maxSeal=28000;
 // Presealed, empty one-record locations for future Receivers. No extra queue
 // or journal and no mutation of the immutable cold seal after activation.
-export const UCE_NEW_RECEIVER_RESERVES=32;
+// The former 32-slot default could not represent the owner's 33-Receiver
+// installation in an EMPTY LAB world. This is a new-activation default only:
+// existing 32-slot immutable seals remain unchanged, and expanding those
+// live worlds requires a separate authenticated capacity-migration protocol.
+export const UCE_NEW_RECEIVER_RESERVES=48;
 const validId=s=>typeof s==='string'&&s.length>0&&s.length<=256;
 const positive=n=>Number.isSafeInteger(n)&&n>0;
 const nat=n=>Number.isSafeInteger(n)&&n>=0;

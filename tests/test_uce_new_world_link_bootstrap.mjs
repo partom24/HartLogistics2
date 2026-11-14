@@ -15,7 +15,8 @@ assert.match(source.slice(end,linkEnd),
   /verifyEmptyNewWorld:\(\)=>uceEmptyLinkRegistryBootProof\(authority\)/);
 const routine=source.slice(begin,end);
 function fixture(options={}){
-  const shardCount=32,worldId='minecraft:overworld:uce-empty-test',epoch=1;
+  const shardCount=options.shardCount??32;
+  const worldId='minecraft:overworld:uce-empty-test',epoch=1;
   const seal={worldId,epoch,receivers:0,initialItemCount:0,q4Sources:[],
     shards:Array.from({length:shardCount},(_,i)=>({
       owner:'reserve:'+String(i).padStart(4,'0'),
@@ -51,6 +52,12 @@ test('PG36 genuinely empty sealed world admits missing link registry read-only',
   const f=fixture();
   assert.equal(f.check(),true);
   assert.ok(f.reads.includes('hartsorter:logistics_v2'));
+});
+test('original 32-slot seals stay admissible, and 48-slot fresh seals can bootstrap links',()=>{
+  assert.equal(fixture({shardCount:32}).check(),true);
+  assert.equal(fixture({shardCount:48}).check(),true);
+  assert.equal(fixture({shardCount:0}).check(),false);
+  assert.equal(fixture({shardCount:513}).check(),false);
 });
 test('PG36 archived-Q4 sources and historical receivers cannot bootstrap missing registry',()=>{
   for(const opts of [{legacySeal:true},{historicalReceiver:true},
