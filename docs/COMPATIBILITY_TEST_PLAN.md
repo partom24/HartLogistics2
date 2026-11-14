@@ -5,7 +5,7 @@
 The next hands-on session is unrestricted player building and normal gameplay in the existing restored production-derived LAB world. No new world, exact coordinates, mandatory Sorter count, item list/quantity, construction order, special spacing or dictated connection pattern. The old exact-rig instructions below are historical only and are not permitted as future acceptance instructions. Retain accepted evidence without replay. In-place nonempty-Q4 migration, metadata preservation, safe unrestricted network discovery and explicit authorized stopped-LAB rollback must be ready first. Any normal valid build rejected because of a hidden size/order/shape assumption is a product defect.
 
 
-**Planning checklist, not execution evidence.** Target reported by owner: **Dedicated server 1.26.63.1; client 26.63**. The original 1.4.1 pack minimum **1.26.50** remains a separate compatibility claim requiring testing. All **in-game, release and migration tests occur exclusively** at LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`, on copied/disposable worlds; production `C:\Servers\Thomas_MCBedrock` is out of bounds. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
+**Planning checklist, not execution evidence.** Target reported by owner: **Dedicated server 1.26.63.1; client 26.63**. The original 1.4.1 pack minimum **1.26.50** remains a separate compatibility claim requiring testing. All **in-game, release and migration tests occur exclusively** at LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`, in the existing restored production-derived LAB world for the next acceptance; production `C:\Servers\Thomas_MCBedrock` is out of bounds. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
 
@@ -17,7 +17,7 @@ The next hands-on session is unrestricted player building and normal gameplay in
 
 **Before every test request**, give the owner a short **“What is being tested”** summary (purpose, why it is needed now, previously accepted evidence, whether a manual setup is necessary, and expected PASS). The mandatory [Test Rig Cards and Evidence Reuse policy](TEST_RIG_CONTRACT.md) defines this format.
 
-**Before any physical LAB build**, provide a complete **READY** rig card with exact number of Sorters (one vs two in a column, for example), all other block counts, block-by-block XYZ and facing, Hopper directions, links, redstone, initial inventory, topology and **verified distance/clearance from every relevant nearby rig** (or expressly **no special inter-rig separation**), and reset instructions. A hidden setup constraint discovered after a conforming build is our test-specification defect; don't require avoidable rebuilds.
+**Before the next owner test**, give a short readiness summary: installed runtime, existing-world safety/rollback, already accepted evidence, and what correct natural gameplay looks like. No exact rig, coordinates, setup or quantities are specified. A valid freeform build that fails because of a hidden scale, order or geometry assumption is a product defect, not a reason to rebuild.
 
 **Evidence reuse first:** classify each test as **previously accepted/unaffected (skip)**, **previously accepted/affected (focused regression)**, **owner-reported previous success (record scope, avoid unnecessary rerun)** or **new/unproven (source review/automation, manual only if justified)**. Do not repeat unrelated 1.4.1 or prior native-ItemStack tests just to start a new milestone. Existing evidence is not automatically proof of changed queue migration, cross-chunk native inventory or other new end-to-end behavior.
 
@@ -51,7 +51,7 @@ The source-traced [1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.m
 
 ## Unique block resource acceptance
 
-Before acceptance, compare Bulk Storage and Transporter geometry, textures, icons and placed-world appearance **side by side with 1.4.1 Sorter, Collector and Receiver**. Fail if any original block-specific asset is reused, copied or aliased, if Bulk Storage resembles Collector/Receiver, or if existing block appearances change. Also validate six-direction Transporter visual states. See [asset contract](RESOURCE_ASSET_POLICY.md); when a LAB rig is required, supply a complete [READY rig card](TEST_RIG_CONTRACT.md) first.
+Before acceptance, compare Bulk Storage and Transporter geometry, textures, icons and placed-world appearance **side by side with 1.4.1 Sorter, Collector and Receiver**. Fail if any original block-specific asset is reused, copied or aliased, if Bulk Storage resembles Collector/Receiver, or if existing block appearances change. Also validate six-direction Transporter visual states. See [asset contract](RESOURCE_ASSET_POLICY.md); the next player acceptance must not require a LAB rig card or prescribed block arrangement.
 
 ## New design: validate before accepting
 
@@ -70,7 +70,7 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 
 ## Focused native custom-container compatibility proof
 
-**What is being tested:** Standard `Container.moveItem` / `transferItem` into and out of a new native **custom-block** container on 26.63; exact ItemStack metadata and persisted slots after reload. **Not being retested:** previously established vanilla container-to-container ItemStack transfer behavior. The test includes one ordinary inventory→custom→ordinary transfer, one custom→custom transfer, blocked/full acceptance and a targeted MR fidelity check. Verify native `minecraft:inventory` availability and world experiment settings before moving an item. No setup request until a complete [READY LAB rig](TEST_RIG_CONTRACT.md) is prepared. See [Q5 custom-container gate](Q5_MIGRATION_DESIGN.md#native-custom-container-api-proof--focused-2663-gate).
+**What is being tested:** Standard `Container.moveItem` / `transferItem` into and out of a new native **custom-block** container on 26.63; exact ItemStack metadata and persisted slots after reload. **Not being retested:** previously established vanilla container-to-container ItemStack transfer behavior. The test includes one ordinary inventory→custom→ordinary transfer, one custom→custom transfer, blocked/full acceptance and a targeted MR fidelity check. Verify native `minecraft:inventory` availability and world experiment settings before moving an item. No prescribed LAB rig is required for the next unrestricted player acceptance; perform internal source/BDS gating safely before owner gameplay. See [Q5 custom-container gate](Q5_MIGRATION_DESIGN.md#native-custom-container-api-proof--focused-2663-gate).
 
 ## Candidate temporary ticking-area migration accelerator
 
