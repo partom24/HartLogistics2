@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"build/uce-integrated"
 BRIDGE=ROOT/"candidates/uce/runtime_bridge.js"
+DISPLAY_RECONCILE=ROOT/"candidates/uce/runtime_display_reconcile.js"
 PIPE_ROUTE=ROOT/"candidates/uce/runtime_pipe_route.js"
 LINK_MENU=ROOT/"candidates/uce/runtime_link_menu.js"
 REMOTE_BULK=ROOT/"candidates/uce/runtime_remote_bulk_bridge.js"
@@ -89,6 +90,32 @@ def compile_patch(source,bridge):
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
       "    if (uceLegacyWriterBlocked()) return;")
+    # 1.4.1 reconciled every registered Sorter and queried every display
+    # entity in three dimensions on a SINGLE 100-tick callback. In the
+    # owner's 1,387-Sorter profile, global script spikes recur every 100
+    # ticks. The 1.5 product always uses the bounded visual pass, regardless
+    # of whether the current world has transitioned to UCE authority.
+    start=source.find("function reconcileDisplays() {")
+    end=source.find("\nfunction findEntryByDisplayOwner(",start)
+    if (start<0 or end<=start or end-start>2100 or
+        source.count("function reconcileDisplays() {")!=1):
+        raise ValueError("UCE REFUSED unknown inherited display sweep")
+    old=source[start:end]
+    for marker in ("const validOwners = new Set()",
+                   "for (const e of registry)",
+                   "syncDisplay(e)","removeDisplay(e)",
+                   'for (const dimId of ["overworld", "nether", "the_end"])',
+                   "dim.getEntities({type: DISPLAY_ID})"):
+        if marker not in old:
+            raise ValueError("UCE REFUSED changed legacy display semantics: "+marker)
+    source=(source[:start]+
+      "function reconcileDisplays() {\n"+
+      "    uceReconcileDisplaysIncremental();\n"+
+      "}\n"+source[end:])
+    source=once(source,"system.runInterval(reconcileDisplays, 100);",
+      "system.runInterval(reconcileDisplays, 1);")
+    source=once(source,"    system.runTimeout(reconcileDisplays, 5);",
+      "    // Bounded display maintenance runs every tick; no startup burst.")
     source=once(source,
       "world.beforeEvents.playerBreakBlock.subscribe(ev => {\n"+
       "    const block=ev.block;\n    if(!block)return;",
@@ -271,6 +298,7 @@ def prepare(target):
             main.write_text(compile_patch(
               main.read_text(encoding="utf-8"),
               BRIDGE.read_text(encoding="utf-8")+"\n"+
+              DISPLAY_RECONCILE.read_text(encoding="utf-8")+"\n"+
               PIPE_ROUTE.read_text(encoding="utf-8")+"\n"+
               LINK_MENU.read_text(encoding="utf-8")+"\n"+
               REMOTE_BULK.read_text(encoding="utf-8")),encoding="utf-8")
