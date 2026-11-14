@@ -84,3 +84,9 @@ experiments. [Complete two-check LAB card](../candidates/pg26/TEST_SESSION.md)
 specifies one new Sorter, three active pipes, one input barrel, one output chest,
 a detached seven-pipe visual rack, lever and supports, all coordinates and
 separation. No owner operation has occurred during development.
+
+## Post-PG27 development follow-up — owner Q4 concern and PR48 (HL-E-075/077)
+
+The owner stated that Q4 was still attempted to be used. Subsequent repository review identified [PG28 PR #48](https://github.com/partom24/HartLogistics2/pull/48), an **offline** proposal to use Receiver Q4 as a Transporter source through the existing Q4 journaled dequeue writer. That PR was **closed without merge**. This provides concrete source-level context for the concern without proving that the installed PG27 ordinary pipe route touched or changed Q4. Its unchanged global Q4 *journal safety checks* remain separate from Q4-sourced item delivery.
+
+The direct PG26/PG27 ordinary chest/barrel→pipes→Sorter→native output route remains the implemented prototype; no new Collector/Q4 input was merged into it. A separate limited PG27 owner route observation (HL-E-076) is recorded in the [PG27 closeout](PG27_TRANSPORTER_VISUAL_CORRECTION.md). No full route/redstone integration acceptance, queue mutation, item-loss incident, test rerun, Q5 authorization or production change follows from the unmerged PG28 design.
