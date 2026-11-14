@@ -90,6 +90,19 @@ def compile_patch(source,bridge):
     source=once(source,"function schedulerTick() {",
       "function schedulerTick() {\n"+
       "    if (uceLegacyWriterBlocked()) return;")
+    # 1.4.1's captured Sorter hotpath re-read Container.size on EVERY
+    # inventory slot while deciding whether it could merge/insert. A
+    # Container's slot count is invariant during one synchronous call.
+    # Capture this once while preserving every slot and original priority.
+    # This is a 1.5-only source patch: original 1.4.1 is immutable.
+    source=once(source,
+      "function findAcceptSlot(container, stack) {\\n"+
+      "    let firstEmpty = -1;\\n"+
+      "    for (let i=0; i<container.size; i++) {",
+      "function findAcceptSlot(container, stack) {\\n"+
+      "    let firstEmpty = -1;\\n"+
+      "    const size=container.size;\\n"+
+      "    for (let i=0; i<size; i++) {")
     # 1.4.1 reconciled every registered Sorter and queried every display
     # entity in three dimensions on a SINGLE 100-tick callback. In the
     # owner's 1,387-Sorter profile, global script spikes recur every 100
