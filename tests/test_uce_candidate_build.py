@@ -176,6 +176,28 @@ class UceBuildTests(unittest.TestCase):
                              "generated HL2 assembled routing/custody failed "
                              +name+":\\n"+result.stdout[-14000:])
 
+    def test_generated_bounded_visual_reconciliation_at_actual_owner_scale(self):
+        # The owner's .mcstats 1.4.1 runtime exposes periodic 100-tick
+        # 200-378ms global-script spikes. Ensure the 1.5-generated product
+        # does NOT retain that scheduled whole-registry/world-entity sweep.
+        s=self.main
+        self.assertIn("system.runInterval(reconcileDisplays, 1);",s)
+        self.assertNotIn("system.runInterval(reconcileDisplays, 100);",s)
+        self.assertNotIn("dim.getEntities({type: DISPLAY_ID})",s)
+        self.assertNotIn("system.runTimeout(reconcileDisplays, 5)",s)
+        self.assertIn("const UCE_DISPLAY_MAINTENANCE_BATCH=16;",s)
+        self.assertIn("function uceReconcileDisplaysIncremental(){",s)
+        env=os.environ.copy()
+        env["UCE_GENERATED_MAIN"]=str(self.bp/"scripts/main.js")
+        result=subprocess.run(
+            ["node","--test",str(
+                ROOT/"tests/test_uce_display_reconcile_scale.mjs")],
+            cwd=ROOT,env=env,stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,text=True,timeout=60)
+        self.assertEqual(result.returncode,0,
+            "HL2 generated display maintenance scale regression failed:\\n"
+            +result.stdout[-12000:])
+
     def test_generated_performance_panel_counts_items_not_operations(self):
         # Exercise the same diagnostics suite against the actual derived
         # Bedrock main.js. The wall-clock observation is not an in-game
