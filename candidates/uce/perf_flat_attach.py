@@ -208,8 +208,60 @@ def parse_registry(raw):
     if not isinstance(data,list):raise lab.UnsafeLab("Unexpected registry type")
     return data
 
+def pack_hash_diff(expected: dict, actual: dict) -> list[dict]:
+    """Pure relative-file comparison. No pack data or settings are modified."""
+    result=[]
+    for name in sorted(set(expected)|set(actual)):
+        before=expected.get(name)
+        now=actual.get(name)
+        if before==now:
+            continue
+        status=("EXTRA" if before is None else
+                "MISSING" if now is None else "MODIFIED")
+        result.append({
+            "path":name,"status":status,
+            "baseline_sha256":before,"installed_sha256":now
+        })
+    return result
+
+
+def report_legacy_pack_diff(root: Path) -> None:
+    """Print the precise original 1.4.1 fingerprint mismatch, read-only."""
+    print("=== READ-ONLY 1.4.1 LAB pack file comparison ===")
+    for kind,rel in (
+        ("behavior_pack","behavior_packs/HartMods_HartLogistics_BP"),
+        ("resource_pack","resource_packs/HartMods_HartLogistics_RP")
+    ):
+        installed=root/rel
+        baseline=ROOT/"addon"/kind
+        lab.assert_no_link(installed)
+        lab.assert_no_link(baseline)
+        if not installed.is_dir():
+            print(kind+": installed directory missing")
+            continue
+        wanted=lab.hashes(baseline)
+        observed=lab.hashes(installed)
+        differences=pack_hash_diff(wanted,observed)
+        print(kind+": baseline files="+str(len(wanted))+
+              ", installed files="+str(len(observed))+
+              ", differing="+str(len(differences)))
+        for item in differences[:60]:
+            print("  "+item["status"]+": "+item["path"])
+            if item["status"]=="MODIFIED":
+                print("    baseline_sha256: "+item["baseline_sha256"])
+                print("    installed_sha256: "+item["installed_sha256"])
+        if len(differences)>60:
+            print("  ... and "+str(len(differences)-60)+" additional differing files")
+    print("END read-only comparison. No packs, worlds or receipts changed.")
+
+
 def targets(root):
-    return common.pack_targets(root) # Checks exact immutable 1.4.1 baseline or built UCE.
+    try:
+        return common.pack_targets(root) # Existing immutable 1.4.1/1.5 gate.
+    except lab.UnsafeLab as err:
+        if "Installed legacy pack differs from immutable baseline:" in str(err):
+            report_legacy_pack_diff(root)
+        raise
 
 def build(temp):
     source=Path(temp)/"uce"

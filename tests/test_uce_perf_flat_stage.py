@@ -21,7 +21,7 @@ class Refused(Exception):
 def production():
     tree=ast.parse(SCRIPT.read_text(encoding="utf-8"))
     needed={"digest","rebuild_v2_staged_properties",
-            "active_property_lines","assert_authenticated_stage"}
+            "active_property_lines","assert_authenticated_stage","pack_hash_diff"}
     selected=[node for node in tree.body if isinstance(node,ast.FunctionDef)
               and node.name in needed]
     assert len(selected)==len(needed)
@@ -145,6 +145,29 @@ class FlatStageReceiptTests(unittest.TestCase):
         original=self.original+b"gamemode=adventure\r\n"
         with self.assertRaisesRegex(Refused,"Ambiguous original property gamemode"):
             self.api["rebuild_v2_staged_properties"](original)
+
+class PackHashDiffTests(unittest.TestCase):
+    def test_file_drift_is_reported_without_relaxing_hash_comparison(self):
+        compare=production()["pack_hash_diff"]
+        baseline={"scripts/main.js":"aaaa","blocks/sorter.json":"bbbb",
+                  "manifest.json":"cccc"}
+        installed={"scripts/main.js":"xxxx","manifest.json":"cccc",
+                   "debug/note.txt":"dddd"}
+        actual=compare(baseline,installed)
+        self.assertEqual(
+            [(x["status"],x["path"]) for x in actual],
+            [("MISSING","blocks/sorter.json"),
+             ("EXTRA","debug/note.txt"),
+             ("MODIFIED","scripts/main.js")])
+        self.assertEqual(actual[-1]["baseline_sha256"],"aaaa")
+        self.assertEqual(actual[-1]["installed_sha256"],"xxxx")
+        self.assertEqual(baseline["scripts/main.js"],"aaaa")
+        self.assertEqual(installed["scripts/main.js"],"xxxx")
+
+    def test_matching_packs_have_no_mismatch(self):
+        compare=production()["pack_hash_diff"]
+        self.assertEqual(compare({"x":"y"},{"x":"y"}),[])
+
 
 if __name__=="__main__":
     unittest.main()
