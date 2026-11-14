@@ -1,5 +1,10 @@
 # Current Development State — HartLogistics2
 
+## Owner acceptance override: existing world, natural builds (2026-11-14)
+
+Use ONLY the existing restored production-derived LAB world for the next hands-on acceptance. The owner chooses component locations, numbers, placement/configuration order, connected networks and item quantities with no imposed test layout. Preserve accepted PG tests as evidence, and do not request micro-rigs. Previous fresh-world/freeform/PG42 source workflows are not the next delivery path. CURRENT P0: 128-connected-pipe refusal in runtime_pipe_route.js and unavailable authenticated nonempty 1.4.1 Q4/opaque-MR runtime activation. Complete scale-independent bounded routing and safe in-place populated-world migration before nominating the next test.
+
+
 **2026-11-14 · Draft PR [#79](https://github.com/partom24/HartLogistics2/pull/79). Not accepted for release.**
 
 ## Development authority and source
@@ -222,9 +227,9 @@ Earlier PG carrier, metadata-rich, custody and journal sessions are bounded evid
 ## Critical release path
 
 1. **Code hygiene and integration:** review all shipped runtime/build dependencies, remove genuinely unused debug/prototype paths without deleting historical rollback requirements; enforce one declared HL2 source and one coordinated routing/custody/recovery model; correct source defects with fault-injection tests and exact-head CI.
-2. **Full-product LAB delivery:** verify the actual stopped-LAB predecessor (immutable restored 1.4.1 or previously pinned PG42/HL2), then install the integrated HL2 candidate only into a separate new BDS-generated world with a transactional packs-first Restore before old-world reselection. Source-only 1.4.1 support is newly present in the existing freeform path; no LAB acceptance is implied.
-3. **Integrated Bedrock acceptance:** ordinary and MR real item transfers, multiple Receivers, Bulk, Transporter, Sorter modes, Hopper/Dropper/Dispenser, inventory limits, redstone, blocked/full/unloaded graph, restart and diagnosed HOLD. The owner should run a single coherent product test instead of repeated PG probes.
-4. **Archived 1.4.1 cold migration:** verify access to the original restorable ZIP and its Q4 census, implement repeatable non-destructive activation on a separate restored LAB copy. `unified_cold_q4_importer.mjs` has a source-tested engine for ordinary Q4 but **the compiled runtime only exposes read-only `migration_preview` and empty-world `activate_empty_lab`; no owner-safe nonempty-world activation is currently wired to real backup verification**. Opaque/metadata-rich legacy Q4 rows HOLD because hidden metadata cannot be reconstructed losslessly from unknown serialized definitions. This is **not** completed migration support; do not use empty-world activation on an archive.
+2. **Existing-world in-place delivery:** safely migrate the actual restored LAB 1.4.1 world without requiring an empty world or altering player-created layout; verify the stopped-LAB predecessor, backup, linked devices, all existing Q4 items and rollback before any authorized install.
+3. **Unrestricted player-built Bedrock acceptance:** owner plays normally in that existing restored LAB, building and changing any supported network at chosen positions, counts and order. Verify correct ordinary/MR custody, Bulk, multi-bank routing, redstone and restart without prescribing a test setup.
+4. **Populated 1.4.1 cold migration:** preserve existing restored LAB Q4, identities, world blocks and journal evidence, with safe transition and rollback; never substitute fresh-world activation or require the player to empty storage.
 5. **Release:** full compatibility acceptance, complete safety/performance evidence, clean temporary-instrumentation registry, reproducible HL2 archive with checksum/source pin, documented limits and explicit owner release authorization.
 
 **Unchanged hard constraints:** no world deletion/reset to force empty activation; no unrecorded ownership replay; no synthesized native metadata; no automatic install/merge/production action; no assumption that source mocks prove Bedrock save atomicity. All source changes remain reviewable in draft PR #79.
