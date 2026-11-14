@@ -87,3 +87,65 @@ off, no new world property or persistent custody writer is introduced.
 **Evidence status:** OBSERVED 1.4.1 periodic script timing; SOURCE-CONFIRMED
 inherited 1.5 display sweep; SOURCE-CORRECTED generated 1.5 scheduling
 pending exact-head CI and BDS performance acceptance.
+
+## Follow-up: actual 1.4.1 script CPUProfile, 2026-11-14
+
+Two uploaded files (`*_JS.cpuprofile` and `*_TS.cpuprofile`) contain
+**the same** 12.962-second sample sequence and time deltas, with only the
+source URL/line rendering changed. **Do not double-count** them as independent
+profiling sessions. The profiler's `hitCount` matches recorded native API
+invocations; percentages below are **recorded API-call shares**, not
+CPU-time attribution or TPS.
+
+At real 1,387-Sorter owner scale:
+
+| Recorded native API family | Calls |
+| --- | ---: |
+| `Container::size` | 400,436 |
+| `Container::getItem` | 363,050 |
+| `ItemStack::isStackableWith` | 140,600 |
+| `Block::typeId` | 123,619 |
+| `Dimension::getBlock` | 106,741 |
+| `World::getDimension` | 93,433 |
+
+The profile contains 1,485,347 API-call samples in 12.962 seconds.
+Ancestry under `schedulerTick > processColumn` accounts for **1,355,758
+(91.28%)** of recorded calls; `logisticsTick` accounts for 111,518
+(7.51%). The hottest nested call ancestry:
+
+- `schedulerTick > processColumn > findAcceptSlot`: 439,931 recorded
+  calls (29.62%), primarily repeated `size`, `getItem`,
+  `isStackableWith`.
+- `schedulerTick > processColumn > compactSourceHopper`: 280,676
+  (18.90%), primarily Hopper slot observations.
+- `reconcileDisplays` contributes only 1,956 calls in this short
+  capture; this **does not refute** the separate `.mcstats` 100-tick
+  wall-time spike evidence, which is measured differently.
+
+The 1.5 UCE scheduler already freezes the original 1.4.1
+`schedulerTick` while unified authority is active, avoiding the legacy
+`compactSourceHopper` pass. However, its own direct Sorter lane scans
+active physical columns and can redundantly fetch native dimensions and
+scan storage inventories.
+
+**Further 1.5 changes committed:** per-invocation caching of dimension
+handles in `uceSorterDirectServiceTick` (not block/slot state; every
+column is still checked each tick), and reuse of the native
+`findAcceptSlot` result already verified in
+`uceSorterColumnWinner` before beginning the transaction. Exact route
+and slot proofs still run at the mutation/ACK boundary.
+
+Tests in `tests/test_uce_141_cpuprofile_api_regression.mjs` exercise the
+actual source/compiled functions with 1,387 columns in three dimensions;
+they verify three dimension lookups, **all 1,387 live block observations**,
+and a new full observation next tick. This does **not** impose new
+placement rules, introduce a skipped-column scan window, or claim
+Bedrock CPU improvements without a comparative in-game profile.
+
+**Remaining high-priority performance work:** determine `uceSorterDirectServiceTick`
+native API volume and custody throughput on the same loaded physical
+topology, inventory-acceptance scans in both native/ordinary lanes,
+repeated per-bank topology discovery, and carrier/journal I/O. Any
+scan-budget change must preserve priority, redstone, hopper pass-through,
+Collector reachability, safety and per-tick throughput rather than
+simply hiding work by delaying transfers.
