@@ -83,17 +83,18 @@ def add_bulk_assets(target):
             "material_instances":mat},
           "minecraft:collision_box":True,
           "minecraft:selection_box":True,
-          # An inventory-owning bank must never silently drop its virtual
-          # balance. Safe operator removal is a separate custody operation.
-          "minecraft:destructible_by_mining":False,
+          # Ordinary mining is allowed; active UCE intercepts break BEFORE
+          # Bedrock changes the block, retires any empty account, and only
+          # then removes it. Nonempty/uncertain custody stays protected.
+          "minecraft:destructible_by_mining":{"seconds_to_destroy":0.7},
           "minecraft:destructible_by_explosion":False,
           "minecraft:movable":{"movement_type":"immovable",
             "sticky":"none"},
           "minecraft:map_color":"#A87539",
           "hartlogistics:bulk_storage_surface":{}
         }}})
-    # No block loot table while removal/evacuation has not been implemented.
-    # The item remains placeable in Creative; survival recipe is added.
+    # UCE intercepts mining and returns the block item after verified removal.
+    # The item remains placeable in Creative; survival recipe is retained.
     write_json(bp/"recipes/bulk_storage.json",{
       "format_version":"1.21.0",
       "minecraft:recipe_shaped":{
