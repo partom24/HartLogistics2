@@ -1,6 +1,6 @@
 # Current Development State — HartLogistics2
 
-**2026-11-13 · Draft PR [#79](https://github.com/partom24/HartLogistics2/pull/79). Not accepted for release.**
+**2026-11-14 · Draft PR [#79](https://github.com/partom24/HartLogistics2/pull/79). Not accepted for release.**
 
 ## Development authority and source
 
@@ -215,16 +215,25 @@ archive/world mutation occurred.
 
 ## Owner's current LAB boundary
 
-The authorized LAB host remains `C:\Servers\Thomas_MCBedrock - Copy (2)`; production `C:\Servers\Thomas_MCBedrock` is prohibited. Owner observations progressed beyond PG27 through PG35 and PG42. The active LAB world `HartUCECarrierLabPG42` has an installed temporary PG42 carrier probe and a persistent named/lore carrier witness. PG35 and earlier ThomasServer LevelDB remain preserved. **Do not run the older PG33-specific UCE installer against this LAB, clear PG42 world records, delete PG42 provenance, or replay unresolved custody.** Historical PG40/PG42 pack-reconstruction and rollback tools are retained because removing them before safe LAB cleanup would strand installed-state rollback. They must not be in the integrated runtime/release archive.
+The authorized LAB host remains C:\\Servers\\Thomas_MCBedrock - Copy (2); production C:\\Servers\\Thomas_MCBedrock is prohibited. The owner-accepted historical PG35/PG42 evidence includes a persistent named/lore PG42 carrier, and must not be repeated or deleted. The owner subsequently reported restoring a production-derived 1.4.1 world onto the LAB on November 13, with BDS version 1.26.60.6. Therefore the prior PG42 world/pack installation cannot be assumed to be active. Any future delivery must verify the exact stopped-LAB predecessor before changing anything. Never run the PG42-only installer against a restored 1.4.1 world, mutate the original restored world, erase historical custody records or replay uncertain journals. Historical rollback tools remain retained, but cannot ship in the HL2 product.
 
 Earlier PG carrier, metadata-rich, custody and journal sessions are bounded evidence and should **not** be repeated as standalone acceptance exercises. The next owner BDS request must be an integrated product session with complete source readiness and an exact pinned, guarded LAB world/pack delivery and rollback plan.
 
 ## Critical release path
 
 1. **Code hygiene and integration:** review all shipped runtime/build dependencies, remove genuinely unused debug/prototype paths without deleting historical rollback requirements; enforce one declared HL2 source and one coordinated routing/custody/recovery model; correct source defects with fault-injection tests and exact-head CI.
-2. **Full-product LAB delivery:** establish a guarded installer/rollback from the actual PG42 environment into a *separate safe integrated-world target* without altering PG35 or PG42 evidence; require exact predecessor and unchanged other packs, before owner involvement.
+2. **Full-product LAB delivery:** verify the actual stopped-LAB predecessor (immutable restored 1.4.1 or previously pinned PG42/HL2), then install the integrated HL2 candidate only into a separate new BDS-generated world with a transactional packs-first Restore before old-world reselection. Source-only 1.4.1 support is newly present in the existing freeform path; no LAB acceptance is implied.
 3. **Integrated Bedrock acceptance:** ordinary and MR real item transfers, multiple Receivers, Bulk, Transporter, Sorter modes, Hopper/Dropper/Dispenser, inventory limits, redstone, blocked/full/unloaded graph, restart and diagnosed HOLD. The owner should run a single coherent product test instead of repeated PG probes.
 4. **Archived 1.4.1 cold migration:** verify access to the original restorable ZIP and its Q4 census, implement repeatable non-destructive activation on a separate restored LAB copy. `unified_cold_q4_importer.mjs` has a source-tested engine for ordinary Q4 but **the compiled runtime only exposes read-only `migration_preview` and empty-world `activate_empty_lab`; no owner-safe nonempty-world activation is currently wired to real backup verification**. Opaque/metadata-rich legacy Q4 rows HOLD because hidden metadata cannot be reconstructed losslessly from unknown serialized definitions. This is **not** completed migration support; do not use empty-world activation on an archive.
 5. **Release:** full compatibility acceptance, complete safety/performance evidence, clean temporary-instrumentation registry, reproducible HL2 archive with checksum/source pin, documented limits and explicit owner release authorization.
 
 **Unchanged hard constraints:** no world deletion/reset to force empty activation; no unrecorded ownership replay; no synthesized native metadata; no automatic install/merge/production action; no assumption that source mocks prove Bedrock save atomicity. All source changes remain reviewable in draft PR #79.
+
+
+## 2026-11-14 — Generated 1.5 hot-path compatibility and restored-world delivery
+
+The active PR #79 candidate is still SOURCE-only, not released. The generated 1.5 legacy processColumn now checks live Hopper/Transporter occupancy before inspecting downstream Sorters or journaled Hopper compaction, reads Container.size once, and checks fresh inventory each eligible tick. The added compiled-main regression covers empty, newly occupied, powered and bypass columns. Original addon source is unchanged. The accepted 1.4.1 CPU profile is diagnostic evidence, not measured 1.5 Bedrock performance.
+
+The original PG42-only full-product LAB installer is not appropriate for the owner's subsequently restored 1.4.1 LAB without verifying the actual predecessor. Existing freeform_lab.py instead now supports only an exact immutable original 1.4.1 pack pair or an authenticated 1.5.16 integrated pair. Staging seals the predecessor file hashes before selecting a genuinely new LAB world; installation requires unchanged hashes. Restore checks a saved original pack rollback tag, restores the exact previous shared pack bytes and new-world-only registrations using the existing two-pack transaction, and only then reselects the old world. Synthetic tests include the actual frozen original pack copy, round-trip restoration, previous-world byte protection, source drift, mixed versions and foreign registration refusal. This work did not inspect or change any owner server or existing world.
+
+Accepted PG carrier, ordinary Q4, metadata, journal and menu findings are retained within their historical scope. Source-level checks are not native BDS integration, crash atomicity or release approval. Nonempty legacy Q4 activation and metadata-rich migration remain HOLD; existing original world data cannot be cut over using empty-world activation. The next owner gameplay boundary is one complete integrated HL2 product run rather than repeated subsystem probes.
