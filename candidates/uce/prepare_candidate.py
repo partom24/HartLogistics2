@@ -96,12 +96,12 @@ def compile_patch(source,bridge):
     # Capture this once while preserving every slot and original priority.
     # This is a 1.5-only source patch: original 1.4.1 is immutable.
     source=once(source,
-      "function findAcceptSlot(container, stack) {\\n"+
-      "    let firstEmpty = -1;\\n"+
+      "function findAcceptSlot(container, stack) {\n"+
+      "    let firstEmpty = -1;\n"+
       "    for (let i=0; i<container.size; i++) {",
-      "function findAcceptSlot(container, stack) {\\n"+
-      "    let firstEmpty = -1;\\n"+
-      "    const size=container.size;\\n"+
+      "function findAcceptSlot(container, stack) {\n"+
+      "    let firstEmpty = -1;\n"+
+      "    const size=container.size;\n"+
       "    for (let i=0; i<size; i++) {")
     # 1.4.1 reconciled every registered Sorter and queried every display
     # entity in three dimensions on a SINGLE 100-tick callback. In the
