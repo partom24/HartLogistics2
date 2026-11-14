@@ -199,12 +199,12 @@ export function registerUnifiedEmptyAccount(snapshot,{kind,ownerId,
 }
 
 /**
- * Propose retirement of a NEVER USED empty Bulk account. A controller can
+ * Propose retirement of a fully DRAINED empty Bulk account. A controller can
  * relinquish ownership to the lowest-ID surviving member in the same sealed
  * shard. No other account, item, or historical lifetime counter is discarded.
  * Physical vacancy, global journals and durable readback are separate gates.
  */
-export function retireUnifiedUnusedBulkAccount(snapshot,{
+export function retireUnifiedEmptyBulkAccount(snapshot,{
   ownerId,expectedRevision,expectedEpoch
 }={}){
   const valid=inspectUnifiedOrdinaryLedger(snapshot);
@@ -217,9 +217,8 @@ export function retireUnifiedUnusedBulkAccount(snapshot,{
   const target=snapshot.accounts.find(a=>a.id===id);
   if(!target||target.kind!=='bulk')
     return denied('bulk_account_not_found');
-  if(target.total!==0||target.buckets.length!==0||
-     target.lifetime.received!==0||target.lifetime.delivered!==0)
-    return denied('bulk_account_not_unused_and_empty');
+  if(target.total!==0||target.buckets.length!==0)
+    return denied('bulk_account_not_empty');
   const next=JSON.parse(JSON.stringify(snapshot));
   next.accounts=next.accounts.filter(a=>a.id!==id);
   if(target.role==='controller'){
@@ -236,7 +235,8 @@ export function retireUnifiedUnusedBulkAccount(snapshot,{
   if(!checked.ok||next.total!==snapshot.total)
     return denied('bulk_retirement_invariant_failure');
   return {ok:true,status:'UNUSED_BULK_RETIREMENT_DRAFT_ONLY',
-    next,retiredId:id,controllerOwnerId:next.accounts.find(a=>
+    next,retiredId:id,retiredLifetime:{...target.lifetime},
+    controllerOwnerId:next.accounts.find(a=>
       a.kind==='bulk'&&a.role==='controller')?.ownerId||null,
     hasPhysicalRemovalProof:false,...noAuthority};
 }
