@@ -15,13 +15,16 @@
 import {inspectUnifiedOrdinaryLedger,
   transitionUnifiedOrdinaryAccounts,
   transitionUnifiedOrdinaryBoundary,
-  registerUnifiedEmptyAccount} from './unified_ordinary_accounts.mjs';
+  registerUnifiedEmptyAccount,
+  retireUnifiedUnusedBulkAccount} from './unified_ordinary_accounts.mjs';
 
 export const UCE_SHARD_SCHEMA='hart-uce-world-shard-v1';
 export const UCE_AUTHORITY_SCHEMA='hart-uce-world-authority-v1';
 export const UCE_AUTHORITY_KEY='hartlogistics:uce_authority_v1';
 export const UCE_SHARD_MAX_CHARS=28000;
 export const UCE_FEDERATED_INTENT_KEY='hartlogistics:uce_federated_intent_v1';
+export const UCE_EMPTY_BULK_REMOVAL_KEY='hartlogistics:uce_empty_bulk_removal_intent_v1';
+export const UCE_EMPTY_BULK_REMOVAL_SCHEMA='hart-uce-empty-bulk-removal-v1';
 export const UCE_FEDERATED_SCHEMA='hart-uce-federated-intent-v1';
 const KEY=/^hartlogistics:uce_shard_[a-z0-9_]{1,80}_v1$/;
 const ASCII=/^[\x20-\x7e]+$/;
@@ -96,7 +99,8 @@ function noLegacyJournal(world){
  */
 export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
     {allowedNativeOperationId=null,allowedBoundaryOperationId=null,
-     allowedFederatedOperationId=null}={}){
+     allowedFederatedOperationId=null,
+     allowedEmptyBulkRemovalOperationId=null}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
       typeof externalFence!=='function')
     return hold('invalid_unified_mutation_fence');
@@ -147,6 +151,21 @@ export function verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
        intent.operationId!==allowedFederatedOperationId)
       return hold('federated_intent_pending_global');
   }
+  // The PREPARED physical-removal marker blocks EVERY unrelated writer.
+  // Never auto-clear a pending marker after partial world/shard saves.
+  const removal=read(world,UCE_EMPTY_BULK_REMOVAL_KEY);
+  if(!removal.ok)return removal;
+  if(removal.value!==undefined&&removal.value!==null&&removal.value!==''){
+    let intent;
+    try{intent=JSON.parse(removal.value);}catch(_){
+      return hold('empty_bulk_removal_intent_invalid');
+    }
+    if(!intent||intent.schema!==UCE_EMPTY_BULK_REMOVAL_SCHEMA||
+       intent.worldId!==worldId||intent.epoch!==epoch||
+       typeof intent.operationId!=='string'||!intent.operationId||
+       intent.operationId!==allowedEmptyBulkRemovalOperationId)
+      return hold('empty_bulk_removal_pending_global');
+  }
   let exclusive=false;
   try{exclusive=externalFence()===true;}catch(_){};
   if(!exclusive)return hold('legacy_writer_exclusion_unproven');
@@ -190,7 +209,8 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
     externalFence,verifyEscrowCustody,verifyInternalRoute,
     verifyBulkPlacement,verifyGlobalBulkUniqueness,
     verifyReceiverPlacement,verifyGlobalReceiverUniqueness,
-    verifyReceiverReserveShard,verifyFederatedRoute}={}){
+    verifyReceiverReserveShard,verifyFederatedRoute,
+    verifyBulkVacated}={}){
   if(!world||typeof world.getDynamicProperty!=='function'||
      typeof world.setDynamicProperty!=='function'||
      !KEY.test(shardKey||'')||typeof worldId!=='string'||
@@ -211,10 +231,12 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
       lastReceipt:parsed.value.receipt,
       canMoveNative:false,canClearQ4:false,canCommitMigration:false};
   }
-  function fence(boundaryOperationId=null,federatedOperationId=null){
+  function fence(boundaryOperationId=null,federatedOperationId=null,
+                 emptyBulkRemovalOperationId=null){
     return verifyUnifiedMutationFence(world,worldId,epoch,externalFence,
       {allowedBoundaryOperationId:boundaryOperationId,
-       allowedFederatedOperationId:federatedOperationId});
+       allowedFederatedOperationId:federatedOperationId,
+       allowedEmptyBulkRemovalOperationId:emptyBulkRemovalOperationId});
   }
   function applyInternalTransfer(args){
     if(quarantine)return hold('shard_session_quarantine:'+quarantine);
@@ -552,6 +574,63 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
 
 
   /**
+   * Remove exactly one already vacant, NEVER USED Bulk member in this shard.
+   * Global PREPARED marker must be owned by the requesting operation, and
+   * physical AIR must be authenticated again before the one-property write.
+   */
+  function retireEmptyBulkMember({ownerId,operationId,expectedRevision,
+      expectedEpoch}={}){
+    if(quarantine)return hold('shard_session_quarantine:'+quarantine);
+    if(typeof verifyBulkVacated!=='function')
+      return hold('bulk_vacated_world_proof_missing');
+    if(typeof ownerId!=='string'||!ownerId||!ASCII.test(ownerId)||
+       typeof operationId!=='string'||!operationId||
+       !ASCII.test(operationId)||operationId.length>256||
+       !nat(expectedRevision)||expectedEpoch!==epoch)
+      return hold('invalid_empty_bulk_retirement_request');
+    const gate=fence(null,null,operationId);
+    if(!gate.ok)return gate;
+    const a=read(world,shardKey);
+    if(!a.ok)return a;
+    const parsed=unpack(a.value,shardKey,worldId,epoch);
+    if(!parsed.ok)return parsed;
+    const before=parsed.value.snapshot;
+    if(before.revision!==expectedRevision)
+      return hold('stale_empty_bulk_retirement_revision');
+    const proved=()=>{
+      try{return verifyBulkVacated(ownerId,shardKey,operationId)===true;}
+      catch(_){return false;}
+    };
+    if(!proved())return hold('bulk_physical_vacancy_not_verified');
+    const step=retireUnifiedUnusedBulkAccount(before,{
+      ownerId,expectedRevision,expectedEpoch});
+    if(!step.ok)return hold(step.reason);
+    const receipt={kind:'RETIRE_EMPTY_BULK',operationId,epoch,
+      revision:step.next.revision,beforeRevision:before.revision,
+      accountId:'bulk:'+ownerId,shardKey};
+    const updated=pack(shardKey,step.next,receipt);
+    if(!updated.ok)return updated;
+    const current=read(world,shardKey);
+    if(!current.ok||current.value!==a.value)
+      return hold('bulk_retirement_shard_changed_prewrite');
+    if(!fence(null,null,operationId).ok||!proved())
+      return hold('bulk_retirement_fence_or_block_changed');
+    try{world.setDynamicProperty(shardKey,updated.raw);}catch(_){
+      quarantine='bulk_retirement_write_ambiguous';
+      return hold('bulk_retirement_write_ambiguous');
+    }
+    const saved=read(world,shardKey);
+    if(!saved.ok||saved.value!==updated.raw||
+       !unpack(saved.value,shardKey,worldId,epoch).ok){
+      quarantine='bulk_retirement_readback_mismatch';
+      return hold('bulk_retirement_readback_mismatch');
+    }
+    return {ok:true,status:'BULK_ACCOUNT_RETIRED_SAME_LEDGER',
+      accountId:receipt.accountId,controllerOwnerId:step.controllerOwnerId,
+      receipt,canClearQ4:false};
+  }
+
+  /**
    * Atomic empty-Receiver ownership registration in a pre-sealed reserve.
    * The ONLY persisted mutation is this existing UCE shard property. No new
    * Q4 queue, link writer, second index, item movement, or automatic retry.
@@ -628,6 +707,7 @@ export function createUnifiedShardWriter({world,shardKey,worldId,epoch,
   }
 
   return {ok:true,inspect,applyInternalTransfer,applyBoundaryCommit,
-    applyFederatedSide,registerBulkMember,registerNewReceiver,
+    applyFederatedSide,registerBulkMember,retireEmptyBulkMember,
+    registerNewReceiver,
     getSessionQuarantine:()=>quarantine};
 }
