@@ -1108,7 +1108,8 @@ function uceUnifiedJournalHold(){
             'hartsorter:queue_journal_v1',
             'hartlogistics:uce_native_intent_v1',
             'hartlogistics:uce_boundary_intent_v1',
-            'hartlogistics:uce_federated_intent_v1'
+            'hartlogistics:uce_federated_intent_v1',
+            'hartlogistics:uce_empty_bulk_removal_intent_v1'
         ]){
             const value=world.getDynamicProperty(key);
             if(value!==undefined&&value!==null&&value!==''){
@@ -2677,6 +2678,52 @@ function uceShowBulkStatus(player,block){
         '\\nConnect a verified Receiver before service is enabled.');
     // Existing chat/status UI avoids an undeclared server-ui dependency.
     player.sendMessage('§6[Hart Bulk Storage] §7'+status);
+}
+
+// An ordinary player mining an empty Bulk block is a normal operation, not
+// a maintenance mode. beforeEvents cancels the vanilla edit; this callback
+// performs one authenticated account+block retirement next tick.
+const uceBulkMiningPending=new Set();
+function uceMineEmptyBulkStorage(player,location,dimension){
+    const key=dimension?.id+'|'+location.x+','+location.y+','+location.z;
+    if(uceBulkMiningPending.has(key))return;
+    uceBulkMiningPending.add(key);
+    try{
+        const block=dimension?.getBlock(location);
+        if(!block||block.typeId!=='hartlogistics:bulk_storage')return;
+        const auth=uceAuthoritySnapshot();
+        const result=auth&&executeUnifiedEmptyBulkRemoval({
+            world,worldId:auth.worldId,epoch:auth.epoch,
+            operationId:uceNativeReceiptId(),block,
+            operatorAuthorized:true,
+            externalFence:()=>uceLegacyWriterBlocked()&&
+                !!uceAuthoritySnapshot()
+        });
+        if(!result?.ok){
+            const reason=result?.reason||'storage_authority_unavailable';
+            if(reason==='storage_contains_items')
+                player?.sendMessage('§e[Bulk] This storage has items in it. Empty it before breaking.');
+            else
+                player?.sendMessage('§e[Bulk] Could not pick up this storage safely ('+
+                    reason+'). Your items were not discarded.');
+            return;
+        }
+        // The block itself is ordinary inventory. Return one block to the
+        // survival player after both physical and virtual ownership retire.
+        // Creative already has unlimited copies in its palette.
+        let mode;
+        try{mode=String(player?.getGameMode?.()||'').toLowerCase();}
+        catch(_){}
+        if(mode!=='creative'){
+            try{
+                dimension.spawnItem(new ItemStack('hartlogistics:bulk_storage',1),
+                    {x:location.x+0.5,y:location.y+0.5,z:location.z+0.5});
+            }catch(_){
+                player?.sendMessage('§e[Bulk] Storage removed, but the block item could not be dropped.');
+            }
+        }
+        player?.sendMessage('§a[Bulk] Empty storage picked up.');
+    }finally{uceBulkMiningPending.delete(key);}
 }
 function uceRegisterBulkComponent(registry){
     registry.registerCustomComponent('hartlogistics:bulk_storage_surface',{
