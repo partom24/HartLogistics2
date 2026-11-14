@@ -1542,3 +1542,61 @@ test('large player network compact SHA witness stays within custody journal size
   assert.notEqual(second.fingerprint,first.fingerprint,
     'a changed distant pipe invalidates the full canonical graph digest');
 });
+
+test('compact IB1/IBB1 path receipts preserve old short witnesses and full long-chain identity',()=>{
+  const f=fixture();
+  const encode=raw=>f.context.ucePipeCompactInterbankWitness(raw);
+  assert.equal(encode('IB1|old|segment|Filter'),'IB1|old|segment|Filter');
+  assert.equal(encode('IBB1|old|segment|Bulk'),'IBB1|old|segment|Bulk');
+  const filter='IB1|'+'a'.repeat(9000)+'|filter';
+  const auto='IB1|'+'a'.repeat(9000)+'|auto';
+  const bulk='IBB1|'+'a'.repeat(9000)+'|bulk';
+  assert.equal(encode(filter),'IB1|sha256:'+createHash('sha256').update(filter).digest('hex'));
+  assert.equal(encode(bulk),'IBB1|sha256:'+createHash('sha256').update(bulk).digest('hex'));
+  assert.notEqual(encode(auto),encode(filter),'Auto/Filter mode must be in the digest');
+  assert.equal(encode('IB1|bad\nnewline'),undefined);
+  assert.equal(encode('unknown|'+'x'.repeat(9000)),undefined);
+});
+
+test('90 ordinary linked Receiver banks route to final Filter without long-witness refusal',()=>{
+  const f=fixture(),banks=90;
+  f.filter.m='bypass';f.fallback.m='wildcard';
+  f.chestB.typeId='hartsorter:collector';
+  const addLink=(at,receiver)=>{
+    const id=f.context.logisticsId(f.dim.id,at.x,at.y,at.z);
+    f.collectors.push({id,d:f.dim.id,x:at.x,y:at.y,z:at.z,
+      link:receiver.id,present:true});
+  };
+  let prevCollector=f.chestB,last;
+  for(let i=1;i<banks;i++){
+    const rx=40+i*10;
+    const id=f.context.logisticsId(f.dim.id,rx,70,4);
+    const owner={id,d:f.dim.id,x:rx,y:70,z:4,present:true};
+    f.registeredReceivers.push(owner);
+    f.put('hartsorter:receiver',rx,70,4);
+    f.put('hartlogistics:transporter',rx-1,70,4);
+    f.put('hartsorter:sorter',rx-1,69,4);
+    const entry={d:f.dim.id,x:rx-1,y:69,z:4,m:'wildcard',f:null};
+    f.entries.push(entry);
+    addLink(prevCollector,owner);
+    if(i===banks-1){
+      entry.m='filter';
+      entry.f={match:{typeId:'minecraft:cobblestone'}};
+      f.put('minecraft:barrel',rx-1,69,5,f.newContainer());
+      last=owner;
+    }else prevCollector=f.put('hartsorter:collector',rx-1,69,5);
+  }
+  const select=()=>f.context.uceSelectInterbankFilteredRoute(
+    f.receiver,f.network(),COBBLE,f.context.uceAuthoritySnapshot());
+  const found=select();
+  assert.ok(found,'full linked route across 90 verified banks must be usable');
+  assert.equal(found.receiver.id,last.id);
+  assert.equal(found.hops,banks-1);
+  assert.match(found.witness,/^IB1\|sha256:[a-f0-9]{64}$/);
+  assert.ok(found.witness.length<8192);
+  assert.equal(select()?.witness,found.witness,
+    'all intermediate banks must reproduce the exact receipt witness');
+  f.collectors[40].link=f.receiver.id;
+  assert.notEqual(select()?.witness,found.witness,
+    'a changed distant Collector route can never verify the old receipt');
+});
