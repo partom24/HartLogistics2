@@ -18,6 +18,7 @@ FOUNDATION = (
     "RECOVERY_MANDATE.md",
     "NATIVE_FIRST_MECHANICS_AUDIT.md",
     "BASELINE_141_RECURSIVE_CENSUS.md",
+    "BASELINE_141_FUNCTION_EFFECTS.md",
 )
 FORBIDDEN_IMPORT_ROOTS = ("candidates/", "build/uce-", "tests/test_uce_", "tests/test_unified_")
 ALLOW_CHANGED_PREFIXES = (
@@ -78,6 +79,13 @@ def main() -> int:
                           and '/addon/behavior_pack/scripts/main.js#L' in line]
         if len(function_lines) != 180:
             failures.append("function census must enumerate exactly 180 original declarations")
+
+    effects = ROOT / "BASELINE_141_FUNCTION_EFFECTS.md"
+    if effects.exists():
+        count = sum(1 for line in effects.read_text(encoding="utf-8").splitlines()
+                    if line.startswith("| [") and "/addon/behavior_pack/scripts/main.js#L" in line)
+        if count != 180:
+            failures.append("every baseline JavaScript function requires an effects row")
 
     if (ROOT / ".git").exists():
         try:
