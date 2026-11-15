@@ -1,0 +1,67 @@
+name: 1.4.1 Native-first engine implementation
+on:
+  push:
+    branches:
+      - implementation/native-first-engine-141-20261115
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-guard-and-candidate:
+    name: Original 1.4.1 provenance and candidate engine behavior
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Fetch canonical ancestry and engine branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1000
+      - name: Verify only engine candidate source differs from 1.4.1
+        run: python3 tools/engine_candidate_guard.py
+      - name: Execute candidate actual function bodies against native API mocks
+        run: node --test implementation/tests/native_first_engine.test.mjs
+      - name: Confirm original 1.4.1 regression witnesses independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          script="addon/behavior_pack/scripts/main.js"
+          cp "$script" "$RUNNER_TEMP/engine_candidate_main.js"
+          trap 'cp "$RUNNER_TEMP/engine_candidate_main.js" "$script"' EXIT
+          git show 0ea3000651c116b0fa1acc2836ab7e1bcfbc6269:"$script" > "$script"
+          node --test \
+            recovery/tests/level2_source_contracts.test.mjs \
+            recovery/tests/level2_journal_faults.test.mjs \
+            recovery/tests/level2_native_scheduler_screen.test.mjs \
+            recovery/tests/level2_native_semantic_gaps.test.mjs \
+            recovery/tests/level2_q4_recovery_states.test.mjs \
+            recovery/tests/level2_direct_only_guards.test.mjs
+      - name: Verify engine candidate remains exactly checked-out, not test-mutated
+        shell: bash
+        run: |
+          git diff --exit-code
+          python3 tools/engine_candidate_guard.py
+
+  api-270:
+    name: Pinned native @minecraft/server 2.7.0 declarations
+    needs: source-guard-and-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout implementation branch
+        uses: actions/checkout@v4
+      - name: Obtain exact public 2.7.0 TypeScript definitions in runner scratch
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-270"
+          name="$(npm pack --silent --pack-destination "$RUNNER_TEMP" @minecraft/server@2.7.0 | tail -n 1)"
+          tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP/native-270"
+          test -s "$RUNNER_TEMP/native-270/package/index.d.ts"
+          test -s "$RUNNER_TEMP/native-270/package/package.json"
+      - name: Verify precisely versioned native API signatures
+        shell: bash
+        run: |
+          MINECRAFT_SERVER_TYPES_270="$RUNNER_TEMP/native-270/package/index.d.ts" \
+          MINECRAFT_SERVER_PACKAGE_270="$RUNNER_TEMP/native-270/package/package.json" \
+            node --test recovery/tests/level2_api_270_types.test.mjs
