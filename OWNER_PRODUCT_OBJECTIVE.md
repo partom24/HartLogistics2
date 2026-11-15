@@ -2,6 +2,14 @@
 
 **Owner-directed product objective, not an optional design example.** Added to the recovery foundation on 2026-11-14. This document governs what the native-first recovery must ultimately **deliver**, not merely which APIs it investigates. **The reference pictures are the target.** Native-first architecture, source-test counts, migration plans and performance instrumentation are means to achieve this target, never substitutes for it.
 
+## Current engineering phase: base 1.4.1 native-first conversion
+
+**Owner scope decision (2026-11-15):** Both owner reference images remain the overall product objectives and the **layout/scale context for accepting this phase**, but the active deliverable is **conversion of existing Hart Logistics 1.4.1 only**. The phase must preserve and improve the existing Sorter, Collector, Receiver, native Hopper interaction, item frames, routing/filter modes, redstone, and original Q2/Q3/Q4 world-data compatibility. Neither reference image authorizes expansion into new block families.
+
+**Deferred, not required for base 1.4.1 completion:** Bulk Storage, Transporters, Q5, and any new generalized custody engine designed for 1.5. The owner will separately authorize development of the 1.5 custody engine at the appropriate time. Existing 1.4.1 queue/journal/custody protections **must still work unchanged or safely equivalently**; deferring 1.5 does not permit weakening base item safety.
+
+This scope restriction governs the images **without weakening their authority**: evaluate the actual arrays as real-world tests of the *1.4.1-capable* functions, rather than interpreting future pictured logistics expansion as an obligation to implement it now.
+
 ## 1. Authoritative owner-supplied product references
 
 The owner explicitly designated the GitHub folder **[docs/reference-images on main](https://github.com/partom24/HartLogistics2/tree/main/docs/reference-images)** as the **overall objective of HL2**. Both files listed in that folder at the inspected main commit are mandatory design/acceptance references:
@@ -18,7 +26,7 @@ The owner explicitly designated the GitHub folder **[docs/reference-images on ma
 ## 2. What counts as achieving the objective
 
 1. **Preserve the intended owner physical layouts and interactions.** Interpret the pictures as product/acceptance references for the **Sorter array** and **storage-room array**. Do not turn them into a generic isolated test rig, force a redesign of the user's actual storage build, or assert an exact block-by-block mapping from filenames alone. Any dimension, geometry, block count, interaction, or connection detail not independently verified in the pictures and owner's actual world must be left **unspecified**, not invented.
-2. **Deliver the whole functioning system, not just a visual imitation.** Preserve native Hopper behaviors and original 1.4.1 filter/mode/redstone/Collector/Receiver compatibility, with reliable routing and item identity, while delivering the linked banks/transport/storage functions required for the pictured overall goal. A beautifully rendered but nonfunctional array fails.
+2. **Deliver the whole functioning system, not just a visual imitation.** Preserve native Hopper behaviors and original 1.4.1 filter/mode/redstone/Collector/Receiver compatibility, with reliable routing, item identity, and existing native-Hopper storage-room connections. Future Bulk Storage, Transporters and the separately authorized 1.5 custody architecture are not part of the current conversion. A beautifully rendered but nonfunctional array fails.
 3. **Scale to the actual intended use.** The pictured designs are the architectural context for scale acceptance, not a reason to shrink the benchmark. Benchmark normal idle, active, blocked and full/backlogged behavior at the owner's real configuration and topology; measure *actual BDS tick health*, end-to-end useful throughput, latency, conservation and resource work. Source-only mock counts or miniature flat-world examples cannot substitute for this validation.
 4. **Prefer native Bedrock mechanics wherever they meet the required behavior.** Native-first is the implementation rule, **not permission to alter the owner's objective**. Any replacement must fit the two referenced layouts without unwanted extra wiring, array rebuilds, lost features, loss of metadata, or violations of compatibility.
 5. **Preserve owner worlds and historical data.** No production changes or migrations, no destructive replacement or emptied queues, and no unauthorized modification to the original restored production-derived LAB environment. The owner selects the actual builds used for integrated acceptance; never declare the product complete using an assistant-created test structure alone.
@@ -31,7 +39,7 @@ The owner explicitly designated the GitHub folder **[docs/reference-images on ma
 | Gate | Required answer before accepting a change |
 | --- | --- |
 | **O1 Visual/layout fit** | Does this retain the intended Sorter and storage-room arrays represented by both owner references? If not proven, mark **UNVERIFIED**, not PASS. |
-| **O2 End-to-end functionality** | Does this preserve the routing/mode/physical-storage/transport behavior for the owner layouts, including original-world compatibility? |
+| **O2 End-to-end functionality** | Does this preserve all existing 1.4.1 routing, Filter/Auto/Wildcard/BYPASS modes, vanilla Hopper transport and Collector/Receiver behaviors on the owner layouts, including original-world compatibility? Do not demand new Bulk/Transporter features. |
 | **O3 Native-first** | Can the engine handle the proposed operations? What minimal custom Hart-specific behavior remains? |
 | **O4 Real-world scale** | What measurements on owner-sized actual arrangements support TPS, throughput, backpressure and no excessive idle work? |
 | **O5 Preservation and control** | Does the change preserve item identity, world state, data and owner approval boundaries? |
