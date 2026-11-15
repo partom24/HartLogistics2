@@ -18,6 +18,6 @@ jobs:
       - name: Checkout full ancestry for source-isolation proof
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
       - name: Validate immutable 72-file import, 1.4.1 lineage and root mandate
         run: python3 tools/recovery_baseline_guard.py
