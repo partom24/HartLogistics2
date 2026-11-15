@@ -2,6 +2,8 @@
 
 **Evidence:** 1.4.1 source + official Microsoft/Mojang API documentation, **not** runtime proof, benchmark, or 1.5 source. **Version fence:** `@minecraft/server 2.7.0` and BP min engine `1.26.50`. **No new code design is authorized by these decisions.** Every N-ID points to [official API research](LEVEL1_NATIVE_API_RESEARCH_141.md); M-IDs match [the canonical 40-row mechanics table](NATIVE_FIRST_MECHANICS_AUDIT.md).
 
+**Pinned 2.7 API and Level 2 native-custody follow-up:** [exact native signatures, 68 source-executed tests, 11 official-versioned type checks, and retained custom gaps](recovery/NATIVE_TRANSFER_AND_CUSTODY_LEVEL2_DECISIONS.md). None of these is a BDS-runtime test or authorization to implement a substitute.
+
 **Post-Level-1 source-only decision on scheduling:** [Native Sorter trigger screening and comparator/event counterexamples](recovery/NATIVE_SORTER_TRIGGER_SCREEN.md), with [54 source-executed Level 2 cases](recovery/LEVEL2_SOURCE_EVIDENCE.md). This does not establish a native item-arrival callback or authorize a scheduler rewrite.
 
 **Disposition terms:** `E` already native-integrated; `C` native partial/contract candidate; `G` Hart domain behavior has no documented complete native substitute; `U` crucial correctness or durability guarantee undocumented. `X` for invalid-version/incorrect alternative. **C means evaluate, NOT adopt.** Many rows contain a mix. Every row is Level 1 source/doc finding and its follow-up can be refused early if native is technically insufficient.
