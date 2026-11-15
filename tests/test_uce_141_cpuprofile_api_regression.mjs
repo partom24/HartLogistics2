@@ -136,12 +136,22 @@ test('compiled legacy 1.5 Sorter skips all downstream work for empty input but s
   const actual=compiled.slice(begin,end);
   assert.match(actual,/const srcSize=src.size;/);
   assert.match(actual,/if \(!hasSourceItems\) return 0;/);
+  assert.match(actual,/const emptySlots=src\.emptySlotsCount;/);
+  assert.match(actual,/if \(!pg23TransportMayRun\(\)\) return 0;/);
+  assert.doesNotMatch(actual.slice(0,160),
+    /if \(!pg23TransportMayRun\(\)\) return 0;/,
+    'journal safety gate moves only past read-only empty-Hopper check');
   assert.match(actual,/for \(let si=0; si<srcSize && columnBudget>0; si\+\+\)/);
-  let cargo,locked=false,bypass=false;
-  const calls={size:0,reads:0,sorters:0,compactions:0,moves:0};
+  let cargo,locked=false,bypass=false,occupancyFails=false,gateOpen=true;
+  const calls={size:0,occupancy:0,reads:0,gates:0,sorters:0,compactions:0,moves:0};
   const input={
     isValid:true,
     get size(){calls.size++;return 5;},
+    get emptySlotsCount(){
+      calls.occupancy++;
+      if(occupancyFails)throw Error('native occupancy unavailable');
+      return cargo?4:5;
+    },
     getItem:i=>{calls.reads++;return i===0?cargo:undefined;}
   };
   const source={
@@ -152,7 +162,7 @@ test('compiled legacy 1.5 Sorter skips all downstream work for empty input but s
   const ctx={
     PER_COLUMN_BATCH:16,PG26_COLUMN_BATCH:64,
     PG26_PIPE_ID:'hartlogistics:transporter',
-    pg23TransportMayRun:()=>true,
+    pg23TransportMayRun:()=>{calls.gates++;return gateOpen;},
     getDimension:()=>({getBlock:()=>source}),
     hopperIsRedstoneLocked:()=>locked,
     sorterAt:()=>{calls.sorters++;return {};},
@@ -172,13 +182,17 @@ test('compiled legacy 1.5 Sorter skips all downstream work for empty input but s
     source:{x:0,y:90,z:0},sorters:[{nativeQuarantine:false}]};
   assert.equal(ctx.processColumn(col,64),0);
   assert.equal(calls.size,1);
-  assert.equal(calls.reads,5,'empty inventory still inspected every live slot');
+  assert.equal(calls.occupancy,1,'one native occupancy read replaces five native slot reads');
+  assert.equal(calls.reads,0,'empty Hopper must not read five slots');
+  assert.equal(calls.gates,0,'empty Hopper must not reread persistent Q4 journal keys');
   assert.equal(calls.sorters,0,'empty source must not query sorter block or state');
   assert.equal(calls.compactions,0,'empty Hopper must not open a physical journal');
   assert.equal(calls.moves,0);
   cargo={typeId:'minecraft:cobblestone',amount:1,maxAmount:64};
   assert.equal(ctx.processColumn(col,64),1,'next tick sees freshly inserted item');
   assert.equal(calls.size,2,'one size property read per source invocation');
+  assert.equal(calls.occupancy,2,'occupancy must be observed fresh after item ingress');
+  assert.equal(calls.gates,1,'occupied Hopper must pass PG23 journal safety gate');
   assert.equal(calls.sorters,1);
   assert.equal(calls.compactions,2,'occupied Hopper retains both compaction fences');
   assert.equal(calls.moves,1);
@@ -187,6 +201,8 @@ test('compiled legacy 1.5 Sorter skips all downstream work for empty input but s
   const before={...calls};
   assert.equal(ctx.processColumn(col,64),0);
   assert.equal(calls.size,before.size,'powered Hopper stays untouched');
+  assert.equal(calls.occupancy,before.occupancy,'redstone lock precedes occupancy');
+  assert.equal(calls.gates,before.gates,'redstone lock precedes journal gate');
   assert.equal(calls.sorters,before.sorters,'redstone pause precedes routing');
   assert.equal(calls.compactions,before.compactions);
   assert.equal(calls.moves,before.moves);
@@ -195,4 +211,26 @@ test('compiled legacy 1.5 Sorter skips all downstream work for empty input but s
   assert.equal(calls.compactions,before.compactions,
     'all-bypass column must not compact or move inventory');
   assert.equal(calls.moves,before.moves);
+
+  // Older BDS versions or invalid native properties must use the original
+  // live five-slot scan, never incorrectly assume that the Hopper is empty.
+  bypass=false;occupancyFails=true;cargo=undefined;
+  const fallbackBefore={...calls};
+  assert.equal(ctx.processColumn(col,64),0);
+  assert.equal(calls.reads-fallbackBefore.reads,5);
+  assert.equal(calls.gates,fallbackBefore.gates,
+    'empty fallback scan still avoids journal reads and item routing');
+
+  // A nonempty fallback must still HOLD on unresolved PG23 journals, and
+  // route a newly arrived item as soon as authority is restored.
+  cargo={typeId:'minecraft:cobblestone',amount:1,maxAmount:64};
+  gateOpen=false;
+  const guardedBefore={...calls};
+  assert.equal(ctx.processColumn(col,64),0);
+  assert.equal(calls.gates-guardedBefore.gates,1);
+  assert.equal(calls.compactions,guardedBefore.compactions);
+  assert.equal(calls.moves,guardedBefore.moves);
+  gateOpen=true;
+  assert.equal(ctx.processColumn(col,64),1,'fallback still processes live cargo');
+  assert.equal(calls.moves,guardedBefore.moves+1);
 });

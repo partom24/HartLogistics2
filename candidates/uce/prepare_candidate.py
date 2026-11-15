@@ -165,17 +165,40 @@ def compile_patch(source,bridge):
     // Source items must be inspected before expensive live Sorter/target
     // checks or journaled Hopper compaction. Empty inventory has no writes.
     const srcSize=src.size;
-    let hasSourceItems=false;
-    for (let scan=0;scan<srcSize;scan++) {
-        if (src.getItem(scan)) { hasSourceItems=true; break; }
+    let hasSourceItems;
+    // Bedrock's native emptySlotsCount replaces five JS-to-engine getItem
+    // calls for an empty Hopper. If unsupported, invalid or throwing,
+    // retain the original live per-slot inspection (never assume empty).
+    try {
+        const emptySlots=src.emptySlotsCount;
+        if (Number.isInteger(emptySlots) &&
+            emptySlots>=0 && emptySlots<=srcSize)
+            hasSourceItems=emptySlots!==srcSize;
+    } catch (_) {}
+    if (hasSourceItems===undefined) {
+        hasSourceItems=false;
+        for (let scan=0;scan<srcSize;scan++) {
+            if (src.getItem(scan)) { hasSourceItems=true; break; }
+        }
     }
     if (!hasSourceItems) return 0;
+    // Preserve PG23 journal fail-closed gate before ANY compaction,
+    // Sorter selection or custody movement, including after a fresh ingress.
+    if (!pg23TransportMayRun()) return 0;
 
     const activeSorters = col.sorters.filter(e => {
         const b = sorterAt(e);
         return b && !e.nativeQuarantine && !blockIsRedstonePowered(b) && sorterMode(e) !== "bypass";
     });
     if (!activeSorters.length) return 0;'''
+    # The owner's 1.5 profiler found 604,995 empty Hopper getItem calls
+    # and 242,000 PG23 journal-property reads in 18.6 seconds. Keep the
+    # fail-closed PG23 gate before ALL item processing, but check a native,
+    # read-only occupancy witness first. No persistent occupancy cache.
+    source=once(source,
+      "function processColumn(col, globalRemaining) {\n"
+      "    if (!pg23TransportMayRun()) return 0;",
+      "function processColumn(col, globalRemaining) {")
     source=once(source,original_column,inspected_column)
     # One synchronous inventory decision requires one Container.size read.
     # Preserve each slot, filter priority and Hopper/Transporter batch budget.
