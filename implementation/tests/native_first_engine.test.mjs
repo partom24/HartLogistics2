@@ -194,3 +194,65 @@ test("ENGINE-16 original scheduling interval remains in source; no new custom sc
   assert.match(SOURCE,/system\.runInterval\(schedulerTick,\s*1\)/);
   assert.doesNotMatch(SOURCE,/hopperInventoryItemChange/);
 });
+
+
+function logisticsCase({collectors=0,receivers=0,pending=false,unresolved=false,physicalJournal=false,ready=true}={}) {
+  const events=[];
+  let queueJournal=pending;
+  const collectorList=Array.from({length:collectors},(_,id)=>({id}));
+  const receiverList=Array.from({length:receivers},(_,id)=>({id}));
+  const ctx={
+    ready, LOGISTICS_GLOBAL_BUDGET:256,
+    logistics:{collectors:collectorList,receivers:receiverList},
+    collectorRrStart:0,receiverRrStart:0,
+    JOURNAL_KEY:"journal",
+    getQueueJournal:()=>{events.push("Q4.read");return queueJournal?{pending:true}:undefined;},
+    recoverQueueJournal:()=>{events.push("Q4.recover");if(!unresolved)queueJournal=false;},
+    collectorAt:()=>{events.push("EXTRA.Collector.blockLookup");return {};},
+    receiverAt:()=>{events.push("EXTRA.Receiver.blockLookup");return {};},
+    processCollectorIngress:e=>{events.push("Collector:"+e.id);return 0;},
+    processReceiverDrain:e=>{events.push("Receiver:"+e.id);return 0;},
+    world:{getDynamicProperty:key=>{assert.equal(key,"journal");events.push("physicalJournal.read");return physicalJournal?"{pending}":undefined;}}
+  };
+  const fn=originalFunction("logisticsTick",ctx);
+  fn();
+  return {events,ctx};
+}
+
+test("ENGINE-17 idle logistics does a single native Q4 journal read instead of two",()=>{
+  const {events}=logisticsCase();
+  assert.equal(events.filter(e=>e==="Q4.read").length,1);
+  assert.equal(events.filter(e=>e==="Q4.recover").length,0);
+  assert.equal(events.filter(e=>e==="physicalJournal.read").length,1);
+});
+test("ENGINE-18 Collector and Receiver ingress functions own block validation exactly once",()=>{
+  const {events}=logisticsCase({collectors:14,receivers:7});
+  assert.equal(events.filter(e=>e.startsWith("Collector:")).length,14);
+  assert.equal(events.filter(e=>e.startsWith("Receiver:")).length,7);
+  assert.equal(events.filter(e=>e.startsWith("EXTRA.")).length,0);
+});
+test("ENGINE-19 a pending Q4 recovery must clear before any Collector ingress",()=>{
+  const {events}=logisticsCase({pending:true,collectors:2,receivers:2});
+  assert.deepEqual(events.slice(0,3),["Q4.read","Q4.recover","Q4.read"]);
+  assert.equal(events.filter(e=>e.startsWith("Collector:")).length,2);
+});
+test("ENGINE-20 unresolved Q4 journal halts both Collector ingress and Receiver drain",()=>{
+  const {events}=logisticsCase({pending:true,unresolved:true,collectors:5,receivers:5});
+  assert.deepEqual(events,["Q4.read","Q4.recover","Q4.read"]);
+});
+test("ENGINE-21 pending physical journal still fences Receiver output after ingress",()=>{
+  const {events}=logisticsCase({physicalJournal:true,collectors:2,receivers:3});
+  assert.equal(events.filter(e=>e.startsWith("Collector:")).length,2);
+  assert.equal(events.filter(e=>e.startsWith("Receiver:")).length,0);
+});
+test("ENGINE-22 engine not ready makes no native inventory or world-property observations",()=>{
+  const {events}=logisticsCase({ready:false,collectors:5,receivers:5,pending:true});
+  assert.deepEqual(events,[]);
+});
+test("ENGINE-23 original round-robin start advances without duplicate block checks",()=>{
+  const {events,ctx}=logisticsCase({collectors:4,receivers:3});
+  assert.deepEqual(events.filter(e=>e.startsWith("Collector:")),["Collector:0","Collector:1","Collector:2","Collector:3"]);
+  assert.deepEqual(events.filter(e=>e.startsWith("Receiver:")),["Receiver:0","Receiver:1","Receiver:2"]);
+  assert.equal(ctx.collectorRrStart,1);
+  assert.equal(ctx.receiverRrStart,1);
+});
