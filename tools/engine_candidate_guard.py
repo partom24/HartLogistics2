@@ -58,6 +58,28 @@ def main() -> int:
             if name not in value:
                 errors.append(f"Owner visual objective missing: {name}")
 
+    # Owner's explicit scope correction: this branch converts original 1.4.1
+    # only. Bulk, Transporter, Q5 and future 1.5 custody cannot creep into the
+    # release checklist through an outdated architectural description.
+    mandate = ROOT / "RECOVERY_MANDATE.md"
+    status = ROOT / "implementation" / "ENGINE_STATUS.md"
+    for label, scope_file in (
+        ("RECOVERY_MANDATE.md", mandate),
+        ("OWNER_PRODUCT_OBJECTIVE.md", objectives),
+        ("implementation/ENGINE_STATUS.md", status),
+    ):
+        if not scope_file.is_file():
+            errors.append(f"Binding 1.4.1 scope document missing: {label}")
+            continue
+        phase = scope_file.read_text("utf-8").lower()
+        for expected in ("1.4.1", "bulk", "transporter", "q5", "custody engine"):
+            if expected not in phase:
+                errors.append(f"{label} missing phase-scope anchor: {expected}")
+    if mandate.is_file() and "ACTIVE PHASE SCOPE" not in mandate.read_text("utf-8"):
+        errors.append("Owner current-phase scope not in recovery mandate")
+    if status.is_file() and "base 1.4.1 native-first conversion complete" not in status.read_text("utf-8"):
+        errors.append("Base 1.4.1 completion boundary not recorded")
+
     source = (ROOT / ENGINE_FILE).read_text("utf-8")
     if source.count("function schedulerTick()") != 1:
         errors.append("Engine scheduler entrypoint changed unexpectedly")
