@@ -4,7 +4,7 @@
 
 **Canonical implementation:** untouched `addon/behavior_pack/scripts/main.js` at original import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; source-only extraction from the actual 1.4.1 file. The archived 1.5 branch supplied **no code, mock, fixture, implementation, or test output**.
 
-**Verified test run:** [GitHub Actions 43674458698](https://github.com/partom24/HartLogistics2/actions/runs/43674458698), exact tested commit `7f37883d1d587ab1ff81744a054e26cc968a542b`. Baseline provenance PASS, **98/98** original 1.4.1 source-executed tests PASS, and **11/11 exact public npm `@minecraft/server@2.7.0` TypeScript declaration checks PASS** — **109 source/contract checks** in total, **0 failures**. Later documentation commits are gated independently. Later documentation commits are independently gated and must not inherit an earlier test result. This report itself is documentation and has its own later CI revision; do not infer that a future change is tested by the earlier SHA.
+**Verified test run:** [GitHub Actions 43674615159](https://github.com/partom24/HartLogistics2/actions/runs/43674615159), exact tested commit `b74a068e2f6ae1efca927636fd1b18f3ebfdf4d1`. Baseline provenance PASS, **99/99** original 1.4.1 source-executed tests PASS, and **11/11 exact public npm `@minecraft/server@2.7.0` TypeScript declaration checks PASS** — **110 source/contract checks** in total, **0 failures**. Later documentation commits are gated independently. Later documentation commits are independently gated and must not inherit an earlier test result. This report itself is documentation and has its own later CI revision; do not infer that a future change is tested by the earlier SHA.
 
 ## Source-only test implementation
 
@@ -47,6 +47,7 @@ All six source-only suites execute original 1.4.1 function bodies in isolated Ja
 
 | **F17 / M21–M23** | Original queue journal state machine reconciles page/metadata commit, source debit and destination credit; 21 synthetic states include unfinished, completed, conflicting and unavailable cases. | Native `Container` operations cannot replace the Q4 persistence/custody protocol on declaration evidence alone. | Source-executed fault-state branches, **not actual BDS save atomicity**. |
 | **F18 / M27** | Original `processCollectorIngress` catches a failed `loadReceiverQueue` and may allow opaque direct transfer when cached `receiver.queued=0`; source-only test confirms the branch. | **Potential FIFO bypass if cached zero is stale**. Queue-load failure should not authorize direct physical movement under the required custody contract. | Conditional source fail-open; not evidence of a real-world incident. |
+| **F20 / M01/M03/M04** | The original scheduler → processColumn → two-pass Hopper compaction chain executes **20,805 synthetic getItem reads** across **1,387 eligible empty, unlocked columns**, with zero destination reads or writes. | Demonstrates actual source call-chain scaling and why a movement-only item budget does not cap idle observation. | All-native operations are mocked; **not** Bedrock API sample count, CPU time, or TPS. |
 | **F19 / M30** | Original entity enqueue recovery clears a committed journal when the exact item entity is absent but the source Dropper block is loaded. | Whether entity absence proves Hart previously removed it requires Bedrock lifecycle/persistence verification. | Source inference, **no proven duplication/loss**. |
 
 **Detailed reproducible risk register:** [Q4 custody and direct-only fault matrix](LEVEL2_Q4_CUSTODY_FAULT_MATRIX.md).
@@ -72,6 +73,6 @@ All six source-only suites execute original 1.4.1 function bodies in isolated Ja
 
 ## Closure criteria for any future implementation
 
-A native substitution recommendation requires (1) original 1.4.1 M-ID and behavior, (2) official API contract and exact 2.7 method availability, (3) **source-only semantic compatibility**, (4) smallest remaining Hart-only logic, (5) cost model and **actual BDS measurements when authorized**, (6) identity/queue/transaction and restart proof, and (7) an identified exact artifact. A documentary candidate or these 98 source tests and 11 pinned-type checks alone can never close those runtime gates.
+A native substitution recommendation requires (1) original 1.4.1 M-ID and behavior, (2) official API contract and exact 2.7 method availability, (3) **source-only semantic compatibility**, (4) smallest remaining Hart-only logic, (5) cost model and **actual BDS measurements when authorized**, (6) identity/queue/transaction and restart proof, and (7) an identified exact artifact. A documentary candidate or these 99 source tests and 11 pinned-type checks alone can never close those runtime gates.
 
 **Current decision:** source-only foundation is in place. No new native substitute has been implemented or selected as proven. The administrative lock of the frozen branch remains unresolved separately in [issue #82](https://github.com/partom24/HartLogistics2/issues/82).
