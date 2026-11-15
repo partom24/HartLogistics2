@@ -65,3 +65,42 @@ jobs:
           MINECRAFT_SERVER_TYPES_270="$RUNNER_TEMP/native-270/package/index.d.ts" \
           MINECRAFT_SERVER_PACKAGE_270="$RUNNER_TEMP/native-270/package/package.json" \
             node --test recovery/tests/level2_api_270_types.test.mjs implementation/tests/native_display_api_270.test.mjs
+
+  candidate-package:
+    name: Build non-release Bedrock candidate artifact
+    needs: [source-guard-and-candidate, api-270]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout verified source only
+        uses: actions/checkout@v4
+      - name: Assemble uninstalled BP/RP mcaddon from canonical asset folders
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/build_mcaddon.py \
+            --output "dist/HartLogistics_native-first_141_SOURCE_ONLY_UNVERIFIED.mcaddon"
+          python3 - <<'PY'
+          import io, json, pathlib, zipfile
+          p=pathlib.Path("dist/HartLogistics_native-first_141_SOURCE_ONLY_UNVERIFIED.mcaddon")
+          with zipfile.ZipFile(p) as outer:
+              inner=[n for n in outer.namelist() if n.endswith(".mcpack")]
+              assert len(inner)==2
+              assert len(outer.testzip() or "")==0
+              for name in inner:
+                  with zipfile.ZipFile(io.BytesIO(outer.read(name))) as pack:
+                      assert pack.testzip() is None
+                      manifest=json.loads(pack.read("manifest.json"))
+                      assert manifest["header"]["version"]==[1,4,1]
+                      if name.endswith("_BP.mcpack"):
+                          main=pack.read("scripts/main.js")
+                          assert b"firstItem()" in main
+          print("SOURCE-ONLY CANDIDATE ZIP VALIDATED; NO BDS CLAIM")
+          PY
+      - name: Retain candidate package for owner-controlled LAB evaluation
+        uses: actions/upload-artifact@v4
+        with:
+          name: HL2-141-native-first-SOURCE-ONLY-UNVERIFIED
+          path: dist/HartLogistics_native-first_141_SOURCE_ONLY_UNVERIFIED.mcaddon
+          retention-days: 14
+          if-no-files-found: error
