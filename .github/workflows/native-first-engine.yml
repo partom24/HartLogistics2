@@ -64,4 +64,4 @@ jobs:
         run: |
           MINECRAFT_SERVER_TYPES_270="$RUNNER_TEMP/native-270/package/index.d.ts" \
           MINECRAFT_SERVER_PACKAGE_270="$RUNNER_TEMP/native-270/package/package.json" \
-            node --test recovery/tests/level2_api_270_types.test.mjs
+            node --test recovery/tests/level2_api_270_types.test.mjs implementation/tests/native_display_api_270.test.mjs
