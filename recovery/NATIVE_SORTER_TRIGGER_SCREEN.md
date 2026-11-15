@@ -50,7 +50,7 @@ These witnesses **disqualify specific naïve substitutes**. They do not measure 
 | --- | --- | --- |
 | New suite | [`recovery/tests/level2_native_scheduler_screen.test.mjs`](tests/level2_native_scheduler_screen.test.mjs) | **11** original-source / counterexample tests: baseline JSON/API version, Filter precedence, Auto precedence, Wildcard fallback, BYPASS, redstone gates, column order, two comparator-loss tests and event boundary |
 | Existing source contracts | [`level2_source_contracts.test.mjs`](tests/level2_source_contracts.test.mjs) | Original scheduler `O(C)` idle observations and first-half/second-half compaction work; source semantics only |
-| CI | [Successful source-only run](https://github.com/partom24/HartLogistics2/actions/runs/43672292120) | Complete **54/54** source-only tests after this suite was added, in isolated Node.js, not BDS |
+| CI | [Successful source-only run](https://github.com/partom24/HartLogistics2/actions/runs/43672292120) | **54/54** tests at original source-screen run; expanded recovery suite subsequently reached **68/68 source-executed** tests plus **11/11 pinned 2.7 type checks** in [verified CI run 43672957630](https://github.com/partom24/HartLogistics2/actions/runs/43672957630), still not BDS |
 | Original source protection | [`tools/recovery_baseline_guard.py`](../tools/recovery_baseline_guard.py) | Checks the original 72 add-on hashes, pinned 1.4.1 ancestry, 39 native API families and 40 M-ID coverage |
 
 ## 5. Next permissible decision (no new scheduler code yet)
