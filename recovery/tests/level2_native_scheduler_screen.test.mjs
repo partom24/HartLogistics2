@@ -15,13 +15,12 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const JS = readFileSync(path.join(ROOT, "addon/behavior_pack/scripts/main.js"), "utf8");
 const SORTER = JSON.parse(readFileSync(path.join(ROOT, "addon/behavior_pack/blocks/sorter.json"), "utf8"));
-const MANIFEST = JSON.parse(readFileSync(path.join(ROOT, "addon/behavior_pack/manifest.json"), "utf8");
+const MANIFEST = JSON.parse(readFileSync(path.join(ROOT, "addon/behavior_pack/manifest.json"), "utf8"));
 const LEVEL1 = readFileSync(path.join(ROOT, "LEVEL1_NATIVE_API_RESEARCH_141.md"), "utf8");
 const MODES = ["filter", "auto", "wildcard", "bypass"];
 function original(name, context = {}) {
   const start = JS.indexOf("function " + name + "(");
   assert.ok(start >= 0, "Baseline function absent: " + name);
-  const candidates = ["function ", "system.runInterval(", "world.afterEvents."];
   const bodyStart = JS.indexOf("{", start);
   let nesting = 0, quote = "", escaped = false, single = false, multi = false;
   for (let i = bodyStart; i < JS.length; i++) {
@@ -107,7 +106,7 @@ test("L2-native-01: Sorter BP has native redstone callback but no native invento
 test("L2-native-02: original four-mode routing is NOT ordinary Hopper-only selection",()=>{
   const out=routeCase();
   assert.equal(out.consumed,1);
-  assert.deepEqual(out.observed,[{id:"filter",typeId:"minecraft:stone",amount:1}]);
+  assert.deepEqual(plain(out.observed),[{id:"filter",typeId:"minecraft:stone",amount:1}]);
 });
 test("L2-native-03: AUTO must win over wildcard when Filter does not match",()=>{
   const out=routeCase({
@@ -115,34 +114,34 @@ test("L2-native-03: AUTO must win over wildcard when Filter does not match",()=>
     modes:[{id:"wild",m:"wildcard"},{id:"filter",m:"filter",f:{typeId:"minecraft:stone"}},{id:"auto",m:"auto"}]
   });
   assert.equal(out.consumed,1);
-  assert.deepEqual(out.observed,[{id:"auto",typeId:"minecraft:dirt",amount:1}]);
+  assert.deepEqual(plain(out.observed),[{id:"auto",typeId:"minecraft:dirt",amount:1}]);
 });
 test("L2-native-04: wildcard is fallback, not default over unseeded AUTO",()=>{
   const out=routeCase({typeId:"minecraft:dirt",autoSeeded:false});
   assert.equal(out.consumed,1);
-  assert.deepEqual(out.observed,[{id:"wild",typeId:"minecraft:dirt",amount:1}]);
+  assert.deepEqual(plain(out.observed),[{id:"wild",typeId:"minecraft:dirt",amount:1}]);
 });
 test("L2-native-05: bypass mode yields no scripted transfer; native Hopper remains eligible",()=>{
   const out=routeCase({modes:[{id:"b",m:"bypass"}]});
   assert.equal(out.consumed,0);
-  assert.deepEqual(out.observed,[]);
+  assert.deepEqual(plain(out.observed),[]);
   assert.equal(out.remaining.typeId,"minecraft:stone");
 });
 test("L2-native-06: disabled source Hopper yields no scripted transfer",()=>{
   const out=routeCase({locked:true});
   assert.equal(out.consumed,0);
-  assert.deepEqual(out.observed,[]);
+  assert.deepEqual(plain(out.observed),[]);
 });
 test("L2-native-07: powered Sorter yields no scripted transfer",()=>{
   const out=routeCase({powered:true});
   assert.equal(out.consumed,0);
-  assert.deepEqual(out.observed,[]);
+  assert.deepEqual(plain(out.observed),[]);
 });
 test("L2-native-08: sorted physical columns put lowest y first",()=>{
   const sandbox={registry:[{d:"overworld",x:1,z:1,y:68},{d:"overworld",x:1,z:1,y:66},{d:"overworld",x:1,z:1,y:67}],
     columns:[],dirty:true,rrStart:0};
   original("rebuildTopology",sandbox)();
-  assert.deepEqual(sandbox.columns.map(c=>c.sorters.map(s=>s.y)),[[66,67,68]]);
+  assert.deepEqual(plain(sandbox.columns.map(c=>c.sorters.map(s=>s.y))),[[66,67,68]]);
   assert.equal(sandbox.dirty,false);
 });
 test("L2-native-09: comparator fullness signal cannot distinguish different cargo identities",()=>{
