@@ -7,6 +7,49 @@ Use ONLY the existing restored production-derived LAB world for the next hands-o
 
 **2026-11-14 · Draft PR [#79](https://github.com/partom24/HartLogistics2/pull/79). Not accepted for release.**
 
+## 2026-11-14/15 — Owner LAB scale witness and targeted UCE corrections
+
+**Evidence boundary:** The owner installed pinned 1.5.16-DEV-UCE commit
+`29449f0fd3c8fc6d0865bc68382a4810b1b861d3` into the newly generated
+`HartLogistics15PerfFlat` world under the guarded LAB-only installer.
+Rollback backup `lab-8e0a93fb458d` preserves the actual 1.4.1
+performance-patched pack. BDS 1.26.60.6 restarted and logged
+`ready; sorters=1387, collectors=0, receivers=0, registry=v2 5 shards / 101879 chars`.
+The owner showed the complete 1,387-Sorter / 347-Hopper-column registration
+and runtime performance panel after restart. The panel accumulated 1,591
+bounded display slices / 25,456 Sorter checks, no slow slices, maximum
+script-local slice duration 3 ms. This is **OWNER-OBSERVED RUNTIME** for
+large registry persistence and bounded display maintenance, not end-to-end
+routing or owner-world upgrade acceptance.
+
+The owner also supplied BDS diagnostic screenshots and JS/TS CPU profiles plus
+an `.mcstats` capture in the development conversation. Those raw profiles
+are **not yet preserved in Git**; the investigated issue was heavy repeated
+native empty-Hopper inventory and journal reads in the still-active legacy
+Sorter scheduler. Source commit `c5e02cd5` changes generated 1.5 code to
+use live native `emptySlotsCount` with safe per-slot fallback and gates
+journal admission only on occupied input. Its generated-main tests passed
+[14/14 CI jobs](https://github.com/partom24/HartLogistics2/actions/runs/43662948214).
+The *corrected* candidate has **not** been deployed or reprofiled in BDS:
+do not claim the measured native-call reduction is already proven.
+
+Further source corrections `3d1359d6`–`66276f01` add complete cross-chunk
+double-chest input alias witnesses to deferred Transporter graph certificates
+and re-read the **live** reciprocal chest/Container owner before custody.
+A setType-like chest collapse or unloaded far half must HOLD even if a cached
+graph remains unexpired. Offline generated-main regressions passed at
+`66276f01`; native Bedrock mutation/unload acceptance is still outstanding.
+
+**The next full gameplay acceptance remains the original restored
+production-derived LAB world with unrestricted player construction, not
+another flat-world rig.** The flat world is retained solely as a scoped
+performance diagnostic; its shared 1.5 packs MUST be rolled back to the
+performance-patched 1.4.1 backup before selecting the restored world.
+No existing-world Q4 cutover occurred. Nonempty Q4, opaque/MR migration,
+scale-independent Receiver/shard growth, controller/Bulk arbitration and
+cold in-place upgrade/rollback remain P0 blockers. No release, merge or
+production action was approved. See HL-E-083–085 below.
+
 ## Development authority and source
 
 The owner has directed uninterrupted integration and code hygiene until a meaningful product-level Bedrock acceptance boundary. The source of truth is the draft UCE branch `dev/uce-shared-ordinary-ledger-20261111`, not the historical PG27 prototype. PR #79 at the previous exact verified checkpoint `3922a97e5bb8f1b061e0270289e704f099972939` passed [13/13 GitHub Actions jobs](https://github.com/partom24/HartLogistics2/actions/runs/43422021084); **all later commits need their own CI classification**. No corresponding full-system Bedrock acceptance, Q4 archive migration or release authorization is established.
