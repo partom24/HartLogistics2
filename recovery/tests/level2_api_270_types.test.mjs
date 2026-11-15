@@ -96,7 +96,12 @@ test("API270-07: World dynamic properties have primitives/batch writes, not Item
   hasSignature(w, /setDynamicProperties\s*\(\s*values:/);
   hasSignature(w, /getDynamicProperty\s*\(\s*identifier:\s*string\s*\)/);
   assert.match(w, /getDynamicPropertyTotalByteCount\s*\(\s*\)\s*:\s*number/);
-  assert.match(types, /type\s+DynamicPropertyValue\s*=\s*(?:string|boolean|number|Vector3)/);
+  const propertyReturn = /getDynamicProperty\s*\([^)]*\)\s*:\s*([^;]+);/s.exec(w);
+  assert.ok(propertyReturn, "Missing 2.7.0 World.getDynamicProperty return contract");
+  for (const permitted of ["string", "number", "boolean", "Vector3", "undefined"])
+    assert.ok(propertyReturn[1].includes(permitted), "Missing dynamic property value kind: " + permitted);
+  assert.equal(/ItemStack|Container/.test(propertyReturn[1]), false,
+    "World dynamic-property return union unexpectedly includes native cargo");
   record("M21-M24", "API_AVAILABLE_NOT_DATABASE", "Primitive/vector property values, no native ItemStack in durable property type");
 });
 
