@@ -256,3 +256,47 @@ test("ENGINE-23 original round-robin start advances without duplicate block chec
   assert.equal(ctx.collectorRrStart,1);
   assert.equal(ctx.receiverRrStart,1);
 });
+
+
+test("ENGINE-24 1,387 eligible idle columns require zero script getItem slot scans",()=>{
+  let nativeEmptyQueries=0,scriptSlotReads=0,sorterLookups=0;
+  const container={
+    isValid:true,size:5,
+    firstItem(){nativeEmptyQueries++;return undefined;},
+    getItem(){scriptSlotReads++;return undefined;}
+  };
+  const hopper={
+    typeId:"minecraft:hopper",
+    getComponent:()=>({container})
+  };
+  const process=originalFunction("processColumn",{
+    PER_COLUMN_BATCH:16,
+    getDimension:()=>({getBlock:()=>hopper}),
+    hopperIsRedstoneLocked:()=>false,
+    sorterAt:()=>{sorterLookups++;return {};},
+    blockIsRedstonePowered:()=>false,
+    sorterMode:()=> "wildcard",
+    compactSourceHopper:originalFunction("compactSourceHopper"),
+    log:()=>{}
+  });
+  const columns=Array.from({length:1387},(_,x)=>({
+    d:"overworld",source:{x,y:65,z:0},
+    sorters:[{m:"wildcard",y:64}]
+  }));
+  const fn=originalFunction("schedulerTick",{
+    ready:true,dirty:false,rrStart:0,
+    columns,GLOBAL_MOVE_BUDGET:256,
+    JOURNAL_KEY:"journal",
+    world:{getDynamicProperty:()=>undefined},
+    getQueueJournal:()=>undefined,
+    processColumn:process
+  });
+  fn();
+  assert.equal(nativeEmptyQueries,1387);
+  assert.equal(scriptSlotReads,0);
+  assert.equal(sorterLookups,0);
+  // Same synthetic arrangement in original 1.4.1 produces 20,805 mocked
+  // getItem reads, independently tested by the immutable baseline suite.
+  // This measures SCRIPT CALLS only; native firstItem may still do engine
+  // work internally, so TPS and actual speedup remain unverified.
+});
