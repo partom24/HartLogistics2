@@ -4,7 +4,7 @@
 
 **Canonical implementation:** untouched `addon/behavior_pack/scripts/main.js` at original import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; source-only extraction from the actual 1.4.1 file. The archived 1.5 branch supplied **no code, mock, fixture, implementation, or test output**.
 
-**Verified test run:** [GitHub Actions 43671712318](https://github.com/partom24/HartLogistics2/actions/runs/43671712318), exact commit `de7c41e25f41e7e5c97cef390ff6d77739b74d77`. Baseline provenance job PASS, 1.4.1 source-executed Level 2 job **43/43 PASS, 0 failed**. This report itself is documentation and has its own later CI revision; do not infer that a future change is tested by the earlier SHA.
+**Verified test run:** [GitHub Actions 43672292120](https://github.com/partom24/HartLogistics2/actions/runs/43672292120), exact source-test commit `bfa22df602dae59fe1ea65a2dbaa40ccc0bdaabd`. Baseline provenance job PASS, 1.4.1 source-executed Level 2 job **54/54 PASS, 0 failed**. This report itself is documentation and has its own later CI revision; do not infer that a future change is tested by the earlier SHA.
 
 ## Source-only test implementation
 
@@ -12,10 +12,11 @@
 | --- | ---: | --- | --- |
 | [`recovery/tests/level2_source_contracts.test.mjs`](tests/level2_source_contracts.test.mjs) | **30** | `schedulerTick`, `processColumn`, `compactSourceHopper`, `findAcceptSlot`, `serializeQueueItem`, `exactStackSig`, `hopperIsRedstoneLocked`, `blockIsRedstonePowered`, `sourceIsTriggered`, `reconcileDisplays`, `normalizeQueuePage`, `persistQueuePage`, `queueDefinitionHash` | Hopper observation and idle-work cost; Native `Container.emptySlotsCount/firstEmptySlot/transferItem` substitution constraints; ItemStack fidelity; redstone/events; Q4 page guards; visual census |
 | [`recovery/tests/level2_journal_faults.test.mjs`](tests/level2_journal_faults.test.mjs) | **13** | `safeMovePartial`, `recoverJournal`, `safeJsonParse`, `splitRegistryPayload`, `saveRegistry` | Native inventory movement plus custom transaction journal; simulated pre-debit, debit-only, credit-only, complete and ambiguous states; registry generation-switch ordering |
+| [`recovery/tests/level2_native_scheduler_screen.test.mjs`](tests/level2_native_scheduler_screen.test.mjs) | **11** | `processColumn`, `sorterMode`, `rebuildTopology`, original Sorter BP JSON | Explicit Filter→Auto→Wildcard and BYPASS/redstone requirements; comparator cannot represent all cargo changes; [native-trigger candidate screen](NATIVE_SORTER_TRIGGER_SCREEN.md) |
 
-The first suite uses original function bodies isolated with JavaScript VM contexts. The second executes the original physical transfer/recovery functions against deterministic mock Containers and a *serialized-string* mock dynamic property. The tests verify **decisions and source effects**; no mock is presented as proof of how Bedrock's engine handles a real `Container.transferItem`, `Container.moveItem`, world save, real ItemStack metadata, concurrent writers or server tick performance.
+The first and third suites use original function bodies isolated with JavaScript VM contexts. The second executes original physical transfer/recovery functions against deterministic mock Containers and a *serialized-string* mock dynamic property. The tests verify **decisions and source effects**; no mock is presented as proof of how Bedrock's engine handles a real `Container.transferItem`, `Container.moveItem`, world save, real ItemStack metadata, concurrent writers or server tick performance.
 
-**Run locally (Node.js only):** `node --test recovery/tests/*.test.mjs`. These two suites run after `python3 tools/recovery_baseline_guard.py` in the recovery GitHub workflow; the original 72-file add-on and 1.4.1 ancestry gate must pass before the source-only job.
+**Run locally (Node.js only):** `node --test recovery/tests/*.test.mjs`. These three suites run after `python3 tools/recovery_baseline_guard.py` in the recovery GitHub workflow; the original 72-file add-on and 1.4.1 ancestry gate must pass before the source-only job.
 
 ## Determinate findings from executing the ORIGINAL code
 
@@ -31,6 +32,10 @@ The first suite uses original function bodies isolated with JavaScript VM contex
 | **F08 / M21–M22** | Q4 packed-page parser rejects out-of-bounds/sparse/zero rows; page writer refuses over-limit serialized strings before writing and makes one property write for a bounded page. | Preserve these invariant checks if native persistence APIs are used; batch property writes do not prove atomic durability. | Mocked world property, no persistence readback. |
 | **F09 / M11–M12** | Original physical move writes a journal, then source debit, destination credit, then journal clear. Mock recovery handles prepared untouched, debit-only, credit-only, completed, ambiguous and unavailable states according to its code paths. | **Keep a durable custody contract** around native movement until actual engine save semantics are verified. | Synthetic interruption, not a crash / disk-atomicity pass. |
 | **F10 / M13** | Registry splitting avoids cutting a UTF-16 surrogate pair; inactive shards write before new generation metadata; simulated metadata write failure leaves previous generation marker. | Retain generation switching and verification when changing persistence. | JavaScript write order only, not stable world-save ordering. |
+
+| **F11 / M01/M06** | Original `processColumn` chooses Filter over Auto/Wildcard and Auto over Wildcard, respects BYPASS/power; original `rebuildTopology` sorts bottom-to-top. | Native cargo transfer alone does not implement original Hart decision priority. | Source-executed policy mocks; not native engine routing proof. |
+| **F12 / M01/M17** | Comparator fullness examples: one stone vs one dirt and 20 vs 21 identical stackable items can yield identical signal strength while cargo or required routing differs. | Comparator-driven redstone is **not** a complete, lossless Hopper-cargo arrival/identity trigger; physical retrofit also violates unchanged owner layout. | Counterexample based on documented fullness formula, not a BDS comparator capture. |
+| **F13 / M01** | Original Sorter BP defines native redstone consumer but no `minecraft:tick` or native inventory component. | A native `onTick` approach would still be periodic observation, not a proven native event on the adjacent Hopper. | Source JSON + official documented callback only. |
 
 ## Level 2 grouped proof status
 
@@ -53,6 +58,6 @@ The first suite uses original function bodies isolated with JavaScript VM contex
 
 ## Closure criteria for any future implementation
 
-A native substitution recommendation requires (1) original 1.4.1 M-ID and behavior, (2) official API contract and exact 2.7 method availability, (3) **source-only semantic compatibility**, (4) smallest remaining Hart-only logic, (5) cost model and **actual BDS measurements when authorized**, (6) identity/queue/transaction and restart proof, and (7) an identified exact artifact. A documentary candidate or these 43 source tests alone can never close those runtime gates.
+A native substitution recommendation requires (1) original 1.4.1 M-ID and behavior, (2) official API contract and exact 2.7 method availability, (3) **source-only semantic compatibility**, (4) smallest remaining Hart-only logic, (5) cost model and **actual BDS measurements when authorized**, (6) identity/queue/transaction and restart proof, and (7) an identified exact artifact. A documentary candidate or these 54 source tests alone can never close those runtime gates.
 
 **Current decision:** source-only foundation is in place. No new native substitute has been implemented or selected as proven. The administrative lock of the frozen branch remains unresolved separately in [issue #82](https://github.com/partom24/HartLogistics2/issues/82).
