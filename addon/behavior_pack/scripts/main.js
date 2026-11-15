@@ -3392,14 +3392,24 @@ function processColumn(col, globalRemaining) {
     // mutation while vanilla considers the hopper disabled.
     if (hopperIsRedstoneLocked(sourceBlock)) return 0;
 
+    // Native Container.firstItem() is available in the pinned 2.7 API.
+    // Empty input does not need Sorter block lookups, compaction, or slot scans.
+    // This is a live emptiness query, NOT a native Hopper-change event.
+    let src;
+    try {
+        src = sourceBlock.getComponent("minecraft:inventory")?.container;
+        if (!src || !src.isValid) return 0;
+        if (src.firstItem() === undefined) return 0;
+    } catch (_) {
+        // Native inventory unavailable: never infer an item or mutate a slot.
+        return 0;
+    }
+
     const activeSorters = col.sorters.filter(e => {
         const b = sorterAt(e);
         return b && !e.nativeQuarantine && !blockIsRedstonePowered(b) && sorterMode(e) !== "bypass";
     });
     if (!activeSorters.length) return 0;
-
-    const src = sourceBlock.getComponent("minecraft:inventory")?.container;
-    if (!src || !src.isValid) return 0;
 
     // Eliminate holes before inspecting the hopper so unmatched items cannot
     // become stranded behind a slot repeatedly refilled by the upstream hopper.
@@ -3497,10 +3507,9 @@ function processColumn(col, globalRemaining) {
         }
     }
 
-    // A matching transfer may have opened an earlier slot. Pack the remaining
-    // contents left immediately, before vanilla hopper transport gets another
-    // chance to refill that gap.
-    compactSourceHopper(src);
+    // Only a transfer can create a new gap after the initial compaction.
+    // No movement means the second five-slot scan would be redundant.
+    if (movedTotal > 0) compactSourceHopper(src);
 
     return movedTotal;
 }
@@ -3526,7 +3535,18 @@ function processCollectorIngress(collector, globalRemaining) {
         // hopper's redstone-disabled state here.
         if (source.kind === "hopper" && source.locked) continue;
 
-        for (let si=0; si<source.container.size && budget>0; si++) {
+        // No script-level getItem loop for an empty directed vanilla Hopper.
+        let sourceSize;
+        try {
+            if (!source.container?.isValid) continue;
+            if (source.container.firstItem() === undefined) continue;
+            sourceSize = source.container.size;
+        } catch (_) {
+            // Unavailable native inventory: leave its cargo untouched.
+            continue;
+        }
+
+        for (let si=0; si<sourceSize && budget>0; si++) {
             let stack = source.container.getItem(si);
             if (!stack) continue;
 
@@ -3558,8 +3578,14 @@ function processCollectorIngress(collector, globalRemaining) {
             // Non-stackable or metadata we cannot prove round-trips safely:
             // never serialize it. If Receiver is currently loaded AND there is
             // no queued backlog to jump ahead of, use exact direct transfer.
-            let qTotal = Number(receiver.queued) || 0;
-            try { qTotal = loadReceiverQueue(receiver).total; } catch (_) {}
+            // No opaque direct admission without an authoritative current
+            // queue read: a stale cached count cannot establish zero backlog.
+            let qTotal;
+            try { qTotal = loadReceiverQueue(receiver).total; }
+            catch (err) {
+                log(`Collector direct-only admission deferred: Receiver ${receiver.id} queue unavailable: ${err}`);
+                return used;
+            }
 
             const receiverBlock = receiverAt(receiver);
             const output = qTotal === 0 && receiverBlock && !blockIsRedstonePowered(receiverBlock)
