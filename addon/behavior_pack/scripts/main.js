@@ -582,21 +582,29 @@ function syncDisplay(e) {
     equipDisplayEntity(ent, e.f);
 }
 
-function reconcileDisplays() {
+function reconcileDisplays(cleanupOrphans = false) {
     if (!ready) return;
 
-    const validOwners = new Set();
+    // Ordinary maintenance is local to registered Sorters. Dimension-wide
+    // orphan collection runs once after startup, while newly loaded legacy
+    // entities are validated by the native entityLoad callback below.
+    const validOwners = cleanupOrphans ? new Set() : undefined;
     for (const e of registry) {
         const b = sorterAt(e);
-        if (!b) continue;
+        if (!b) {
+            // Known owner with missing block: remove its nearby stale proxy.
+            removeDisplay(e);
+            continue;
+        }
         if (e.f && !entryHasFrameImplant(e)) {
-            validOwners.add(displayOwnerKey(e));
+            if (validOwners) validOwners.add(displayOwnerKey(e));
             syncDisplay(e);
         } else {
             removeDisplay(e);
         }
     }
 
+    if (!cleanupOrphans) return;
     for (const dimId of ["overworld", "nether", "the_end"]) {
         const dim = getDimension(dimId);
         if (!dim) continue;
@@ -615,6 +623,22 @@ function reconcileDisplays() {
 function findEntryByDisplayOwner(owner) {
     if (typeof owner !== "string") return undefined;
     return registry.find(e => displayOwnerKey(e) === owner);
+}
+
+function reconcileLoadedDisplay(ent) {
+    // Called for the specific entity that Bedrock loaded from an inactive
+    // chunk. This replaces recurring whole-dimension orphan discovery.
+    if (!ready || !ent?.isValid || ent.typeId !== DISPLAY_ID) return;
+
+    let owner;
+    try { owner = ent.getDynamicProperty(DISPLAY_OWNER_PROP); } catch (_) {}
+    const e = findEntryByDisplayOwner(owner);
+    if (!e || !e.f || entryHasFrameImplant(e) || !sorterAt(e)) {
+        try { ent.remove(); } catch (_) {}
+        return;
+    }
+    // Preserve legacy 1.4.1 visual behavior for known non-frame filters.
+    syncDisplay(e);
 }
 
 // routing state. Absent mode fields are always interpreted from the
@@ -3740,6 +3764,13 @@ function schedulerTick() {
 // siphons their inventories directly; only an item entity actually ejected
 // into a Collector can be accepted. Dispenser actions that create projectiles,
 // place fluids, equip armor, etc. therefore remain entirely vanilla.
+// Native entity load gives a narrowly scoped repair signal for legacy
+// filter displays. It cannot observe vanilla Hopper content changes.
+world.afterEvents.entityLoad.subscribe(ev => {
+    if (ev.entity?.typeId !== DISPLAY_ID) return;
+    system.run(() => reconcileLoadedDisplay(ev.entity));
+});
+
 world.afterEvents.entitySpawn.subscribe(ev => {
     if (ev.entity?.typeId !== "minecraft:item") return;
 
@@ -4178,7 +4209,7 @@ system.run(() => {
         `ready; sorters=${registry.length}, collectors=${logistics.collectors.length}, ` +
         `receivers=${logistics.receivers.length}, registry=${registryStorageSummary()}`
     );
-    system.runTimeout(reconcileDisplays, 5);
+    system.runTimeout(() => reconcileDisplays(true), 5);
 });
 
 system.runInterval(schedulerTick, 1);
