@@ -24,6 +24,8 @@
 
 ## 1. Engineering rule: native capability first, **before coding**
 
+**Owner correction (2026-11-15):** Merely swapping `Container.getItem()` for `Container.firstItem()` inside an unchanged every-tick `schedulerTick` is a **polling micro-optimization**, not elimination of custom observation or a native-first engine conversion. Even a native API call has a cost when repeated across thousands of Sorters; do not promote fewer scripted calls to a demonstrated BDS performance gain. Prioritize vanilla Hopper/redstone/item-frame/block-state behavior, native events when they truly cover the required transition, and native container operations with demonstrated 1.4.1 equivalence. For features without a documented native solution, retain only the smallest necessary custom decision layer and record the exact gap. **Do not add an auxiliary telemetry system or results logger:** use the owner's existing VS debugger and native BDS diagnostics/profiler. The 1.4.1 conversion is not complete merely because a source-optimized candidate builds.
+
 For each behavior, in this order:
 
 1. **Native vanilla behavior:** Can Bedrock itself move, retain, filter, time, display or protect the item/block correctly? Establish which interactions the vanilla engine owns.
