@@ -140,7 +140,9 @@ test("ENGINE-06 bypass still never takes cargo from native Hopper",()=>{
 test("ENGINE-07 nonempty unmatched input performs just one compaction pass",()=>{
   const r=sorterCase({slots:[cargo(),undefined,undefined,undefined,undefined]});
   assert.equal(r.used,0);
-  assert.equal(r.events.filter(e=>e.startsWith("getItem:")).length,10);
+  // Five compaction reads + source/target rechecks in the original route loop;
+  // the old unconditional final compaction would add another five reads.
+  assert.equal(r.events.filter(e=>e.startsWith("getItem:")).length,12);
   assert.equal(r.events.filter(e=>e.startsWith("setItem:")).length,0);
 });
 test("ENGINE-08 a real routed move executes only once with native source count intact",()=>{
