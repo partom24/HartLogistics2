@@ -19,6 +19,8 @@ FOUNDATION = (
     "NATIVE_FIRST_MECHANICS_AUDIT.md",
     "BASELINE_141_RECURSIVE_CENSUS.md",
     "BASELINE_141_FUNCTION_EFFECTS.md",
+    "LEVEL1_NATIVE_API_RESEARCH_141.md",
+    "LEVEL1_MECHANISM_DECISIONS_141.md",
 )
 FORBIDDEN_IMPORT_ROOTS = ("candidates/", "build/uce-", "tests/test_uce_", "tests/test_unified_")
 ALLOW_CHANGED_PREFIXES = (
@@ -87,6 +89,33 @@ def main() -> int:
         if count != 180:
             failures.append("every baseline JavaScript function requires an effects row")
 
+    # Level 1 records are source/documentary classifications, not runtime passes.
+    reference = ROOT / "LEVEL1_NATIVE_API_RESEARCH_141.md"
+    if reference.is_file():
+        reference_text = reference.read_text(encoding="utf-8")
+        native_ids = set(re.findall(r"^### N(\d{2}) [—-]", reference_text, re.M))
+        required_native_ids = {f"{n:02d}" for n in range(1, 40)}
+        if native_ids != required_native_ids:
+            failures.append("Level 1 native capability record incomplete: "
+                            + repr(sorted(native_ids ^ required_native_ids)))
+        if reference_text.count("https://learn.microsoft.com/") < 25:
+            failures.append("Level 1 must cite official Microsoft references in depth")
+        for required in ("2.7.0", "Hopper", "restricted-execution",
+                         "not", "crash", "LEVEL1_MECHANISM_DECISIONS_141.md"):
+            if required not in reference_text:
+                failures.append(f"Level 1 missing essential qualification: {required}")
+    decisions = ROOT / "LEVEL1_MECHANISM_DECISIONS_141.md"
+    if decisions.is_file():
+        decision_text = decisions.read_text(encoding="utf-8")
+        mechanism_ids = set(re.findall(r"^\| \*\*M(\d{2})", decision_text, re.M))
+        required_mechanisms = {f"{n:02d}" for n in range(1, 41)}
+        if mechanism_ids != required_mechanisms:
+            failures.append("Level 1 mechanism mapping missing/duplicated IDs: "
+                            + repr(sorted(mechanism_ids ^ required_mechanisms)))
+        for code in ("N01", "N09", "N13", "N29", "N35", "N39"):
+            if code not in decision_text:
+                failures.append(f"Level 1 mapping missing API family: {code}")
+
     if (ROOT / ".git").exists():
         try:
             base = git("rev-parse", BASELINE_COMMIT)
@@ -120,7 +149,7 @@ def main() -> int:
             print(" -", problem)
         return 1
     print("RECOVERY BASELINE GATE: PASS — 1.4.1 ancestry, original hashes, "
-          "complete census and 40 native-first audit entries")
+          "complete census, 39 API families and 40 Level 1 mechanism decisions")
     print("This is structural provenance only; NOT BDS functionality/performance proof.")
     return 0
 
