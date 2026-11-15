@@ -21,3 +21,16 @@ jobs:
           fetch-depth: 1000
       - name: Validate immutable 72-file import, 1.4.1 lineage and root mandate
         run: python3 tools/recovery_baseline_guard.py
+
+  level2-source-only:
+    name: Source-executed 1.4.1 native-first Level 2 witnesses
+    needs: baseline-provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout recovery branch only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Node 22 source-only tests; no Bedrock server
+        run: node --test recovery/tests/level2_source_contracts.test.mjs
