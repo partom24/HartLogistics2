@@ -1,0 +1,23 @@
+name: Native-first recovery foundation
+on:
+  push:
+    branches:
+      - recovery/native-first-141-20261114
+  pull_request:
+    branches:
+      - recovery/native-first-141-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  baseline-provenance:
+    name: Immutable 1.4.1 baseline and native-first census gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full ancestry for source-isolation proof
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate immutable 72-file import, 1.4.1 lineage and root mandate
+        run: python3 tools/recovery_baseline_guard.py
