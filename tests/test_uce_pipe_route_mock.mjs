@@ -1669,6 +1669,18 @@ test('large cached graph fences unloaded FAR half of cross-chunk double-chest in
   assert.equal(doubleSources.length,1,
     'two chest halves must resolve to one canonical native source');
   assert.equal(doubleSources[0].container.size,54);
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,doubleSources[0]),true,
+    'the complete cached graph admits its currently matched native owner');
+  // A foreign script's setType might not emit our topology event. The
+  // current physical double chest must still be re-proved before native
+  // custody, even when all chunks remain loaded and the graph is cached.
+  const far=f.dim.getBlock({x:15,y:70,z:4});
+  far.typeId='minecraft:air';
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,doubleSources[0]),false,
+    'split/replaced double chest must revoke the cached 54-slot owner');
+  far.typeId='minecraft:chest';
+  assert.equal(f.context.ucePipeSourceStillConnected(f.receiver,doubleSources[0]),true,
+    'restored native chest re-establishes its original owner');
   assert.ok(graph.chunkWitnesses.some(p=>p.x===0),
     'far half X=15 is in chunk X=0 and MUST be witnessed');
   unloaded.add(0);

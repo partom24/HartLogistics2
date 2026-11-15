@@ -509,18 +509,38 @@ function uceReadOnlyPipeInput(block,root){
     }catch(_){return undefined;}
 }
 function ucePipeSourceStillConnected(receiver,source){
-    if(!source||!source.block)return false;
+    if(!receiver||!source?.block||
+       source.container?.isValid!==true)return false;
     const graph=ucePipeRouteNetwork(receiver);
-    return !!graph&&graph.leaderId===receiver.id&&
-        typeof source.typeId==='string'&&
-        typeof source.ownerId==='string'&&
-        graph.inputs.some(input=>
+    if(!graph||graph.leaderId!==receiver.id||
+       typeof source.typeId!=='string'||
+       typeof source.ownerId!=='string'||
+       !Array.isArray(source.aliases))return false;
+    // The graph cache is not a substitute for the current physical owner.
+    // Re-resolve the canonical block from the dimension, then perform the
+    // SAME reciprocal 27/54-slot inventory check as initial discovery.
+    // In particular a foreign setType / chest split may not emit a
+    // playerBreakBlock event, so a still-loaded chunk proves too little.
+    let live;
+    try{
+        const root=receiverAt(receiver);
+        const block=source.block.dimension.getBlock(source.block.location);
+        if(!root||!block)return false;
+        live=uceReadOnlyPipeInput(block,root);
+    }catch(_){return false;}
+    if(!live||live.ownerId!==source.ownerId||
+       live.typeId!==source.typeId||
+       live.container?.isValid!==true||
+       live.container.size!==source.container.size||
+       live.aliases.length!==source.aliases.length||
+       !live.aliases.every(alias=>source.aliases.some(old=>
+          uceSameLoadedBlock(alias,old))))return false;
+    return graph.inputs.some(input=>
           input.ownerId===source.ownerId&&
           input.typeId===source.typeId&&
           input.container?.size===source.container?.size&&
-          input.aliases?.length===source.aliases?.length&&
-          uceSameLoadedBlock(input.block,source.block))&&
-        source.container?.isValid===true;
+          input.aliases?.length===source.aliases.length&&
+          uceSameLoadedBlock(input.block,source.block));
 }
 function uceReadOnlySorterDestination(entry,root) {
     try{
