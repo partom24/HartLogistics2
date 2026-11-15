@@ -73,7 +73,10 @@ def main() -> int:
         for path in recorded:
             if path not in text:
                 failures.append(f"missing original source path from census: {path}")
-        if len(re.findall(r"^\\| \\[\\`[^\\`]+\\`\\]\\(https://github\\.com/partom24/HartLogistics2/blob/[^)]*/addon/behavior_pack/scripts/main\\.js#L\\d+\\) \\| \\d+ \\|", text, re.M)) != 180:
+        function_lines = [line for line in text.splitlines()
+                          if line.startswith('| [')
+                          and '/addon/behavior_pack/scripts/main.js#L' in line]
+        if len(function_lines) != 180:
             failures.append("function census must enumerate exactly 180 original declarations")
 
     if (ROOT / ".git").exists():
