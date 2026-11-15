@@ -7,6 +7,14 @@
 
 The owner has clarified that **complete the engine** currently means **complete the native-first conversion of the existing 1.4.1 engine**, not add planned 1.5 features. Engineering output is assessed against both immutable reference-image objectives documented in [OWNER_PRODUCT_OBJECTIVE.md](../OWNER_PRODUCT_OBJECTIVE.md): the [Sorter array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/sorter-array.png) and the [storage-room array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/storage-room-array.png). Green source tests do **not** count as owner-layout acceptance.
 
+## Native-first architecture correction — important limitation
+
+**Owner correction (2026-11-15):** **A call into a native API from a custom per-tick scan is NOT itself a native replacement.** The current candidate still runs `system.runInterval(schedulerTick, 1)` and visits eligible Sorter columns once per tick. `Container.firstItem()` replaces some scripted `getItem()` calls but still triggers **one native inventory query per empty column per tick**. The mocked reduction in JavaScript slot reads does **not** establish lower Bedrock work or remove the custom observation scheduler. The candidate must not be called a completed native-first architecture or a demonstrated performance improvement based on that test.
+
+**Native mechanisms to prioritize next:** (1) keep vanilla Hopper transport/redstone and native item storage under engine ownership where the existing Sorter-array layout permits it; (2) native frame/block permutations and event callbacks for display, power, lifecycle and interaction; (3) native `Container` operations for **semantically equivalent** physical transfers. Preserve custom routing only when the available Bedrock version cannot provide the required rule. A generic vanilla Hopper-content-change after-event was **not found in the pinned 2.7 WorldAfterEvents interface**; do not invent one, presume a comparator is a lossless item signal, or relabel `onTick` polling as event-driven.
+
+**Engineering gate:** Classify each remaining custom loop and item-write path as `native-eliminated`, `native-substituted with actual target-runtime proof`, or `minimal custom gap evidenced by a specific missing native capability`. Investigate native alternatives before further polling or timer micro-optimizations. Keep the existing 1.4.1 behavior, owner reference arrays, and preserved-world boundaries. Do not turn telemetry into a second engineering project.
+
 ## Source changes actually implemented
 
 **Only** `addon/behavior_pack/scripts/main.js` is changed from the 1.4.1 original. The original 71 remaining gameplay files, pack manifests, UUIDs, custom block IDs, textures and assets are unchanged. The recovery branch remains unchanged and preserves its original 72 gameplay hashes.
@@ -24,7 +32,7 @@ The owner has clarified that **complete the engine** currently means **complete 
 
 ## Approved telemetry — use native tools, not a new instrumentation engine
 
-**Owner decision (2026-11-15):** The [base 1.4.1 LAB telemetry protocol](TELEMETRY_PROTOCOL_141.md) uses the **VS Code Minecraft Bedrock Debugger, server live diagnostics/watchdog, and Bedrock's built-in Script Profiler and diagnostic captures**. Profile the original 1.4.1 source and this candidate under comparable real LAB conditions, with no paused breakpoints during timed profiling. Only item throughput/conservation requires independent before/after records; **do not implement a custom timing/analytics subsystem** or distort the add-on with telemetry code. No BDS measurements have yet been collected.
+**Owner decision (2026-11-15):** Use the existing **VS Code Minecraft Bedrock Debugger, native BDS diagnostics/watchdog, and Bedrock Script Profiler** as the telemetry tools, without a supplemental telemetry build or custom measurement layer. The [native-tools-only reference](TELEMETRY_PROTOCOL_141.md) documents commands; it is not a mandate to create a new test-results ledger. Normal feature acceptance can inspect existing inventories and built-in 1.4.1 diagnostics without modifying the runtime. Native profiling must distinguish a `firstItem()` call made every tick from genuinely engine-owned work. No BDS measurements have yet been collected.
 
 ## Source verification and packaging
 
