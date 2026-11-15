@@ -25,7 +25,7 @@ assert.equal(pkg.name, "@minecraft/server");
 assert.equal(pkg.version, "2.7.0");
 
 function classBody(name) {
-  const re = new RegExp("\\b(?:declare\\s+)?class\\s+" + name + "\\b[^\\{]*\\{", "m");
+  const re = new RegExp("\\b(?:declare\\s+)?(?:class|interface)\\s+" + name + "\\b[^\\{]*\\{", "m");
   const m = re.exec(types);
   assert.ok(m, "2.7.0 TypeScript declaration for " + name + " is missing");
   const begin = m.index + m[0].length;
