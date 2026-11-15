@@ -58,6 +58,10 @@ function harness(kind, options={}) {
     meta:clone(options.meta??(options.queueCommitted===false?(kind==="dequeue"?beforeDrain:before):(kind==="dequeue"?afterDrain:after))),
     amount:options.amount??(options.queueCommitted===false?tx.qBefore:tx.qAfter)
   };
+  if(kind==="dequeue" && options.destinationBefore!==undefined){
+    tx.dstBefore=options.destinationBefore;
+    tx.dstAfter=tx.dstBefore+tx.move;
+  }
   let journal=clone(tx);
   let live=options.entity??undefined;
   const srcSlots=[options.sourceItem===null?undefined:item("minecraft:stone", options.sourceAmount??4)];
@@ -175,14 +179,12 @@ test("Q4-L2-10: committed dequeue credits empty Hopper output once",()=>{
   assert.equal(h.dstSlots[0].amount,4);
   assert.equal(h.journal,undefined);
 });
-test("Q4-L2-11: committed dequeue with pre-existing partial native stack completes merge",()=>{
-  const h=harness("dequeue",{destinationAmount:61});
-  h.tx.dstBefore=61;h.tx.dstAfter=65;
-  // the mock recovery reads the captured tx, so set the fixture's owned
-  // journal fields through tx reference as well.
+test("Q4-L2-11: committed dequeue with compatible existing partial stack completes merge",()=>{
+  const h=harness("dequeue",{destinationAmount:60,destinationBefore:60});
   h.recover();
-  assert.equal(h.dstSlots[0].amount,61);
-  assert.ok(h.journal);
+  assert.equal(h.dstSlots[0].amount,64);
+  assert.equal(h.journal,undefined);
+  assert.equal(h.trace.filter(x=>x==="dest.set:0").length,1);
 });
 test("Q4-L2-12: destination already credited does not get duplicate output",()=>{
   const h=harness("dequeue",{destinationAmount:4});
