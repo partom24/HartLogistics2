@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE_COMMIT = "0ea3000651c116b0fa1acc2836ab7e1bcfbc6269"
 FOUNDATION = (
     "RECOVERY_MANDATE.md",
+    "OWNER_PRODUCT_OBJECTIVE.md",
     "NATIVE_FIRST_MECHANICS_AUDIT.md",
     "BASELINE_141_RECURSIVE_CENSUS.md",
     "BASELINE_141_FUNCTION_EFFECTS.md",
@@ -64,6 +65,39 @@ def main() -> int:
     for name in FOUNDATION:
         if not (ROOT / name).is_file():
             failures.append(f"mandatory recovery foundation missing: {name}")
+
+    # Owner's two product-goal pictures are higher-level acceptance anchors.
+    # These owner-supplied main-branch images are referenced by immutable Git
+    # object identity, NEVER imported as recovery implementation source.
+    objective = ROOT / "OWNER_PRODUCT_OBJECTIVE.md"
+    mandate = ROOT / "RECOVERY_MANDATE.md"
+    image_targets = {
+        "sorter-array.png": "b80669b845803aca1060578f6997ebe035ae68db",
+        "storage-room-array.png": "4c2cfb68c85576b9c898351741bb8b4ab5b6c383",
+    }
+    snapshot = "c40745834824806d6adefa487fb5bc5084fe057d"
+    if objective.is_file() and mandate.is_file():
+        product_text = objective.read_text(encoding="utf-8")
+        mandate_text = mandate.read_text(encoding="utf-8")
+        for image_name, image_blob_sha in image_targets.items():
+            immutable_url = (
+                "https://github.com/partom24/HartLogistics2/blob/"
+                + snapshot + "/docs/reference-images/" + image_name
+            )
+            if immutable_url not in product_text:
+                failures.append(f"owner product objective missing immutable image link: {image_name}")
+            if image_blob_sha not in product_text:
+                failures.append(f"owner product objective missing pinned blob identity: {image_name}")
+            if immutable_url not in mandate_text:
+                failures.append(f"recovery mandate missing owner's image objective: {image_name}")
+        if "OWNER_PRODUCT_OBJECTIVE.md" not in mandate_text:
+            failures.append("recovery mandate not linked to binding owner product objective")
+        for required in (
+            "both", "Sorter array", "storage-room array",
+            "native-first", "owner", "acceptance"
+        ):
+            if required.lower() not in product_text.lower():
+                failures.append(f"binding product objective missing acceptance requirement: {required}")
     audit = (ROOT / "NATIVE_FIRST_MECHANICS_AUDIT.md")
     if audit.exists():
         text = audit.read_text(encoding="utf-8")
@@ -149,7 +183,7 @@ def main() -> int:
             print(" -", problem)
         return 1
     print("RECOVERY BASELINE GATE: PASS — 1.4.1 ancestry, original hashes, "
-          "complete census, 39 API families and 40 Level 1 mechanism decisions")
+          "complete census, 39 API families, 40 Level 1 mechanisms, and both pinned owner reference images")
     print("This is structural provenance only; NOT BDS functionality/performance proof.")
     return 0
 
