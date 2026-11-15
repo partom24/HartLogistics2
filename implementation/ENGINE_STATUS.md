@@ -22,6 +22,10 @@ The owner has clarified that **complete the engine** currently means **complete 
 
 **Deliberate non-changes:** No invented native Hopper cargo-change event; no replacement for `schedulerTick` with speculative distributed callbacks. No `Container.moveItem`/`transferItem` drop-in for amount-limited operations: pinned 2.7 methods do not supply an N-item parameter or a cross-Q4 crash-atomic guarantee. **No new queue serialization, Bulk Storage, Transporter, Q5, or generalized custody engine for 1.5.** Original 1.4.1 Q4/journal compatibility is mandatory but new 1.5 custody architecture is a **separate, later owner-directed phase**. Native visual assets and existing item frames remain intact.
 
+## Approved telemetry — use native tools, not a new instrumentation engine
+
+**Owner decision (2026-11-15):** The [base 1.4.1 LAB telemetry protocol](TELEMETRY_PROTOCOL_141.md) uses the **VS Code Minecraft Bedrock Debugger, server live diagnostics/watchdog, and Bedrock's built-in Script Profiler and diagnostic captures**. Profile the original 1.4.1 source and this candidate under comparable real LAB conditions, with no paused breakpoints during timed profiling. Only item throughput/conservation requires independent before/after records; **do not implement a custom timing/analytics subsystem** or distort the add-on with telemetry code. No BDS measurements have yet been collected.
+
 ## Source verification and packaging
 
 - [Implementation candidate tests](tests/native_first_engine.test.mjs): **33** executing altered original function bodies against controlled native-shaped mocks.
@@ -35,7 +39,7 @@ These tests **do not** exercise actual `@minecraft/server` runtime, native `Cont
 
 ## What prevents declaring the **base 1.4.1 native-first conversion complete**
 
-1. **R6 physical Bedrock acceptance**: no execution of this modified source in target BDS or owner-preserved production-derived LAB. Need compare exact native behavior and useful throughput on both owner reference array arrangements, including 1,400-Sorter-scale loaded topology and linked storage, before asserting speedup or compatibility.
+1. **R6 physical Bedrock acceptance (existing toolchain only)**: no execution of this modified source in target BDS or owner-preserved production-derived LAB. Use the [native VS debugger and server profiler/diagnostics protocol](TELEMETRY_PROTOCOL_141.md), not an added telemetry framework. Need compare exact native behavior and useful throughput on both owner reference array arrangements, including 1,400-Sorter-scale loaded topology and linked storage, before asserting speedup or compatibility.
 2. **1.4.1 conversion fidelity**: native-first reduction of custom work must still preserve all **existing** Sorter, Collector, Receiver, original 1.4.1 Q2/Q3/Q4 recovery, filter modes, Hopper behavior, native item identity, redstone, visuals and existing-world loading. Some candidate native replacements remain unverified and cannot be certified by source-only mocks. **New Bulk Storage, Transporters, Q5 or a 1.5 custody engine are explicitly NOT completion criteria for this phase.**
 3. **Native physical transfer equivalence**: no BDS proof of `Container.moveItem` or `transferItem` amount/slot/metadata compatibility with original custom journals. Leave existing working custody protocol untouched until exact equivalence.
 4. **Presentation and migration**: native entityLoad-based legacy display cleanup, startup sweeps, block state, item frames, redstone and unloaded/loaded builds require verification on actual owner world; these source tests do not demonstrate the visual product objective.
