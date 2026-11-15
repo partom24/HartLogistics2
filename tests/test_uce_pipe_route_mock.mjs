@@ -1626,6 +1626,56 @@ test('120 ordinary linked Receiver banks route to final Filter without long-witn
     'a changed distant Collector route can never verify the old receipt');
 });
 
+test('large cached graph fences unloaded FAR half of cross-chunk double-chest input',()=>{
+  const f=fixture(),jobs=[];
+  // Move the standard fixture 15 X blocks. Pipe X=17 touches the
+  // first half at X=16; the reciprocal second half is X=15, across
+  // the chunk border. No pipe is within one block of X=15, so the
+  // ordinary six-neighbor pipe-frontier witness cannot include it.
+  const blocks=[...f.blocks.values()];
+  f.blocks.clear();
+  for(const block of blocks){
+    block.location.x+=15;
+    f.blocks.set(f.k(block.location),block);
+  }
+  for(const entry of f.entries)entry.x+=15;
+  f.receiver.x+=15;
+  f.receiver.id=f.context.logisticsId(f.dim.id,f.receiver.x,
+                                     f.receiver.y,f.receiver.z);
+  const shared=f.newContainer(54);
+  f.put('minecraft:chest',16,70,4,shared);
+  f.put('minecraft:chest',15,70,4,shared);
+  for(let z=5;z<=270;z++)
+    f.put('hartlogistics:transporter',17,70,z);
+  f.context.system={
+    currentTick:600,runJob:job=>{jobs.push(job);return jobs.length;}
+  };
+  f.context.world={};
+  f.context.dirty=false;
+  vm.runInContext('ucePipeEventFenceReady=true',f.context);
+  const unloaded=new Set();
+  f.dim.isChunkLoaded=location=>!unloaded.has(location.x);
+  assert.equal(f.network(),undefined,'large graph remains untrusted while scanning');
+  assert.equal(jobs.length,1);
+  let done=false;
+  for(let i=0;i<10000&&!done;i++){
+    f.context.system.currentTick++;
+    done=jobs[0].next().done;
+  }
+  assert.ok(done,'all pipe and source-alias witnesses must finish');
+  const graph=f.network();
+  assert.ok(graph,'complete initially loaded network is valid');
+  assert.equal(graph.inputs.length,1,'both halves have one source owner');
+  assert.equal(graph.inputs[0].aliases.length,2);
+  assert.ok(graph.chunkWitnesses.some(p=>p.x===0),
+    'far half X=15 is in chunk X=0 and MUST be witnessed');
+  unloaded.add(0);
+  assert.equal(f.network(),undefined,
+    'unloaded far alias must revoke cached route before native custody');
+  assert.equal(jobs.length,2,
+    'unload requires a new complete time-sliced physical certificate');
+});
+
 test('large cached network checks loaded frontier chunks before any custody route',()=>{
   const f=fixture(),jobs=[];
   // x=-255 is the final physical pipe. Its x=-256 neighbor is in an

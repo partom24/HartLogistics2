@@ -384,6 +384,17 @@ function ucePipeScanGenerator(receiver){
                     if(!ucePipeSameDimension(root,next))return undefined;
                     const source=uceReadOnlyPipeInput(next,root);
                     if(!source)return undefined;
+                    // A 54-slot double-chest source may extend one block
+                    // beyond every pipe's six-neighbor frontier, including
+                    // into a different loaded chunk. Its FAR half is part
+                    // of the verified native custody owner: cache admission
+                    // must be revoked when that chunk unloads between the
+                    // asynchronous full scan and any movement.
+                    for(const alias of source.aliases){
+                        if(!alias?.location||!ucePipeSameDimension(root,alias))
+                            return undefined;
+                        trackChunk(alias.location);
+                    }
                     // Two Bedrock 54-slot double-chest halves are ONE
                     // physical inventory owner. Preserve a single canonical
                     // source and never debit both aliases independently.
