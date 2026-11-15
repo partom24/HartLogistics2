@@ -300,3 +300,112 @@ test("ENGINE-24 1,387 eligible idle columns require zero script getItem slot sca
   // This measures SCRIPT CALLS only; native firstItem may still do engine
   // work internally, so TPS and actual speedup remain unverified.
 });
+
+
+test("ENGINE-25 periodic display reconciliation makes no dimension-global queries",()=>{
+  let queries=0;
+  const fn=originalFunction("reconcileDisplays",{
+    ready:true,registry:[],
+    getDimension:()=>({getEntities:()=>{queries++;return [];}}),
+    DISPLAY_ID:"hartsorter:filter_display"
+  });
+  fn();
+  assert.equal(queries,0);
+});
+test("ENGINE-26 startup display cleanup still inspects all three dimensions",()=>{
+  const dims=[];
+  const fn=originalFunction("reconcileDisplays",{
+    ready:true,registry:[],
+    getDimension:id=>({getEntities:()=>{dims.push(id);return [];}}),
+    DISPLAY_ID:"hartsorter:filter_display"
+  });
+  fn(true);
+  assert.deepEqual(dims,["overworld","nether","the_end"]);
+});
+test("ENGINE-27 routine legacy registered-filter visual sync remains present",()=>{
+  let updates=0,removals=0,queries=0;
+  const entry={id:"sorter",f:{typeId:"minecraft:stone"}};
+  const fn=originalFunction("reconcileDisplays",{
+    ready:true,registry:[entry],
+    sorterAt:()=>({typeId:"hl:sorter"}),
+    entryHasFrameImplant:()=>false,
+    syncDisplay:()=>updates++,
+    removeDisplay:()=>removals++,
+    getDimension:()=>({getEntities:()=>{queries++;return [];}}),
+    DISPLAY_ID:"hartsorter:filter_display"
+  });
+  fn();
+  assert.equal(updates,1);
+  assert.equal(removals,0);
+  assert.equal(queries,0);
+});
+test("ENGINE-28 known Sorter removed outside player events cleans its local proxy",()=>{
+  let removals=0,queries=0;
+  const entry={id:"stale",f:{typeId:"minecraft:stone"}};
+  const fn=originalFunction("reconcileDisplays",{
+    ready:true,registry:[entry],
+    sorterAt:()=>undefined,
+    removeDisplay:e=>{assert.equal(e,entry);removals++;},
+    getDimension:()=>({getEntities:()=>{queries++;return [];}}),
+    DISPLAY_ID:"hartsorter:filter_display"
+  });
+  fn();
+  assert.equal(removals,1);
+  assert.equal(queries,0);
+});
+test("ENGINE-29 native-loaded known legacy entity repairs only its owner",()=>{
+  let updates=0,removes=0;
+  const entry={id:"sorter",f:{typeId:"minecraft:stone"}};
+  const ent={isValid:true,typeId:"hartsorter:filter_display",
+    getDynamicProperty:()=> "known-owner",remove:()=>removes++};
+  const fn=originalFunction("reconcileLoadedDisplay",{
+    ready:true,DISPLAY_ID:"hartsorter:filter_display",
+    DISPLAY_OWNER_PROP:"owner",
+    findEntryByDisplayOwner:owner=>{assert.equal(owner,"known-owner");return entry;},
+    entryHasFrameImplant:()=>false,
+    sorterAt:()=>({typeId:"hl:sorter"}),
+    syncDisplay:e=>{assert.equal(e,entry);updates++;}
+  });
+  fn(ent);
+  assert.equal(updates,1);
+  assert.equal(removes,0);
+});
+test("ENGINE-30 native-loaded orphan display is removed without a global census",()=>{
+  let removals=0;
+  const fn=originalFunction("reconcileLoadedDisplay",{
+    ready:true,DISPLAY_ID:"hartsorter:filter_display",
+    DISPLAY_OWNER_PROP:"owner",
+    findEntryByDisplayOwner:()=>undefined
+  });
+  fn({isValid:true,typeId:"hartsorter:filter_display",
+    getDynamicProperty:()=> "orphan",remove:()=>removals++});
+  assert.equal(removals,1);
+});
+test("ENGINE-31 native-loaded display for a native-frame Sorter is removed",()=>{
+  let removals=0,updated=0;
+  const fn=originalFunction("reconcileLoadedDisplay",{
+    ready:true,DISPLAY_ID:"hartsorter:filter_display",
+    DISPLAY_OWNER_PROP:"owner",
+    findEntryByDisplayOwner:()=>({f:{typeId:"minecraft:stone"}}),
+    entryHasFrameImplant:()=>true,
+    syncDisplay:()=>updated++
+  });
+  fn({isValid:true,typeId:"hartsorter:filter_display",
+    getDynamicProperty:()=> "native-frame",remove:()=>removals++});
+  assert.equal(removals,1);
+  assert.equal(updated,0);
+});
+test("ENGINE-32 entity load while registry isn't ready does not delete cargo or entities",()=>{
+  let removals=0;
+  const fn=originalFunction("reconcileLoadedDisplay",{
+    ready:false,DISPLAY_ID:"hartsorter:filter_display"
+  });
+  fn({isValid:true,typeId:"hartsorter:filter_display",remove:()=>removals++});
+  assert.equal(removals,0);
+});
+test("ENGINE-33 module registers native display load event and preserves startup sweep",()=>{
+  assert.match(SOURCE,/world\.afterEvents\.entityLoad\.subscribe/);
+  assert.match(SOURCE,/system\.run\(\(\) => reconcileLoadedDisplay\(ev\.entity\)\)/);
+  assert.match(SOURCE,/system\.runTimeout\(\(\) => reconcileDisplays\(true\),\s*5\)/);
+  assert.match(SOURCE,/system\.runInterval\(reconcileDisplays,\s*100\)/);
+});
