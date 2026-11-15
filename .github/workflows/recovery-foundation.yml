@@ -33,7 +33,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Node 22 source-only tests; no Bedrock server
-        run: node --test recovery/tests/level2_source_contracts.test.mjs recovery/tests/level2_journal_faults.test.mjs recovery/tests/level2_native_scheduler_screen.test.mjs
+        run: node --test recovery/tests/level2_source_contracts.test.mjs recovery/tests/level2_journal_faults.test.mjs recovery/tests/level2_native_scheduler_screen.test.mjs recovery/tests/level2_native_semantic_gaps.test.mjs
 
   level2-api-types-270:
     name: Verify exact official 2.7.0 TypeScript native API surface
