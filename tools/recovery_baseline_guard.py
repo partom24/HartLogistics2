@@ -23,7 +23,7 @@ FORBIDDEN_IMPORT_ROOTS = ("candidates/", "build/uce-", "tests/test_uce_", "tests
 ALLOW_CHANGED_PREFIXES = (
     "recovery/",
     "tools/recovery_",
-    ".github/workflows/recovery_",
+    ".github/workflows/recovery-",
     "docs/recovery_",
 )
 ALLOW_CHANGED_EXACT = set(FOUNDATION)
