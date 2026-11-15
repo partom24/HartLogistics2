@@ -218,6 +218,54 @@ test("L2-P1 / M17: powered Sorter refuses compaction and transfer", () => {
   assert.equal(trace.some(x => x.startsWith("getItem:")), false);
 });
 
+test("L2-P1 / M01 M03 M04: 1,387 actual idle processColumn calls generate 20,805 mock slot reads", () => {
+  let reads = 0, writes = 0, visits = 0;
+  const slots = {
+    isValid: true,
+    size: 5,
+    getItem() { reads++; return undefined; },
+    setItem() { writes++; }
+  };
+  const hopper = {
+    typeId: "minecraft:hopper",
+    getComponent(name) {
+      assert.equal(name, "minecraft:inventory");
+      return { container: slots };
+    }
+  };
+  const process = compileOriginal("processColumn", {
+    PER_COLUMN_BATCH: 16,
+    getDimension: () => ({ getBlock: () => hopper }),
+    hopperIsRedstoneLocked: () => false,
+    sorterAt: () => { visits++; return {}; },
+    blockIsRedstonePowered: () => false,
+    sorterMode: () => "wildcard",
+    compactSourceHopper: compileOriginal("compactSourceHopper").fn,
+    destinationFor: () => assert.fail("Empty Hopper should never inspect destinations"),
+    log: () => undefined
+  }).fn;
+  const cols = Array.from({ length: 1387 }, (_, i) => ({
+    d: "overworld",
+    source: { x: i, y: 65, z: 0 },
+    sorters: [{ m: "wildcard", y: 64 }]
+  }));
+  const scheduler = compileOriginal("schedulerTick", {
+    ready: true, dirty: false, rrStart: 0,
+    columns: cols, GLOBAL_MOVE_BUDGET: 256,
+    JOURNAL_KEY: "journal",
+    world: { getDynamicProperty: () => undefined },
+    getQueueJournal: () => undefined,
+    processColumn: process
+  }).fn;
+  scheduler();
+  assert.equal(visits, 1387);
+  assert.equal(reads, 1387 * 15);
+  assert.equal(reads, 20805);
+  assert.equal(writes, 0);
+  // Counts synthetic JS slot access on an all-loaded, entirely empty,
+  // eligible topology. This is NOT a recorded native API sample, TPS or CPU.
+});
+
 // P2: native slot selection candidates. Testing the current real slot-selection
 // function *disqualifies* incorrect substitutions; native method outcomes stay
 // unproven until actual BDS.
