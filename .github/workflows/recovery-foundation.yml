@@ -33,4 +33,4 @@ jobs:
         with:
           fetch-depth: 1
       - name: Node 22 source-only tests; no Bedrock server
-        run: node --test recovery/tests/level2_source_contracts.test.mjs
+        run: node --test recovery/tests/*.test.mjs
