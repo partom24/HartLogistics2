@@ -1,11 +1,11 @@
-# HL2 native-first engine — implementation and completion status
+# HL2 base 1.4.1 native-first conversion — implementation and completion status
 
 **Branch:** `implementation/native-first-engine-141-20261115`  
 **Base:** canonical immutable 1.4.1 import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269` through the baseline-only recovery branch.  
-**Scope:** first real engine implementation, no 1.5 source, no owner-world access, no production deployment.  
+**Current owner-authorized scope (2026-11-15): native-first conversion of base Hart Logistics 1.4.1 only**, including Sorter, Collector, Receiver, vanilla Hopper behavior, filter/frame/redstone interactions, original world/data compatibility, and existing 1.4.1 Q2/Q3/Q4 integrity. **Do not implement Bulk Storage, Transporters, Q5, a new 1.5-oriented custody engine, or any frozen 1.5 source/design.** No owner-world access or production deployment.  
 **Status:** **SOURCE-ONLY IMPLEMENTATION CANDIDATE — NOT COMPLETE / NOT RELEASE APPROVED.**
 
-The owner has directed: **complete the engine**. Engineering output is assessed against both immutable reference-image objectives documented in [OWNER_PRODUCT_OBJECTIVE.md](../OWNER_PRODUCT_OBJECTIVE.md): the [Sorter array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/sorter-array.png) and the [storage-room array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/storage-room-array.png). Green source tests do **not** count as owner-layout acceptance.
+The owner has clarified that **complete the engine** currently means **complete the native-first conversion of the existing 1.4.1 engine**, not add planned 1.5 features. Engineering output is assessed against both immutable reference-image objectives documented in [OWNER_PRODUCT_OBJECTIVE.md](../OWNER_PRODUCT_OBJECTIVE.md): the [Sorter array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/sorter-array.png) and the [storage-room array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/storage-room-array.png). Green source tests do **not** count as owner-layout acceptance.
 
 ## Source changes actually implemented
 
@@ -20,7 +20,7 @@ The owner has directed: **complete the engine**. Engineering output is assessed 
 | **M15/M16: Legacy filter-display maintenance** | Keep one **startup** orphan census; regular 100-tick reconciliation only inspects known registered owners. Use native 2.7 `world.afterEvents.entityLoad` to validate, repair or remove legacy display proxies as they load; also remove known stale owner proxy locally. | Removes routine three-dimension global entity scans while preserving startup cleanup and local legacy display maintenance. | Native callback delivery and visual behavior on natural owner-world chunk unload/reload; orphan cases without entity load. |
 | **M27: Opaque item direct-only admission** | If authoritative current Q4 queue load fails, do **not** move opaque cargo based on an old cached `Receiver.queued` count; leave source contents unchanged. | Closes the source-confirmed conditional unknown-queue direct-admission path without revisiting the established FIFO design. | Actual engine persistence and production data behavior. |
 
-**Deliberate non-changes:** No invented native Hopper cargo-change event; no replacement for `schedulerTick` with speculative distributed callbacks. No `Container.moveItem`/`transferItem` drop-in for amount-limited operations: pinned 2.7 methods do not supply an N-item parameter or a cross-Q4 crash-atomic guarantee. No new queue serialization, Transporter, Bulk Store, or Q5 implementation. Native visual assets and existing item frames remain intact.
+**Deliberate non-changes:** No invented native Hopper cargo-change event; no replacement for `schedulerTick` with speculative distributed callbacks. No `Container.moveItem`/`transferItem` drop-in for amount-limited operations: pinned 2.7 methods do not supply an N-item parameter or a cross-Q4 crash-atomic guarantee. **No new queue serialization, Bulk Storage, Transporter, Q5, or generalized custody engine for 1.5.** Original 1.4.1 Q4/journal compatibility is mandatory but new 1.5 custody architecture is a **separate, later owner-directed phase**. Native visual assets and existing item frames remain intact.
 
 ## Source verification and packaging
 
@@ -33,14 +33,14 @@ The owner has directed: **complete the engine**. Engineering output is assessed 
 
 These tests **do not** exercise actual `@minecraft/server` runtime, native `Container.firstItem()` internals, any item on BDS, real tick performance or abrupt server persistence failure.
 
-## What prevents declaring the **whole HL2 engine complete**
+## What prevents declaring the **base 1.4.1 native-first conversion complete**
 
 1. **R6 physical Bedrock acceptance**: no execution of this modified source in target BDS or owner-preserved production-derived LAB. Need compare exact native behavior and useful throughput on both owner reference array arrangements, including 1,400-Sorter-scale loaded topology and linked storage, before asserting speedup or compatibility.
-2. **HL2 feature completeness**: original 1.4.1 provides Sorter/Collector/Receiver. Planned **Bulk Storage, Transporter, interconnected networks and Q5 metadata-rich expansion** are **not implemented by this candidate**. Neither the existing 1.4.1 source nor the two picture filenames alone supplies a safe, finished implementation contract. Do not invent their behavior or misrepresent the candidate as the complete new engine.
+2. **1.4.1 conversion fidelity**: native-first reduction of custom work must still preserve all **existing** Sorter, Collector, Receiver, original 1.4.1 Q2/Q3/Q4 recovery, filter modes, Hopper behavior, native item identity, redstone, visuals and existing-world loading. Some candidate native replacements remain unverified and cannot be certified by source-only mocks. **New Bulk Storage, Transporters, Q5 or a 1.5 custody engine are explicitly NOT completion criteria for this phase.**
 3. **Native physical transfer equivalence**: no BDS proof of `Container.moveItem` or `transferItem` amount/slot/metadata compatibility with original custom journals. Leave existing working custody protocol untouched until exact equivalence.
 4. **Presentation and migration**: native entityLoad-based legacy display cleanup, startup sweeps, block state, item frames, redstone and unloaded/loaded builds require verification on actual owner world; these source tests do not demonstrate the visual product objective.
 5. **Owner release boundary**: no automatic production deployment, world manipulation, base version bump or replacement of 1.4.1. The archival hard protection of frozen 1.5 remains a separate administrative GitHub issue [#82](https://github.com/partom24/HartLogistics2/issues/82).
 
 **Correct current label:** "native-first source implementation candidate with reproducible tests and packaged non-release artifact." Do not call it a completed game engine, measured performance win, or final release.
 
-**Next real gate:** authorized Bedrock runtime/LAB acceptance and an independently specified, owner-accepted implementation path for remaining full HL2 features. The image references and all compatibility constraints remain binding.
+**Next real gate:** native-first **base 1.4.1** Bedrock runtime/LAB acceptance and further reduction of proven redundant **existing** custom mechanisms. The Sorter-array and storage-room images remain binding layout/scale references for existing 1.4.1 capabilities. **Do not start Bulk, Transporter, Q5 or future 1.5 custody-engine work here.** The owner will separately authorize that later phase.
