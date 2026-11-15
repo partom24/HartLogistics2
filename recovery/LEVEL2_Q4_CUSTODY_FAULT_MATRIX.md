@@ -2,7 +2,7 @@
 
 **Source:** immutable original 1.4.1, commit `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`. **Authorized activity:** original-source execution with synthetic Node mocks and exact public `@minecraft/server@2.7.0` type declarations; **NO BDS, LAB, production, gameplay modifications, or 1.5 inputs**. **Status:** `SOURCE DECISIONS VERIFIED / ENGINE DURABILITY UNKNOWN`. Date: 2026-11-14 (owner local).
 
-**Verified CI:** [GitHub Actions 43674458698](https://github.com/partom24/HartLogistics2/actions/runs/43674458698) at `7f37883d1d587ab1ff81744a054e26cc968a542b`: baseline provenance PASS, **98/98** source-executed tests PASS, **11/11** exact 2.7.0 declaration tests PASS, **109 total test assertions/cases**. This report and its crosslinks are later documentation commits with separate workflow results; never treat a success on an earlier SHA as testing later code.
+**Verified CI:** [GitHub Actions 43674615159](https://github.com/partom24/HartLogistics2/actions/runs/43674615159) at `b74a068e2f6ae1efca927636fd1b18f3ebfdf4d1`: baseline provenance PASS, **99/99** source-executed tests PASS, **11/11** exact 2.7.0 declaration tests PASS, **110 total tests** (including one complete idle-scheduler-to-Hopper-read witness). This report and its crosslinks are later documentation commits with separate workflow results; never treat a success on an earlier SHA as testing later code.
 
 **Original code anchors:**
 - [`enqueueFromEjectedEntity` L2118 and actual entity removal](https://github.com/partom24/HartLogistics2/blob/0ea3000651c116b0fa1acc2836ab7e1bcfbc6269/addon/behavior_pack/scripts/main.js#L2118)
