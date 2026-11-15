@@ -9,6 +9,8 @@ Read together with [the binding mandate](RECOVERY_MANDATE.md), [the original 1.4
 
 The baseline BP manifest specifies **`@minecraft/server 2.7.0`, min_engine_version `[1,26,50]`**, not the version shown on the current Microsoft "stable" reference page. The latter is a **moving latest-version page** and currently includes additions from 2.8, 2.9, 2.10+ and even visible pre-release-marked members. An API appearing in that page **does not prove it is exposed by 2.7.0**. Check the official [module changelog](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/changelog?view=minecraft-bedrock-stable) before calling something 2.7-eligible. Exact 2.7.0 typings and BDS runtime availability have **not** been independently extracted/loaded here. The version classification below is therefore either (a) already invoked by the canonical 1.4.1 source, (b) explicitly introduced by or before 2.7 in the changelog, (c) later than 2.7, or (d) documentation candidate whose exact 2.7 availability still requires the original package's typings.
 
+**Definitive 2.7.0 follow-up (explicitly outstanding):** Microsoft's [Script Module Versioning](https://learn.microsoft.com/en-us/minecraft/creator/documents/scriptversioning?view=minecraft-bedrock-stable) states that versioned **npm TypeScript definitions** are the definitive resource for specific API versions. The original manifest proves the *declared* 2.7.0 dependency; the API changelog establishes introduction dates for many members. I attempted read-only retrieval of the exact 2.7.0 declaration package, but it was not accessible from the available research environment. Consequently, **no candidate marked C is upgraded to exact-typing-confirmed** in this report, even when the changelog suggests it predates 2.7. The package can be checked in a controlled offline tooling stage without changing any world or gameplay implementation.
+
 **Level 1 statuses**:
 - **E — baseline-observed/native documented:** baseline code already uses the interface, or official changelog shows it by 2.7. Not a speed or transactional guarantee.
 - **C — documented candidate, 2.7 typings not individually pinned:** viable for short contract verification; do not use in gameplay without version proof.
@@ -224,6 +226,7 @@ Level 2 should test **six grouped questions**, not 40 separately:
 All links below are the official, living reference; reread and cross-check the [2.7.0 changelog](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/changelog?view=minecraft-bedrock-stable) for version introduction.
 
 - [Server module and available versions](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/minecraft-server?view=minecraft-bedrock-stable)
+- [Official script module versioning and version-specific npm typings](https://learn.microsoft.com/en-us/minecraft/creator/documents/scriptversioning?view=minecraft-bedrock-stable)
 - [Server API changelog](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/changelog?view=minecraft-bedrock-stable)
 - [Container](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/container?view=minecraft-bedrock-stable)
 - [ContainerSlot](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/containerslot?view=minecraft-bedrock-stable)
