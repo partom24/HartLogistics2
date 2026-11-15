@@ -1665,8 +1665,10 @@ test('large cached graph fences unloaded FAR half of cross-chunk double-chest in
   assert.ok(done,'all pipe and source-alias witnesses must finish');
   const graph=f.network();
   assert.ok(graph,'complete initially loaded network is valid');
-  assert.equal(graph.inputs.length,1,'both halves have one source owner');
-  assert.equal(graph.inputs[0].aliases.length,2);
+  const doubleSources=graph.inputs.filter(source=>source.aliases.length===2);
+  assert.equal(doubleSources.length,1,
+    'two chest halves must resolve to one canonical native source');
+  assert.equal(doubleSources[0].container.size,54);
   assert.ok(graph.chunkWitnesses.some(p=>p.x===0),
     'far half X=15 is in chunk X=0 and MUST be witnessed');
   unloaded.add(0);
