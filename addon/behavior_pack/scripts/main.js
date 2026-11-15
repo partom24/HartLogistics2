@@ -3674,8 +3674,12 @@ function processReceiverDrain(receiver, globalRemaining) {
 function logisticsTick() {
     if (!ready) return;
 
-    recoverQueueJournal();
-    if (getQueueJournal()) return;
+    // Avoid a duplicate native property read on every idle tick.
+    // Pending queue journals still use the original recovery/fence sequence.
+    if (getQueueJournal()) {
+        recoverQueueJournal();
+        if (getQueueJournal()) return;
+    }
 
     let ingestBudget = LOGISTICS_GLOBAL_BUDGET;
     const collectors = logistics.collectors;
@@ -3683,8 +3687,8 @@ function logisticsTick() {
         for (let k=0; k<collectors.length && ingestBudget>0; k++) {
             const idx = (collectorRrStart + k) % collectors.length;
             const col = collectors[idx];
-            if (!collectorAt(col)) continue;
 
+            // The ingestion function already verifies the Collector block.
             const used = processCollectorIngress(col, ingestBudget);
             ingestBudget -= used;
         }
@@ -3701,8 +3705,8 @@ function logisticsTick() {
         for (let k=0; k<receivers.length && drainBudget>0; k++) {
             const idx = (receiverRrStart + k) % receivers.length;
             const receiver = receivers[idx];
-            if (!receiverAt(receiver)) continue;
 
+            // Drain already checks Receiver presence and output block state.
             const used = processReceiverDrain(receiver, drainBudget);
             drainBudget -= used;
         }
