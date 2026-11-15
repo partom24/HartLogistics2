@@ -33,4 +33,28 @@ jobs:
         with:
           fetch-depth: 1
       - name: Node 22 source-only tests; no Bedrock server
-        run: node --test recovery/tests/*.test.mjs
+        run: node --test recovery/tests/level2_source_contracts.test.mjs recovery/tests/level2_journal_faults.test.mjs recovery/tests/level2_native_scheduler_screen.test.mjs
+
+  level2-api-types-270:
+    name: Verify exact official 2.7.0 TypeScript native API surface
+    needs: baseline-provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout recovery branch only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Fetch pinned official npm typing package into temporary scratch only
+        run: |
+          mkdir -p "$RUNNER_TEMP/hart-api-270"
+          npm pack --silent --pack-destination "$RUNNER_TEMP" @minecraft/server@2.7.0 > "$RUNNER_TEMP/hart-api-270-package-name"
+          archive="$(tail -n 1 "$RUNNER_TEMP/hart-api-270-package-name")"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/hart-api-270"
+          test -s "$RUNNER_TEMP/hart-api-270/package/index.d.ts"
+          test -s "$RUNNER_TEMP/hart-api-270/package/package.json"
+      - name: Assert original 1.4.1 API version without running Minecraft
+        run: |
+          export MINECRAFT_SERVER_TYPES_270="$RUNNER_TEMP/hart-api-270/package/index.d.ts"
+          export MINECRAFT_SERVER_PACKAGE_270="$RUNNER_TEMP/hart-api-270/package/package.json"
+          node --test recovery/tests/level2_api_270_types.test.mjs
