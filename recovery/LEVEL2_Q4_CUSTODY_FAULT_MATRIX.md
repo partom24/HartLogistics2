@@ -27,7 +27,7 @@
 | --- | ---: | --- | --- |
 | [`level2_q4_recovery_states.test.mjs`](tests/level2_q4_recovery_states.test.mjs) | **21** | Actual `journalQueueState`, `queueMetaMatches`, `queueSlotState`, `recoverQueueJournal` | PASS: queue metadata switch, untouched/after enqueue and dequeue, identity/quantity conflicts, unavailable Hopper/Receiver, unreadable queue, entity removal matching, entity missing/unloaded |
 | [`level2_direct_only_guards.test.mjs`](tests/level2_direct_only_guards.test.mjs) | **9** | Actual `processCollectorIngress`, with injected native-shape source Hopper/output Receiver mocks | PASS: FIFO backlog gate, loaded Receiver requirement, powered Collector/Receiver, locked input/output Hoppers, stale-queue-counter fallback, post-transfer counter failure |
-| Previous source-only suites | **68** | Canonical scheduler, native slot acceptance, item serialization, physical journaling, redstone and filter/Auto behavior | PASS — distinct source witness domains |
+| Previous source-only suites | **69** | Canonical scheduler, native slot acceptance, item serialization, physical journaling, redstone and filter/Auto behavior | PASS — distinct source witness domains |
 | Separate version declaration suite | **11** | Pinned npm 2.7.0 TypeScript declarations (read, not executable game API) | PASS — method signatures/version availability only |
 
 **Mock limitations:** A mocked Hopper slot is not an actual native inventory; a JavaScript error cut is not a BDS crash or saved partial world state; mock entity availability is not proof of Bedrock despawn/pickup/restart behavior. These tests establish control-flow outcomes **given specified observed states**.
