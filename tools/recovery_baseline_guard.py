@@ -98,6 +98,25 @@ def main() -> int:
         ):
             if required.lower() not in product_text.lower():
                 failures.append(f"binding product objective missing acceptance requirement: {required}")
+    # The owner's current 1.4.1-only scope is as binding as both images.
+    # Future 1.5 systems must never become prerequisites for base conversion.
+    if objective.is_file() and mandate.is_file():
+        product_scope = objective.read_text(encoding="utf-8")
+        mandate_scope = mandate.read_text(encoding="utf-8")
+        for name, text_value in (
+            ("OWNER_PRODUCT_OBJECTIVE.md", product_scope),
+            ("RECOVERY_MANDATE.md", mandate_scope),
+        ):
+            required_scope = (
+                "1.4.1", "Bulk Storage", "Transporter",
+                "Q5", "custody engine", "deferred",
+            )
+            for term in required_scope:
+                if term.lower() not in text_value.lower():
+                    failures.append(f"{name} missing owner phase-scope condition: {term}")
+        if "ACTIVE PHASE SCOPE" not in mandate_scope:
+            failures.append("Recovery mandate missing explicit base-1.4.1-only phase scope")
+
     audit = (ROOT / "NATIVE_FIRST_MECHANICS_AUDIT.md")
     if audit.exists():
         text = audit.read_text(encoding="utf-8")
