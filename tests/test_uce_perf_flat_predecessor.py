@@ -65,17 +65,20 @@ class PredecessorTests(unittest.TestCase):
             PACKS=self.packs)
         tree=ast.parse(SOURCE.read_text(encoding="utf-8"))
         names={"exact_perf_141_pack_hashes","targets","install_plan","rollback_plan"}
-        chosen=[n for n in tree.body if isinstance(n,ast.FunctionDef)
-                and n.name in names]
-        self.assertEqual(len(chosen),len(names))
+        chosen=[n for n in tree.body if (
+            isinstance(n,ast.FunctionDef) and n.name in names) or (
+            isinstance(n,ast.Assign) and len(n.targets)==1 and
+            isinstance(n.targets[0],ast.Name) and
+            n.targets[0].id in (
+                "PERF_141_BASE_MAIN_SHA256",
+                "PERF_141_PATCHED_MAIN_SHA256"))]
+        self.assertEqual(len(chosen),len(names)+2)
         self.env={
             "ROOT":self.repo,"lab":self.lab,"common":self.common,
             "read":lambda base,relative:(base/relative).read_bytes(),
             "report_legacy_pack_diff":lambda root:None,
             "check_stage":lambda root:self.regs[0].parent,
             "parse_registry":lambda raw:json.loads(raw),
-            "PERF_141_BASE_MAIN_SHA256":BASE,
-            "PERF_141_PATCHED_MAIN_SHA256":PATCH,
             "VERSION":(1,5,16),"REGS":(self.regs[0].name,self.regs[1].name),
             "re":__import__("re"),"json":json,
         }
@@ -93,6 +96,15 @@ class PredecessorTests(unittest.TestCase):
 
     def _block_common(self):
         raise Refused(self.denied)
+
+    def test_live_installer_sha_constants_match_observed_64_digit_hashes(self):
+        # This reads the real source constants, never substitutes test values.
+        # The earlier test injected a 64-character value and hid a bad
+        # 59-character constant in the actual production installer.
+        self.assertEqual(self.env["PERF_141_BASE_MAIN_SHA256"],BASE)
+        self.assertEqual(self.env["PERF_141_PATCHED_MAIN_SHA256"],PATCH)
+        self.assertEqual(len(PATCH),64)
+        self.assertEqual(len(self.env["PERF_141_PATCHED_MAIN_SHA256"]),64)
 
     def test_patched_predecessor_accepted_only_at_exact_sha(self):
         with contextlib.redirect_stdout(io.StringIO()) as out:

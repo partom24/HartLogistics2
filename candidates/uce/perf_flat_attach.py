@@ -260,7 +260,7 @@ def report_legacy_pack_diff(root: Path) -> None:
 # (incremental pass) and processColumn() (empty Hopper fast exit).
 # Keep frozen addon/ and BASELINE_HASHES.json unchanged.
 PERF_141_BASE_MAIN_SHA256="6be6be0c22fd3d6694feb7cb25e642eaa62bed667c17045be57ce4268293c461"
-PERF_141_PATCHED_MAIN_SHA256="f0340e332025790c12f986eb1e126836333f7907883b415381ac86e944d"
+PERF_141_PATCHED_MAIN_SHA256="f0340e332025790c12f986eb1e126836333f7907883b7983b415381ac86e944d"
 
 
 def exact_perf_141_pack_hashes(kind: str) -> dict[str, str]:
@@ -268,6 +268,9 @@ def exact_perf_141_pack_hashes(kind: str) -> dict[str, str]:
         raise lab.UnsafeLab("Unsupported LAB predecessor pack type")
     if lab.validate_source(ROOT)!=(1,4,1):
         raise lab.UnsafeLab("Original 1.4.1 source is not SHA-authenticated")
+    if (len(PERF_141_PATCHED_MAIN_SHA256)!=64 or
+        not re.fullmatch(r"[0-9a-f]{64}",PERF_141_PATCHED_MAIN_SHA256)):
+        raise lab.UnsafeLab("Performance predecessor SHA allowlist malformed")
     expected=lab.hashes(ROOT/"addon"/kind)
     if kind=="behavior_pack":
         if expected.get("scripts/main.js")!=PERF_141_BASE_MAIN_SHA256:
