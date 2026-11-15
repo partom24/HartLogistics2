@@ -17,6 +17,7 @@
 import {previewQ5WorldQ4Census} from './q5_world_receiver_census.mjs';
 import {readOnlyQ4Snapshot} from './q5_q4_readonly_snapshot.mjs';
 import {stageUnifiedOrdinaryAccounts} from './unified_ordinary_accounts.mjs';
+import {readLegacyRegistry} from './unified_migration_preflight.mjs';
 import {previewUnifiedShard,inspectUnifiedWorldShard,UCE_AUTHORITY_KEY,
     UCE_AUTHORITY_SCHEMA} from './unified_world_shard_writer.mjs';
 
@@ -98,6 +99,30 @@ function planInput({world,worldId,epoch,receivers,proofs,
      !nat(expectedReceiverCount)||
      expectedReceiverCount!==receivers.length)
     return refuse('invalid_cold_import_inputs');
+  // Independently bind every caller-supplied source Receiver to the
+  // SAVED 1.4.1 logistics registry before requesting UCE custody.
+  // A caller assertion is never a full-world authority census.
+  // Empty new worlds may lack the original registry altogether; a
+  // populated historical Q4 import must have one.
+  const registryRaw=read(world,'hartsorter:logistics_v2');
+  if(!registryRaw.ok)return registryRaw;
+  let legacyRegistry;
+  if(registryRaw.value===undefined||registryRaw.value===null||
+     registryRaw.value===''){
+    if(receivers.length)return refuse('legacy_receiver_registry_missing');
+    legacyRegistry={ok:true,raw:'',receivers:[]};
+  }else{
+    legacyRegistry=readLegacyRegistry(world);
+    if(!legacyRegistry.ok)
+      return refuse('legacy_receiver_registry:'+legacyRegistry.reason);
+  }
+  if(legacyRegistry.receivers.length!==receivers.length)
+    return refuse('legacy_receiver_census_mismatch');
+  const claimed=new Map(receivers.map(r=>[r?.id,r?.queueKey]));
+  if(claimed.size!==receivers.length||
+     legacyRegistry.receivers.some(r=>
+       claimed.get(r.id)!==r.queueKey))
+    return refuse('legacy_receiver_census_mismatch');
   const journal=journalClear(world);
   if(!journal.ok)return journal;
   const census=previewQ5WorldQ4Census({
@@ -163,6 +188,9 @@ function planInput({world,worldId,epoch,receivers,proofs,
     itemCount:staged.itemCount,shards,seal,rawSeal,
     reservedReceiverSlots:free,
     censusSignature:JSON.stringify(census.receivers),
+    // Exact in-process equality witness across REQUESTED and shard stage.
+    // Do not persist the whole legacy registry into the 28k seal.
+    legacyRegistryRaw:legacyRegistry.raw,
     canRoute:false,canModifyWorld:false,canDeleteQ4:false};
 }
 /**
@@ -217,7 +245,8 @@ export function executeUnifiedColdQ4Import(args){
   // The just-established fence must not have altered Q4; verify again.
   const after=planInput({world,worldId:p.worldId,epoch:p.epoch,
     receivers,proofs,expectedQueuedTotal,expectedReceiverCount});
-  if(!after.ok||after.rawSeal!==p.rawSeal)
+  if(!after.ok||after.rawSeal!==p.rawSeal||
+     after.legacyRegistryRaw!==p.legacyRegistryRaw)
     return refuse('q4_changed_during_request');
   for(const shard of p.shards){
     const w=write(world,shard.key,shard.raw);
@@ -227,7 +256,8 @@ export function executeUnifiedColdQ4Import(args){
   if(!sealed.ok)return refuse('cold_seal_write:'+sealed.reason);
   const afterSeal=planInput({world,worldId:p.worldId,epoch:p.epoch,
     receivers,proofs,expectedQueuedTotal,expectedReceiverCount});
-  if(!afterSeal.ok||afterSeal.rawSeal!==p.rawSeal)
+  if(!afterSeal.ok||afterSeal.rawSeal!==p.rawSeal||
+     afterSeal.legacyRegistryRaw!==p.legacyRegistryRaw)
     return refuse('q4_changed_after_shard_stage');
   for(const shard of p.shards){
     const readback=read(world,shard.key);

@@ -13,7 +13,7 @@ const id=s=>typeof s==='string'&&s.length>0&&s.length<=256;
 const refuse=(reason,details={})=>({ok:false,status:'HOLD',reason,
   canMigrate:false,canModifyWorld:false,canClearQ4:false,...details});
 
-function readLegacyRegistry(world){
+export function readLegacyRegistry(world){
   let raw;
   try{raw=world.getDynamicProperty(UCE_MIGRATION_REGISTRY_KEY);}
   catch(_){return refuse('legacy_registry_read_failed');}

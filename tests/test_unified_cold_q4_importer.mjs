@@ -44,6 +44,16 @@ function fixture(groups=[
       proofs.set(q5IdentityKey(row.definition),proof());
     });
   }
+  // Actual authoritative 1.4.1 saved Collector/Receiver registry.
+  // Import may not trust a shorter caller-supplied list or recycled queue.
+  values.set('hartsorter:logistics_v2',JSON.stringify({
+    collectors:[],
+    receivers:receivers.map(r=>{
+      const [d,x,y,z]=r.id.split('|');
+      return {...r,d,x:Number(x),y:Number(y),z:Number(z),present:true};
+    }),
+    nextQueue:groups.length+1
+  }));
   const world={
     getDynamicProperty:k=>values.get(k),
     getDynamicPropertyIds:()=>[...values.keys()],
@@ -71,6 +81,65 @@ const fail=(r,reason)=>{
   if(reason)assert.equal(r.reason,reason);
   assert.equal(r.canDeleteQ4,false);
 };
+test('archive migration binds exact saved Receiver registry before ANY authority write',()=>{
+  const absent=fixture();
+  absent.values.delete('hartsorter:logistics_v2');
+  fail(run(absent),'legacy_receiver_registry_missing');
+  assert.equal(absent.writes,0);
+
+  const omitted=fixture();
+  const fewer={...omitted.params,
+    receivers:omitted.params.receivers.slice(0,1),
+    expectedReceiverCount:1,
+    expectedQueuedTotal:120};
+  fail(run(omitted,fewer),'legacy_receiver_census_mismatch');
+  assert.equal(omitted.writes,0);
+
+  const substituted=fixture();
+  const wrong=substituted.params.receivers.map((r,i)=>({
+    ...r,queueKey:i===0?'q999':r.queueKey
+  }));
+  fail(run(substituted,{receivers:wrong}),
+    'legacy_receiver_census_mismatch');
+  assert.equal(substituted.writes,0);
+
+  const recycled=fixture();
+  const registry=JSON.parse(recycled.values.get('hartsorter:logistics_v2'));
+  registry.receivers[1].queueKey=registry.receivers[0].queueKey;
+  recycled.values.set('hartsorter:logistics_v2',JSON.stringify(registry));
+  fail(run(recycled),
+    'legacy_receiver_registry:legacy_receiver_registry_invalid_or_legacy');
+  assert.equal(recycled.writes,0);
+});
+test('legacy Collector/Receiver linkage drift after REQUESTED holds sealed custody',()=>{
+  const f=fixture(undefined,{onWrite:(k,v,values)=>{
+    values.set(k,v);
+    if(k===UCE_AUTHORITY_KEY&&JSON.parse(v).state==='REQUESTED'){
+      const raw=JSON.parse(values.get('hartsorter:logistics_v2'));
+      raw.nextQueue++;
+      values.set('hartsorter:logistics_v2',JSON.stringify(raw));
+    }
+  }});
+  fail(run(f),'q4_changed_during_request');
+  assert.equal(JSON.parse(f.values.get(UCE_AUTHORITY_KEY)).state,
+    'REQUESTED');
+  assert.equal(f.values.has(UCE_COLD_SEAL_KEY),false);
+});
+test('legacy registry drift after cold shard staging prohibits ACTIVE cutover',()=>{
+  const f=fixture(undefined,{onWrite:(k,v,values)=>{
+    values.set(k,v);
+    if(k===UCE_COLD_SEAL_KEY){
+      const raw=JSON.parse(values.get('hartsorter:logistics_v2'));
+      raw.nextQueue++;
+      values.set('hartsorter:logistics_v2',JSON.stringify(raw));
+    }
+  }});
+  fail(run(f),'q4_changed_after_shard_stage');
+  assert.equal(JSON.parse(f.values.get(UCE_AUTHORITY_KEY)).state,
+    'REQUESTED');
+  assert.equal(f.values.has(UCE_COLD_SEAL_KEY),true,
+    'partial migration remains frozen with preserved original Q4');
+});
 test('cold Q4 plan with actual paged/defined source is deterministic and read-only',()=>{
   const f=fixture(),p=previewUnifiedColdQ4Import(f.params);
   assert.equal(p.ok,true,p.reason);
