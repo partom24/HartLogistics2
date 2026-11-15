@@ -104,7 +104,8 @@ function createPhysicalHarness({
     saveJournal
   });
   const originalRecovery = originalFn("recoverJournal", {
-    world: { getDynamicProperty: () => journal },
+    world: { getDynamicProperty: () => journal === undefined ? undefined : JSON.stringify(journal) },
+    safeJsonParse: originalFn("safeJsonParse"),
     JOURNAL_KEY: "hartsorter:journal_v1",
     getContainerAt: (dimensionId, location) => {
       if (dimensionId !== "overworld") return undefined;
@@ -233,7 +234,8 @@ test("L2-P5 M12: unavailable source/destination retains pending recovery", () =>
   // by evaluating original recovery with no accessible native containers.
   const messages = [];
   const fn = originalFn("recoverJournal", {
-    world: { getDynamicProperty: () => pending },
+    world: { getDynamicProperty: () => JSON.stringify(pending) },
+    safeJsonParse: originalFn("safeJsonParse"),
     JOURNAL_KEY: "hartsorter:journal_v1",
     getContainerAt: () => undefined,
     log: s => messages.push(s)
