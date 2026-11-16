@@ -1,6 +1,7 @@
 """Permanent synthetic updater checks: never access either Minecraft server."""
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 import shutil
 import tempfile
@@ -73,6 +74,16 @@ class SyntheticTransactions(unittest.TestCase):
         for name,install,uid,registry in lab.PACKS:
             dest=self.root/install/('existing_'+name);dest.parent.mkdir()
             shutil.copytree(ROOT/'addon'/name,dest)
+            if name=='behavior_pack':
+                # Install the real immutable original 1.4.1 engine as the
+                # pre-update fixture. This exercises an actual source delta.
+                original=subprocess.run(
+                    ['git','-C',str(ROOT),'show',
+                     '0ea3000651c116b0fa1acc2836ab7e1bcfbc6269:addon/behavior_pack/scripts/main.js'],
+                    check=True,capture_output=True).stdout
+                (dest/'scripts/main.js').write_bytes(original)
+                expected=json.loads((ROOT/'BASELINE_HASHES.json').read_text())['files']['addon/behavior_pack/scripts/main.js']
+                self.assertEqual(lab.hash_file(dest/'scripts/main.js'),expected)
             self.before[dest]=lab.hashes(dest)
             reg=world/registry
             reg.write_text('// other packs must survive\n[{"pack_id":"other","version":[3,2,1]},'+
@@ -114,6 +125,10 @@ class SyntheticTransactions(unittest.TestCase):
         self.restored()
 
     def test_rollback_if_registry_update_interrupted(self):
+        # Force a synthetic changed-registration plan solely to cover the
+        # generic rollback handler; actual Phase A keeps [1,4,1] unchanged.
+        plan=[dict(p) for p in self.plan]
+        plan[0]['new_registry']=plan[0]['new_registry'].replace('[1,4,1]','[1,4,0]',1)
         original=Path.replace;failed=[False]
         def replace_once(path,target):
             if str(target).endswith('world_behavior_packs.json') and not failed[0]:
@@ -121,10 +136,8 @@ class SyntheticTransactions(unittest.TestCase):
             return original(path,target)
         with patch.object(Path,'replace',replace_once):
             with self.assertRaisesRegex(RuntimeError,'simulated registry failure'):
-                lab.apply_plan(self.root,self.plan)
+                lab.apply_plan(self.root,plan)
         self.restored()
-
-if __name__=='__main__':unittest.main()
 
     def test_newer_installed_pack_is_refused_without_writing(self):
         pack=self.plan[0]['target']
@@ -175,3 +188,11 @@ if __name__=='__main__':unittest.main()
         self.assertEqual(len(first),2)
         self.assertNotEqual(first[0]['installed'],first[0]['files'])
         self.restored()
+
+    def test_repeat_plan_recognizes_identical_candidate(self):
+        lab.apply_plan(self.root,self.plan)
+        again=lab.discover_plan(ROOT,self.root)
+        self.assertTrue(all(p['installed']==p['files'] and
+             p['old_bytes'].decode('utf-8-sig')==p['new_registry'] for p in again))
+
+if __name__=='__main__':unittest.main()

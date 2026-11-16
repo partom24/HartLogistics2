@@ -77,14 +77,18 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - name: Checkout pinned candidate source
+      - name: Checkout pinned candidate source and immutable baseline
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1000
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Verify structural/release hygiene without runtime installation
         run: python scripts/validate_blueprint.py --release-gate
+      - name: Parse complete updater and tests before execution
+        run: python -m compileall -q scripts/hartlogistics_lab_updater.py tests/test_hartlogistics_lab_updater.py
       - name: Run permanent synthetic LAB updater safety suite
         run: python -m unittest discover -s tests -p test_hartlogistics_lab_updater.py -v
       - name: Confirm offline validation refuses server execution here
