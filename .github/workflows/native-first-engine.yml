@@ -90,13 +90,20 @@ jobs:
               assert len(inner)==2
               assert len(outer.testzip() or "")==0
               for name in inner:
+                  folder=pathlib.Path("addon")/("behavior_pack" if name.endswith("_BP.mcpack") else "resource_pack")
+                  source={
+                      p.relative_to(folder).as_posix():p.read_bytes()
+                      for p in folder.rglob("*") if p.is_file()
+                  }
                   with zipfile.ZipFile(io.BytesIO(outer.read(name))) as pack:
                       assert pack.testzip() is None
+                      assert set(pack.namelist())==set(source), f"Pack entries differ: {name}"
+                      for member,expected in source.items():
+                          assert pack.read(member)==expected, f"Pack bytes differ: {name}/{member}"
                       manifest=json.loads(pack.read("manifest.json"))
                       assert manifest["header"]["version"]==[1,4,1]
                       if name.endswith("_BP.mcpack"):
-                          main=pack.read("scripts/main.js")
-                          assert b"firstItem()" in main
+                          assert pack.read("scripts/main.js")==pathlib.Path("addon/behavior_pack/scripts/main.js").read_bytes()
           print("SOURCE-ONLY CANDIDATE ZIP VALIDATED; NO BDS CLAIM")
           PY
       - name: Retain candidate package for owner-controlled LAB evaluation

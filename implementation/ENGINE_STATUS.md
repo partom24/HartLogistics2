@@ -59,4 +59,6 @@ These tests **do not** exercise actual `@minecraft/server` runtime, native `Cont
 
 **Correct current label:** "native-first source implementation candidate with reproducible tests and packaged non-release artifact." Do not call it a completed game engine, measured performance win, or final release.
 
+**Phase A BDS test handoff:** [complete candidate install/verification matrix](PHASE_A_BDS_CANDIDATE_141.md) — SOURCE-ONLY until owner-authorized BDS runs.
+
 **Next real gate:** native-first **base 1.4.1** Bedrock runtime/LAB acceptance and further reduction of proven redundant **existing** custom mechanisms. The Sorter-array and storage-room images remain binding layout/scale references for existing 1.4.1 capabilities. **Do not start Bulk, Transporter, Q5 or future 1.5 custody-engine work here.** The owner will separately authorize that later phase.
