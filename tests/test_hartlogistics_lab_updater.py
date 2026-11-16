@@ -99,6 +99,35 @@ class GuardTests(unittest.TestCase):
                 with self.assertRaisesRegex(lab.UnsafeLab,'Phase A source hash mismatch'):
                     lab.validate_source(ROOT)
 
+    def test_known_previous_phase_a_candidate_can_upgrade_without_unknown_pack_allowance(self):
+        # The installed owner LAB still has the previous candidate's exact
+        # main.js. Upgrade must accept that version, not require a world reset.
+        # Use synthetic files only, never the actual owner server.
+        old=subprocess.run(
+            ['git','-C',str(ROOT),'show',
+             'f7479702af97e0eade9e645ecae952d74501f0e3:addon/behavior_pack/scripts/main.js'],
+            check=True,capture_output=True).stdout
+        self.assertEqual(lab.hash_file(ROOT/lab.ENGINE_FILE),lab.PHASE_A_ENGINE_SHA256)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/'bedrock_server.exe').write_bytes(b'')
+            (root/'server.properties').write_text('level-name=Fixture\n')
+            world=root/'worlds/Fixture'
+            world.mkdir(parents=True)
+            for name,install,uid,registry in lab.PACKS:
+                target=root/install/('previous_'+name)
+                target.parent.mkdir(parents=True)
+                shutil.copytree(ROOT/'addon'/name,target)
+                if name=='behavior_pack':
+                    (target/'scripts/main.js').write_bytes(old)
+                    self.assertEqual(lab.hash_file(target/'scripts/main.js'),lab.PREVIOUS_PHASE_A_ENGINE_SHA256)
+                (world/registry).write_text(
+                    '[{"pack_id":"'+uid+'","version":[1,4,1]}]\n')
+            self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
+            (root/'behavior_packs/previous_behavior_pack/scripts/main.js').write_bytes(b'unknown modified engine')
+            with self.assertRaisesRegex(lab.UnsafeLab,'Unrecognized installed LAB pack contents'):
+                lab.discover_plan(ROOT,root)
+
     def test_jsonc_preserves_unrelated(self):
         original='// owner comment\n[{"pack_id":"other","version":[9,8,7]},/* preserve */'+\
                  '{"pack_id":"'+lab.BP_UUID+'","version":[1,4,0]},]\n'

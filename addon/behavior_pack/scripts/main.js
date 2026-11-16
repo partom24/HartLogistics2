@@ -841,7 +841,11 @@ function autoSorterMatches(stack, entry) {
     const c = dest.container;
     const incomingBook = stack.typeId === "minecraft:enchanted_book"
         ? enchantments(stack).map(e => e.id).sort().join("|") : undefined;
-    for (let i = 0; i < c.size; i++) {
+    // Read the native container length once per live lookup. Do not cache
+    // chest contents: player/Hopper changes to the last AUTO seed must apply
+    // to the very next sorting decision.
+    const size = c.size;
+    for (let i = 0; i < size; i++) {
         const sample = c.getItem(i);
         if (!sample || sample.typeId !== stack.typeId) continue;
         if (incomingBook !== undefined &&
@@ -3176,15 +3180,30 @@ function exactStackSig(stack) {
 }
 
 function findAcceptSlot(container, stack) {
+    // Non-stackable ItemStacks cannot merge. Ask the native container for its
+    // first empty slot instead of materializing every occupied ItemStack.
+    // This is a live query (never a cached slot across game ticks).
+    if (stack.maxAmount <= 1) {
+        const slot = container.firstEmptySlot();
+        return slot === undefined ? undefined
+            : {slot, before:0, room:stack.maxAmount, existing:undefined};
+    }
+
     let firstEmpty = -1;
-    for (let i=0; i<container.size; i++) {
+    const size = container.size;
+    const typeId = stack.typeId;
+    for (let i=0; i<size; i++) {
         const cur = container.getItem(i);
         if (!cur) {
             if (firstEmpty < 0) firstEmpty = i;
             continue;
         }
+        // Same type and available space are necessary, not sufficient,
+        // conditions. Native isStackableWith remains authoritative for exact
+        // names, components and other item metadata. Never merge by type alone.
         try {
-            if (cur.isStackableWith(stack) && cur.amount < cur.maxAmount) {
+            if (cur.typeId !== typeId || cur.amount >= cur.maxAmount) continue;
+            if (cur.isStackableWith(stack)) {
                 return {slot:i, before:cur.amount, room:cur.maxAmount-cur.amount, existing:cur};
             }
         } catch (_) {}
