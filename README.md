@@ -1,5 +1,21 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+## CURRENT ACTIVE RECOVERY — START HERE (2026-11-16)
+
+**[Read the complete new-chat takeover: TAKEOVER_NATIVE_FIRST_141.md](TAKEOVER_NATIVE_FIRST_141.md).** This is the current working-source/documentation entry point on branch `implementation/native-first-engine-141-20261115`.
+
+**Current authorized work is native-first conversion of the original Hart Logistics 1.4.1**, including existing Sorter / Collector / Receiver mechanics and saved-world compatibility, with the owner's two [reference arrays](OWNER_PRODUCT_OBJECTIVE.md) as product/layout targets. The immutable 1.4.1 import is `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; its original 72 gameplay files remain preserved. The active candidate is source-tested and packaged but **not BDS-verified, not native-first architecture complete, and not production-approved**. **Using `firstItem()` every tick is still polling.**
+
+**Explicitly deferred:** Bulk Storage, Transporter, Q5 and a future 1.5 custody engine. Original FIFO remains settled. **Do not use the frozen 1.5 branch as source.** The owner's telemetry tools are VS Code Bedrock Debugger, BDS diagnostics and built-in Script Profiler, not a new telemetry subsystem.
+
+See [implementation/ENGINE_STATUS.md](implementation/ENGINE_STATUS.md) for current code changes, [RECOVERY_MANDATE.md](RECOVERY_MANDATE.md) for binding restrictions and [the active candidate CI](https://github.com/partom24/HartLogistics2/actions/workflows/native-first-engine.yml) for exact build/test status.
+
+---
+
+## HISTORICAL MAINLINE PLANNING README (NOT CURRENT IMPLEMENTATION AUTHORITY)
+
+The remaining pre-recovery text below is kept as historical repository context. Statements about gameplay source not yet being committed or prospective 1.5 features **do not describe this active branch** and must not override the takeover, mandate or owner scope decision.
+
 **Status: planning; no Hart Logistics gameplay source has been committed to this repository yet.**
 
 Hart Logistics 2 is the planned evolution of the owner-supplied **Hart Logistics 1.4.1** Bedrock add-on. The requirements are **zero loss of existing 1.4.1 capabilities**, safe upgrades of existing worlds and inventories, and explicit owner approval before implementation or release.
