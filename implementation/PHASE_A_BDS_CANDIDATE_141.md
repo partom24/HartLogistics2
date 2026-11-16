@@ -4,6 +4,12 @@
 
 **Current scope:** Genuine native-first conversion of the **original 1.4.1 feature set**, using only canonical source at commit `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`. No new Bulk Storage, Transporter, Q5, or 1.5 custody implementation. Existing Q2/Q3/Q4 and FIFO behavior are compatibility obligations, not redesign topics. The owner reference [Sorter array](../OWNER_PRODUCT_OBJECTIVE.md) and storage-room array remain the scale/functional goals.
 
+## Verified pre-BDS candidate identity
+
+- **Last verified package source:** commit `5e9478fa874f133746ca009e93d1e34a157d59f0`, [successful GitHub Actions #43897251730](https://github.com/partom24/HartLogistics2/actions/runs/43897251730). Later documentation-only commits do not alter the pack's 72 source bytes; always use the successful workflow for the **exact checkout** that is installed.
+- **Deterministic `.mcaddon` SHA-256:** `27e5825abfcfa271f12a4fb713aa9519f9255ebb9883478b5ff3ef87e382329e`. Workflow rebuilds twice, checks equal digests, and verifies all 72 packed source file bytes against that checkout.
+- **Pre-BDS verdict:** canonical source provenance, 1.4.1 gameplay tests, pinned 2.7 API declarations, cross-platform synthetic updater safety, release hygiene and pack assembly are **offline PASS**. No candidate BDS startup, integration or TPS testing is claimed. **This is the Phase A build ready to enter controlled LAB testing, not owner release approval.**
+
 ## Build identity and reproduction
 
 - **Source branch:** `implementation/native-first-engine-141-20261115`, not `main`. Use the **exact source commit recorded on the successful GitHub Actions run**. Do not install or label a previous failed CI artifact.
@@ -40,13 +46,19 @@ If LAB still contains a different-version PG27 or an unknown installed pack, **S
 ## Owner-controlled BDS entry and rollback protocol
 
 1. **Confirm BDS engine version and `@minecraft/server` compatibility.** Minimum manifest engine is `1.26.50`; the test runtime must support the exact pinned 2.7 native APIs. Record BDS version and exact GitHub Actions SHA.
-2. **Preserve production untouched.** Restore two independent backups of the same owner-authorized, production-derived LAB snapshot: one for pristine original 1.4.1, one for the new candidate. Protect existing Receiver Q4, journals, filters, items and loaded/unloaded chunks. No reset, emptying or upgrade draining.
-3. **Install only one version in each isolated LAB clone.** The candidate retains the same BP/RP UUIDs and pack version as original, so do not enable original and candidate together or treat one as an add-on that stacks with the other. Archive/restore snapshots for every destructive test, and keep a rollback copy.
+2. **Preserve production untouched.** Make independent, verified **snapshot files** of the single owner-authorized LAB world before any update. Keep originals for baseline/rollback and the candidate's trial. Protect Receiver Q4, journals, filters, cargo and loaded/unloaded chunks. No draining, reset or forced migration.
+3. **Use only the one authorized LAB server root.** Do not set up a second live server in another path to make comparisons. Baseline and candidate must be tested **sequentially** from controlled snapshots in the exact allowlisted LAB location, never with two writers on the same saved world. The candidate keeps the same BP/RP UUIDs and version as original; never install the two concurrently.
 4. **Boot in correctness/debug mode first.** Use the already-installed **VS Code Bedrock Debugger**, BDS logs and existing `hartlogistics:status` command. Confirm pack loads, custom component registration succeeds, no Script API errors, no unexpected Q4 migration or journal replay, and all original arrays/link IDs resolve. Check item/metadata identity using existing inventory/debug inspection.
 5. **Then capture performance separately** with no stopped breakpoints: BDS diagnostics/watchdog and built-in Script Profiler (`/script profiler start` / `/script profiler stop`; optional `/script diagnostics startcapture` / `/script diagnostics stopcapture` where supported). Retain original native `.cpuprofile`, diagnostics and server logs; no new logging/telemetry pack.
 6. **Baseline-versus-candidate comparison** must use equivalent snapshots, loaded chunks, intervals and other enabled packs. The approximately 1,400-Sorter reference topology and existing storage-room array must be exercised naturally—not replaced with one-column approximations. Provisional >=19.5 TPS target is not a certified product limit; item correctness is mandatory.
 7. **Stop and restore snapshot** on unexplained loss/duplication, damaged metadata, incorrect Filter → Auto → Wildcard priority, BYPASS/redstone violation, migration or Q4 ambiguity, failed custom block load, unexpected world write, or watchdog/performance regression. Do not disable the watchdog or claim acceptance from CI.
 8. **Report BDS evidence before authorizing release.** This test handoff does not approve production deployment.
+
+## Pre-BDS owner boundary
+
+**The next required interaction is access to the owner's Windows LAB environment**, not a source-code decision. The previously reported installed LAB may still carry version **1.5.10-LAB-PG27**; that is a historical report, **not a current inventory**. The guarded updater will refuse that pack/version rather than downgrade it. When BDS testing is scheduled, verify the current installed LAB pack identity and preserve a clean 1.4.1 production-derived LAB snapshot before allowing any `--apply`. No other server root, automatic reinstallation, or production path is authorized.
+
+**No manual physical rig request is ready** until real owner-world coordinates/loaded chunks have been checked. Use the existing owner reference arrangements rather than constructing an artificial one-Sorter substitute. Test rig cards, if needed, must follow [the existing test-rig contract](../docs/TEST_RIG_CONTRACT.md). The owner has not yet supplied Phase A BDS profiling or runtime observations.
 
 ## LAB functional acceptance matrix
 

@@ -5,7 +5,7 @@
 **Branch:** `implementation/native-first-engine-141-20261115`  
 **Base:** canonical immutable 1.4.1 import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269` through the baseline-only recovery branch.  
 **Current owner-authorized scope (2026-11-15): native-first conversion of base Hart Logistics 1.4.1 only**, including Sorter, Collector, Receiver, vanilla Hopper behavior, filter/frame/redstone interactions, original world/data compatibility, and existing 1.4.1 Q2/Q3/Q4 integrity. **Do not implement Bulk Storage, Transporters, Q5, a new 1.5-oriented custody engine, or any frozen 1.5 source/design.** No owner-world access or production deployment.  
-**Status:** **SOURCE-ONLY IMPLEMENTATION CANDIDATE — NOT COMPLETE / NOT RELEASE APPROVED.**
+**Status:** **PHASE A SOURCE IMPLEMENTATION / GUARDED LAB UPDATE BUILD READY FOR BDS PRE-TEST — NOT BDS ACCEPTED OR RELEASE APPROVED.** See [candidate checksum, approved updater path and BDS acceptance matrix](PHASE_A_BDS_CANDIDATE_141.md).
 
 The owner has clarified that **complete the engine** currently means **complete the native-first conversion of the existing 1.4.1 engine**, not add planned 1.5 features. Engineering output is assessed against both immutable reference-image objectives documented in [OWNER_PRODUCT_OBJECTIVE.md](../OWNER_PRODUCT_OBJECTIVE.md): the [Sorter array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/sorter-array.png) and the [storage-room array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/storage-room-array.png). Green source tests do **not** count as owner-layout acceptance.
 
