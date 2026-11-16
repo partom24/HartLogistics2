@@ -108,10 +108,16 @@ function runSorter(version,scenario){
     blockIsRedstonePowered:b=>b.powered,
     sorterMode:e=>e.m,
     matchesFilter:(s,f)=>s.typeId===f.typeId,
-    autoSorterMatches:s=>s.typeId==="minecraft:dirt",
+    // Both original and optimized AUTO decisions use the actual live
+    // destination seed. The candidate resolves that seed together with slot
+    // admission; the original checks seed separately before slot admission.
+    autoSorterMatches:(s,e)=>to[e.id].snapshot().some(x=>x?.typeId===s.typeId),
     compactSourceHopper:evaluate(srcBody[version].compactSourceHopper,"compactSourceHopper",{}),
     destinationFor:e=>({kind:"storage",container:to[e.id],block:{id:e.id}}),
-    findAcceptSlot:acceptSlot,
+    findAcceptSlot:(dst,item,requireAutoSeed=false)=>{
+      if(requireAutoSeed && !dst.snapshot().some(x=>x?.typeId===item.typeId)) return undefined;
+      return acceptSlot(dst,item);
+    },
     safeMovePartial:(src,_source,slot,dest,_block,slotInfo,want)=>transfer(src,slot,dest,slotInfo,want),
     log:()=>{}
   };

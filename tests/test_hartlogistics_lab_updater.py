@@ -124,6 +124,16 @@ class GuardTests(unittest.TestCase):
                 (world/registry).write_text(
                     '[{"pack_id":"'+uid+'","version":[1,4,1]}]\n')
             self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
+            # CI-green P1 source may also be present if it was installed
+            # between the owner's two controlled diagnostic phases.
+            p1=subprocess.run(
+                ['git','-C',str(ROOT),'show',
+                 '27f16aeb847471712afbd4bff4f65a20e5cea7b5:addon/behavior_pack/scripts/main.js'],
+                check=True,capture_output=True).stdout
+            installed=root/'behavior_packs/previous_behavior_pack/scripts/main.js'
+            installed.write_bytes(p1)
+            self.assertEqual(lab.hash_file(installed),lab.INTERMEDIATE_PHASE_A_ENGINE_SHA256)
+            self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
             (root/'behavior_packs/previous_behavior_pack/scripts/main.js').write_bytes(b'unknown modified engine')
             with self.assertRaisesRegex(lab.UnsafeLab,'Unrecognized installed LAB pack contents'):
                 lab.discover_plan(ROOT,root)

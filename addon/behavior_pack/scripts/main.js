@@ -3179,34 +3179,61 @@ function exactStackSig(stack) {
     return sig;
 }
 
-function findAcceptSlot(container, stack) {
-    // Non-stackable ItemStacks cannot merge. Ask the native container for its
-    // first empty slot instead of materializing every occupied ItemStack.
-    // This is a live query (never a cached slot across game ticks).
-    if (stack.maxAmount <= 1) {
+function findAcceptSlot(container, stack, requireAutoSeed=false) {
+    // Non-AUTO nonstackables need only the native first-empty query. AUTO must
+    // also observe a live matching seed, so its search is folded into the same
+    // destination scan used to select a safe insertion slot.
+    if (!requireAutoSeed && stack.maxAmount <= 1) {
         const slot = container.firstEmptySlot();
         return slot === undefined ? undefined
             : {slot, before:0, room:stack.maxAmount, existing:undefined};
     }
 
     let firstEmpty = -1;
+    let compatible;
+    let seeded = !requireAutoSeed;
     const size = container.size;
     const typeId = stack.typeId;
+    const incomingBook = requireAutoSeed && typeId === "minecraft:enchanted_book"
+        ? enchantments(stack).map(e => e.id).sort().join("|") : undefined;
+
     for (let i=0; i<size; i++) {
         const cur = container.getItem(i);
         if (!cur) {
             if (firstEmpty < 0) firstEmpty = i;
             continue;
         }
-        // Same type and available space are necessary, not sufficient,
-        // conditions. Native isStackableWith remains authoritative for exact
-        // names, components and other item metadata. Never merge by type alone.
-        try {
-            if (cur.typeId !== typeId || cur.amount >= cur.maxAmount) continue;
-            if (cur.isStackableWith(stack)) {
-                return {slot:i, before:cur.amount, room:cur.maxAmount-cur.amount, existing:cur};
-            }
-        } catch (_) {}
+        // An AUTO seed matches by exact type ID, except enchanted books whose
+        // enchantment TYPE sets (not levels/order) must match. The seed need
+        // not be stackable with this item: eligibility and admission differ.
+        if (requireAutoSeed && cur.typeId === typeId &&
+            (incomingBook === undefined ||
+             enchantments(cur).map(e => e.id).sort().join("|") === incomingBook)) {
+            seeded = true;
+        }
+        if (stack.maxAmount <= 1) {
+            if (seeded) break;
+            continue;
+        }
+        // Preserve first compatible partial stack before first empty slot.
+        // Never conflate a type-only AUTO seed with native stack compatibility.
+        if (!compatible && cur.typeId === typeId && cur.amount < cur.maxAmount) {
+            try {
+                if (cur.isStackableWith(stack)) {
+                    compatible = {slot:i, before:cur.amount,
+                        room:cur.maxAmount-cur.amount, existing:cur};
+                }
+            } catch (_) {}
+        }
+        if (seeded && compatible) return compatible;
+    }
+
+    if (!seeded) return undefined;
+    if (compatible) return compatible;
+    if (stack.maxAmount <= 1) {
+        const slot = container.firstEmptySlot();
+        return slot === undefined ? undefined
+            : {slot, before:0, room:stack.maxAmount, existing:undefined};
     }
     if (firstEmpty >= 0) {
         return {slot:firstEmpty, before:0, room:stack.maxAmount, existing:undefined};
@@ -3482,7 +3509,10 @@ function processColumn(col, globalRemaining) {
         // within each priority keep original bottom-to-top column order.
         // Bypass never appears in activeSorters. A Filter with no item accepts none.
         const specific = activeSorters.filter(e => sorterMode(e) === "filter" && e.f && matchesFilter(stack, e.f));
-        const auto = activeSorters.filter(e => sorterMode(e) === "auto" && autoSorterMatches(stack, e));
+        // Defer AUTO seed checks until this target is actually attempted.
+        // Otherwise every eligible chest is scanned in candidate selection
+        // and then again just before insertion, even if Filter handled cargo.
+        const auto = activeSorters.filter(e => sorterMode(e) === "auto");
         const wildcard = activeSorters.filter(e => sorterMode(e) === "wildcard");
         const targets = [...specific, ...auto, ...wildcard];
 
@@ -3493,15 +3523,14 @@ function processColumn(col, globalRemaining) {
                 stack = src.getItem(si);
                 if (!stack) break;
 
-                // Re-evaluate after each transfer; chest seed contents can
-                // change and a selected Auto Sorter must not become wildcard.
+                // Resolve the live destination once, after source and mode
+                // checks. AUTO seed eligibility is checked during the SAME
+                // inventory scan that finds an insertion slot; never cached.
                 const mode = sorterMode(e);
                 if (mode === "bypass") break;
                 if (mode === "filter" && (!e.f || !matchesFilter(stack, e.f))) break;
-                if (mode === "auto" && !autoSorterMatches(stack, e)) break;
-
                 const dest = destinationFor(e);
-                if (!dest) break;
+                if (!dest || (mode === "auto" && dest.kind !== "storage")) break;
 
                 let moved = 0;
 
@@ -3531,7 +3560,7 @@ function processColumn(col, globalRemaining) {
                         return movedTotal;
                     }
                 } else {
-                    const slotInfo = findAcceptSlot(dest.container, stack);
+                    const slotInfo = findAcceptSlot(dest.container, stack, mode === "auto");
                     if (!slotInfo) break;
 
                     const want = Math.min(columnBudget, stack.amount, slotInfo.room);

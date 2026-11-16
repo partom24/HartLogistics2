@@ -26,11 +26,13 @@ PACKS = [('behavior_pack','behavior_packs',BP_UUID,'world_behavior_packs.json'),
 # The Phase A engine is a single narrowly pinned candidate, not arbitrary
 # modified 1.4.1 source. Baseline hashes remain mandatory for all other assets.
 ENGINE_FILE = 'addon/behavior_pack/scripts/main.js'
-PHASE_A_ENGINE_SHA256 = '38f0f3495d417a0d5c5d5f12d405b1d94dcbb4d89eacede35e3f77e95b423766'
+PHASE_A_ENGINE_SHA256 = '0b376086b0800949c78a484d00cd9389af011a55ecb182a6fa7263352965184d'
 # Exact previous Phase A candidate installed in the owner-authorized LAB.
 # Only this hash (plus pristine 1.4.1 or the new pinned source) is accepted
 # as an upgrade origin; arbitrary engine versions remain strictly rejected.
 PREVIOUS_PHASE_A_ENGINE_SHA256 = 'fcc640ba886de86dcbfabbb1d8e9683980691d6cc595dde5f5d21ccdb9ec9bbb'
+# Also accept the exact CI-green P1 candidate, if previously installed.
+INTERMEDIATE_PHASE_A_ENGINE_SHA256 = '38f0f3495d417a0d5c5d5f12d405b1d94dcbb4d89eacede35e3f77e95b423766'
 PHASE_A_VERSION = (1,4,1)
 ORIGIN = re.compile(r'(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)partom24/HartLogistics2(?:\.git)?/?',re.I)
 
@@ -252,7 +254,10 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
         prior=original.copy()
         if local=='behavior_pack':
             prior['scripts/main.js']=PREVIOUS_PHASE_A_ENGINE_SHA256
-        if installed_hashes not in (original,prior,source_hashes):
+        intermediate=original.copy()
+        if local=='behavior_pack':
+            intermediate['scripts/main.js']=INTERMEDIATE_PHASE_A_ENGINE_SHA256
+        if installed_hashes not in (original,prior,intermediate,source_hashes):
             raise UnsafeLab(f'Unrecognized installed LAB pack contents for {pack_id}')
         plan.append({'source':repo/'addon'/local,'target':target,'registry':reg,
                      'new_registry':patch_registration(raw,pack_id,ver),
