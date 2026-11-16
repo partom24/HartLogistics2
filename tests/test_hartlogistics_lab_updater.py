@@ -114,6 +114,20 @@ class SyntheticTransactions(unittest.TestCase):
         self.restored()
         self.assertFalse((self.root/'_HartLogisticsDeployStage').exists())
 
+    def test_staging_or_backup_reparse_refuses_before_write(self):
+        for path in [self.root/'_HartLogisticsDeployStage',
+                     self.root/'_HartLogisticsDeployBackups']:
+            original=lab.assert_no_link
+            def refuse(candidate):
+                if candidate==path:raise lab.UnsafeLab('Unapproved junction or link')
+                return original(candidate)
+            with self.subTest(path=path),patch.object(lab,'assert_no_link',side_effect=refuse):
+                with self.assertRaisesRegex(lab.UnsafeLab,'Unapproved junction or link'):
+                    lab.apply_plan(self.root,self.plan)
+            self.restored()
+            self.assertFalse((self.root/'_HartLogisticsDeployStage').exists())
+            self.assertFalse((self.root/'_HartLogisticsDeployBackups').exists())
+
     def test_stage_apply_verifies_and_keeps_backup(self):
         backup=lab.apply_plan(self.root,self.plan)
         self.assertTrue(backup.exists())

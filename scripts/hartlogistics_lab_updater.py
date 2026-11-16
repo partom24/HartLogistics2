@@ -228,6 +228,11 @@ def apply_plan(root: Path,plan: list[dict]) -> Path:
     tag='lab-'+uuid.uuid4().hex[:12]
     stage=root/'_HartLogisticsDeployStage'/tag
     backup=root/'_HartLogisticsDeployBackups'/tag
+    # Fail before any write if an existing staging/backup parent redirects
+    # outside the exact LAB root (e.g. to production via a junction).
+    assert_no_link(root)
+    assert_no_link(stage.parent)
+    assert_no_link(backup.parent)
     if stage.exists() or backup.exists():raise UnsafeLab('Occupied deployment staging path')
     staged=[];backed=[];installed=[]
     try:
