@@ -21,6 +21,13 @@ class GuardTests(unittest.TestCase):
             with self.subTest(candidate=candidate),self.assertRaises(lab.UnsafeLab):
                 lab.assert_lab_name(candidate)
 
+    def test_git_checkout_preserves_original_pack_bytes_on_windows(self):
+        result=subprocess.run(
+            ['git','-C',str(ROOT),'check-attr','text','--','addon/behavior_pack/LICENSE',
+             'addon/behavior_pack/scripts/main.js','addon/resource_pack/manifest.json'],
+            check=True,capture_output=True,text=True)
+        self.assertEqual(result.stdout.count('text: unset'),3)
+
     def test_original_assets_and_candidate_engine_are_pinned(self):
         self.assertEqual(lab.validate_source(ROOT),(1,4,1))
         self.assertEqual(lab.hash_file(ROOT/lab.ENGINE_FILE),lab.PHASE_A_ENGINE_SHA256)

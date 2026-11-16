@@ -1,0 +1,3 @@
+# Preserve the immutable original Bedrock BP/RP source file bytes on Windows.
+# Do not apply Git CRLF text conversion to any pack asset or script.
+addon/** -text

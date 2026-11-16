@@ -25,6 +25,9 @@ Detailed code anchors and proof dispositions: [`NATIVE_BOUNDARY_DECISIONS_141.md
 
 ## Repository-approved Phase A LAB updater (source checkout, not manual ZIP replacement)
 
+A checked-in `.gitattributes` rule sets `addon/** -text` so Windows Git does not convert original BP/RP source bytes to CRLF. This is required for the immutable original hashes and the exact candidate digest to validate on the Windows LAB host. Use a freshly checked-out source tree after this rule; never normalize the original add-on files in place.
+
+
 The Phase A source branch now contains the established [guarded LAB updater](../scripts/hartlogistics_lab_updater.py) brought from main, with [offline synthetic regression tests](../tests/test_hartlogistics_lab_updater.py). It accepts **only** the exact Phase A `scripts/main.js` SHA-256 `fcc640ba886de86dcbfabbb1d8e9683980691d6cc595dde5f5d21ccdb9ec9bbb`; all other original 1.4.1 add-on files must match the immutable `BASELINE_HASHES.json`. This is not a generic bypass of original source hashes.
 
 The original version/pack UUIDs are retained. The updater refuses unknown installed files, wrong world registrations and installed pack versions other than **1.4.1** (including historical 1.5.10 LAB); this is a deliberate state-safety gate, **not** an invitation to downgrade. The named world is discovered from the authorized LAB's `server.properties`; unrelated packs and registry JSONC are preserved. If a 1.4.1 world registration already matches, the updater leaves its bytes unchanged. The exact source checkout and Git SHA must match with no local modifications; the BDS process must be stopped. It stages, SHA-verifies, backs up and supports rollback of pack replacements.
