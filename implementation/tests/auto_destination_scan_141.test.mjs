@@ -197,7 +197,8 @@ test("P2-13 unseeded AUTO falls through to Wildcard and never becomes wildcard i
   });
   assert.equal(r.used,4);assert.equal(r.targets.auto.items[1],undefined);
   assert.equal(r.targets.wild.items[0].amount,4);
-  assert.equal(r.targets.auto.calls.reads,2);
+  assert.equal(r.targets.auto.calls.reads,0);
+  assert.equal(r.targets.auto.calls.slots,2);
 });
 test("P2-14 AUTO ignores a Collector and leaves Collector egress to the correct route",()=>{
   const r=route({
