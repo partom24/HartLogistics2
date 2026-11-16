@@ -160,6 +160,9 @@ def patch_registration(raw: str,pack_id: str,ver: tuple[int,int,int]) -> str:
     if len(m)!=1:raise UnsafeLab('Missing/ambiguous version field')
     a=begin+m[0].start(1);b=begin+m[0].end(1)
     if '/' in raw[a:b]:raise UnsafeLab('Version comments require manual review')
+    # Existing Phase A registrations already match [1,4,1]. Preserve even
+    # whitespace and original JSONC byte-for-byte rather than rewriting it.
+    if v3(matches[0].get('version'))==ver:return raw
     updated=raw[:a]+json.dumps(list(ver),separators=(',',':'))+raw[b:]
     expected=json.loads(json.dumps(items))
     for entry in expected:

@@ -59,6 +59,10 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(rows[0],{"pack_id":"other","version":[9,8,7]})
         self.assertEqual(rows[1]['version'],[1,4,1])
 
+    def test_matching_version_preserves_jsonc_spacing_and_comments(self):
+        raw='// intact\n[{"pack_id":"'+lab.BP_UUID+'","version":[ 1, 4, 1 ]},]\n'
+        self.assertEqual(lab.patch_registration(raw,lab.BP_UUID,(1,4,1)),raw)
+
     def test_jsonc_ambiguous_registry_fails(self):
         for raw in ['[]','[{"pack_id":"'+lab.BP_UUID+'","version":[1,4,0]},'+
                     '{"pack_id":"'+lab.BP_UUID+'","version":[1,4,0]}]']:

@@ -109,9 +109,16 @@ jobs:
           set -euo pipefail
           python3 tools/build_mcaddon.py \
             --output "dist/HartLogistics_native-first_141_SOURCE_ONLY_UNVERIFIED.mcaddon"
+          python3 tools/build_mcaddon.py \
+            --output "$RUNNER_TEMP/phase-a-second-build.mcaddon"
           python3 - <<'PY'
-          import io, json, pathlib, zipfile
+          import hashlib, io, json, os, pathlib, zipfile
           p=pathlib.Path("dist/HartLogistics_native-first_141_SOURCE_ONLY_UNVERIFIED.mcaddon")
+          q=pathlib.Path(os.environ["RUNNER_TEMP"])/"phase-a-second-build.mcaddon"
+          def sha256(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          assert sha256(p)==sha256(q), "Same-source builds must be byte-identical"
+          print("DETERMINISTIC PHASE A SHA256:",sha256(p))
           with zipfile.ZipFile(p) as outer:
               inner=[n for n in outer.namelist() if n.endswith(".mcpack")]
               assert len(inner)==2

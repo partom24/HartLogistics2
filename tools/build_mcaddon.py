@@ -10,12 +10,22 @@ import zipfile
 BASE = Path(__file__).resolve().parents[1]
 ADDON = BASE / "addon"
 
+# Fixed metadata makes builds byte-identical across Windows/Linux, hosts and dates.
+ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
+
+def add_entry(archive: zipfile.ZipFile, name: str, content: bytes) -> None:
+    item = zipfile.ZipInfo(name, date_time=ZIP_EPOCH)
+    item.compress_type = zipfile.ZIP_DEFLATED
+    item.create_system = 3
+    item.external_attr = 0o100644 << 16
+    archive.writestr(item, content)
+
 def pack_data(folder: Path) -> bytes:
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(buffer, "w") as archive:
         for file in sorted(folder.rglob("*")):
             if file.is_file():
-                archive.write(file, file.relative_to(folder).as_posix())
+                add_entry(archive, file.relative_to(folder).as_posix(), file.read_bytes())
     return buffer.getvalue()
 
 def main() -> None:
@@ -39,9 +49,9 @@ def main() -> None:
     version = ".".join(map(str, bv))
     output = args.output or (BASE / "dist" / f"HartMods_HartLogistics_{version}.mcaddon")
     output.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(f"HartMods_HartLogistics_{version}_BP.mcpack", pack_data(bp))
-        archive.writestr(f"HartMods_HartLogistics_{version}_RP.mcpack", pack_data(rp))
+    with zipfile.ZipFile(output, "w") as archive:
+        add_entry(archive, f"HartMods_HartLogistics_{version}_BP.mcpack", pack_data(bp))
+        add_entry(archive, f"HartMods_HartLogistics_{version}_RP.mcpack", pack_data(rp))
     print(f"Built {output}")
 
 if __name__ == "__main__":
