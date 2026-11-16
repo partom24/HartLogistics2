@@ -94,6 +94,28 @@ jobs:
       - name: Confirm offline validation refuses server execution here
         if: matrix.os == 'ubuntu-latest'
         run: python scripts/hartlogistics_lab_updater.py
+      - name: GitHub source-sync smoke test (no LAB access, Windows PowerShell 7)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          & .\scripts\Update-HartLogistics-Lab.ps1 -Commit $env:GITHUB_SHA -SourceOnly
+          if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) { throw 'Not pinned to exact requested commit' }
+          $refused = $false
+          try {
+            & .\scripts\Update-HartLogistics-Lab.ps1 -Commit $env:GITHUB_SHA -Apply
+          } catch { $refused = $true }
+          if (-not $refused) { throw 'Missing backup consent should refuse before LAB access' }
+          $refused = $false
+          try {
+            & .\scripts\Update-HartLogistics-Lab.ps1 -Commit $env:GITHUB_SHA -SourceOnly -Apply -BackupConfirmed
+          } catch { $refused = $true }
+          if (-not $refused) { throw 'Source-only+apply must refuse before LAB access' }
+      - name: Source-only smoke test (Windows PowerShell 5.1)
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          & .\scripts\Update-HartLogistics-Lab.ps1 -Commit $env:GITHUB_SHA -SourceOnly
+          if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) { throw 'Not pinned to exact requested commit' }
 
   candidate-package:
     name: Build non-release Bedrock candidate artifact
