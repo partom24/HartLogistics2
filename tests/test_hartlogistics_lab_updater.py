@@ -21,6 +21,56 @@ class GuardTests(unittest.TestCase):
             with self.subTest(candidate=candidate),self.assertRaises(lab.UnsafeLab):
                 lab.assert_lab_name(candidate)
 
+    def test_process_gate_allows_online_production_but_no_lab_process(self):
+        # Only mock OS process metadata; never inspect or run a live server.
+        production=r'C:\Servers\Thomas_MCBedrock\bedrock_server.exe'
+        unrelated=r'C:\UnrelatedBedrock\bedrock_server.exe'
+        entries=[{'ProcessId':11,'ExecutablePath':production},
+                 {'ProcessId':12,'ExecutablePath':unrelated}]
+        with patch.object(lab.os,'name','nt'), patch.object(
+                lab.subprocess,'run',return_value=subprocess.CompletedProcess(
+                    args=[],returncode=0,stdout=json.dumps(entries))) as probe:
+            lab.assert_server_stopped()
+            argv=probe.call_args.args[0]
+            self.assertEqual(argv[:3],['powershell.exe','-NoProfile','-NonInteractive'])
+            self.assertIn('Get-CimInstance',argv[4])
+            self.assertNotIn('Stop-Process',argv[4])
+
+    def test_process_gate_rejects_running_lab_with_production_online(self):
+        entries=[
+            {'ProcessId':11,'ExecutablePath':r'C:\Servers\Thomas_MCBedrock\bedrock_server.exe'},
+            {'ProcessId':19,'ExecutablePath':lab.LAB+r'\bedrock_server.exe'}
+        ]
+        with patch.object(lab.os,'name','nt'), patch.object(
+                lab.subprocess,'run',return_value=subprocess.CompletedProcess(
+                    args=[],returncode=0,stdout=json.dumps(entries))):
+            with self.assertRaisesRegex(lab.UnsafeLab,'LAB bedrock_server.exe must be stopped'):
+                lab.assert_server_stopped()
+
+    def test_process_gate_refuses_unknown_or_incomplete_process_metadata(self):
+        cases=['not json','{}','null',
+               json.dumps([{'ProcessId':42,'ExecutablePath':None}]),
+               json.dumps([{'ProcessId':42,'ExecutablePath':''}]),
+               json.dumps([{'ProcessId':42,'ExecutablePath':'bedrock_server.exe'}]),
+               json.dumps([{'ExecutablePath':lab.LAB+r'\bedrock_server.exe'}])]
+        for contents in cases:
+            with self.subTest(contents=contents), patch.object(lab.os,'name','nt'),patch.object(
+                    lab.subprocess,'run',return_value=subprocess.CompletedProcess(
+                        args=[],returncode=0,stdout=contents)):
+                with self.assertRaises(lab.UnsafeLab):lab.assert_server_stopped()
+
+    def test_process_gate_refuses_failed_windows_process_query(self):
+        failure=subprocess.CalledProcessError(1,['powershell.exe'])
+        with patch.object(lab.os,'name','nt'),patch.object(lab.subprocess,'run',side_effect=failure):
+            with self.assertRaisesRegex(lab.UnsafeLab,'Cannot verify whether LAB BDS is stopped'):
+                lab.assert_server_stopped()
+
+    def test_process_gate_blocks_non_windows_execution(self):
+        with patch.object(lab.os,'name','posix'),patch.object(lab.subprocess,'run') as probe:
+            with self.assertRaisesRegex(lab.UnsafeLab,'only permitted on Windows'):
+                lab.assert_server_stopped()
+            probe.assert_not_called()
+
     def test_git_checkout_preserves_original_pack_bytes_on_windows(self):
         result=subprocess.run(
             ['git','-C',str(ROOT),'check-attr','text','--','addon/behavior_pack/LICENSE',

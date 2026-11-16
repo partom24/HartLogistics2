@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """HartLogistics2 guarded LAB-only updater; dry run unless --apply.
 
-Real deployment requires exact Windows LAB root, stopped BDS, clean pinned
+Real deployment requires exact Windows LAB root, stopped LAB BDS, clean pinned
 partom24/HartLogistics2 checkout and established pack/world registrations.
-No HartBots production updater code is executed or imported here.
+Unrelated BDS processes (including production) are never stopped or modified.
 """
 from __future__ import annotations
 import argparse
-import csv
 import hashlib
-import io
 import json
 import ntpath
 import os
@@ -48,10 +46,42 @@ def assert_no_link(path: Path) -> None:
             raise UnsafeLab(f'Unapproved junction or link: {item}')
 
 def assert_server_stopped() -> None:
+    """Check ONLY the authorized LAB executable; production may remain online.
+
+    Windows' tasklist name-only check incorrectly blocked LAB previews whenever
+    an unrelated Bedrock server (including production) was running. Query
+    read-only OS process metadata for executable paths, and fail CLOSED if
+    an active Bedrock process cannot be unambiguously identified.
+    No other server's directory or world files are opened or modified.
+    """
     if os.name!='nt':raise UnsafeLab('Real apply only permitted on Windows')
-    out=subprocess.run(['tasklist','/FO','CSV','/NH'],capture_output=True,text=True,check=True).stdout
-    if any(row and row[0].lower()=='bedrock_server.exe' for row in csv.reader(io.StringIO(out))):
-        raise UnsafeLab('bedrock_server.exe must be stopped')
+    command=(
+        '$ErrorActionPreference="Stop";'
+        '$processes=@(Get-CimInstance -ClassName Win32_Process '
+        '-Filter "Name = \'bedrock_server.exe\'" -ErrorAction Stop | '
+        'Select-Object ProcessId,ExecutablePath);'
+        'ConvertTo-Json -InputObject $processes -Compress -Depth 3'
+    )
+    try:
+        result=subprocess.run(
+            ['powershell.exe','-NoProfile','-NonInteractive','-Command',command],
+            capture_output=True,text=True,check=True)
+        entries=json.loads(result.stdout.strip())
+    except (OSError,subprocess.CalledProcessError,ValueError) as exc:
+        raise UnsafeLab('Cannot verify whether LAB BDS is stopped; refusing safely') from exc
+    if not isinstance(entries,list):
+        raise UnsafeLab('Unexpected Windows BDS process metadata; refusing safely')
+    expected=ntpath.normcase(ntpath.normpath(ntpath.join(LAB,'bedrock_server.exe')))
+    for entry in entries:
+        if not isinstance(entry,dict) or not isinstance(entry.get('ProcessId'),int):
+            raise UnsafeLab('Ambiguous BDS process metadata; refusing safely')
+        executable=entry.get('ExecutablePath')
+        if not isinstance(executable,str) or not executable.strip() or not ntpath.isabs(executable):
+            raise UnsafeLab('Cannot determine a running BDS executable path; refusing safely')
+        resolved=ntpath.normcase(ntpath.normpath(executable))
+        if resolved==expected:
+            raise UnsafeLab('LAB bedrock_server.exe must be stopped (production may remain running)')
+
 
 def assert_clean_git(repo: Path,sha: str) -> None:
     if not re.fullmatch(r'[0-9a-f]{40}',sha):raise UnsafeLab('Provide exact full Git commit SHA')
