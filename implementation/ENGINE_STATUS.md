@@ -1,5 +1,7 @@
 # HL2 base 1.4.1 native-first conversion — implementation and completion status
 
+**New chat / successor engineer:** Start with [the complete 1.4.1 native-first takeover](../TAKEOVER_NATIVE_FIRST_141.md). This file is the detailed current implementation status; the takeover records owner directives, exact branches, CI, prohibited detours, product image links and next engineering work.
+
 **Branch:** `implementation/native-first-engine-141-20261115`  
 **Base:** canonical immutable 1.4.1 import `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269` through the baseline-only recovery branch.  
 **Current owner-authorized scope (2026-11-15): native-first conversion of base Hart Logistics 1.4.1 only**, including Sorter, Collector, Receiver, vanilla Hopper behavior, filter/frame/redstone interactions, original world/data compatibility, and existing 1.4.1 Q2/Q3/Q4 integrity. **Do not implement Bulk Storage, Transporters, Q5, a new 1.5-oriented custody engine, or any frozen 1.5 source/design.** No owner-world access or production deployment.  
