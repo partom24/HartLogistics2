@@ -30,25 +30,6 @@
 
 Detailed code anchors and proof dispositions: [`NATIVE_BOUNDARY_DECISIONS_141.md`](NATIVE_BOUNDARY_DECISIONS_141.md); full original mechanism map: [`NATIVE_FIRST_MECHANICS_AUDIT.md`](../NATIVE_FIRST_MECHANICS_AUDIT.md).
 
-## Windows GitHub → LAB update launcher
-
-Use [`scripts/Update-HartLogistics-Lab.ps1`](../scripts/Update-HartLogistics-Lab.ps1) as the **only GitHub-to-LAB operator entry point**. It is a source-sync wrapper around `scripts/hartlogistics_lab_updater.py`, **not** a second installer. It verifies the sole approved repository origin and a clean checkout, fetches only the Phase A implementation branch, requires an exact 40-character commit that belongs to that branch, and checks out that commit. Default operation runs the existing **non-mutating** LAB preflight. `-SourceOnly` changes only the Git source checkout and does not access either server. Installation requires **both** `-Apply` and `-BackupConfirmed`; the latter confirms that the operator independently made a cold snapshot of the LAB world. The script never starts/stops BDS and never has a production target option.
-
-**First use only:** in Windows PowerShell, create a normal Git clone outside the server directory (only if no existing clean HartLogistics2 checkout):
-
-```powershell
-git clone --branch implementation/native-first-engine-141-20261115 https://github.com/partom24/HartLogistics2.git "$HOME\HartLogistics2-PhaseA"
-cd "$HOME\HartLogistics2-PhaseA"
-```
-
-**Source sync without touching BDS:** `& .\scripts\Update-HartLogistics-Lab.ps1 -Commit <EXACT_SUCCESSFUL_CI_SHA> -SourceOnly`.
-
-**Preflight after stopping BDS and checking backup:** `& .\scripts\Update-HartLogistics-Lab.ps1 -Commit <EXACT_SUCCESSFUL_CI_SHA>`.
-
-**Apply only after examining preflight and preserving a cold LAB world backup:** `& .\scripts\Update-HartLogistics-Lab.ps1 -Commit <EXACT_SUCCESSFUL_CI_SHA> -Apply -BackupConfirmed`.
-
-The Git checkout must be clean **before** source sync. The wrapper does not overwrite local changes; `--apply` is passed exclusively to the existing Python updater. Do not clone into `C:\Servers\Thomas_MCBedrock`, manually copy pack files, pass a latest/unpinned branch ref to install, or bypass a refusal. If the installed LAB remains the historical 1.5.10 PG27 candidate, it **must not** be overwritten by 1.4.1; preserve it, and use only an owner-authorized separate reset/restore of the original 1.4.1 LAB snapshot in the existing LAB location.
-
 ## Repository-approved Phase A LAB updater (source checkout, not manual ZIP replacement)
 
 A checked-in `.gitattributes` rule sets `addon/** -text` so Windows Git does not convert original BP/RP source bytes to CRLF. This is required for the immutable original hashes and the exact candidate digest to validate on the Windows LAB host. Use a freshly checked-out source tree after this rule; never normalize the original add-on files in place.
