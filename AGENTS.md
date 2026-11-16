@@ -7,6 +7,10 @@
 - The owner has approved **planning/documentation only** at present, with explicit permission to **import the provided HartBots production updater as inert reference source** into this repository. Do not execute production updater scripts (even dry-run) or access/modify the live server before a nominated release candidate, and require separate explicit owner authorization for any subsequent production operation. Do not implement features, alter runtime packs, publish, or change HartBots without fresh explicit authorization.
 - The original owner-uploaded 1.4.1 mcaddon is the compatibility baseline; its source is not yet committed. The addon/ directory currently contains a placeholder, not an executable pack.
 
+## Owner decision: ordering policy (2026-11-16)
+
+**Owner decision (2026-11-16): FIFO is NOT a requirement, supported feature promise, or Phase A acceptance/release gate.** Do not reinstate FIFO by treating the current Q4 head/sequence implementation, old baseline descriptions, source tests, or earlier handoff language as a binding ordering policy. Preserve existing saved Q2/Q3/Q4 queue contents, item identities, counts, links, journals, recovery safety, backpressure, redstone behavior, and no-loss/no-duplication guarantees. Any future queue-selection or native simplification must be tested against those safety and compatibility obligations; no FIFO-specific blocking test or redesign is authorized. This supersedes contradictory FIFO statements anywhere else in HL2, including historical documents and issue comments.
+
 ## Non-negotiable compatibility contract
 
 1. **No loss of any 1.4.1 capability**: preserve Sorter/Collector/Receiver functions, modes, filters, linking, hopper paths, dropper/dispenser handling, redstone semantics, Q4 data, q2/q3 migration, and recovery. No optimization may silently weaken these contracts.

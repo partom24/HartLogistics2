@@ -4,6 +4,8 @@
 
 ## Current engineering phase: base 1.4.1 native-first conversion
 
+**Owner decision (2026-11-16): FIFO is NOT a requirement, supported feature promise, or Phase A acceptance/release gate.** Do not reinstate FIFO by treating the current Q4 head/sequence implementation, old baseline descriptions, source tests, or earlier handoff language as a binding ordering policy. Preserve existing saved Q2/Q3/Q4 queue contents, item identities, counts, links, journals, recovery safety, backpressure, redstone behavior, and no-loss/no-duplication guarantees. Any future queue-selection or native simplification must be tested against those safety and compatibility obligations; no FIFO-specific blocking test or redesign is authorized. This supersedes contradictory FIFO statements anywhere else in HL2, including historical documents and issue comments.
+
 **Owner scope decision (2026-11-15):** Both owner reference images remain the overall product objectives and the **layout/scale context for accepting this phase**, but the active deliverable is **conversion of existing Hart Logistics 1.4.1 only**. The phase must preserve and improve the existing Sorter, Collector, Receiver, native Hopper interaction, item frames, routing/filter modes, redstone, and original Q2/Q3/Q4 world-data compatibility. Neither reference image authorizes expansion into new block families.
 
 **Deferred, not required for base 1.4.1 completion:** Bulk Storage, Transporters, Q5, and any new generalized custody engine designed for 1.5. The owner will separately authorize development of the 1.5 custody engine at the appropriate time. Existing 1.4.1 queue/journal/custody protections **must still work unchanged or safely equivalently**; deferring 1.5 does not permit weakening base item safety.

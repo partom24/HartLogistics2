@@ -4,13 +4,13 @@
 
 ## Why migration is required
 
-1.4.1 Receivers store a persistent **q4** FIFO queue of quantities and item definitions with an associated journal and recovery logic, and support older q2/q3 formats. The owner expects FIFO and its head-of-line blocking to restrict network-aware sorting throughput. We need destination-aware ordinary-item selection without losing old queue contents, links, counters, recovery, redstone pause or hopper outputs.
+1.4.1 Receivers store a persistent **q4** queue of quantities and item definitions with an associated journal and recovery logic, and support older q2/q3 formats. FIFO is **not** a product requirement (owner decision 2026-11-16); this document is deferred design context, not an ordering-policy mandate. We need destination-aware ordinary-item selection without losing old queue contents, links, counters, recovery, redstone pause or hopper outputs.
 
 ## Proposed Q5 state (not final schema)
 
 - **Ordinary lane:** bucketized counts by lossless item identity, capacity accounting, destination-aware scheduling and bulk reserve/acknowledge operations.
 - **MR lane:** native ItemStack slots and container operations (where platform support and experiment policy allow). MR stacks **must never** be reconstructed from incomplete serialized properties.
-- **Coordinator:** bounded scheduler with MR preference and ordinary-lane fairness. Preserve legacy FIFO behavior for ungoverned/legacy output paths unless a separately tested change is approved.
+- **Coordinator:** bounded scheduler with MR preference and ordinary-lane fairness. Preserve saved-cargo integrity and recovery for ungoverned/legacy output paths; do not mandate FIFO.
 - **Journal:** durable transaction ID, source, destination, quantity or native slot reference, phase, committed balances and reconciliation markers; exact format and write ordering TBD.
 - **Capacity (owner accepted):** preserve the legacy Receiver **250,000 ordinary-item count** capacity; **native MR items have separate finite physical-slot capacity** with backpressure rather than consuming those ordinary count buckets. Exact number of MR slots remains to be established from API/runtime and design; the owner has not approved expanding or flattening the original ordinary count cap.
 - **Native custom block container gate:** verify that target server 1.26.63.1 and client 26.63 offer the necessary *stable* inventory APIs without enabling experiments. If not, no silent dependence on experimental toggles; choose an explicitly approved alternative or defer that feature.

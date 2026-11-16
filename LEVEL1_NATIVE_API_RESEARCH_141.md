@@ -28,7 +28,7 @@ The baseline BP manifest specifies **`@minecraft/server 2.7.0`, min_engine_versi
 
 **Docs:** [block inventory API](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/blockinventorycomponent?view=minecraft-bedrock-stable); [Container](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/container?view=minecraft-bedrock-stable). The actual 1.4.1 Hopper/Sorter/Collector routing contracts come from the [pinned baseline source](https://github.com/partom24/HartLogistics2/blob/0ea3000651c116b0fa1acc2836ab7e1bcfbc6269/addon/behavior_pack/scripts/main.js).
 
-**What Bedrock owns:** vanilla Hopper transfer rules and tick scheduling; vanilla storage inventory, slots and redstone lock; actual Dropper/Dispenser activation and item ejection. **What it does not establish:** Hart's Filter→Auto→Wildcard routing and bottom-to-top priority, its 250,000-item Receiver FIFO, or an API callback for all Hopper changes. Native Hopper movement may race with script observations; removing a scan is unsafe unless the exact expected interception behavior is preserved. **Scaling:** native work occurs within the engine for each active block but is not free, and script calls across `C` idle columns still scale `O(C)`. Avoid building an alternative Hopper simulator.
+**What Bedrock owns:** vanilla Hopper transfer rules and tick scheduling; vanilla storage inventory, slots and redstone lock; actual Dropper/Dispenser activation and item ejection. **What it does not establish:** Hart's Filter→Auto→Wildcard routing and bottom-to-top priority, its 250,000-item Receiver persistent virtual queue, or an API callback for all Hopper changes. Native Hopper movement may race with script observations; removing a scan is unsafe unless the exact expected interception behavior is preserved. **Scaling:** native work occurs within the engine for each active block but is not free, and script calls across `C` idle columns still scale `O(C)`. Avoid building an alternative Hopper simulator.
 
 ### N02 — `BlockInventoryComponent.container` and `Block.getComponent("minecraft:inventory")` | E
 
@@ -72,7 +72,7 @@ These directly **replace** the given slot, or clear it with undefined. They do n
 
 ### N12 — `Container.swapItems` / native slot transformations | C / G
 
-`swapItems(slot, otherSlot, otherContainer): void` swaps full item stacks across slots; no Hart-specific safety or FIFO guarantee. Native same-container `moveItem` and `swapItems` are candidates to replace compaction **only** if their exact slot/result behavior preserves vanilla Hopper throughput and anti-starvation semantics. These are **not** custom routing engines. **L2:** an ordered five-slot Hopper before and after three input patterns.
+`swapItems(slot, otherSlot, otherContainer): void` swaps full item stacks across slots; no Hart-specific cargo-safety guarantee. Native same-container `moveItem` and `swapItems` are candidates to replace compaction **only** if their exact slot/result behavior preserves vanilla Hopper throughput and anti-starvation semantics. These are **not** custom routing engines. **L2:** an ordered five-slot Hopper before and after three input patterns.
 
 ## 2. Identity, metadata, filters and native storage hosts
 

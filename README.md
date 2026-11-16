@@ -6,7 +6,7 @@
 
 **Current authorized work is native-first conversion of the original Hart Logistics 1.4.1**, including existing Sorter / Collector / Receiver mechanics and saved-world compatibility, with the owner's two [reference arrays](OWNER_PRODUCT_OBJECTIVE.md) as product/layout targets. The immutable 1.4.1 import is `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; its original 72 gameplay files remain preserved. The active candidate is source-tested and packaged but **not BDS-verified, not native-first architecture complete, and not production-approved**. **Using `firstItem()` every tick is still polling.**
 
-**Explicitly deferred:** Bulk Storage, Transporter, Q5 and a future 1.5 custody engine. Original FIFO remains settled. **Do not use the frozen 1.5 branch as source.** The owner's telemetry tools are VS Code Bedrock Debugger, BDS diagnostics and built-in Script Profiler, not a new telemetry subsystem.
+**Explicitly deferred:** Bulk Storage, Transporter, Q5 and a future 1.5 custody engine. **FIFO is not a requirement or acceptance gate** (owner decision 2026-11-16; see [binding objective](OWNER_PRODUCT_OBJECTIVE.md)). **Do not use the frozen 1.5 branch as source.** The owner's telemetry tools are VS Code Bedrock Debugger, BDS diagnostics and built-in Script Profiler, not a new telemetry subsystem.
 
 See [implementation/ENGINE_STATUS.md](implementation/ENGINE_STATUS.md) for current code changes, [RECOVERY_MANDATE.md](RECOVERY_MANDATE.md) for binding restrictions and [the active candidate CI](https://github.com/partom24/HartLogistics2/actions/workflows/native-first-engine.yml) for exact build/test status.
 
@@ -39,7 +39,7 @@ Hart Logistics 2 is the planned evolution of the owner-supplied **Hart Logistics
 
 The user supplied a 1.4.1 mcaddon containing a behavior pack and resource pack. That supplied archive is the compatibility reference; **its source is not in GitHub yet**. An import-ready source bundle was prepared outside this repository. Do not confuse that bundle with a Git commit, a validated Bedrock runtime, or an approved release.
 
-Known baseline: three blocks (Sorter, Collector, Receiver), FIFO q4 Receiver queue with q2/q3 legacy migration, persistent recovery journal, item-frame filtering, hopper compatibility and redstone pause controls. See the detailed baseline registry.
+Known baseline: three blocks (Sorter, Collector, Receiver), persistent Q4 Receiver queue with q2/q3 legacy migration, persistent recovery journal, item-frame filtering, hopper compatibility and redstone pause controls. See the detailed baseline registry.
 
 ## Planned expansion (not implemented)
 

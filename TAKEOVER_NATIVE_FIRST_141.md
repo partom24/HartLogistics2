@@ -14,7 +14,7 @@ The ongoing isolated implementation branch has a **fully source-verified, determ
 
 > **Current task:** Complete a **true native-first conversion of Hart Logistics 1.4.1**. Eliminate custom logistics mechanics **only where vanilla Bedrock or the verified stable native Script API can own them**, and retain only the minimum Hart-specific routing and compatibility code. Preserve all **existing** 1.4.1 gameplay, saved worlds and metadata. Target the owner's pictured [Sorter array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/sorter-array.png) and [storage-room array](https://github.com/partom24/HartLogistics2/blob/c40745834824806d6adefa487fb5bc5084fe057d/docs/reference-images/storage-room-array.png) at their natural scale.
 >
-> **Do not start:** Bulk Storage, Transporter, Q5, a generalized 1.5 custody engine, any resurrected 1.5 implementation, or another debate about settled FIFO design.
+> **Do not start:** Bulk Storage, Transporter, Q5, a generalized 1.5 custody engine, any resurrected 1.5 implementation, or reintroduction of FIFO as a requirement.
 >
 > **Most recent correction:** Calling `Container.firstItem()` on every Sorter **every tick** is **still custom polling**, not an architectural native replacement. The 1.4.1 candidate currently does this. Its green tests show source behavior and fewer scripted slot accesses, **not** eliminated polling or proven native performance.
 >
@@ -22,13 +22,13 @@ The ongoing isolated implementation branch has a **fully source-verified, determ
 >
 > **Status:** Source-only implementation candidate exists, native packaging succeeds, **147 tests pass**; no BDS/runtime or owner-world performance/visual acceptance. **Stage A / base 1.4.1 conversion is not complete.**
 >
-> **Next chat:** Do actual native-mechanism substitution analysis and incremental implementation against **original 1.4.1**, not more scheduler micro-optimizations or custody/FIFO research. Check repository state first. Preserve the immutable input baseline and separate implementation branch. Never represent a file build or mock pass as BDS acceptance.
+> **Next chat:** Do actual native-mechanism substitution analysis and incremental implementation against **original 1.4.1**, not more scheduler micro-optimizations or speculative custody/ordering-policy research. Check repository state first. Preserve the immutable input baseline and separate implementation branch. Never represent a file build or mock pass as BDS acceptance.
 
 ## 1. Owner instructions, in precedence order
 
 1. **The two pictures are the overall product objective.** The reference folder [`main/docs/reference-images`](https://github.com/partom24/HartLogistics2/tree/main/docs/reference-images) contains `sorter-array.png` and `storage-room-array.png`. Their **commit-pinned** identities are recorded in [OWNER_PRODUCT_OBJECTIVE.md](OWNER_PRODUCT_OBJECTIVE.md), with a CI presence guard. They are **owner-approved product references only**, **not** permission to use frozen 1.5 code, tests or design records.
 2. **For now ONLY convert the base 1.4.1 engine.** Preserve Sorter / Collector / Receiver, existing vanilla Hoppers, original Filter → destination-seeded Auto → Wildcard priority, BYPASS, redstone pause, frame/filter and mode interactions, physical storage, Dropper/Dispenser actual-ejection behavior, links, unloaded blocks, and Q2/Q3/Q4 migration/state compatibility. All existing item quantity/metadata and persisted worlds must survive. **No new Bulk Storage, Transporters, Q5 or 1.5 custody architecture**. Future 1.5 custody development requires **separate** owner direction.
-3. **FIFO is a settled requirement.** Do **not** revisit, redesign or repeatedly center it. Preserve the existing behavior as a test/compatibility constraint. Q4 journal recovery is likewise **existing 1.4.1 compatibility**, not permission to build a generalized 1.5 custody engine now.
+3. **FIFO is NOT a requirement, compatibility promise, or acceptance test** (owner decision 2026-11-16; [binding objective](OWNER_PRODUCT_OBJECTIVE.md)). Existing Q4 head/sequence behavior is a present implementation detail, not a policy to defend. Do not cite legacy documents/tests as grounds to require FIFO. Preserve saved Q2/Q3/Q4 contents, counts, metadata, journals, no-loss/no-duplication safety and redstone/backpressure. Q4 recovery is world-data compatibility, not permission to build the deferred 1.5 custody engine.
 4. **Native-first is the central architectural requirement.** Investigate native vanilla mechanics, native block states/events/components, native ItemStack/Container operations and actual engine ownership. A JavaScript loop calling one native method every tick is **not** the desired conversion. Reduce custom mechanisms, not merely the number of `getItem()` calls. When a true native replacement cannot satisfy the existing layout and semantics, record the *specific* missing guarantee and retain minimal custom logic rather than fabricate an event.
 5. **Use existing native debugging/profile tools.** VS Code Minecraft Bedrock Debugger, BDS diagnostics and built-in Script Profiler. Separate paused breakpoint debugging from performance captures. No custom telemetry subsystem, alternate instrumentation engine or auxiliary logging ledger.
 6. **Original 1.4.1 is the sole implementation input.** The archived 1.5 branch/PR are excluded as code, tests, examples, fixtures, designs, performance evidence and migration inputs. Links to the archived branch are for administrative freeze only; **do not open it for design**.
@@ -61,7 +61,7 @@ Active candidate path: [`addon/behavior_pack/scripts/main.js`](addon/behavior_pa
 | M19 Collector ingestion | Native `firstItem()` short-circuit for empty directed source Hoppers. | Fewer synthetic per-slot reads. | Still repeated Collector polling; not a native cargo change event. |
 | M35 logistics loop | Avoids duplicate outer block lookups and idle Q4 journal read; called functions still validate blocks. | Source-controlled mock behavior. | Still a per-tick custom logistics loop. |
 | M15/M16 legacy filter displays | Native `world.afterEvents.entityLoad` for targeted known/orphan proxy repair, **one startup** dimension-wide orphan sweep, periodic registered-owner repair. | Callback *type* exists in pinned 2.7 declarations, and original-source helper tests pass. | Needs BDS check for event delivery, old-world chunk loading/repair, and faithful appearance. |
-| M27 opaque direct admission | On unreadable current Q4 queue, defers instead of trusting stale cached zero. | Source-tested fail-closed state; otherwise original behavior kept. | A narrow legacy safety change, **not** a new custody architecture or FIFO redesign. |
+| M27 opaque direct admission | On unreadable current Q4 queue, defers instead of trusting stale cached zero. | Source-tested fail-closed state; otherwise original behavior kept. | A narrow legacy safety change, **not** a new custody architecture or ordering-policy redesign. |
 
 These are genuine *candidate code changes*, but **not yet the core architectural elimination** originally requested. Do not overclaim them.
 
@@ -145,7 +145,7 @@ The owner explicitly corrected an earlier assistant attempt to turn telemetry in
 ### Explicit stop/avoid list
 
 - **No Bulk Storage / Transporter / Q5 / new 1.5 custody work yet**; owner deferred all.
-- **No FIFO debate or speculative queue redesign**; original is settled. Source tests can preserve old behavior but are not an agenda.
+- **Do not resurrect FIFO as a gate**. Historical tests describing head-first queue behavior are evidence about old code only; they are not requirements. Do not redesign ordering speculatively.
 - **No frozen 1.5 source or PR comparison**. PR #79 only for archival administration.
 - **No naive native full-stack move** as replacement for partial 16-item journalled transfers without genuine guarantees.
 - **No invented Hopper-change event**, no comparator-based lossless cargo observer, no "onTick = event-driven" euphemism.
@@ -168,7 +168,7 @@ Read the following in this order, as needed:
 8. [recovery/NATIVE_SORTER_TRIGGER_SCREEN.md](recovery/NATIVE_SORTER_TRIGGER_SCREEN.md) — **why generic native Hopper arrival trigger is unresolved**.
 9. [recovery/NATIVE_TRANSFER_AND_CUSTODY_LEVEL2_DECISIONS.md](recovery/NATIVE_TRANSFER_AND_CUSTODY_LEVEL2_DECISIONS.md) — exact 2.7 native Container/ItemStack limits for physical movement; do not drift into future custody redesign.
 10. [recovery/LEVEL2_SOURCE_EVIDENCE.md](recovery/LEVEL2_SOURCE_EVIDENCE.md) — 99 original source tests and 11 pinned-type checks; source-only evidence tier.
-11. [recovery/LEVEL2_Q4_CUSTODY_FAULT_MATRIX.md](recovery/LEVEL2_Q4_CUSTODY_FAULT_MATRIX.md) — compatibility regression/reference only, **not** a request to reopen FIFO or 1.5 custody.
+11. [recovery/LEVEL2_Q4_CUSTODY_FAULT_MATRIX.md](recovery/LEVEL2_Q4_CUSTODY_FAULT_MATRIX.md) — compatibility regression/reference only, **not** a request to reinstate FIFO or reopen 1.5 custody.
 12. [implementation/TELEMETRY_PROTOCOL_141.md](implementation/TELEMETRY_PROTOCOL_141.md) — owner-selected native VS/BDS tools only.
 13. [implementation/tests/](implementation/tests/) and [recovery/tests/](recovery/tests/) — reproducible source-executed regressions.
 14. [GitHub Actions: implementation run #43764978320](https://github.com/partom24/HartLogistics2/actions/runs/43764978320) and [recovery run #43764975998](https://github.com/partom24/HartLogistics2/actions/runs/43764975998) — last known pre-handoff green evidence.
@@ -178,7 +178,7 @@ Read the following in this order, as needed:
 
 > Continue the HartLogistics2 project at `partom24/HartLogistics2`. **Start by reading `TAKEOVER_NATIVE_FIRST_141.md` on branch `implementation/native-first-engine-141-20261115` and its linked mandate, objective images, native-mechanism audit and engine status.**
 >
-> The current assignment is **genuinely native-first conversion of original Hart Logistics 1.4.1 only**. Preserve everything originally working, both owner's Sorter/storage-room array layout goals, original 1.4.1 saved worlds/Q4, metadata, Sorter priority, Hopper/redstone and Collector/Receiver behavior. Do **not** work on Bulk Storage, Transporters, Q5 or a 1.5 custody engine. **FIFO design is settled and not a debate.** Never read/import the frozen 1.5 development branch. Do not touch production.
+> The current assignment is **genuinely native-first conversion of original Hart Logistics 1.4.1 only**. Preserve everything originally working, both owner's Sorter/storage-room array layout goals, original 1.4.1 saved worlds/Q4, metadata, Sorter priority, Hopper/redstone and Collector/Receiver behavior. Do **not** work on Bulk Storage, Transporters, Q5 or a 1.5 custody engine. **FIFO is no longer a requirement; do not reinstate it.** Never read/import the frozen 1.5 development branch. Do not touch production.
 >
 > Be vigilant: the existing candidate still runs a 1-tick custom scheduler. Its `firstItem()` substitution is **not** a true architectural native replacement or proven TPS win. Investigate/remove genuinely duplicative custom mechanisms using actual Bedrock engine ownership, with precise 2.7 API contract and original-source equivalence. If a native guarantee is missing, retain only the minimal justified custom gap; do not invent events or write another speculative scheduler. The current candidate is source-tested but not BDS accepted.
 >

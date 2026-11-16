@@ -2,7 +2,7 @@
 
 **Status: PHASE A SOURCE IMPLEMENTATION PACKAGED FOR BDS TESTING; BDS ACCEPTANCE NOT YET PERFORMED.**
 
-**Current scope:** Genuine native-first conversion of the **original 1.4.1 feature set**, using only canonical source at commit `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`. No new Bulk Storage, Transporter, Q5, or 1.5 custody implementation. Existing Q2/Q3/Q4 and FIFO behavior are compatibility obligations, not redesign topics. The owner reference [Sorter array](../OWNER_PRODUCT_OBJECTIVE.md) and storage-room array remain the scale/functional goals.
+**Current scope:** Genuine native-first conversion of the **original 1.4.1 feature set**, using only canonical source at commit `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`. No new Bulk Storage, Transporter, Q5, or 1.5 custody implementation. Existing Q2/Q3/Q4 persisted data, item integrity, journal recovery and redstone/backpressure are compatibility obligations; FIFO is **not** a requirement or release gate (owner decision 2026-11-16). The owner reference [Sorter array](../OWNER_PRODUCT_OBJECTIVE.md) and storage-room array remain the scale/functional goals.
 
 ## Verified pre-BDS candidate identity
 
@@ -70,7 +70,7 @@ If LAB still contains a different-version PG27 or an unknown installed pack, **S
 | A4 cargo | Distinct metadata-rich items, enchanted book type-sets, potion variants, max stacks, nonstackables and all compatible original item identity paths |
 | A5 physical/redstone | Lock/unlock source Hopper, powered Sorter/Collector/Receiver, vanilla Hopper timing, backpressure, blocked output and preserved no-write conditions |
 | A6 Collector | All six possible directed Hopper positions and opposing/non-pointing negative cases; actual Dropper/Dispenser ejection only (no inventory siphon) |
-| A7 Receiver/Q4 | Q2/Q3/Q4 migration on preserved snapshots, FIFO, 250k logical cap, 200k backlog, blocked/locked output, journal fail-closed ambiguity, reload/restart and chunk unavailability |
+| A7 Receiver/Q4 | Q2/Q3/Q4 migration on preserved snapshots, item conservation and metadata fidelity, 250k logical cap, 200k backlog, blocked/locked output, journal fail-closed ambiguity, reload/restart and chunk unavailability |
 | A8 presentation | Native Item Frame insert/remove/physical return, legacy displays, mode indicator persistence, late loaded chunks, orphan entity cleanup after restart |
 | A9 throughput | Native Script Profiler and diagnostics from identical sustained/idle/blocked windows with other packs present; TPS, native call hotspots and useful items/sec |
 | A10 final reconciliation | No unexplained count/metadata delta across source Hoppers, target storage, physical outputs and existing Receiver queue; same saved-world topology and links |
@@ -79,4 +79,4 @@ All gates remain **UNTESTED IN BDS** until actual owner-authorized LAB evidence 
 
 ## Non-goals and release boundary
 
-This source-only candidate may be **ready to test** without being **accepted for release**. No 1.5 architecture, Q5, new block families, custom telemetry suite, reinterpretation of FIFO or artificial owner build restrictions. Do not deploy to production automatically. See the takeover [`TAKEOVER_NATIVE_FIRST_141.md`](../TAKEOVER_NATIVE_FIRST_141.md) for overarching constraints.
+This source-only candidate may be **ready to test** without being **accepted for release**. No 1.5 architecture, Q5, new block families, custom telemetry suite, reintroduction of FIFO as an acceptance rule or artificial owner build restrictions. Do not deploy to production automatically. See the takeover [`TAKEOVER_NATIVE_FIRST_141.md`](../TAKEOVER_NATIVE_FIRST_141.md) for overarching constraints.

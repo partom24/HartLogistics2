@@ -38,7 +38,7 @@ The source-traced [1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.m
 | --- | --- |
 | Sorters | FILTER, AUTO, WILDCARD, BYPASS; item-frame filter insert/remove; destination full/partial; rotation/stacking; all priorities |
 | Collectors | Linked destination; native hopper/direct input and existing supported dropper/dispenser capture; redstone pause and resume |
-| Receivers | 250,000-item q4 cap; FIFO legacy mode; native hopper extraction and redstone controls; existing link persistence |
+| Receivers | 250,000-item q4 cap; saved queue/item conservation (no FIFO requirement); native hopper extraction and redstone controls; existing link persistence |
 | Recovery | Every existing q4 journal transition; q2/q3 migrations; restarting during load, intake and drain |
 | Inventory custody | No item loss/duplication; exact quantities and supported metadata; no unsafe conversion; full/unloaded destination |
 | Saved worlds | Existing placed blocks, block states, UUIDs, links, configuration, dynamic properties and item state survive upgrade |
