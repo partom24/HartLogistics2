@@ -678,7 +678,11 @@ function reconcileModeVisuals() {
     const count = Math.min(32, registry.length);
     for (let i=0; i<count; i++) {
         const idx = (modeVisualRr + i) % registry.length;
-        syncSorterModeVisual(registry[idx]);
+        const entry = registry[idx];
+        // The native block permutation is persisted by Bedrock for an
+        // implanted Item Frame Sorter; mode changes write it directly.
+        // Retain periodic repair only for legacy, non-implanted Sorters.
+        if (!entryHasFrameImplant(entry)) syncSorterModeVisual(entry);
     }
     modeVisualRr = (modeVisualRr + count) % registry.length;
 }

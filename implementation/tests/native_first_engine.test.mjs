@@ -440,3 +440,47 @@ test("ENGINE-35 startup orphan sweep still removes native-frame legacy displays"
   fn(true);
   assert.deepEqual(events,["targetedCleanup","orphanRemoved"]);
 });
+
+test("ENGINE-36 mode reconciliation delegates native-frame block states to Bedrock",()=>{
+  const registry=Array.from({length:32},(_,i)=>({id:"frame-"+i,i:[i,65,0,2],m:"auto"}));
+  let visualReads=0;
+  const fn=originalFunction("reconcileModeVisuals",{
+    ready:true,registry,modeVisualRr:0,
+    entryHasFrameImplant:e=>Array.isArray(e.i),
+    syncSorterModeVisual:()=>visualReads++
+  });
+  fn();
+  assert.equal(visualReads,0);
+});
+test("ENGINE-37 mode reconciliation still repairs non-implanted legacy Sorters",()=>{
+  const registry=Array.from({length:32},(_,i)=>i<10?{id:"legacy-"+i,m:"filter"}:{id:"frame-"+i,i:[i,65,0,2],m:"auto"});
+  const inspected=[];
+  const fn=originalFunction("reconcileModeVisuals",{
+    ready:true,registry,modeVisualRr:0,
+    entryHasFrameImplant:e=>Array.isArray(e.i),
+    syncSorterModeVisual:e=>inspected.push(e.id)
+  });
+  fn();
+  assert.deepEqual(inspected,registry.slice(0,10).map(e=>e.id));
+});
+test("ENGINE-38 explicit mode change still uses native block permutation",()=>{
+  const entry={d:"overworld",x:1,y:65,z:1,m:"auto"};
+  let setCount=0,finalMode="wildcard";
+  const block={permutation:{
+    getState:()=>finalMode,
+    withState:(_key,value)=>({mode:value})
+  },setPermutation(next){setCount++;finalMode=next.mode;}};
+  const fn=originalFunction("syncSorterModeVisual",{
+    sorterAt:()=>block,
+    sorterMode:e=>e.m,
+    SORTER_MODE_STATE:"hartlogistics:mode",
+    modeVisualWarnings:new Set(),
+    displayOwnerKey:()=> "owner",
+    log:()=>{}
+  });
+  fn(entry,block);
+  assert.equal(finalMode,"auto");
+  assert.equal(setCount,1);
+  fn(entry,block);
+  assert.equal(setCount,1);
+});
