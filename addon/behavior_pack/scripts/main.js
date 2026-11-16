@@ -590,6 +590,13 @@ function reconcileDisplays(cleanupOrphans = false) {
     // entities are validated by the native entityLoad callback below.
     const validOwners = cleanupOrphans ? new Set() : undefined;
     for (const e of registry) {
+        // Bedrock's native Item Frame already owns these filter visuals.
+        // Startup's one-time orphan sweep and entityLoad handle legacy proxies;
+        // never query/spawn/teleport a proxy for a frame on the periodic pass.
+        if (entryHasFrameImplant(e)) {
+            if (cleanupOrphans) removeDisplay(e);
+            continue;
+        }
         const b = sorterAt(e);
         if (!b) {
             // Known owner with missing block: remove its nearby stale proxy.

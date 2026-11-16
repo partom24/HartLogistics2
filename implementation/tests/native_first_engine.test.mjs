@@ -409,3 +409,33 @@ test("ENGINE-33 module registers native display load event and preserves startup
   assert.match(SOURCE,/system\.runTimeout\(\(\) => reconcileDisplays\(true\),\s*5\)/);
   assert.match(SOURCE,/system\.runInterval\(reconcileDisplays,\s*100\)/);
 });
+
+test("ENGINE-34 native Item Frame Sorters require no periodic legacy visual block/entity work",()=>{
+  const nativeFrames=Array.from({length:1400},(_,i)=>({id:"native-"+i,i:[i,64,0,2],f:{typeId:"minecraft:stone"}}));
+  let checked=0;
+  const fail=()=>assert.fail("Native Item Frame must not invoke custom periodic visual maintenance");
+  const fn=originalFunction("reconcileDisplays",{
+    ready:true,registry:nativeFrames,
+    entryHasFrameImplant:()=>{checked++;return true;},
+    sorterAt:fail,removeDisplay:fail,syncDisplay:fail,getDimension:fail
+  });
+  fn();
+  assert.equal(checked,nativeFrames.length);
+});
+test("ENGINE-35 startup orphan sweep still removes native-frame legacy displays",()=>{
+  const entry={id:"native",i:[1,64,0,2],f:{typeId:"minecraft:stone"}};
+  const events=[];
+  const ent={getDynamicProperty:()=> "owned-native",remove:()=>events.push("orphanRemoved")};
+  const fn=originalFunction("reconcileDisplays",{
+    ready:true,registry:[entry],
+    entryHasFrameImplant:()=>true,
+    sorterAt:()=>assert.fail("Native frame owns renderer"),
+    removeDisplay:e=>{assert.equal(e,entry);events.push("targetedCleanup");},
+    displayOwnerKey:()=> "owned-native",
+    getDimension:id=>({getEntities:()=>id==="overworld"?[ent]:[]}),
+    DISPLAY_ID:"hartsorter:filter_display",
+    DISPLAY_OWNER_PROP:"hartsorter:owner"
+  });
+  fn(true);
+  assert.deepEqual(events,["targetedCleanup","orphanRemoved"]);
+});
