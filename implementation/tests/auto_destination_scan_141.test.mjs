@@ -36,7 +36,7 @@ function source(name, globals={}) {
 const item=(typeId,amount=1,meta="",maxAmount=64,ench=[])=>({typeId,amount,meta,maxAmount,ench});
 const nativeEnchantments=s=>s.ench??[];
 function inventory(items) {
-  const calls={reads:0,size:0,empty:0,compare:0,writes:0};
+  const calls={reads:0,size:0,empty:0,compare:0,writes:0,slots:0};
   const container={
     isValid:true,
     get size(){calls.size++;return items.length;},
@@ -50,6 +50,22 @@ function inventory(items) {
         return cur.typeId===other.typeId&&cur.meta===other.meta&&cur.maxAmount>1;
       }};
     },
+    getSlot(i){
+      calls.slots++;
+      return {
+        hasItem(){return !!items[i];},
+        get typeId(){return items[i]?.typeId;},
+        get amount(){return items[i]?.amount;},
+        get maxAmount(){return items[i]?.maxAmount;},
+        getItem(){calls.reads++;return items[i]&&{...items[i]};},
+        isStackableWith(other){
+          calls.compare++;
+          const cur=items[i];
+          if(cur.throwCompare)throw Error("native slot comparison unavailable");
+          return cur.typeId===other.typeId&&cur.meta===other.meta&&cur.maxAmount>1;
+        }
+      };
+    },
     setItem(i,stack){calls.writes++;items[i]=stack;},
     firstItem(){let i=items.findIndex(Boolean);return i<0?undefined:i;},
     firstEmptySlot(){calls.empty++;let i=items.findIndex(x=>!x);return i<0?undefined:i;}
@@ -61,13 +77,13 @@ const find=source("findAcceptSlot",{enchantments:nativeEnchantments});
 test("P2-01 AUTO cannot take an unseeded chest even if empty space exists",()=>{
   const d=inventory([item("minecraft:stone",3),undefined]);
   assert.equal(find(d.container,item("minecraft:feather"),true),undefined);
-  assert.equal(d.calls.size,1);assert.equal(d.calls.reads,2);
+  assert.equal(d.calls.size,1);assert.equal(d.calls.slots,2);assert.equal(d.calls.reads,0);
 });
 test("P2-02 AUTO uses one live scan to find seed and compatible partial before earlier empty",()=>{
   const d=inventory([undefined,item("minecraft:feather",12,"other"),item("minecraft:feather",51)]);
   const slot=find(d.container,item("minecraft:feather",5),true);
   assert.equal(slot.slot,2);assert.equal(slot.room,13);
-  assert.equal(d.calls.size,1);assert.equal(d.calls.reads,3);
+  assert.equal(d.calls.size,1);assert.equal(d.calls.slots,3);assert.equal(d.calls.reads,1);
   assert.equal(d.calls.compare,2);
 });
 test("P2-03 AUTO seed may be metadata-incompatible; use first empty, not unsafe merge",()=>{
@@ -116,7 +132,7 @@ test("P2-10 one 54-slot AUTO scan is sufficient for late seed and partial admiss
   const d=inventory([...Array.from({length:53},()=>item("minecraft:stone",64)),item("minecraft:feather",55)]);
   const slot=find(d.container,item("minecraft:feather"),true);
   assert.equal(slot.slot,53);assert.equal(slot.room,9);
-  assert.equal(d.calls.reads,54);assert.equal(d.calls.size,1);
+  assert.equal(d.calls.slots,54);assert.equal(d.calls.reads,1);assert.equal(d.calls.size,1);
 });
 
 function route({sourceItem=item("minecraft:feather",4),sorters,storage}) {
@@ -189,4 +205,32 @@ test("P2-14 AUTO ignores a Collector and leaves Collector egress to the correct 
     storage:{wild:[undefined]}
   });
   assert.equal(r.used,4);assert.equal(r.targets.wild.items[0].amount,4);
+});
+
+test("P3-01 54 unrelated full slots use native views with zero ItemStack copies",()=>{
+  const d=inventory(Array.from({length:54},()=>item("minecraft:stone",64)));
+  assert.equal(find(d.container,item("minecraft:feather"),true),undefined);
+  assert.equal(d.calls.slots,54);assert.equal(d.calls.reads,0);
+  assert.equal(d.calls.compare,0);
+});
+test("P3-02 matching type but full native slot cannot merge or produce a copy",()=>{
+  const d=inventory([item("minecraft:feather",64),item("minecraft:stone",64)]);
+  assert.equal(find(d.container,item("minecraft:feather")),undefined);
+  assert.equal(d.calls.reads,0);assert.equal(d.calls.compare,0);
+});
+test("P3-03 native metadata comparison rejects different custom data before empty",()=>{
+  const d=inventory([item("minecraft:feather",3,"custom"),undefined]);
+  const result=find(d.container,item("minecraft:feather",2,"plain"));
+  assert.equal(result.slot,1);assert.equal(result.before,0);
+  assert.equal(d.calls.compare,1);assert.equal(d.calls.reads,0);
+});
+test("P3-04 AUTO book seed has live type-set semantics; copy only candidate books",()=>{
+  const book=e=>item("minecraft:enchanted_book",1,"",1,e);
+  const d=inventory([book([{id:"mending",level:1}]),undefined]);
+  assert.equal(find(d.container,book([{id:"mending",level:3}]),true).slot,1);
+  const first=d.calls.reads;
+  assert.equal(first,1);
+  d.items[0]=book([{id:"fortune",level:1}]);
+  assert.equal(find(d.container,book([{id:"mending",level:3}]),true),undefined);
+  assert.equal(d.calls.reads,first+1);
 });

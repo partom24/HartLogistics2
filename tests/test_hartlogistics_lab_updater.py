@@ -134,7 +134,14 @@ class GuardTests(unittest.TestCase):
             installed.write_bytes(p1)
             self.assertEqual(lab.hash_file(installed),lab.INTERMEDIATE_PHASE_A_ENGINE_SHA256)
             self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
-            (root/'behavior_packs/previous_behavior_pack/scripts/main.js').write_bytes(b'unknown modified engine')
+            p2=subprocess.run(
+                ['git','-C',str(ROOT),'show',
+                 '3857ee47e3b35f9c32e3261ff6c1effbca87d3ae:addon/behavior_pack/scripts/main.js'],
+                check=True,capture_output=True).stdout
+            installed.write_bytes(p2)
+            self.assertEqual(lab.hash_file(installed),lab.INSTALLED_P2_ENGINE_SHA256)
+            self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
+            installed.write_bytes(b'unknown modified engine')
             with self.assertRaisesRegex(lab.UnsafeLab,'Unrecognized installed LAB pack contents'):
                 lab.discover_plan(ROOT,root)
 

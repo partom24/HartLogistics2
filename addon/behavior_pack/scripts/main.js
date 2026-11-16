@@ -3180,9 +3180,8 @@ function exactStackSig(stack) {
 }
 
 function findAcceptSlot(container, stack, requireAutoSeed=false) {
-    // Non-AUTO nonstackables need only the native first-empty query. AUTO must
-    // also observe a live matching seed, so its search is folded into the same
-    // destination scan used to select a safe insertion slot.
+    // Native ContainerSlot is a LIVE view. Inspect item type and quantity
+    // without copying every unrelated ItemStack. No destination state is cached.
     if (!requireAutoSeed && stack.maxAmount <= 1) {
         const slot = container.firstEmptySlot();
         return slot === undefined ? undefined
@@ -3194,53 +3193,57 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
     let seeded = !requireAutoSeed;
     const size = container.size;
     const typeId = stack.typeId;
+    const maxAmount = stack.maxAmount;
     const incomingBook = requireAutoSeed && typeId === "minecraft:enchanted_book"
         ? enchantments(stack).map(e => e.id).sort().join("|") : undefined;
 
     for (let i=0; i<size; i++) {
-        const cur = container.getItem(i);
-        if (!cur) {
+        const slot = container.getSlot(i);
+        if (!slot.hasItem()) {
             if (firstEmpty < 0) firstEmpty = i;
             continue;
         }
-        // An AUTO seed matches by exact type ID, except enchanted books whose
-        // enchantment TYPE sets (not levels/order) must match. The seed need
-        // not be stackable with this item: eligibility and admission differ.
-        if (requireAutoSeed && cur.typeId === typeId &&
+        const currentType = slot.typeId;
+        // AUTO uses a live type-only seed except for enchanted books, whose
+        // enchantment TYPE sets must match. Copy only candidate book seeds.
+        if (requireAutoSeed && currentType === typeId &&
             (incomingBook === undefined ||
-             enchantments(cur).map(e => e.id).sort().join("|") === incomingBook)) {
+             enchantments(slot.getItem()).map(e => e.id).sort().join("|") === incomingBook)) {
             seeded = true;
         }
-        if (stack.maxAmount <= 1) {
+        if (maxAmount <= 1) {
             if (seeded) break;
             continue;
         }
-        // Preserve first compatible partial stack before first empty slot.
-        // Never conflate a type-only AUTO seed with native stack compatibility.
-        if (!compatible && cur.typeId === typeId && cur.amount < cur.maxAmount) {
-            try {
-                if (cur.isStackableWith(stack)) {
-                    compatible = {slot:i, before:cur.amount,
-                        room:cur.maxAmount-cur.amount, existing:cur};
-                }
-            } catch (_) {}
+        // Preserve compatible-partial-before-empty priority. Slot-level
+        // native comparison handles every ItemStack metadata distinction.
+        if (!compatible && currentType === typeId) {
+            const amount = slot.amount;
+            const capacity = slot.maxAmount;
+            if (amount < capacity) {
+                try {
+                    if (slot.isStackableWith(stack)) {
+                        compatible = {slot:i, before:amount,
+                            room:capacity-amount, existing:slot.getItem()};
+                    }
+                } catch (_) {}
+            }
         }
         if (seeded && compatible) return compatible;
     }
 
     if (!seeded) return undefined;
     if (compatible) return compatible;
-    if (stack.maxAmount <= 1) {
+    if (maxAmount <= 1) {
         const slot = container.firstEmptySlot();
         return slot === undefined ? undefined
-            : {slot, before:0, room:stack.maxAmount, existing:undefined};
+            : {slot, before:0, room:maxAmount, existing:undefined};
     }
     if (firstEmpty >= 0) {
-        return {slot:firstEmpty, before:0, room:stack.maxAmount, existing:undefined};
+        return {slot:firstEmpty, before:0, room:maxAmount, existing:undefined};
     }
     return undefined;
 }
-
 function slotState(container, slot) {
     const s = container.getItem(slot);
     return {

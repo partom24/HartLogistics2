@@ -32,3 +32,14 @@ test("API270-DISPLAY-01 native entityLoad event exists on WorldAfterEvents",()=>
 test("API270-DISPLAY-02 loaded entity is accessible in the callback",()=>{
   assert.match(body("EntityLoadAfterEvent"),/entity\s*:\s*Entity\s*;/);
 });
+
+test("API270-P3 native live ContainerSlot admission signatures are present",()=>{
+  const c=body("Container"),slot=body("ContainerSlot");
+  assert.match(c,/getSlot\s*\(\s*slot:\s*number\s*\)\s*:\s*ContainerSlot\s*;/);
+  assert.match(slot,/hasItem\s*\(\s*\)\s*:\s*boolean\s*;/);
+  assert.match(slot,/typeId\s*:\s*string\s*;/);
+  assert.match(slot,/amount\s*:\s*number\s*;/);
+  assert.match(slot,/maxAmount\s*:\s*number\s*;/);
+  assert.match(slot,/isStackableWith\s*\(\s*itemStack:\s*ItemStack\s*\)\s*:\s*boolean\s*;/);
+  assert.match(slot,/getItem\s*\(\s*\)\s*:\s*ItemStack\s*\|\s*undefined\s*;/);
+});
