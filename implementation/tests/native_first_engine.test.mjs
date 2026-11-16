@@ -344,6 +344,7 @@ test("ENGINE-28 known Sorter removed outside player events cleans its local prox
   const entry={id:"stale",f:{typeId:"minecraft:stone"}};
   const fn=originalFunction("reconcileDisplays",{
     ready:true,registry:[entry],
+    entryHasFrameImplant:()=>false,
     sorterAt:()=>undefined,
     removeDisplay:e=>{assert.equal(e,entry);removals++;},
     getDimension:()=>({getEntities:()=>{queries++;return [];}}),
