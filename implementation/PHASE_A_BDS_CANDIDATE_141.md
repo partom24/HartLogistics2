@@ -23,6 +23,16 @@
 
 Detailed code anchors and proof dispositions: [`NATIVE_BOUNDARY_DECISIONS_141.md`](NATIVE_BOUNDARY_DECISIONS_141.md); full original mechanism map: [`NATIVE_FIRST_MECHANICS_AUDIT.md`](../NATIVE_FIRST_MECHANICS_AUDIT.md).
 
+## Repository-approved Phase A LAB updater (source checkout, not manual ZIP replacement)
+
+The Phase A source branch now contains the established [guarded LAB updater](../scripts/hartlogistics_lab_updater.py) brought from main, with [offline synthetic regression tests](../tests/test_hartlogistics_lab_updater.py). It accepts **only** the exact Phase A `scripts/main.js` SHA-256 `fcc640ba886de86dcbfabbb1d8e9683980691d6cc595dde5f5d21ccdb9ec9bbb`; all other original 1.4.1 add-on files must match the immutable `BASELINE_HASHES.json`. This is not a generic bypass of original source hashes.
+
+The original version/pack UUIDs are retained. The updater refuses unknown installed files, wrong world registrations and installed pack versions other than **1.4.1** (including historical 1.5.10 LAB); this is a deliberate state-safety gate, **not** an invitation to downgrade. The named world is discovered from the authorized LAB's `server.properties`; unrelated packs and registry JSONC are preserved. If a 1.4.1 world registration already matches, the updater leaves its bytes unchanged. The exact source checkout and Git SHA must match with no local modifications; the BDS process must be stopped. It stages, SHA-verifies, backs up and supports rollback of pack replacements.
+
+**Only when the owner-authorized LAB host is available and the owner has approved an apply:** on the exact clean checkout at the successful workflow's `head_sha`, with BDS stopped and no automatic restart, run `python scripts/hartlogistics_lab_updater.py --commit <FULL_40_CHARACTER_SHA>` for a non-mutating **LAB-only preview**, inspect the plan, and then run `python scripts/hartlogistics_lab_updater.py --commit <SAME_SHA> --apply` after explicit LAB approval. Never run it in production or against another path. On non-Windows, preview performs an offline source check only and never reads a BDS server.
+
+If LAB still contains a different-version PG27 or an unknown installed pack, **STOP** and preserve that LAB. The owner decides whether to restore the original 1.4.1 LAB snapshot. Do not overwrite, decrement versions, reset Q4, or silently treat unrelated 1.5 data as upgrade input. No manually copying the BDS ZIP or `.mcaddon` into an existing LAB installation; the Git-pinned updater is the endorsed procedure. The `.mcaddon` is a separately packaged candidate artifact.
+
 ## Owner-controlled BDS entry and rollback protocol
 
 1. **Confirm BDS engine version and `@minecraft/server` compatibility.** Minimum manifest engine is `1.26.50`; the test runtime must support the exact pinned 2.7 native APIs. Record BDS version and exact GitHub Actions SHA.

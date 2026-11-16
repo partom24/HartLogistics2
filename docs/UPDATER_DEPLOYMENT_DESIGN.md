@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Updater Reference, LAB Testing and Production Exclusion
 
+**Phase A 1.4.1 implementation update (2026-11-16):** The active isolated implementation branch includes the [original HartLogistics-only guarded LAB updater](../scripts/hartlogistics_lab_updater.py), adapted to accept ONLY the candidate's pinned engine digest and otherwise preserve all 71 original hashes, plus same-version/downgrade and unknown-pack protections. The full [Phase A LAB handoff](../implementation/PHASE_A_BDS_CANDIDATE_141.md) controls BDS testing. The 2026-11-06 discussion below is historical planning, not current source capability or permission to apply. Production remains a hard deny.
+
 **Status (2026-11-06): design and source-reference inspection only. No updater was executed and no server path was accessed.** The owner has explicitly permitted **importing the production updater script into HartLogistics2 before a release candidate exists**, but **prohibits running it, including dry-run/preflight against production, until a release candidate is nominated**. Production mutation also requires a separately authorized release/promotion operation.
 
 ## Exact server boundaries

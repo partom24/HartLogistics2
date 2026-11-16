@@ -68,9 +68,32 @@ jobs:
           MINECRAFT_SERVER_PACKAGE_270="$RUNNER_TEMP/native-270/package/package.json" \
             node --test recovery/tests/level2_api_270_types.test.mjs implementation/tests/native_display_api_270.test.mjs
 
+  lab-updater-offline:
+    name: Guarded Phase A LAB updater safety (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout pinned candidate source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify structural/release hygiene without runtime installation
+        run: python scripts/validate_blueprint.py --release-gate
+      - name: Run permanent synthetic LAB updater safety suite
+        run: python -m unittest discover -s tests -p test_hartlogistics_lab_updater.py -v
+      - name: Confirm offline validation refuses server execution here
+        if: matrix.os == 'ubuntu-latest'
+        run: python scripts/hartlogistics_lab_updater.py
+
   candidate-package:
     name: Build non-release Bedrock candidate artifact
-    needs: [source-guard-and-candidate, api-270]
+    needs: [source-guard-and-candidate, api-270, lab-updater-offline]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
