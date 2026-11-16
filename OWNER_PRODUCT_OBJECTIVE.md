@@ -12,6 +12,8 @@
 
 This scope restriction governs the images **without weakening their authority**: evaluate the actual arrays as real-world tests of the *1.4.1-capable* functions, rather than interpreting future pictured logistics expansion as an obligation to implement it now.
 
+**Owner topology clarification (2026-11-16):** The owner's storage room still contains the physical multi-bank layout and area intended for the eventual 1.5 architecture with many banks and Bulk Storage controllers. The owner has **temporarily removed Sorters from the other side of the storage room for the current 1.4.1 LAB performance experiment** so the active-Sorter measurements focus on those actually in use. That removal is **not** an abandonment, downscaling, or change of the 1.5 multi-bank/Bulk Controller objective. Label each profiler capture with the *current installed/active Sorter population and route*, not the future full-build population. Passing the temporarily reduced Phase A workload is **not** proof of capacity at restored full scale or of any future 1.5 feature. For current Phase A, preserve native Hopper and original 1.4.1 compatibility; Transporters, Bulk Storage/controller behavior and Q5/1.5 custody implementation stay deferred until separately authorized.
+
 ## 1. Authoritative owner-supplied product references
 
 The owner explicitly designated the GitHub folder **[docs/reference-images on main](https://github.com/partom24/HartLogistics2/tree/main/docs/reference-images)** as the **overall objective of HL2**. Both files listed in that folder at the inspected main commit are mandatory design/acceptance references:
