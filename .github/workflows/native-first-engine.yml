@@ -30,9 +30,22 @@ jobs:
         run: |
           set -euo pipefail
           script="addon/behavior_pack/scripts/main.js"
-          cp "$script" "$RUNNER_TEMP/engine_candidate_main.js"
-          trap 'cp "$RUNNER_TEMP/engine_candidate_main.js" "$script"' EXIT
-          git show 0ea3000651c116b0fa1acc2836ab7e1bcfbc6269:"$script" > "$script"
+          bp="addon/behavior_pack/manifest.json"
+          rp="addon/resource_pack/manifest.json"
+          for f in "$script" "$bp" "$rp"; do
+            cp "$f" "$RUNNER_TEMP/$(basename "$(dirname "$f")")-$(basename "$f")"
+          done
+          restore() {
+            for f in "$script" "$bp" "$rp"; do
+              cp "$RUNNER_TEMP/$(basename "$(dirname "$f")")-$(basename "$f")" "$f"
+            done
+          }
+          trap restore EXIT
+          # Original 1.4.1 witnesses must see original 1.4.1 pack versions,
+          # not only the old script loaded under a 1.4.2 manifest.
+          for f in "$script" "$bp" "$rp"; do
+            git show 0ea3000651c116b0fa1acc2836ab7e1bcfbc6269:"$f" > "$f"
+          done
           node --test \
             recovery/tests/level2_source_contracts.test.mjs \
             recovery/tests/level2_journal_faults.test.mjs \
