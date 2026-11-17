@@ -51,3 +51,11 @@ First verify exact P4g installed `main.js` SHA; preserve previous P4e captures f
 - A clear **no-duplication/no-loss** item count under normal and blocked destination workloads; no new crash-injection request is implied by a source-only change.
 
 **GO/NO-GO:** Source equivalence is necessary, not sufficient. Keep P4g only if matched owner BDS demonstrates meaningful reduction in native `getSlot` volume and script cost without behavior or custody changes. If duplicates are rare or the Map/certification overhead offsets savings, revert P4g to P4e and treat this performance avenue as exhausted. **Do not start 1.5 gameplay just because this source candidate exists**; first decide whether 1.4.1 foundation is acceptable and close its native acceptance gate.
+
+## CI result — source-only gate PASSED
+
+**Green HEAD:** `c8e9a8b4e157c5738516b45fe77b209776af2111` (test harness forwarding corrected; the P4g gameplay engine bytes remain those of commit `6d36640d2c5acbac71f78106a38e4b0b3a72e3d1`).
+
+**GitHub Actions:** https://github.com/partom24/HartLogistics2/actions/runs/44185286787 — **5/5 jobs passed**: engine provenance and source-executed candidates (**162/162**), independently executed original 1.4.1 regression witnesses (**99/99**), pinned 2.7 declarations, synthetic guarded LAB updater safety on Linux/Windows, and non-release BP/RP candidate artifact. The source candidate SHA-256 is still `0578e8eb205d9c68fde8926a82c07241b68979c86160c8df4665e316ba2e8b26`. These tests do not count as owner BDS performance or conservation acceptance.
+
+**Transition consequence:** P4g source-only hypothesis is proven in a controlled repeated-rejection scenario. Until matched owner BDS demonstrates how often those certified repeats occur and checks useful item throughput and custody, the broader 1.4.1 performance gate remains open. If source-correct P4g has negligible real gain, reject its extra local state and retain the simplest accepted P4e candidate; direct additional architecture work toward **1.5 URCE** only after the remaining 1.4.1 acceptance baseline is agreed. Do not add experimental Bulk/Transporter changes to 1.4.1.
