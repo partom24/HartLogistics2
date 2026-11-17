@@ -22,7 +22,13 @@ This is the owner's visual target for the integrated system. Do not treat a prot
 
 ## Owner-reported deployment scale and motivation
 
-- The owner reports a **production installation of approximately 1,400 Sorters**, most following the same repeated, stacked-Sorter arrangement.
+- The owner's original **Hart Logistics 1.4.1** startup console excerpt dated **2026-11-06 14:44:50:283** reports **1,386 Sorters, 54 Collectors, and 33 Receivers**, with **registry v2, 9 shards / 194,902 characters**. This supersedes the earlier approximate 1,400-Sorter description as the best available historical count; it is not a live inventory scan or a HartLogistics2 performance measurement. The owner describes most Sorters as following the repeated, stacked-Sorter arrangement.
+
+  ```text
+  [2026-11-06 14:44:50:283 WARN] [Scripting] [Hart Logistics 1.4.1] ready; sorters=1386, collectors=54, receivers=33, registry=v2 9 shards / 194902 chars
+  ```
+
+- **Provenance and limit:** owner-provided excerpt of a 1.4.1 script startup `ready` line; full BDS log, world snapshot, individual block placements, links, count reconciliation and runtime-independent verification are not supplied. Registry character length and shard count describe reported registry data, **not stored item quantities**. The later LAB status counts (e.g., 664 Sorters) concern a different world/configuration snapshot and must not replace this historical production-scale baseline. See [HL-E-075](ENGINEERING_EVIDENCE_REGISTER.md).
 - During an earlier conversion from a copper-golem sorting system, the owner reports approximately **200,000 queued items** in the primary input Receiver; emptying them using hoppers took **nearly three weeks**. This is owner-reported operational context, **not** a measured HartLogistics2 benchmark or a validated throughput figure.
 - The intended architecture therefore cannot depend on **one Sorter per network**, require manually draining existing Receivers for upgrade, or treat vanilla-hopper-rate evacuation as an acceptable high-throughput replacement. Continue supporting existing vanilla Hopper paths as a compatibility requirement.
 
