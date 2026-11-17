@@ -33,3 +33,7 @@ The patched engine SHA-256 is `5c4a2d414302ef10d76fef21932928592caf2fab84cd000c5
 - **Stop/go:** retain only if BDS demonstrates a meaningful improvement without a single admission/custody regression. If the improvement is negligible, revert the narrowed optimization and prioritize an isolated native-`addItem` semantic/custody research harness **outside the production engine**. Never accept a native insertion writer without a demonstrably durable recoverable receipt or other equivalent source-and-destination protocol.
 
 The original owner layout target remains approximately 1,400 Sorters, 4–5 high in most columns; real BDS acceptance there remains separate.
+
+## First native pre-routing capture (2026-11-17 16:22:48)
+
+[Owner-supplied P4e pre-routing analysis](PHASE_A_P4E_PRE_ROUTING_BASELINE_20261117.md): 346 native timing values, script P50 **15.341 ms**, P95 **25.862 ms**, P99 **38.343 ms**, level P95 **36.834 ms**. The separate 19.676-second JS/TS duplicate views record **6,320** Sorter destination admission invocations with **324,092** native `getSlot` calls but only **28,550** `hasItem` calls, consistent with occupancy elimination; **~51.28 getSlot calls per Sorter admission remain**. User condition was *pre-intentional-routing*, not zero transfer: Sorter, Collector and Receiver mutation paths have small call counts. Installed SHA remains unverified by raw profiles. Do not infer P4e native speedup against November 17 P4d idle without a matched load, or claim dense-admission bottleneck resolved.
