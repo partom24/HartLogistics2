@@ -6,6 +6,8 @@
  * chest as the only occupancy and item authority. Also records counterexamples
  * to tempting native find/contains/full-count shortcuts.
  *
+ * The narrowly proved full-nonstackable-AUTO shortcut is now implemented by
+ * the P4e source; this suite continues to compare the coordinator to it.
  * Does NOT assert real-world native find/contains equality semantics or speed.
  */
 import test from "node:test";
@@ -179,8 +181,8 @@ test("CONCEPT-08 the narrow full nonstackable AUTO rejection needs no slot itera
   const incoming=item("minecraft:enchanted_book",1,"",1,[{id:"minecraft:mending",level:3}]);
   const r=compare(full,incoming,"auto");
   assert.equal(r.before,undefined);
-  assert.ok(r.a.calls.getSlot>0,"Current AUTO nonstackable scans occupied slots");
-  assert.equal(r.b.calls.getSlot,0,"Native full-count can prove no insertion capacity");
+  assert.equal(r.a.calls.getSlot,0,"Current P4e source now implements the proved full-count rejection");
+  assert.equal(r.b.calls.getSlot,0,"Coordinator remains equivalent to the source fast path");
   assert.equal(r.b.calls.emptySlotsCount,1);
 });
 test("CONCEPT-09 native occupancy failure degrades to unchanged live scan",()=>{

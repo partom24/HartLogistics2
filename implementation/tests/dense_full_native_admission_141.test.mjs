@@ -127,11 +127,14 @@ test("P4e-F04 full AUTO with metadata-incompatible seed: reject, not wildcard",(
 test("P4e-F05 full nonstackable AUTO short-circuits without slot scan",()=>{
   const book=e=>stack("minecraft:enchanted_book",1,"",1,[{id:e,level:1}]);
   const slots=Array.from({length:54},()=>book("minecraft:mending"));
-  const r=compare(slots,book("minecraft:mending"),true);
+  const r=compare(slots,book("minecraft:fortune"),true); // seed absent: old scans 54
   assert.equal(r.candidate,undefined);
   assert.equal(r.now.count.getSlot,0);
   assert.equal(r.old.count.getSlot,54);
   assert.equal(r.now.count.empty,1);
+  const seeded=compare(slots,book("minecraft:mending"),true);
+  assert.equal(seeded.old.count.getSlot,1,"Old AUTO exits on first matching book seed");
+  assert.equal(seeded.now.count.getSlot,0,"Full native count rejects regardless of seed");
 });
 test("P4e-F06 nonstackable Filter keeps existing native firstEmptySlot fast path",()=>{
   const slots=Array.from({length:54},()=>stack("minecraft:enchanted_book",1,"",1));
