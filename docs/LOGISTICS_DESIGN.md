@@ -1,6 +1,8 @@
 # Hart Logistics 2 — Logistics Architecture and Block Specification
 
-**Status: owner requirements captured; planning only, NOT implemented or tested.** For uncertainties see [decision inbox](IDEA_INBOX.md), for Receiver migration see [Q5 design](Q5_MIGRATION_DESIGN.md), for acceptance see [test plan](COMPATIBILITY_TEST_PLAN.md).
+> **Architectural decision corrected — 2026-11-16:** Q5 was a narrowly scoped, outdated design decision made with limited understanding of Hart Logistics' network-wide routing and custody requirements. The approved direction is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Historical Q5 references are preserved as evidence, not as active requirements.
+
+**Status: owner requirements captured; planning only, NOT implemented or tested.** For uncertainties see [decision inbox](IDEA_INBOX.md), for legacy Receiver migration see the [URCE architecture](UNIFIED_ROUTING_CUSTODY_ENGINE.md) (old [Q5 proposal](Q5_MIGRATION_DESIGN.md) superseded), for acceptance see [test plan](COMPATIBILITY_TEST_PLAN.md).
 
 For exact pre-existing item ingress/egress acceptance see the **[source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md)**. Future block integration must not change any existing E01–E11 path without a lossless compatibility adapter.
 
@@ -62,8 +64,8 @@ Both new blocks must use **new, distinct model/texture/icon assets** — not reu
 - **Extraction by deliberate placement:** Transporters run **along the top of Sorters**. Any ordinary container touching a Transporter is intentionally a **source**, not storage output; the layout puts final output chests **below the Transporter level**, routed via a Sorter. **Do not require a separate face-enable menu switch** merely to distinguish output chests that are prohibited by this physical convention. Transporter does not insert into ordinary containers.
 - **Controller governance:** persistent network/region IDs, controlled discovery and deterministic controller + item authority. The actual region election, split/merge protocol and stale-member reconciliation still need engineering proof.
 - **Bulk fallback:** absent/unloaded/stale capacity is **unknown, not full**. Hold safely until capacity is verified; wildcard requires proven exhaustion of usable shared Bulk space.
-- **MR slots:** separate native physical slot capacity with backpressure, distinct from Receiver's ordinary-count Q5 limit. Exact native slot count not decided; legacy ordinary capacity stays protected.
-- **Q4→Q5:** global *Hart Logistics script routing* maintenance freeze, automatic on-load migration of currently unloaded blocks, and visible per-block status in menus. See [migration design](Q5_MIGRATION_DESIGN.md).
+- **MR slots:** separate native physical slot capacity with backpressure, distinct from Receiver's existing 250,000 ordinary-item count limit. Exact native slot count not decided; legacy ordinary capacity stays protected.
+- **Q4→URCE migration (Q5 proposal superseded):** global *Hart Logistics script routing* maintenance freeze, automatic on-load migration of currently unloaded blocks, and visible per-block status in menus. See [migration design](Q5_MIGRATION_DESIGN.md).
 
 ## Dual-lane design (owner requirement)
 
@@ -72,11 +74,11 @@ One connected transport *system* carries two **logical lanes**, not necessarily 
 | Lane | Items | Representation | Priority |
 | --- | --- | --- | --- |
 | **MR (metadata-rich)** | Enchanted equipment/books, potions, music discs, item sacks with contents, named/custom-data items and any item not losslessly representable by a bucket | Native Minecraft-managed ItemStack slots; native container-to-container transfer semantics wherever available | Preferred service for MR sorting/storage; lane fairness and exact scheduler weights TBD |
-| **Ordinary bulk** | Items demonstrably safe to represent by identity + quantity | Q5 count buckets and reserved batch transfers | Large-volume batched movement without per-item serialization |
+| **Ordinary bulk** | Items demonstrably safe to represent by identity + quantity | Unified engine ordinary count accounts and reserved batch transfers (not a required Q5 schema) | Large-volume batched movement without per-item serialization |
 
 **Never flatten an MR item into a type/count bucket or fall back to lossy serialization.** Missing native capacity must result in holding/backpressure, not item deletion. A custom item whose semantics cannot be proven must default to the safe MR lane.
 
-The Collector and Receiver should evolve into native-ItemStack-preserving storage endpoints, **without losing their existing behavior**. Receiver Q5 is a hybrid: a bucketized ordinary queue plus an MR-native lane; existing Receiver **250,000-item** capacity is not silently changed. MR slot-count inclusion in that cap must be decided.
+The Collector and Receiver should evolve into native-ItemStack-preserving storage endpoints, **without losing their existing behavior**. URCE combines ordinary count-based accounts with a native MR custody lane without requiring a Q5 Receiver queue; existing Receiver **250,000-item** ordinary capacity is not silently changed. MR slot-count inclusion in that cap must be decided.
 
 ### Critical version gate
 
@@ -86,14 +88,14 @@ Owner reports **server 1.26.63.1 and client v26.63** as the intended test enviro
 
 The owner chose **migration to native custom-container inventory** over indefinite preservation of the old Q4 **Hopper → Collector → direct Receiver output Hopper** MR workaround. **The delivered capability is protected, not the old internal algorithm.** This is a planned, gated replacement, not permission to delete any existing code now.
 
-- Make Collectors and Receivers **persistent native MR inventory endpoints**. Keep their existing block IDs, links, redstone semantics, hopper ingress/egress and standard Q4→Q5 migration. Both Hopper→Collector and Sorter→Collector should be able to admit MR items to the Collector's native slots once proven safe, with metadata intact.
+- Make Collectors and Receivers **persistent native MR inventory endpoints**. Keep their existing block IDs, links, redstone semantics, hopper ingress/egress and lossless Q4→URCE migration. Both Hopper→Collector and Sorter→Collector should be able to admit MR items to the Collector's native slots once proven safe, with metadata intact.
 - MR items can **wait inside the Collector while the linked Receiver is unloaded/full**, and in the Receiver while its next output is blocked. Native slots, not lossy JSON, own the MR ItemStacks. Intake must fail closed when slots are full, preserving the original source item.
 - When both native endpoints are accessible, design verified native slot-to-slot transfers, with backpressure, restart and journal/acknowledgment safety. **A native in-memory move does not by itself prove crash-atomic transfer** across containers/chunks; document custody and recovery before implementation.
 - Preserve the **old hop route externally**: a Receiver still delivers safely to the hopper below or a subsequently approved Transporter path, and Sorters remain responsible for final ordinary-container distribution. Do not bypass established redstone gates, filter choices or old hopper-only installations.
 - During migration, retain the **legacy direct-only fallback as a guarded compatibility path only until the new MR path is supported, migrated and runtime-accepted**. Do not remove it prematurely; after acceptance, it can be retired in favor of equivalent-or-better native MR delivery. No permanent retention requirement for the old direct-only algorithm.
 - Native custom block inventories on server **1.26.63.1** / client **v26.63** remain an **API stability / experiment-policy gate**. This owner decision selects the target architecture; it does **not** authorize enabling experiments or claim custom block container support has been verified.
 
-MR service priority must be honored without starving ordinary items, and native inventory slot limits/backpressure are mandatory. See [Q5 migration](Q5_MIGRATION_DESIGN.md) and the [baseline route matrix](BASELINE_INGRESS_EGRESS_MATRIX.md).
+MR service priority must be honored without starving ordinary items, and native inventory slot limits/backpressure are mandatory. See [unified-engine migration](UNIFIED_ROUTING_CUSTODY_ENGINE.md) and the [baseline route matrix](BASELINE_INGRESS_EGRESS_MATRIX.md).
 
 ## Network-wide routing priorities
 

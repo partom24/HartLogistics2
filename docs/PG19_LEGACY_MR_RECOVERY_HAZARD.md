@@ -1,5 +1,7 @@
 # PG-19 — Legacy native-item recovery metadata hazard (SOURCE-EXECUTED OFFLINE)
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **Status: blocking source-level compatibility hazard, NOT an observed BDS hard-crash or production data-loss incident.** This review executes selected, **unchanged original 1.4.1 functions** under injected Node container/journal exceptions. It does not install a pack, open a world, modify `addon/`, run BDS, request an experiment or repair any inventory.
 
 ## Why this is a distinct issue after PG-18

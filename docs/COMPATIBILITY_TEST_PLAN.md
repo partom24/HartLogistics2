@@ -1,5 +1,7 @@
 # Hart Logistics — Compatibility and Acceptance Matrix
 
+> **Architectural correction (2026-11-16):** Q5 was a narrowly scoped, outdated design decision made with limited understanding of Hart Logistics' network-wide routing and custody needs. [URCE](UNIFIED_ROUTING_CUSTODY_ENGINE.md) supersedes Q5 as the 1.5 architecture and Q4 migration destination. Q5-named studies and tests below are retained only as historical evidence; no Q5 schema, queue or FIFO rule is now required.
+
 **Planning checklist, not execution evidence.** Target reported by owner: **Dedicated server 1.26.63.1; client 26.63**. The original 1.4.1 pack minimum **1.26.50** remains a separate compatibility claim requiring testing. All **in-game, release and migration tests occur exclusively** at LAB `C:\Servers\Thomas_MCBedrock - Copy (2)`, on copied/disposable worlds; production `C:\Servers\Thomas_MCBedrock` is out of bounds. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
 
 **Route coverage authority:** [Source-traced 1.4.1 ingress/egress matrix](BASELINE_INGRESS_EGRESS_MATRIX.md), especially E01–E11 and R01–R06. A future implementation must prove preservation of all currently accepted edges and their conditions, including negatives N01–N07 (no new unintended bypass).
@@ -58,14 +60,14 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 | Transporters | All six faces, junctions, extraction from allowed input, no direct chest outputs, native hopper path unaffected |
 | High throughput | Full/partial/blocked batches; bounded time/memory/write rate; near-capacity/long pipes; fairness |
 | MR lane | Native ItemStack metadata fidelity: enchanted/sacks/potions/music discs/named/custom; no lossy serialization; bounded slots/backpressure; existing placed Collector/Receiver native containers persist across reloads |
-| Q4→Q5 | Idempotent per-Receiver conversion; recovery at every write boundary; mixed legacy format data; no double replay; **retire Q4 MR direct-only fallback only after native Collector+Receiver MR custody replaces E07/R06 in verified old-world routes** |
+| Q4→URCE custody | Lossless account migration and single-authority activation (no required Q5 intermediate format); recovery at every write boundary; mixed legacy data; no double replay; **retire Q4 MR direct-only fallback only after native Collector+Receiver MR custody replaces E07/R06 in verified old-world routes** |
 | Partition | Chunk unload, server restart, redstone pause, controller disagreement, delayed transfer ACK, rerouting without duplicates |
 | Versioning | 1.26.63.1 server + 26.63 client; stable/experimental API flags; separately test minimum-version support if still promised |
 | HartBots | Later: coexistence without cross-pack data access; depot output via native inventory fallback; direct interface only after separate authorization |
 
 ## Focused native custom-container compatibility proof
 
-**What is being tested:** Standard `Container.moveItem` / `transferItem` into and out of a new native **custom-block** container on 26.63; exact ItemStack metadata and persisted slots after reload. **Not being retested:** previously established vanilla container-to-container ItemStack transfer behavior. The test includes one ordinary inventory→custom→ordinary transfer, one custom→custom transfer, blocked/full acceptance and a targeted MR fidelity check. Verify native `minecraft:inventory` availability and world experiment settings before moving an item. No setup request until a complete [READY LAB rig](TEST_RIG_CONTRACT.md) is prepared. See [Q5 custom-container gate](Q5_MIGRATION_DESIGN.md#native-custom-container-api-proof--focused-2663-gate).
+**What is being tested:** Standard `Container.moveItem` / `transferItem` into and out of a new native **custom-block** container on 26.63; exact ItemStack metadata and persisted slots after reload. **Not being retested:** previously established vanilla container-to-container ItemStack transfer behavior. The test includes one ordinary inventory→custom→ordinary transfer, one custom→custom transfer, blocked/full acceptance and a targeted MR fidelity check. Verify native `minecraft:inventory` availability and world experiment settings before moving an item. No setup request until a complete [READY LAB rig](TEST_RIG_CONTRACT.md) is prepared. See [historical custom-container feasibility gate](Q5_MIGRATION_DESIGN.md#native-custom-container-api-proof--focused-2663-gate).
 
 ## Candidate temporary ticking-area migration accelerator
 
@@ -73,7 +75,7 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 
 ## MR fallback replacement acceptance gate
 
-- On **pre-upgrade 1.4.1 worlds**, first verify the original E07/R06 direct-only Hopper path. Then confirm that, under Q5, the same directed Hopper source can retain an MR stack in a Collector's native inventory while the Receiver is unloaded and in the Receiver while downstream Hopper is blocked, without changing item identity or required redstone semantics.
+- On **pre-upgrade 1.4.1 worlds**, first verify the original E07/R06 direct-only Hopper path. Then confirm that, under an explicitly accepted unified custody engine, the same directed Hopper source can retain an MR stack in a Collector's native inventory while the Receiver is unloaded and in the Receiver while downstream Hopper is blocked, without changing item identity or required redstone semantics.
 - Preserve normal Sorter→Collector ingress and Receive→Hopper→Sorter downstream output; prove MR items can use the native lane when Q4 serialization was formerly unsafe.
 - Force unload/restart/crash attempts at every custody handoff; confirm exactly one persistent owner for each MR ItemStack and no silent fallback to metadata-destroying JSON.
 - Confirm newly placed and already-existing block entities both have usable persistent native slots on the **server 1.26.63.1/client v26.63** target *under the user's approved world settings*. No automatic experiment enablement.
@@ -85,7 +87,7 @@ Before acceptance, compare Bulk Storage and Transporter geometry, textures, icon
 
 **What is being tested:** Verify persistent controller IDs and deterministic authority under a single loop and multi-controller split/merge; verify a missing/unloaded/stale Bulk member is **unknown, not full**, and cannot trigger early wildcard routing. Verify separate finite MR slots backpressure without changing ordinary Receiver 250k count behavior. Favor deterministic offline transactions/boundaries; build LAB rig only for unresolved integration.
 
-**What is being tested:** During Q4→Q5, **all Hart Logistics routing handlers** observe a durable world-wide maintenance gate, including already scheduled legacy paths. Test pre-freeze/in-flight checkpoints, server restart while paused, staged Receiver cutover, old Sorter/Collector/Receiver activation after previously unloaded chunks load, and menu status PENDING/MIGRATING/VERIFIED/BLOCKED. An unloaded block must not be claimed migrated. Confirm vanilla Hopper movement is either safely isolated or reconciled; do not claim the script pause stops vanilla game mechanics. **Resume only after a validated global/late-load version gate.**
+**What is being tested:** During Q4→URCE migration, **all Hart Logistics routing handlers** observe a durable world-wide maintenance gate, including already scheduled legacy paths. Test pre-freeze/in-flight checkpoints, server restart while paused, staged Receiver cutover, old Sorter/Collector/Receiver activation after previously unloaded chunks load, and menu status PENDING/MIGRATING/VERIFIED/BLOCKED. An unloaded block must not be claimed migrated. Confirm vanilla Hopper movement is either safely isolated or reconciled; do not claim the script pause stops vanilla game mechanics. **Resume only after a validated global/late-load version gate.**
 
 **Preliminary-bundle mapping:** Keep **2–3 owner-performed BDS checks per rig**, while allowing unlimited safe autonomous subtests within their authorized environment; no newly requested large rigs: PG-07 checks global freeze/deferred migration and journal recovery, PG-08 checks menu notification and link preservation, PG-09 checks interchangeable Hopper/Transporter intake, PG-10 checks unknown Bulk capacity and MR backpressure, PG-11 checks deterministic controller authority and partitions. See [preliminary gates](PRELIMINARY_GO_NO_GO.md).
 

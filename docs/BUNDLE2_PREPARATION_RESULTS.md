@@ -1,5 +1,7 @@
 # Bundle 2 — Existing-world compatibility, Q4→Q5 safety and menu feasibility
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **Status: OFFLINE PREPARATION COMPLETE (2026-11-07). PG-06, PG-07 and PG-08 have not been executed or accepted in BDS.** This report records what was actually tested, which gates remain blocked, and how to advance without risking the owner's previously-production world clone. No source-file change to the original 1.4.1 BP/RP; no Q5 state written to a world; no LAB or production BDS accessed; no cheats/experiments changed; no temporary game probe created.
 
 ## Scope of the owner-approved original Bundle 2

@@ -1,5 +1,7 @@
 # Bundle 2 LAB pack preflight — corrected owner evidence (2026-11-07)
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **The earlier automated "not registered" result was incorrect.** The standalone PowerShell diagnostic mishandled JSON array envelopes in the commented, multi-pack world registrations. The owner provided the literal contents and clarified that the installed Hart Logistics **1.5.0 was a failed attempted update, is disposable, and an existing backup is already available.** No additional 1.5.0 archive/preservation request is needed.
 
 ## Confirmed from owner-supplied read-only output

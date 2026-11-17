@@ -1,12 +1,14 @@
-# Hart Logistics — Receiver Q4 to Q5 and Native MR Lane
+# Hart Logistics — HISTORICAL / SUPERSEDED: proposed Receiver Q4 to Q5 and Native MR Lane
 
-**Design only. No queue schema has been changed.** All 1.4.1 persisted state and behavior must survive. Related [architecture](LOGISTICS_DESIGN.md) / [test plan](COMPATIBILITY_TEST_PLAN.md).
+> **OBSOLETE DECISION — 2026-11-16:** The owner explicitly superseded Q5 as an outdated, too-narrow architectural decision made with limited understanding of the network-wide routing/custody problem. This entire file, including its title, proposed queue schema, migration gates and any imperatives below, is **archived design evidence, NOT the active 1.5 specification**. The current source of truth is [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Q4/q2/q3 historical data, original journals, item identity, redstone and upgrade safety remain binding; a Q5 intermediate queue is **not required**. Do not copy or restart the frozen archived UCE implementation based on this document.
+
+**ARCHIVED PLANNING ONLY — superseded as an architectural proposal. No queue schema has been changed by this document.** All 1.4.1 persisted state and behavior must survive. Related [architecture](LOGISTICS_DESIGN.md) / [test plan](COMPATIBILITY_TEST_PLAN.md).
 
 ## Why migration is required
 
 1.4.1 Receivers store a persistent **q4** FIFO queue of quantities and item definitions with an associated journal and recovery logic, and support older q2/q3 formats. The owner expects FIFO and its head-of-line blocking to restrict network-aware sorting throughput. We need destination-aware ordinary-item selection without losing old queue contents, links, counters, recovery, redstone pause or hopper outputs.
 
-## Proposed Q5 state (not final schema)
+## Superseded Q5 state proposal (historical; not approved for future implementation)
 
 - **Ordinary lane:** bucketized counts by lossless item identity, capacity accounting, destination-aware scheduling and bulk reserve/acknowledge operations.
 - **MR lane:** native ItemStack slots and container operations (where platform support and experiment policy allow). MR stacks **must never** be reconstructed from incomplete serialized properties.

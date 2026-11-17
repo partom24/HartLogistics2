@@ -1,5 +1,7 @@
 # PG-24 — Q4 ejected-item entity custody readback and conservative recovery
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **State:** derived `1.5.7-LAB-PG24` candidate under offline verification; **not installed** in LAB, not authorized for production and not a proven crash-atomic writer.
 
 ## Source hazard (HL-E-064)

@@ -1,5 +1,7 @@
 # Current Development State — Hart Logistics 2
 
+> **Architectural status correction (2026-11-16):** Q5 was an outdated queue-centric design decision made with limited understanding; it is superseded by the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Historical Q5 terms in this document describe past experiments or rejected proposals, **not current 1.5 requirements**. Q4/q2/q3 saved data and original compatibility remain protected.
+
 **As of 2026-11-08.** Owner authorizes ongoing development, offline checks and GitHub LAB-test deliveries; involve the owner for blocking issues or BDS testing. Development/merge is not production or public release approval. Only repository: **partom24/HartLogistics2**.
 
 ## Active milestone and source
@@ -21,7 +23,7 @@ PG27 changes only two world-arm origins, English display name and versions. Game
 1. **Next bounded checkpoint:** complete the pending ordinary native route/redstone validation using the existing PG26 route card, adapting only if the owner's actual layout differs. Single chest/barrel → Transporters → Sorter → native output; exact input/output counts, powered pause/resume and clear journals. Reuse accepted visuals and PG25 evidence; no reinstall or new visual rack.
 2. **Next development slice:** review Receiver Q4 extraction into the Transporter/Sorter path, defining queue debit, physical insertion, pending-receipt HOLD, unload/backpressure and rollback before implementation. Reuse authoritative writers; an arm-only change must not imply working extraction. Automate source/fault checks before requesting a narrow BDS session. Receiver support is not implemented or accepted yet.
 3. **Double-chest extraction:** currently deliberately refused (shared 54-slot inventory/aliasing). Visual connection success does not remove that guard. Establish single inventory identity and exactly-once source admission before expanding support.
-4. Full network/controller, cross-chunk routing, native MR storage, Q5 migration and Bulk remain separate gated work. Maintain ongoing development autonomy; involve owner for actual BDS checks or blocking issues.
+4. Full network/controller, cross-chunk routing, native MR storage, Q4→URCE migration and Bulk remain separate gated work. Maintain ongoing development autonomy; involve owner for actual BDS checks or blocking issues.
 
 [Visual closeout and limits](PG27_TRANSPORTER_VISUAL_CORRECTION.md), [pending ordinary route card](../candidates/pg26/TEST_SESSION.md). No new test is required merely to repeat accepted rendering.
 
@@ -29,6 +31,6 @@ PG27 changes only two world-arm origins, English display name and versions. Game
 
 PG25 normal startup/eight-item ordinary route is **accepted at bounded LAB scope (HL-E-070)**: output eight photographed, input empty owner-confirmed, topology and journals clear. PG25 source `e43ad176c1762d0a354893638bac44c9d13fce8d`, backup **lab-36ead7340407**. No repeat PG25 transfer, reinstall, forced crash or extra restart. Earlier menu/linking, native MR and Dropper/Dispenser observations remain bounded by their entries in the [evidence register](ENGINEERING_EVIDENCE_REGISTER.md) and [development ledger](DEV_LEDGER.md).
 
-Native custom-container MR storage remains **PG03 NO-GO** on stable no-experiments BDS 1.26.63.1; full Q5 migration, spendable Bulk custody, controller authority, crash-atomic persistence and full PG09–11 remain unaccepted. Do not infer those guarantees from normal routing or offline checks. Preserve all existing world state, legacy paths and backups.
+Native custom-container MR storage remains **PG03 NO-GO** on stable no-experiments BDS 1.26.63.1; full Q4→URCE migration, spendable Bulk custody, controller authority, crash-atomic persistence and full PG09–11 remain unaccepted. Do not infer those guarantees from normal routing or offline checks. Preserve all existing world state, legacy paths and backups.
 
 **Only LAB target:** `C:\Servers\Thomas_MCBedrock - Copy (2)`, existing production-derived clone, world ThomasServer. Do not ask for a reset or drain existing Receivers. **Protected production:** `C:\Servers\Thomas_MCBedrock`; no production operation or public release authorized. Environment configuration/publish is unchanged. See [roadmap](ROADMAP.md), [current PG plan](PRELIMINARY_GO_NO_GO.md) and [deployment boundary](UPDATER_DEPLOYMENT_DESIGN.md).

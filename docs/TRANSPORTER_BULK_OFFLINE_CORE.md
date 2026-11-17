@@ -1,5 +1,7 @@
 # Ordinary Transporter + Bulk Storage — executable offline safety core
 
+> **Architectural status correction (2026-11-16):** Q5 was an outdated queue-centric design decision made with limited understanding; it is superseded by the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Historical Q5 terms in this document describe past experiments or rejected proposals, **not current 1.5 requirements**. Q4/q2/q3 saved data and original compatibility remain protected.
+
 **Status:** isolated candidate, **not installed or connected to Minecraft**. This work follows the owner-confirmed PG-08 LAB menu/linking GO. The protected original `addon/` 1.4.1 BP/RP files are unchanged. No LAB/production access and no experiment/cheat flags.
 
 ## Why this slice exists
@@ -36,7 +38,7 @@ The test suite [`test_transport_bulk_core.mjs`](../tests/test_transport_bulk_cor
 - **Offline candidate GO:** all 27 real JS unit tests and previous preservation/authority checks pass CI with no `addon/` diff. This means only the pure logic contract is ready for design review.
 - **Still open:** exact deterministic first-Bulk controller election, persistent discovery and epoch lease ownership, split/merge inventory custody, verified member→route attachment, physical receipt journal/CAS, and safe full/broken Bulk behavior. See [design inbox](IDEA_INBOX.md) HL-Q-002/003/006/008/010/012. None is silently settled by this code.
 - **Next safe unit of work:** implement and fault-test the *durable* reservation/recovery protocol in a standalone candidate with artificial crashes before attaching a single real Sorter/Hopper/Transporter and creating original art. A later **bounded, owner-approved LAB installation** is needed to test actual Bedrock behavior; this offline milestone does not install anything or request a new manual rig.
-- **MR remains separate:** PG-03/04/05 and full PG-06/07 Q4→Q5 migration remain blocked, and the 1.4.1 direct-only metadata-rich fallback must not be replaced until native custody is proven.
+- **MR remains separate:** PG-03/04/05 and historical PG-06/07 Q4→Q5 work remains blocked and superseded by future Q4→URCE migration, and the 1.4.1 direct-only metadata-rich fallback must not be replaced until native custody is proven.
 
 ## Continued offline custody milestone
 

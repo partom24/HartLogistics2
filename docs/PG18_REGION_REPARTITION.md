@@ -1,5 +1,7 @@
 # PG-18 — Offline region-repartition and controller-candidate safety
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **2026-11-07 — OFFLINE CANDIDATE ONLY.** This proposal strengthens the previously tested six-neighbor graph and old controller-claim HOLD model. It is **not** an approved controller election algorithm, runtime lease, migration, item-transfer permission, installed pack, or evidence of physical custody. Original 1.4.1 gameplay and every PG-08/13/14/15 derived LAB candidate are unchanged.
 
 ## Goal and accepted constraints

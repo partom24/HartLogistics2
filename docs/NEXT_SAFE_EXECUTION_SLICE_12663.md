@@ -1,5 +1,7 @@
 # Next safe execution slice after PG-03 — BDS 1.26.63.1
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **2026-11-07 — offline architecture and tests only. No gameplay code has been altered or deployed.** Bundle 1 is closed and its temporary instrumentation removed; [PG-03 evidence](BUNDLE1_PREPARATION_RESULTS.md) remains authoritative. User requested that work move forward rather than keep trying experimental MR endpoints.
 
 ## Recommended execution order

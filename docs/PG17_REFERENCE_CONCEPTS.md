@@ -1,5 +1,7 @@
 # PG-17 — Cross-lane hazard audit derived from reference concepts (OFFLINE)
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **No referenced code imported or copied.** The owner provided three files for conceptual reference only:
 - `custody_writer_boundary.mjs` (one cooperative writer across lanes)
 - `native_direct_lane.mjs` (native whole-ItemStack movement vs. partial merges)

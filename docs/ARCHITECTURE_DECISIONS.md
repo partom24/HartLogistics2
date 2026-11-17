@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Architecture Decisions
 
+> **Architectural decision corrected — 2026-11-16:** Q5 was a narrowly scoped, outdated design decision made with limited understanding of Hart Logistics' network-wide routing and custody requirements. The approved direction is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Historical Q5 references are preserved as evidence, not as active requirements.
+
 **Owner-confirmed requirements only; no gameplay source implementation is implied.** For unresolved choices see [inbox](IDEA_INBOX.md). Inherited blueprint-specific ADR examples were replaced when adapting this repository for Hart Logistics.
 
 ## HL-ADR-001 — Non-regression 1.4.1 baseline
@@ -17,8 +19,8 @@
 **Decision:** Normal-sized placed block with ~4×4 pipe center, six-way connections, high-speed transfers from Receiver/Bulk to Sorter. Adjacent ordinary containers can be **sources** but must never be Transporter **destinations**. Native hoppers remain valid in all old layouts.  
 **Consequences:** Protect filtered output chests; final storage requires Sorter, not direct pipe insertion.
 
-## HL-ADR-004 — Q5 safe hybrid storage
-**Status:** Owner-confirmed direction; schema/protocol undecided.  
+## HL-ADR-004 — Q5 safe hybrid storage (SUPERSEDED 2026-11-16)
+**Status:** **OBSOLETE ARCHITECTURAL DECISION.** The Q5 queue-centric proposal was made with limited understanding and is not an authorized 1.5 design target. The original wording below is retained only as historical provenance; see HL-ADR-018.  
 **Decision:** Migrate q4 without loss; ordinary lane uses compact bucketized counts and destination-aware selection; metadata-rich lane uses native Minecraft ItemStack-preserving transfers. Prioritize MR service without accidental starvation. Collectors/Receivers evolve as storage endpoints while retaining legacy use.  
 **Consequences:** Stable native API compatibility and staged q4→Q5 journal/cutover must be proven before adoption.
 
@@ -86,15 +88,24 @@
 ## HL-ADR-016 — Conservative Bulk overflow and separate MR capacity
 
 **Status:** Owner-approved, 2026-11-07.  
-**Decision:** A missing, unreachable, unloaded or stale Bulk capacity advertisement does **not** mean "Bulk full". Only verified exhaustion of usable ordinary Bulk capacity permits wildcard routing; otherwise **hold items safely**, not guess. The Receiver's Q5 ordinary-count capacity stays distinct from **finite native MR physical slots**, which backpressure when full; MR stacks are never flattened.  
+**Decision:** A missing, unreachable, unloaded or stale Bulk capacity advertisement does **not** mean "Bulk full". Only verified exhaustion of usable ordinary Bulk capacity permits wildcard routing; otherwise **hold items safely**, not guess. The Receiver's existing 250,000 ordinary-item capacity stays distinct from **finite native MR physical slots**, which backpressure when full; MR stacks are never flattened.  
 **Consequences:** Track verified capacity with expiry/ownership; unknown capacity blocks premature wildcard decisions. Keep existing legacy 250,000 ordinary-count queue contract unless separately authorized to alter it; actual MR slot number still needs API/UX validation.
 
-## HL-ADR-017 — Global Hart Logistics routing freeze for Q4→Q5 migration
+## HL-ADR-017 — Global Hart Logistics routing freeze for Q4→unified-engine migration
 
 **Status:** Owner-confirmed intent, 2026-11-07; fail-safe resume/on-load implementation not proven.  
-**Decision:** Place all Hart Logistics routing handlers into a durable, server-wide **maintenance freeze** before staging Q5. Migrate/verify already-loaded legacy Sorters/Collectors/Receivers and **automatically migrate those currently unloaded when their chunks later become available**. Show migration state in block menus/status, including blocked/pending explanations, without requiring individual manual upgrade clicks.  
+**Decision:** Place all Hart Logistics routing handlers into a durable, server-wide **maintenance freeze** before staging a verified single-owner URCE migration. Migrate/verify already-loaded legacy Sorters/Collectors/Receivers and **automatically migrate those currently unloaded when their chunks later become available**. Show migration state in block menus/status, including blocked/pending explanations, without requiring individual manual upgrade clicks.  
 **Technical boundary:** Minecraft scripting cannot directly inspect/modify a genuinely unloaded block; do not report it migrated before load. Vanilla Hopper operation is not stopped merely by pausing Hart scripts. Resume only with proven version gating, crash-safe migration ownership and safe disposition of remaining unloaded/pending blocks. Keep migration freeze observable rather than indefinite without operator recovery.  
-**Consequences:** This supersedes Q5's earlier per-Receiver-only quiescence concept. Protect Q4 journal/links/counters, avoid loss/duplication. See [Q5 migration plan](Q5_MIGRATION_DESIGN.md).
+**Consequences:** This supersedes the obsolete Q5 proposal's earlier per-Receiver-only quiescence concept. Protect Q4 journal/links/counters, avoid loss/duplication. See the [current unified-engine migration contract](UNIFIED_ROUTING_CUSTODY_ENGINE.md); the [Q5 plan](Q5_MIGRATION_DESIGN.md) is historical only.
+
+
+## HL-ADR-018 — Unified Routing and Custody Engine supersedes Q5
+
+**Status:** **OWNER-SELECTED ARCHITECTURAL DIRECTION, 2026-11-16; not a gameplay implementation or acceptance claim.**
+
+**Decision:** The proposed Q5 Receiver queue was a narrowly scoped, outdated architecture chosen with limited understanding of Hart Logistics' network-wide routing, custody, Bulk capacity and transfer needs. **Q5 is superseded as a product subsystem, migration destination, required schema and performance milestone.** Build a single logical **Unified Routing and Custody Engine (URCE)** governing existing Sorter-column/Collector/Receiver paths and future Transporter, regional Bulk controllers, ordinary count accounts, native MR ItemStack custody, transaction safeguards and migration. The engine must avoid a giant global per-tick scan or unrelated global HOLD bottleneck while maintaining one verified item owner and shared custody rules.
+
+**Consequences:** Future planning and code must not introduce a Q5 intermediate queue by default, revive archived UCE source, or rewrite existing Q4 history. Preserve original 1.4.1 saved q2/q3/q4 data, journals, items and legacy behavior. Q4 migrates *directly into authoritative URCE accounts* through a proven global Hart-script maintenance/verification cutover with deferred on-load handling; native Bedrock inventories and external vanilla writers require additional proof. Filter/Auto/Bulk/Wildcard and MR policies follow the accepted network requirements with unresolved precedence documented explicitly. See [URCE design](UNIFIED_ROUTING_CUSTODY_ENGINE.md). The 1.4.1 optimization stage remains primary before new 1.5 gameplay.
 
 Record any new actual decision with owner context, alternatives, implications, status and superseded ID rather than rewriting prior intent.
 

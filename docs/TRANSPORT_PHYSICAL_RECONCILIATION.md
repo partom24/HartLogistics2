@@ -1,5 +1,7 @@
 # Ordinary physical custody — read-only reconciliation model (after PG-14)
 
+> **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
+
 **Status: independent offline pure JavaScript; zero Minecraft world access and no new LAB installation.** User's PG-14 owner-observed screenshots establish one ordinary cobblestone moved with a saved `SETTLED` receipt and survived a **clean server restart**. That bounded pass does *not* establish interrupted transfer atomicity.
 
 ## Precisely implemented
