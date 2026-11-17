@@ -1031,8 +1031,8 @@ function sourceIsTriggered(source) {
     }
 }
 
-function hopperIsRedstoneLocked(hopper) {
-    if (!hopper || hopper.typeId !== "minecraft:hopper") return false;
+function hopperIsRedstoneLocked(hopper, verifiedHopper = false) {
+    if (!hopper || (!verifiedHopper && hopper.typeId !== "minecraft:hopper")) return false;
     try {
         // Vanilla hopper state: toggle_bit = 1/true while the hopper is
         // disabled by redstone. Hart Logistics must honor that state even
@@ -3529,7 +3529,7 @@ function processColumn(col, globalRemaining) {
     // A powered source hopper is a hard pause for the entire Sorter column.
     // Check before compaction so Hart Logistics performs zero inventory
     // mutation while vanilla considers the hopper disabled.
-    if (hopperIsRedstoneLocked(sourceBlock)) return 0;
+    if (hopperIsRedstoneLocked(sourceBlock, true)) return 0;
 
     // Native Container.firstItem() is available in the pinned 2.7 API.
     // Empty input does not need Sorter block lookups, compaction, or slot scans.
@@ -3542,6 +3542,61 @@ function processColumn(col, globalRemaining) {
     } catch (_) {
         // Native inventory unavailable: never infer an item or mutate a slot.
         return 0;
+    }
+
+    // Transit-first, read-only prequalification. The common Filter-only case
+    // must not resolve every native Sorter just to reject unrelated cargo.
+    // AUTO has live destination seeds and WILDCARD accepts broadly, so neither
+    // can be rejected from the registry alone. Unknown modes fail conservative.
+    let provenTransit = true;
+    let hasFilter = false;
+    for (const e of col.sorters) {
+        const mode = sorterMode(e);
+        if (mode !== "filter" && mode !== "bypass") {
+            provenTransit = false;
+            break;
+        }
+        if (mode === "filter") hasFilter = true;
+    }
+
+    if (provenTransit && hasFilter) {
+        // A native Hopper may contain five distinct identities. Every occupied
+        // slot must miss every local Filter before it is safe to skip routing.
+        // An unreadable slot, unknown item or filter exception is NOT transit.
+        let observedItem = false;
+        try {
+            const sourceSize = src.size;
+            for (let si=0; si<sourceSize && provenTransit; si++) {
+                const stack = src.getItem(si);
+                if (!stack) continue;
+                observedItem = true;
+                for (const e of col.sorters) {
+                    if (sorterMode(e) === "filter" && e.f && matchesFilter(stack, e.f)) {
+                        provenTransit = false;
+                        break;
+                    }
+                }
+            }
+            if (!observedItem) provenTransit = false;
+        } catch (_) {
+            provenTransit = false;
+        }
+    }
+
+    if (provenTransit) {
+        // Compaction is distinct from routing. The original engine compacts
+        // even unmatched cargo when at least one Sorter is physically active,
+        // preserving vanilla Hopper pass-through of older trailing stacks.
+        // Only the first active Filter needs checking on a proven nonmatch.
+        for (const e of col.sorters) {
+            if (sorterMode(e) === "bypass") continue;
+            const b = sorterAt(e);
+            if (b && !e.nativeQuarantine && !blockIsRedstonePowered(b)) {
+                compactSourceHopper(src);
+                break;
+            }
+        }
+        return 0; // No destination lookup, transfer, or journal operation.
     }
 
     const activeSorters = col.sorters.filter(e => {

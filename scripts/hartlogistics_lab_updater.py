@@ -26,7 +26,9 @@ PACKS = [('behavior_pack','behavior_packs',BP_UUID,'world_behavior_packs.json'),
 # The Phase A engine is a single narrowly pinned candidate, not arbitrary
 # modified 1.4.1 source. Baseline hashes remain mandatory for all other assets.
 ENGINE_FILE = 'addon/behavior_pack/scripts/main.js'
-PHASE_A_ENGINE_SHA256 = '5be82514ee9f356ff15626d0470f6ac2ca8e68ea8b6b5b5f9989b2df81f87a1c'
+PHASE_A_ENGINE_SHA256 = '99045ca7179320f5f5e2d9d56286b4386308df7daa5473b8aa7498bf27c44306'
+# Preserve the P4b LAB-candidate hash as a narrowly allowed upgrade origin.
+INSTALLED_P4B_ENGINE_SHA256 = '5be82514ee9f356ff15626d0470f6ac2ca8e68ea8b6b5b5f9989b2df81f87a1c'
 # Exact previous Phase A candidate installed in the owner-authorized LAB.
 # Only this hash (plus pristine 1.4.1 or the new pinned source) is accepted
 # as an upgrade origin; arbitrary engine versions remain strictly rejected.
@@ -272,7 +274,10 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
         p4=original.copy()
         if local=='behavior_pack':
             p4['scripts/main.js']=INSTALLED_P4_ENGINE_SHA256
-        if installed_hashes not in (original,prior,intermediate,p2,p3,p4,source_hashes):
+        p4b=original.copy()
+        if local=='behavior_pack':
+            p4b['scripts/main.js']=INSTALLED_P4B_ENGINE_SHA256
+        if installed_hashes not in (original,prior,intermediate,p2,p3,p4,p4b,source_hashes):
             raise UnsafeLab(f'Unrecognized installed LAB pack contents for {pack_id}')
         plan.append({'source':repo/'addon'/local,'target':target,'registry':reg,
                      'new_registry':patch_registration(raw,pack_id,ver),

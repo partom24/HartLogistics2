@@ -60,3 +60,9 @@ flowchart TD
 ## Pre-implementation verification result
 
 Design preserves same-tick Hopper observation, exact 1.4.1 priority, compaction's physical-active prerequisite, redstone, native match semantics and original custody writer. **No unresolved product-policy decision is necessary for these scoped P4c-1/P4d-1 source changes.** Future governed-network route semantics and cross-tick scheduling remain deferred. Proceed with source candidate, then CI and owner LAB; **production deployment is a separate runtime acceptance gate and cannot be inferred from GitHub CI.**
+
+## First implementation candidate — source development in progress
+
+The owner authorized immediate source development after design revalidation. The candidate implements a **conservative negative Filter-only fast path** after the native nonempty predicate and before all-Sorter validation. It checks every live Hopper slot with existing exact `matchesFilter` semantics; any Auto, Wildcard, unknown mode, ambiguous item read or Filter match takes the old routing path. Proven transit returns only after performing the original physical-active compaction gate (if applicable). Bypass-only columns have no compaction and no destination lookup. The existing `hopperIsRedstoneLocked` general helper remains backward-compatible while positively verified source Hoppers skip its duplicate typeId getter.
+
+**Validation conditions:** P4b source-differential inventories/transfers (including all 1,024 five-slot identity combinations), unchanged redstone/Auto/Wildcard and compaction, original 1.4.1 CI and pinned Bedrock 2.7.0 declarations, guarded LAB updater, deterministic package, then owner-authorized *native BDS* runs. Source-only test results must be reported separately from native performance. No release or production action is approved by this candidate.
