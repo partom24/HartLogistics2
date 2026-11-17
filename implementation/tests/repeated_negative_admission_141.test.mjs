@@ -93,13 +93,13 @@ function run(initialSource,initialDest,{memo=false}={}){
   const dest=nativeDestination(initialDest);
   const stats={offers:0,reused:0,moved:0};
   const negatives=new Map(); // exists only inside this modeled invocation
-  function candidate(container,stack,auto){
+  function candidate(container,stack,auto,negativeProof){
     stats.offers++;
     const prev=negatives.get(container);
     if(memo&&prev&&prev.auto===auto&&prev.stack.isStackableWith(stack)){
       stats.reused++;return undefined;
     }
-    const result=find(container,stack,auto);
+    const result=find(container,stack,auto,negativeProof);
     if(memo){
       if(result)negatives.delete(container);
       else negatives.set(container,{stack,auto});

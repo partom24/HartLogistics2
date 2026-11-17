@@ -20,7 +20,7 @@ import {fileURLToPath} from "node:url";
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const FILE="addon/behavior_pack/scripts/main.js";
 const SCRIPT=fs.readFileSync(path.join(ROOT,FILE),"utf8");
-const expectedSha="5c4a2d414302ef10d76fef21932928592caf2fab84cd000c5b0085cefcdd1b91";
+const expectedSha="0578e8eb205d9c68fde8926a82c07241b68979c86160c8df4665e316ba2e8b26";
 const digest=createHash("sha256").update(SCRIPT).digest("hex");
 
 function functionSource(name) {

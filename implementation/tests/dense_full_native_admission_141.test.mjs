@@ -205,5 +205,5 @@ test("P4e-F13 exact source writer, scheduler cadence and movement budgets untouc
   for(const name of ["safeMovePartial","recoverJournal","processColumn"])
     assert.equal(String(getFunction(before,name)).length>0,true);
   assert.match(latest,/system\.runInterval\(schedulerTick,\s*1\)/);
-  assert.match(latest,/const slotInfo = findAcceptSlot\(dest\.container, stack, mode === "auto"\)/);
+  assert.match(latest,/const slotInfo = findAcceptSlot\(dest\.container, stack, mode === "auto"(?:, proof)?\)/);
 });
