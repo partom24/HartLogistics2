@@ -58,6 +58,8 @@ The exact P4b source currently:
 - `processReceiverDrain`: validates Receiver and output Hopper before `loadReceiverQueue(...).total` reveals there is no cargo.
 - `schedulerTick`: visits every Sorter column each tick to observe vanilla Hopper cargo without a proven native Hopper-inventory-change event. Do not add an invented signal or reduce the one-tick observation opportunity.
 
+**Owner-confirmed full-scale geometry, added 2026-11-16:** The [binding Sorter Array PNG](../OWNER_PRODUCT_OBJECTIVE.md) represents the intended repeated layout; **98% of real columns are four or five Sorters high** to keep containers reachable from the same player standing level. The earlier **675 Sorters / 182 columns** snapshot is a *temporarily reduced LAB*, not the normal full layout. At **~1,400 Sorters**, a typical four-to-five-high physical arrangement suggests **roughly 280–350 source columns** (central estimate ~311), not ~378 columns calculated by naively retaining the temporary LAB's 3.71-Sorter average. These estimates are not measured loaded active-column counts, and the top-down image cannot by itself reveal vertical layer count. **Architectural requirement:** keep real 4–5-high column ergonomics, exact repeated-bank connectivity and room for future horizontal expansion; no taller-stack workaround or arbitrary hard five-block software cap. Profile actual loaded, active and blocked columns separately and test correct route selection across all stacked entries.
+
 ## 5. Recommended remaining Phase A optimization slices
 
 ### P4c-1 — Remove duplicate live-native reads (first, low risk)
