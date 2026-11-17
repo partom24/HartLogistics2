@@ -15,7 +15,7 @@ Preserve all Hart Logistics 1.4.1 capabilities and world data through a versione
 
 **HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**
 
-**Goal:** deliver a source-traceable URCE planner/custody architecture and staged integration gates using current 1.4.2 as the only *runtime* foundation. Start with the [architecture and execution charter](../planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md), [selected historical 1.5 reference map](../planning/URCE_HISTORICAL_15_REFERENCE_REVIEW_20261117.md) and [source-observed 1.4.2 writer census](../planning/URCE_150_ACTIVE_142_WRITER_CENSUS_20261117.md).
+**Goal:** deliver a source-traceable URCE planner/custody architecture and staged integration gates using current 1.4.2 as the only *runtime* foundation. Start with the [routing early-decision implementation contract](../planning/URCE_150_EARLY_DECISION_ROUTING_CONTRACT_20261117.md), [architecture and execution charter](../planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md), [selected historical 1.5 reference map](../planning/URCE_HISTORICAL_15_REFERENCE_REVIEW_20261117.md) and [source-observed 1.4.2 writer census](../planning/URCE_150_ACTIVE_142_WRITER_CENSUS_20261117.md).
 
 **Boundary:** documentation/source-only analysis now. No Bulk/Transporter runtime, Q5 migration, code from frozen #79/#82 branch, owner-world upgrade, LAB installation or release. Keep identical BP/RP addon files to 1.4.2 baseline.
 

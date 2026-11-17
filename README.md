@@ -4,7 +4,7 @@
 
 **Branch:** `planning/urce-150-20261117`, anchored to the [CI-green 1.4.2 native-first compatibility baseline](implementation/BASELINE_142_CLOSEOUT_20261117.md). The owner has authorized **URCE architecture planning**, using the historical 1.5 skeleton selectively as a read-only source of design lessons. No 1.5 gameplay or world migration has been implemented.
 
-Start with the [URCE staged architecture/delivery plan](planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md) and [historical source disposition](planning/URCE_HISTORICAL_15_REFERENCE_REVIEW_20261117.md). Do not copy the frozen #79/#82 branch or revive Q5. The exact 1.4.2 BP/RP files, native API, pack UUIDs and preservation constraints remain unchanged here. **1.4.2 is development/source-closed, not an owner-approved release or BDS performance certification.**
+Start with [URCE-ADR-001 — Routing early-decision contract](planning/URCE_150_EARLY_DECISION_ROUTING_CONTRACT_20261117.md), the [URCE staged architecture/delivery plan](planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md) and [historical source disposition](planning/URCE_HISTORICAL_15_REFERENCE_REVIEW_20261117.md). Do not copy the frozen #79/#82 branch or revive Q5. The exact 1.4.2 BP/RP files, native API, pack UUIDs and preservation constraints remain unchanged here. **1.4.2 is development/source-closed, not an owner-approved release or BDS performance certification.**
 
 
 ## CURRENT — 1.4.2 native-first compatibility baseline (2026-11-17)

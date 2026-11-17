@@ -1,5 +1,7 @@
 # URCE routing — answer the inexpensive questions first
 
+> **Document role:** Evidence review and design rationale. The normative, testable decision boundaries are in [URCE-ADR-001 — Route eligibility before native admission](URCE_150_EARLY_DECISION_ROUTING_CONTRACT_20261117.md). No URCE gameplay change is authorized here.
+
 **Decision review:** 2026-11-17. **Basis:** actual 1.4.2 engine `addon/behavior_pack/scripts/main.js` on `baseline/native-first-142-20261117` (P4e source with version string 1.4.2). This is a *read-only architecture decision*, **not a runtime feature, performance claim, or permission to bypass Q4**.
 
 ## The three independent questions
