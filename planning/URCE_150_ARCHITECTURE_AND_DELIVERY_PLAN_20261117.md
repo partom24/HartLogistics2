@@ -50,6 +50,8 @@ No requirement for one global per-tick work loop or a single synchronous worldwi
 
 ### U1 — Read-only routing planner contract (first novel design deliverable)
 
+**First-principles gate first:** Before choosing indexes, controller topology or a new scheduler, use the [actual 1.4.2 routing decision tree and earliest-safe-exit audit](URCE_150_ROUTING_FIRST_PRINCIPLES_20261117.md). Build the smallest lazy Filter→Auto→Wildcard candidate sequence that preserves source Hopper compaction and only resolves live destinations after policy eligibility. The first testable outcome is **fewer expensive native admissions for correctly excluded candidates**, not a new route object or faster JavaScript iteration.
+
 1. Define `planCandidates(snapshot, incoming, column)` *purely* from registered configuration and known loaded route structure, returning ordered *plausible* Sorter targets with reasons and unresolved-state HOLD when warranted. This is a **proposal contract**, not a new runtime API promise.
 2. For standalone columns, prove priority equivalence to 1.4.2, including Filter, Auto (requiring live seeds), Wildcard, Bypass, redstone, unknown filter type and bottom-to-top order. A planner may **never** remove Auto/Wildcard candidates based on stale inventory content.
 3. Separate **routing source qualification** from **final live destination admission**, preserving exact journal placement and no-loss/no-duplication. No hidden chest state or per-tick latency workaround.
