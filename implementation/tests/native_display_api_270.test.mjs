@@ -33,6 +33,12 @@ test("API270-DISPLAY-02 loaded entity is accessible in the callback",()=>{
   assert.match(body("EntityLoadAfterEvent"),/entity\s*:\s*Entity\s*;/);
 });
 
+test("API270-P4 native occupancy/count shortcut methods are present",()=>{
+  const c=body("Container");
+  assert.match(c,/emptySlotsCount\s*:\s*number\s*;/);
+  assert.match(c,/firstItem\s*\(\s*\)\s*:\s*number\s*\|\s*undefined\s*;/);
+  assert.match(c,/firstEmptySlot\s*\(\s*\)\s*:\s*number\s*\|\s*undefined\s*;/);
+});
 test("API270-P3 native live ContainerSlot admission signatures are present",()=>{
   const c=body("Container"),slot=body("ContainerSlot");
   assert.match(c,/getSlot\s*\(\s*slot:\s*number\s*\)\s*:\s*ContainerSlot\s*;/);

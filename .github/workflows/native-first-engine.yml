@@ -23,7 +23,7 @@ jobs:
       - name: Parse the complete Bedrock entrypoint without executing it outside BDS
         run: node --check addon/behavior_pack/scripts/main.js
       - name: Execute candidate actual function bodies against native API mocks
-        run: node --test implementation/tests/native_first_engine.test.mjs implementation/tests/compatibility_differential_141.test.mjs implementation/tests/active_scan_smoke_141.test.mjs implementation/tests/auto_destination_scan_141.test.mjs
+        run: node --test implementation/tests/native_first_engine.test.mjs implementation/tests/compatibility_differential_141.test.mjs implementation/tests/active_scan_smoke_141.test.mjs implementation/tests/auto_destination_scan_141.test.mjs implementation/tests/sparse_native_admission_141.test.mjs
       - name: Confirm original 1.4.1 regression witnesses independently
         shell: bash
         run: |

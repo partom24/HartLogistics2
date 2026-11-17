@@ -3197,6 +3197,57 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
     const incomingBook = requireAutoSeed && typeId === "minecraft:enchanted_book"
         ? enchantments(stack).map(e => e.id).sort().join("|") : undefined;
 
+    // Native emptySlotsCount and firstItem can conclusively identify EMPTY
+    // and SINGLE-OCCUPANT destinations. Resolve these immediately rather
+    // than re-reading up to 54 slots for every failed/admitted offer.
+    // No inventory snapshots/caches survive this synchronous lookup.
+    let occupied;
+    try {
+        const empty = container.emptySlotsCount;
+        if (Number.isInteger(empty) && empty >= 0 && empty <= size) {
+            occupied = size - empty;
+        }
+    } catch (_) { /* An unavailable optional native fast path cannot admit cargo. */ }
+
+    if (occupied === 0) {
+        if (requireAutoSeed) return undefined; // no live AUTO seed
+        const empty = container.firstEmptySlot();
+        return empty === undefined ? undefined
+            : {slot:empty, before:0, room:maxAmount, existing:undefined};
+    }
+    if (occupied === 1) {
+        let index;
+        try { index = container.firstItem(); } catch (_) {}
+        // Any inconsistent live count/index falls back to the original scan.
+        if (Number.isInteger(index) && index >= 0 && index < size) {
+            const slot = container.getSlot(index);
+            if (slot.hasItem()) {
+                const sameType = slot.typeId === typeId;
+                const liveSeed = !requireAutoSeed || (sameType &&
+                    (incomingBook === undefined ||
+                     enchantments(slot.getItem()).map(e => e.id).sort().join("|") === incomingBook));
+                if (!liveSeed) return undefined;
+
+                if (maxAmount > 1 && sameType) {
+                    const amount = slot.amount;
+                    const capacity = slot.maxAmount;
+                    if (amount < capacity) {
+                        try {
+                            if (slot.isStackableWith(stack)) {
+                                return {slot:index, before:amount,
+                                    room:capacity-amount, existing:slot.getItem()};
+                            }
+                        } catch (_) {}
+                    }
+                }
+                const empty = container.firstEmptySlot();
+                return empty === undefined ? undefined
+                    : {slot:empty, before:0, room:maxAmount, existing:undefined};
+            }
+        }
+    }
+
+    // Dense or inconsistent inventories retain the original live full scan.
     for (let i=0; i<size; i++) {
         const slot = container.getSlot(i);
         if (!slot.hasItem()) {
