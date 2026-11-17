@@ -1,5 +1,14 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+## CURRENT — 1.4.2 native-first compatibility baseline (2026-11-17)
+
+The owner closed the current 1.4.1 native-first performance iteration as **Hart Logistics 1.4.2**, separate from the archived `implementation/native-first-engine-141-20261115` research branch. The authoritative closeout and outstanding BDS/compatibility gates are in [1.4.2 baseline closeout](implementation/BASELINE_142_CLOSEOUT_20261117.md). The current branch is `baseline/native-first-142-20261117`; P4g was **not** carried into the gameplay engine because native profiling showed no observed rejection-reuse hits.
+
+**Status:** 1.4.2 development architecture/optimization **closed**, source candidate **not released or owner-BDS-accepted**. Preserve all 1.4.1 world data, IDs and Q4 journals; BP/RP metadata are versioned 1.4.2 with `@minecraft/server 2.7.0` unchanged. Historical documentation below describes the original recovery phase and is preserved for provenance.
+
+**Next:** [1.5 Unified Routing and Custody Engine (URCE) design](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) and separate planning branch. The older Q5-centric direction is superseded; do not adopt frozen #79 implementation code.
+
+
 ## CURRENT ACTIVE RECOVERY — START HERE (2026-11-16)
 
 **[Read the complete new-chat takeover: TAKEOVER_NATIVE_FIRST_141.md](TAKEOVER_NATIVE_FIRST_141.md).** This is the current working-source/documentation entry point on branch `implementation/native-first-engine-141-20261115`.

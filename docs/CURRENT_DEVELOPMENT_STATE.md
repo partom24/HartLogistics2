@@ -1,3 +1,5 @@
+> **2026-11-17 baseline handoff**: [1.4.2 native-first closeout](../implementation/BASELINE_142_CLOSEOUT_20261117.md) supersedes the historical active 1.5 Transporter milestones in this file for the new **1.4.2 baseline branch**. These prior 1.5 PGxx results remain reference evidence, not new 1.4.2 runtime components. The next selected architecture is **URCE**, not Q5. No release or BDS acceptance is claimed.
+
 # Current Development State — Hart Logistics 2
 
 **As of 2026-11-06**  

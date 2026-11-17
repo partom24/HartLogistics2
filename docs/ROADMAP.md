@@ -1,40 +1,32 @@
-# Hart Logistics 2 — Roadmap
+# Hart Logistics 2 — Roadmap (1.4.2 baseline checkpoint, 2026-11-17)
 
 ## Outcome
 
-Expand the owner-supplied Minecraft Bedrock Hart Logistics 1.4.1 add-on with Bulk Storage, a high-throughput Transporter, and a safer/higher-throughput Q5 dual-lane Receiver architecture **without losing any 1.4.1 capability or existing world data**. Release is separate from design, code review, tests and merge.
+Protect the original 1.4.1 Minecraft Bedrock world and feature contract while completing a native-first 1.4.2 development baseline; then plan the next 1.5 **Unified Routing and Custody Engine (URCE)** to scale the owner's [Sorter and storage-room arrays](../OWNER_PRODUCT_OBJECTIVE.md). Source completion, owner BDS acceptance, 1.5 implementation, and release are distinct gates.
 
 ## Completed
 
-- **No Hart Logistics 2 gameplay milestones completed.** The existing repository began as the Project Engineering Blueprint template, whose BP-* achievements are **not** Hart Logistics history.
-- Owner supplied Hart Logistics 1.4.1 mcaddon and HartBots 1.8.2 reference mcaddon in conversation; 1.4.1 original archive fingerprint is recorded in [baseline registry](BASELINE_REGISTRY.md). Neither is a committed add-on source tree here.
+- Immutable original 1.4.1 BP/RP imported at `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; 72 file hashes preserved.
+- **HL-142-BASELINE-001 — CLOSED at development/source scope only.** Native-first 1.4.2 code baseline is the previous P4e engine (P4g repeat-rejection cache excluded), with 1.4.2 pack metadata and unchanged identifiers, Q4, Hopper/Sorter/Collector/Receiver behavior and API dependency. [Acceptance evidence and outstanding owner gates](../implementation/BASELINE_142_CLOSEOUT_20261117.md). This is NOT a release or a claim of proven owner-scale throughput.
+- Prior P4e/P4g LAB profiling demonstrates current dense admission cost and P4g's lack of measured reuse; further 1.4.x speculative cache development deliberately stopped.
 
 ## Now
 
-- **HL-PLAN-001 — Owner-authorized requirements and architecture planning (active).** Record the two new blocks, multi-controller/closed-loop topology, Q5 migration and MR lane; separate accepted requirements from candidates; identify decisions and compatibility tests needed before an implementation authorization. **This milestone does not authorize code changes.**
-- Exit when the owner has reviewed the open implementation gates and approved a design direction. A planning document or PR merge alone is not owner acceptance.
+**No active milestone.** The 1.4.2 architecture/optimization iteration is closed. Only preservation, CI, guarded LAB compatibility verification and bounded defects remain on this branch. No 1.5 gameplay development or deployment starts here.
 
 ## Next
 
-- **HL-IMPORT-001 (candidate, not approved):** Import the unchanged 1.4.1 behavior/resource source under addon/, pin a Git baseline, record the original archive/hash and establish buildable/source-review fixtures without altering gameplay.
-- **HL-TEST-001 (candidate, not approved):** Build preservation tests for 1.4.1: redstone, all Sorter modes, item frames, vanilla hopper and dispenser/dropper routes, linking, q2/q3/q4 data, journal/crash recovery, exact item counts, metadata and unload/reload. All in-game testing is restricted to the disposable LAB server.
-- **HL-UPDATER-001 (candidate, not approved):** Adapt guarded HartBots-inspired updater to HartLogistics2 for **LAB-only** installation; source/import reference allowed. Dry-run defaults, strict path/pack checks, staged backup/hash verification, preserve other packs, rollback on error. The HartBots **production updater may be imported as inert reference source**, but **must not be run before a nominated release candidate**. See [updater design](UPDATER_DEPLOYMENT_DESIGN.md).
-- **HL-Q5-001 (candidate, not approved):** Implement and test staged Q4→Q5 migration and a metadata-preserving native lane, conditional on platform support and acceptance.
-- **HL-TRANSPORT-001 and HL-BULK-001 (candidates, not approved):** Implement Transporter and Bulk Storage with bounded transfer budgets, network-aware routing and failure recovery.
+- **HL-142-ACCEPT-001 — Pending owner LAB/compatibility gate.** Confirm exact installed source/version, world registry bump and rollback, old data/q2/q3/q4 journals and metadata, routing/filters/redstone/vanilla Hopper behavior, delivered item counts and natural owner-scale performance. Acceptance must identify unresolved source/throughput work honestly; owner release is separate.
+- **HL-URCE-PLAN-001 — Owner-authorized separate 1.5 design planning.** Create a separate branch from the closed 1.4.2 baseline; use selected [URCE contract](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) and individually vetted historical 1.5 design/skeleton references. First define planner and custody contracts, migration and tests; no Q5 schema, Bulk/Transporter gameplay or frozen 1.5 source merge.
 
 ## Later
 
-- HartBots Depot native high-throughput integration via a separately approved interface/change in that project. No HartBots repository access in this project.
-- Performance optimization, tuning, more block variants or new release only after baseline and integration acceptance.
-
-## Preliminary subsystem stop/go gates
-
-See [Preliminary Go / No-Go Tests](PRELIMINARY_GO_NO_GO.md). Run only **2–3 related checks in a batch**, reusing setups and prior evidence. Four bundles progress from offline baseline/updater proof to 26.63 MR endpoint proof, old-world upgrade proof, and network feasibility. The owner has **approved the test plan conditional on prompt removal of temporary testing parameters/hooks under the template policy**. Gates are **not run**; plan approval does not authorize code, source import, experiments or deployment by itself.
+- URCE source prototype only after planning decisions and safety gates; unified writer/custody, regional authority, ordinary Bulk Storage, Transporter, native metadata-rich lane and exact old-world migration.
+- Integrated LAB benchmark at 1,400-Sorter owner layout, no-loss/no-duplication/metadata conservation, then distinct release review and production approval.
 
 ## Decisions and blockers
 
-- **Hard gate:** zero 1.4.1 capability loss; the supplied archive remains the comparison baseline, not an accepted Git frozen reference.
-- **Hard gate:** native custom block container functionality in 1.26.50 may require the Upcoming Creator Features experiment; verify stable API/target-version compatibility before requiring it. See [Q5 design](Q5_MIGRATION_DESIGN.md).
-- **Open:** controller boundary/discovery/failover, pipe extraction control, routing at junctions, wildcard behavior with unavailable banks and MR items, capacity accounting, MR prioritization/fairness, save transaction protocol and legacy upgrade path. See [inbox](IDEA_INBOX.md).
-- No gameplay implementation milestone, source import, world migration or release is presently authorized. Importing the **production updater reference** is allowed without permission to invoke it. All release testing takes place in LAB only; production remains protected.
-
+- **Accepted boundary:** 1.4.2 is an architectural performance ceiling decision, **not** a measured 20 TPS certification. Dense 27/54-slot negative admissions remain costly; no general stale capacity cache.
+- **Preservation:** do not lower polling cadence or budgets to hide load. Keep physical Q4 writer, saved-world registry, pack UUIDs, Filter→Auto→Wildcard, nonstackable/MR identity and native Hopper behavior.
+- **Historical exclusion:** Q5 is superseded by URCE; archived unified-custody branch #79/#82 may be cited as a rejected study but not copied/merged as a runtime foundation. Approved standalone source-only historical concepts can inform new independent design contracts.
+- **Open owner acceptance:** exact LAB upgrade from 1.4.1 to 1.4.2; redstone, frame, Q4/migration, mixed cargo, full destination and real 1,400-Sorter performance. No release or production apply approved.

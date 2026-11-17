@@ -109,7 +109,7 @@ function collectorCase({locked=false,empty=false,unreadable=false,queueError=fal
 }
 
 test("ENGINE-01 baseline manifest and both pinned owner product targets remain explicit",()=>{
-  assert.deepEqual(manifest.header.version,[1,4,1]);
+  assert.deepEqual(manifest.header.version,[1,4,2]);
   assert.equal(manifest.dependencies.find(d=>d.module_name==="@minecraft/server").version,"2.7.0");
   assert.ok(objective.includes("sorter-array.png"));
   assert.ok(objective.includes("storage-room-array.png"));

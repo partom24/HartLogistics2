@@ -79,7 +79,7 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(result.stdout.count('text: unset'),3)
 
     def test_original_assets_and_candidate_engine_are_pinned(self):
-        self.assertEqual(lab.validate_source(ROOT),(1,4,1))
+        self.assertEqual(lab.validate_source(ROOT),(1,4,2))
         self.assertEqual(lab.hash_file(ROOT/lab.ENGINE_FILE),lab.PHASE_A_ENGINE_SHA256)
         registry=json.loads((ROOT/'BASELINE_HASHES.json').read_text())
         self.assertEqual(len(registry['files']),72)
@@ -118,6 +118,13 @@ class GuardTests(unittest.TestCase):
                 target=root/install/('previous_'+name)
                 target.parent.mkdir(parents=True)
                 shutil.copytree(ROOT/'addon'/name,target)
+                # Rebuild the LEGACY 1.4.1 manifest, not the proposed 1.4.2
+                # source manifest, so old installed content has valid provenance.
+                manifest=subprocess.run(
+                    ['git','-C',str(ROOT),'show',
+                     '0ea3000651c116b0fa1acc2836ab7e1bcfbc6269:addon/'+name+'/manifest.json'],
+                    check=True,capture_output=True).stdout
+                (target/'manifest.json').write_bytes(manifest)
                 if name=='behavior_pack':
                     (target/'scripts/main.js').write_bytes(old)
                     self.assertEqual(lab.hash_file(target/'scripts/main.js'),lab.PREVIOUS_PHASE_A_ENGINE_SHA256)
@@ -176,6 +183,13 @@ class GuardTests(unittest.TestCase):
             installed.write_bytes(p4e)
             self.assertEqual(lab.hash_file(installed),lab.INSTALLED_P4E_ENGINE_SHA256)
             self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
+            p4g=subprocess.run(
+                ['git','-C',str(ROOT),'show',
+                 '6d36640d2c5acbac71f78106a38e4b0b3a72e3d1:addon/behavior_pack/scripts/main.js'],
+                check=True,capture_output=True).stdout
+            installed.write_bytes(p4g)
+            self.assertEqual(lab.hash_file(installed),lab.INSTALLED_P4G_ENGINE_SHA256)
+            self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
             installed.write_bytes(b'unknown modified engine')
             with self.assertRaisesRegex(lab.UnsafeLab,'Unrecognized installed LAB pack contents'):
                 lab.discover_plan(ROOT,root)
@@ -183,21 +197,21 @@ class GuardTests(unittest.TestCase):
     def test_jsonc_preserves_unrelated(self):
         original='// owner comment\n[{"pack_id":"other","version":[9,8,7]},/* preserve */'+\
                  '{"pack_id":"'+lab.BP_UUID+'","version":[1,4,0]},]\n'
-        after=lab.patch_registration(original,lab.BP_UUID,(1,4,1))
+        after=lab.patch_registration(original,lab.BP_UUID,(1,4,2))
         self.assertIn('// owner comment',after)
         self.assertIn('/* preserve */',after)
         rows=json.loads(lab.remove_jsonc(after))
         self.assertEqual(rows[0],{"pack_id":"other","version":[9,8,7]})
-        self.assertEqual(rows[1]['version'],[1,4,1])
+        self.assertEqual(rows[1]['version'],[1,4,2])
 
     def test_matching_version_preserves_jsonc_spacing_and_comments(self):
-        raw='// intact\n[{"pack_id":"'+lab.BP_UUID+'","version":[ 1, 4, 1 ]},]\n'
-        self.assertEqual(lab.patch_registration(raw,lab.BP_UUID,(1,4,1)),raw)
+        raw='// intact\n[{"pack_id":"'+lab.BP_UUID+'","version":[ 1, 4, 2 ]},]\n'
+        self.assertEqual(lab.patch_registration(raw,lab.BP_UUID,(1,4,2)),raw)
 
     def test_jsonc_ambiguous_registry_fails(self):
         for raw in ['[]','[{"pack_id":"'+lab.BP_UUID+'","version":[1,4,0]},'+
                     '{"pack_id":"'+lab.BP_UUID+'","version":[1,4,0]}]']:
-            with self.assertRaises(lab.UnsafeLab):lab.patch_registration(raw,lab.BP_UUID,(1,4,1))
+            with self.assertRaises(lab.UnsafeLab):lab.patch_registration(raw,lab.BP_UUID,(1,4,2))
 
     def test_pin_validates_exact_sha_and_git_origin(self):
         with self.assertRaises(lab.UnsafeLab):lab.assert_clean_git(ROOT,'bad')
@@ -216,6 +230,12 @@ class SyntheticTransactions(unittest.TestCase):
         for name,install,uid,registry in lab.PACKS:
             dest=self.root/install/('existing_'+name);dest.parent.mkdir()
             shutil.copytree(ROOT/'addon'/name,dest)
+            # LAB fixture represents an actual 1.4.1 installed pack.
+            old_manifest=subprocess.run(
+                ['git','-C',str(ROOT),'show',
+                 '0ea3000651c116b0fa1acc2836ab7e1bcfbc6269:addon/'+name+'/manifest.json'],
+                check=True,capture_output=True).stdout
+            (dest/'manifest.json').write_bytes(old_manifest)
             if name=='behavior_pack':
                 # Install the real immutable original 1.4.1 engine as the
                 # pre-update fixture. This exercises an actual source delta.
@@ -266,7 +286,7 @@ class SyntheticTransactions(unittest.TestCase):
             self.assertEqual(lab.hashes(p['target']),p['files'])
             content=p['registry'].read_text()
             self.assertIn('// other packs must survive',content)
-            self.assertEqual(json.loads(lab.remove_jsonc(content))[-1]['version'],[1,4,1])
+            self.assertEqual(json.loads(lab.remove_jsonc(content))[-1]['version'],[1,4,2])
         self.assertFalse(any((self.root/'_HartLogisticsDeployStage').iterdir()))
 
     def test_rollback_if_pack_move_interrupted(self):
@@ -281,10 +301,8 @@ class SyntheticTransactions(unittest.TestCase):
         self.restored()
 
     def test_rollback_if_registry_update_interrupted(self):
-        # Force a synthetic changed-registration plan solely to cover the
-        # generic rollback handler; actual Phase A keeps [1,4,1] unchanged.
+        # 1.4.1 -> 1.4.2 genuinely patches both registry files.
         plan=[dict(p) for p in self.plan]
-        plan[0]['new_registry']=plan[0]['new_registry'].replace('[1,4,1]','[1,4,0]',1)
         original=Path.replace;failed=[False]
         def replace_once(path,target):
             if str(target).endswith('world_behavior_packs.json') and not failed[0]:
@@ -313,7 +331,7 @@ class SyntheticTransactions(unittest.TestCase):
         before=reg.read_bytes()
         reg.write_bytes(before.replace(b'[1,4,1]',b'[1,5,10]',1))
         try:
-            with self.assertRaisesRegex(lab.UnsafeLab,'not original 1.4.1'):
+            with self.assertRaisesRegex(lab.UnsafeLab,'mismatches installed version'):
                 lab.discover_plan(ROOT,self.root)
         finally:
             reg.write_bytes(before)
@@ -330,14 +348,42 @@ class SyntheticTransactions(unittest.TestCase):
             intruder.unlink()
         self.restored()
 
-    def test_same_version_apply_preserves_world_registry_bytes(self):
+    def test_version_upgrade_updates_only_hart_registration_and_is_idempotent(self):
         before={x['registry']:x['registry'].read_bytes() for x in self.plan}
-        plan=lab.discover_plan(ROOT,self.root)
-        lab.apply_plan(self.root,plan)
-        for reg,raw in before.items():
-            self.assertEqual(reg.read_bytes(),raw)
-        for item in plan:
-            self.assertEqual(lab.hashes(item['target']),item['files'])
+        lab.apply_plan(self.root,self.plan)
+        for item in self.plan:
+            reg=item['registry']
+            raw=reg.read_bytes()
+            self.assertNotEqual(raw,before[reg])
+            parsed=json.loads(lab.remove_jsonc(raw.decode()))
+            self.assertEqual(parsed[0],{'pack_id':'other','version':[3,2,1]})
+            self.assertEqual(parsed[-1]['version'],[1,4,2])
+        again=lab.discover_plan(ROOT,self.root)
+        self.assertTrue(all(x['installed']==x['files'] for x in again))
+        self.assertTrue(all(x['new_registry'].encode()==x['old_bytes'] for x in again))
+        before_repeat={x['registry']:x['registry'].read_bytes() for x in again}
+        lab.apply_plan(self.root,again)
+        self.assertEqual(before_repeat,{
+            x['registry']:x['registry'].read_bytes() for x in again})
+
+    def test_forged_142_installation_is_refused_before_write(self):
+        # Even if manifest and world registration both say 1.4.2, the pack
+        # must equal our exact approved 1.4.2 contents.
+        pack=self.plan[0]['target']
+        manifest=pack/'manifest.json'
+        original=manifest.read_bytes()
+        target_manifest=(ROOT/'addon/behavior_pack/manifest.json').read_bytes()
+        reg=self.plan[0]['registry']
+        old_registration=reg.read_bytes()
+        try:
+            manifest.write_bytes(target_manifest)
+            reg.write_bytes(old_registration.replace(b'[1,4,1]',b'[1,4,2]',1))
+            with self.assertRaisesRegex(lab.UnsafeLab,'Unrecognized installed LAB pack contents'):
+                lab.discover_plan(ROOT,self.root)
+        finally:
+            manifest.write_bytes(original)
+            reg.write_bytes(old_registration)
+        self.restored()
 
     def test_preflight_does_not_change_original_packs_or_world(self):
         first=lab.discover_plan(ROOT,self.root)

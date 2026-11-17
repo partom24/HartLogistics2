@@ -1,3 +1,5 @@
+> **AUTHORITATIVE NOVEMBER 17 CLOSEOUT — BASELINE 1.4.2**: See [the closed 1.4.2 development baseline](BASELINE_142_CLOSEOUT_20261117.md). **base 1.4.2 development baseline closed**, not released and not full owner-layout/throughput/custody-accepted. The 1.4.1 P4g development branch remains a preserved research record. The text below is a historical 1.4.1 work log; its branch and pending-source-status labels are **not** current 1.4.2 instructions. Further architectural development belongs in the independent 1.5 URCE planning line.
+
 # HL2 base 1.4.1 native-first conversion — implementation and completion status
 
 **New chat / successor engineer:** Start with [the complete 1.4.1 native-first takeover](../TAKEOVER_NATIVE_FIRST_141.md). This file is the detailed current implementation status; the takeover records owner directives, exact branches, CI, prohibited detours, product image links and next engineering work.

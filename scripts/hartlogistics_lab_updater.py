@@ -26,7 +26,14 @@ PACKS = [('behavior_pack','behavior_packs',BP_UUID,'world_behavior_packs.json'),
 # The Phase A engine is a single narrowly pinned candidate, not arbitrary
 # modified 1.4.1 source. Baseline hashes remain mandatory for all other assets.
 ENGINE_FILE = 'addon/behavior_pack/scripts/main.js'
-PHASE_A_ENGINE_SHA256 = '0578e8eb205d9c68fde8926a82c07241b68979c86160c8df4665e316ba2e8b26'
+PHASE_A_ENGINE_SHA256 = '2183cc3de4d60c9895305e41612644a75360b2baba44403c2387e3679cdc4411'
+# Independently pinned 1.4.2 manifests; only these three original addon files change.
+BASELINE_142_MANIFESTS = {
+    'addon/behavior_pack/manifest.json': '2700f13cc3324235e280af597fdad9931569ae32f300a4ff55aa558b33db6817',
+    'addon/resource_pack/manifest.json': 'a761e781ae5b36519139b99d45d90679b7e1b7ce920dcfb3e11d9c338441aaf6',
+}
+# P4g is an exact known 1.4.1 LAB origin only; P4g gameplay is not in 1.4.2.
+INSTALLED_P4G_ENGINE_SHA256 = '0578e8eb205d9c68fde8926a82c07241b68979c86160c8df4665e316ba2e8b26'
 # Exact P4e full-container native-call candidate, allowed as an upgrade origin.
 INSTALLED_P4E_ENGINE_SHA256 = '5c4a2d414302ef10d76fef21932928592caf2fab84cd000c5b0085cefcdd1b91'
 # Preserve the exact P4d transit-first candidate as an allowed LAB upgrade origin.
@@ -45,7 +52,8 @@ INSTALLED_P2_ENGINE_SHA256 = '0b376086b0800949c78a484d00cd9389af011a55ecb182a6fa
 INSTALLED_P3_ENGINE_SHA256 = 'ff08eae79c41fd4312a8bd8147f5ef12fb6ea5db92798f7be3450ea218456a9f'
 # Source-only P4 native occupancy candidate; exact upgrade origin if owner installed it.
 INSTALLED_P4_ENGINE_SHA256 = 'f47d4baa5c44989eb192edfa58d81f4dc83947b527ac2840ed2892d498bdebee'
-PHASE_A_VERSION = (1,4,1)
+PHASE_A_VERSION = (1,4,2)
+LEGACY_VERSION = (1,4,1)
 ORIGIN = re.compile(r'(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)partom24/HartLogistics2(?:\.git)?/?',re.I)
 
 class UnsafeLab(RuntimeError):pass
@@ -143,14 +151,15 @@ def validate_source(repo: Path) -> tuple[int,int,int]:
                      'addon/resource_pack/textures/terrain_texture.json'):
             if not (repo/file).is_file():raise UnsafeLab(f'Missing pack source {file}')
         if ver!=PHASE_A_VERSION:
-            raise UnsafeLab('Phase A only accepts version 1.4.1 source packs')
+            raise UnsafeLab('Baseline updater only accepts version 1.4.2 source packs')
         registry=json.loads((repo/'BASELINE_HASHES.json').read_text())
         if registry['original_mcaddon_sha256']!='439678c0d68849a43341c126ba6aaaa111317254e137123fde3ac531cec5d1dd':
             raise UnsafeLab('Original archive hash mismatch')
         if len(registry['files'])!=72 or ENGINE_FILE not in registry['files']:
             raise UnsafeLab('Incomplete baseline source inventory')
         for name,digest in registry['files'].items():
-            expected=PHASE_A_ENGINE_SHA256 if name==ENGINE_FILE else digest
+            expected=(PHASE_A_ENGINE_SHA256 if name==ENGINE_FILE
+                      else BASELINE_142_MANIFESTS.get(name,digest))
             if hash_file(repo/name)!=expected:
                 raise UnsafeLab(f'Phase A source hash mismatch: {name}')
         for folder in ('behavior_pack','resource_pack'):
@@ -208,7 +217,7 @@ def patch_registration(raw: str,pack_id: str,ver: tuple[int,int,int]) -> str:
     if len(m)!=1:raise UnsafeLab('Missing/ambiguous version field')
     a=begin+m[0].start(1);b=begin+m[0].end(1)
     if '/' in raw[a:b]:raise UnsafeLab('Version comments require manual review')
-    # Existing Phase A registrations already match [1,4,1]. Preserve even
+    # Existing target registrations already match 1.4.2. Preserve even
     # whitespace and original JSONC byte-for-byte rather than rewriting it.
     if v3(matches[0].get('version'))==ver:return raw
     updated=raw[:a]+json.dumps(list(ver),separators=(',',':'))+raw[b:]
@@ -245,8 +254,8 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
         assert_no_link(target)
         old_manifest=json.loads((target/'manifest.json').read_text(encoding='utf-8-sig'))
         old_version=v3(old_manifest.get('header',{}).get('version'))
-        if old_version!=PHASE_A_VERSION:
-            raise UnsafeLab(f'Existing LAB pack {pack_id} is not original 1.4.1; refuse downgrade')
+        if old_version not in (LEGACY_VERSION,PHASE_A_VERSION):
+            raise UnsafeLab(f'Existing LAB pack {pack_id} is not verified 1.4.1/1.4.2; refuse downgrade')
         reg=world/regname
         if not reg.is_file():raise UnsafeLab(f'World pack registry missing: {reg}')
         assert_no_link(reg)
@@ -255,8 +264,8 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
         if not isinstance(parsed,list) or any(not isinstance(e,dict) for e in parsed):
             raise UnsafeLab('Malformed LAB world pack registry')
         matching=[e for e in parsed if str(e.get('pack_id','')).casefold()==pack_id.casefold()]
-        if len(matching)!=1 or v3(matching[0].get('version'))!=PHASE_A_VERSION:
-            raise UnsafeLab(f'LAB world registration for {pack_id} is not original 1.4.1')
+        if len(matching)!=1 or v3(matching[0].get('version'))!=old_version:
+            raise UnsafeLab(f'LAB world registration for {pack_id} mismatches installed version')
         registry=json.loads((repo/'BASELINE_HASHES.json').read_text())
         prefix='addon/'+local+'/'
         original={name[len(prefix):]:digest for name,digest in registry['files'].items()
@@ -287,7 +296,14 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
         p4e=original.copy()
         if local=='behavior_pack':
             p4e['scripts/main.js']=INSTALLED_P4E_ENGINE_SHA256
-        if installed_hashes not in (original,prior,intermediate,p2,p3,p4,p4b,p4d,p4e,source_hashes):
+        p4g=original.copy()
+        if local=='behavior_pack':
+            p4g['scripts/main.js']=INSTALLED_P4G_ENGINE_SHA256
+        # Never accept a 1.4.2 manifest with arbitrary old engine bits or a
+        # 1.4.1 manifest with an unrelated 1.5 runtime: exact pack-wide evidence.
+        allowed=(source_hashes,) if old_version==PHASE_A_VERSION else (
+            original,prior,intermediate,p2,p3,p4,p4b,p4d,p4e,p4g)
+        if installed_hashes not in allowed:
             raise UnsafeLab(f'Unrecognized installed LAB pack contents for {pack_id}')
         plan.append({'source':repo/'addon'/local,'target':target,'registry':reg,
                      'new_registry':patch_registration(raw,pack_id,ver),
@@ -322,8 +338,8 @@ def apply_plan(root: Path,plan: list[dict]) -> Path:
         for i,item in enumerate(plan):
             bom=b'\xef\xbb\xbf' if item['old_bytes'].startswith(b'\xef\xbb\xbf') else b''
             desired=bom+item['new_registry'].encode('utf-8')
-            # Phase A keeps 1.4.1 IDs/version: do not rewrite world registries
-            # whose contents already match, even during a deliberate LAB apply.
+            # Preserve unrelated JSONC bytes. Only the registered Hart pack
+            # version changes on the guarded 1.4.1 -> 1.4.2 transition.
             if desired!=item['old_bytes']:
                 temporary=stage/f'registry-{i}.tmp'
                 temporary.write_bytes(desired)
@@ -371,7 +387,7 @@ def main(argv=None) -> int:
         if all(item['installed']==item['files'] and
                item['old_bytes'].decode('utf-8-sig')==item['new_registry']
                for item in plan):
-            print('LAB already matches pinned Phase A source; no write needed.')
+            print('LAB already matches pinned 1.4.2 source; no write needed.')
             return 0
         if not a.apply:
             print('DRY RUN: no files changed; explicit approval required for --apply.')

@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics RP",
-    "description": "Hart Logistics 1.4.1 native-frame Sorter visuals and mode indicators",
+    "description": "Hart Logistics 1.4.2 native-frame Sorter visuals and mode indicators",
     "uuid": "91316442-0f26-4fbb-88f3-2e39ea843a1a",
     "version": [
       1,
       4,
-      1
+      2
     ],
     "min_engine_version": [
       1,
@@ -21,8 +21,8 @@
       "uuid": "2db58c3d-f2db-4ac6-a986-5d9ff38610fa",
       "version": [
         1,
-        4,
-        1
+      4,
+      2
       ]
     }
   ],
