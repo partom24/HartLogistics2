@@ -45,6 +45,8 @@ function nativeContainer(slots,events) {
     size:slots.length,isValid:true,
     firstItem() {events.push("firstItem");const i=slots.findIndex(x=>x!==undefined);
       return i>=0?i:undefined;},
+    firstEmptySlot(){events.push("firstEmptySlot");const i=slots.findIndex(x=>x===undefined);
+      return i>=0?i:undefined;},
     getItem(i) {events.push("getItem:"+i);return slots[i];},
     setItem(i,x) {events.push("setItem:"+i);slots[i]=x;}
   };
@@ -140,9 +142,10 @@ test("ENGINE-06 bypass still never takes cargo from native Hopper",()=>{
 test("ENGINE-07 nonempty unmatched input performs just one compaction pass",()=>{
   const r=sorterCase({slots:[cargo(),undefined,undefined,undefined,undefined]});
   assert.equal(r.used,0);
-  // Five compaction reads + source/target rechecks in the original route loop;
-  // the old unconditional final compaction would add another five reads.
-  assert.equal(r.events.filter(e=>e.startsWith("getItem:")).length,12);
+  // The first empty slot is index 1: only the three later Hopper slots
+  // require compaction reads. The source/target rechecks remain unchanged.
+  assert.equal(r.events.filter(e=>e.startsWith("getItem:")).length,10);
+  assert.equal(r.events.filter(e=>e==="firstEmptySlot").length,1);
   assert.equal(r.events.filter(e=>e.startsWith("setItem:")).length,0);
 });
 test("ENGINE-08 a real routed move executes only once with native source count intact",()=>{

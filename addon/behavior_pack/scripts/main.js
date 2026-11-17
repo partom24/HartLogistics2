@@ -3500,14 +3500,18 @@ function compactSourceHopper(container) {
     // slot can otherwise be starved indefinitely by new arrivals repeatedly
     // filling an earlier gap. Keep the source hopper packed left so vanilla
     // pass-through always has a chance to advance the oldest remaining stack.
-    let write = 0;
-    for (let read = 0; read < container.size; read++) {
+    // Native firstEmptySlot identifies the first hole. The preceding prefix
+    // is already packed, so it never needs an ItemStack copy or mutation.
+    // A completely full Hopper needs no reads or writes at all.
+    const firstEmpty = container.firstEmptySlot();
+    if (firstEmpty === undefined) return;
+    const size = container.size;
+    let write = firstEmpty;
+    for (let read = firstEmpty + 1; read < size; read++) {
         const item = container.getItem(read);
         if (!item) continue;
-        if (read !== write) {
-            container.setItem(write, item);
-            container.setItem(read, undefined);
-        }
+        container.setItem(write, item);
+        container.setItem(read, undefined);
         write++;
     }
 }

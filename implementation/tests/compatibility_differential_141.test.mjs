@@ -57,6 +57,7 @@ function container(items){
   return {
     isValid:true,get size(){return slots.length;},
     firstItem(){const i=slots.findIndex(x=>x!==undefined);return i<0?undefined:i;},
+    firstEmptySlot(){const i=slots.findIndex(x=>x===undefined);return i<0?undefined:i;},
     getItem(i){return copy(slots[i]);},
     setItem(i,value){slots[i]=copy(value);},
     snapshot(){return copy(slots.map(x=>x??null));}
