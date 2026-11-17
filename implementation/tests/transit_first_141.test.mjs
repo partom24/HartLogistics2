@@ -85,6 +85,24 @@ function move(src,si,dst,info,want) {
 function run(version,scenario){
   const js=version==="p4b"?p4b:candidate;
   const events=[],input=inventory(scenario.slots,events,"source");
+  // Inject only an observational uncertainty, never a simulated mutation.
+  // The optimized qualifier must fall back to the unchanged physical path.
+  if(scenario.preflightReadThrowsOnce){
+    const original=input.container.getItem.bind(input.container);
+    let first=true;
+    input.container.getItem=i=>{
+      if(first){first=false;events.push("uncertain.read");throw Error("transient native read");}
+      return original(i);
+    };
+  }
+  if(scenario.preflightInvisibleSlots){
+    const original=input.container.getItem.bind(input.container);
+    let unseen=5;
+    input.container.getItem=i=>{
+      if(unseen-->0){events.push("uncertain.invisible");return undefined;}
+      return original(i);
+    };
+  }
   const destinations=scenario.sorters.map((e,i)=>inventory(
     scenario.destinations?.[i]??[undefined,undefined,undefined],events,"dest"+i));
   const sourceBlock={typeId:"minecraft:hopper",getComponent:()=>({container:input.container})};
@@ -239,4 +257,36 @@ test("TRANSIT-13 original scheduler cadence and item budgets remain unchanged",(
   assert.match(candidate,/const GLOBAL_MOVE_BUDGET = 256;/);
   assert.match(candidate,/if \(provenTransit\)/);
   assert.doesNotMatch(candidate,/runInterval\(schedulerTick,\s*3\)/);
+});
+test("TRANSIT-14 a throwing prequalification read falls back instead of rejecting",()=>{
+  const base={slots:[item("minecraft:diamond",3),undefined,undefined,undefined,undefined],
+    sorters:[entry()]};
+  const old=run("p4b",base);
+  const now=run("candidate",{...base,preflightReadThrowsOnce:true});
+  assert.equal(now.moved,old.moved);
+  assert.deepEqual(now.source,old.source);
+  assert.deepEqual(now.dest,old.dest);
+  assert.ok(now.events.includes("uncertain.read"));
+  assert.ok(now.events.includes("destinationFor"),"fallback must reach physical routing");
+});
+test("TRANSIT-15 ambiguous occupied Hopper cannot be proven transit from missing reads",()=>{
+  const base={slots:[item("minecraft:diamond",4),undefined,undefined,undefined,undefined],
+    sorters:[entry(),entry("filter","minecraft:emerald")]};
+  const old=run("p4b",base);
+  const now=run("candidate",{...base,preflightInvisibleSlots:true});
+  assert.equal(now.moved,old.moved);
+  assert.deepEqual(now.source,old.source);
+  assert.deepEqual(now.dest,old.dest);
+  assert.equal(now.events.filter(e=>e==="uncertain.invisible").length,5);
+  assert.equal(now.events.filter(e=>e==="sorterAt").length,2);
+});
+test("TRANSIT-16 unknown registry mode conservatively uses original route path",()=>{
+  const old=run("p4b",{slots:[item("minecraft:stone"),undefined,undefined,undefined,undefined],
+     sorters:[entry("unknown"),entry("filter","minecraft:diamond")]});
+  const now=run("candidate",{slots:[item("minecraft:stone"),undefined,undefined,undefined,undefined],
+     sorters:[entry("unknown"),entry("filter","minecraft:diamond")]});
+  assert.equal(now.moved,old.moved);
+  assert.deepEqual(now.source,old.source);
+  assert.deepEqual(now.dest,old.dest);
+  assert.equal(now.events.filter(e=>e==="sorterAt").length,2);
 });
