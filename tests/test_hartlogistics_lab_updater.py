@@ -162,6 +162,13 @@ class GuardTests(unittest.TestCase):
             installed.write_bytes(p4b)
             self.assertEqual(lab.hash_file(installed),lab.INSTALLED_P4B_ENGINE_SHA256)
             self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
+            p4d=subprocess.run(
+                ['git','-C',str(ROOT),'show',
+                 '798ae788ad2aaac7bd7c23dce0cc6cb6659afaed:addon/behavior_pack/scripts/main.js'],
+                check=True,capture_output=True).stdout
+            installed.write_bytes(p4d)
+            self.assertEqual(lab.hash_file(installed),lab.INSTALLED_P4D_ENGINE_SHA256)
+            self.assertEqual(len(lab.discover_plan(ROOT,root)),2)
             installed.write_bytes(b'unknown modified engine')
             with self.assertRaisesRegex(lab.UnsafeLab,'Unrecognized installed LAB pack contents'):
                 lab.discover_plan(ROOT,root)

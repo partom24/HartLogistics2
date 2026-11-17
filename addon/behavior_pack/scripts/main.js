@@ -3247,14 +3247,37 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
         }
     }
 
-    // Dense or inconsistent inventories retain the original live full scan.
+    // A full native destination has no empty slots: avoid repeating
+    // ContainerSlot.hasItem() for every occupied slot. Capacity still requires
+    // exact live per-slot stackability checks; a full chest can contain partials.
+    // If native occupancy and a slot's type disagree, retry the original scan
+    // rather than making an incorrect negative admission decision.
+    if (occupied === size && requireAutoSeed && maxAmount <= 1) {
+        return undefined; // nonstackable AUTO needs an empty slot, regardless of seed
+    }
+    let knownFull = occupied === size;
     for (let i=0; i<size; i++) {
         const slot = container.getSlot(i);
-        if (!slot.hasItem()) {
-            if (firstEmpty < 0) firstEmpty = i;
-            continue;
+        let currentType;
+        if (knownFull) {
+            try { currentType = slot.typeId; } catch (_) {}
+            if (!currentType) {
+                // The count was stale or inconsistent. Discard provisional
+                // seed/partial decisions and resume the original live scan.
+                knownFull = false;
+                firstEmpty = -1;
+                compatible = undefined;
+                seeded = !requireAutoSeed;
+                i = -1;
+                continue;
+            }
+        } else {
+            if (!slot.hasItem()) {
+                if (firstEmpty < 0) firstEmpty = i;
+                continue;
+            }
+            currentType = slot.typeId;
         }
-        const currentType = slot.typeId;
         // AUTO uses a live type-only seed except for enchanted books, whose
         // enchantment TYPE sets must match. Copy only candidate book seeds.
         if (requireAutoSeed && currentType === typeId &&
