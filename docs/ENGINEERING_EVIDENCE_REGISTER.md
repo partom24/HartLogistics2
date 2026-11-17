@@ -4,7 +4,7 @@ The engineering blueprint template's old E-* entries referred to a **different r
 
 | ID | Scope | Evidence level | Source | What it does **not** prove |
 | --- | --- | --- | --- | --- |
-| HL-E-001 | Original Hart Logistics 1.4.1 owner-uploaded mcaddon | Source artifact fingerprint / SOURCE REVIEW | Original filename and exact SHA-256 in [baseline registry](BASELINE_REGISTRY.md) | No runtime acceptance or Git-frozen tree; source is not yet committed |
+| HL-E-001 | Original Hart Logistics 1.4.1 owner-uploaded mcaddon | Source artifact fingerprint / SOURCE REVIEW | Original filename and exact SHA-256 in [baseline registry](BASELINE_REGISTRY.md) | Immutable original 1.4.1 source is now committed at `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; this fingerprint alone does not prove runtime acceptance |
 | HL-E-002 | 1.4.1 pack inspection | SOURCE REVIEW / previously reported offline syntax checks | Conversation-file inspection: behavior/resource packs, script, manifests; earlier JSON/JS/PNG parsing reports | Does not establish game behavior, world-migration safety or successful new build |
 | HL-E-003 | HartBots 1.8.2 Depot reference | SOURCE REVIEW | Owner-uploaded mcaddon (separate project); no repo queried | No native cross-addon integration, compatibility proof or change authorization |
 | HL-E-004 | Native MR transfer capability | **OWNER-REPORTED RUNTIME TESTING**, artifacts not in this repository | Owner reports extensive prior container→container MoveItem/ItemStack method testing with enchanted items, sacks, potions, music discs | Does not verify an experimental *custom block container* on server 1.26.63.1/client v26.63 or a crash-safe cross-chunk transaction |
@@ -30,3 +30,7 @@ The owner reports that several safe transfer behaviors were established during e
 5. All 1.4.1 feature regression paths, no-new-block legacy mode, loaded/unloaded regions and multi-controller topology.
 6. Distinguish SOURCE REVIEW → OFFLINE PASS → RUNTIME OBSERVED → INTEGRATION ACCEPTED → RELEASE APPROVED. None is implied by a document merge.
 
+
+## Curated cross-phase native MR evidence — owner authorized 2026-11-16
+
+The original HL-E-001–009 table above is an **early planning snapshot**, not an exhaustive current test register. Later owner-observed Bedrock evidence is carried forward in [native MR historical evidence (NMR-01–10)](../recovery/NATIVE_MR_HISTORICAL_EVIDENCE_141.md) with explicit source, version, scope, acceptance and non-claim. In particular, **PG20 direct native enchanted-book routing and normal-restart retention** and **PG42 native nine-slot entity inventory with named/lore item and normal-restart readback** have **bounded LAB runtime evidence**. The custom-block PG-03 NO-GO does **not** negate PG42 entity inventory. Full transaction-atomic custody, opaque metadata preservation, old-Q4 migration and the active P4b build's MR recovery are **not thereby accepted**. The curated record is the sole owner-authorized *historical evidence* exception to recovery-branch source isolation: **do not import archived 1.5 code, design modules, tests, assets, Q5 requirements or measured performance**. This note is documentation-only and does not change 1.4.1 implementation priorities.

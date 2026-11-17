@@ -2,6 +2,10 @@
 
 **Scope and source:** Only original 1.4.1 at `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`, compared with the isolated implementation branch. Built on [M01–M40 baseline audit](../NATIVE_FIRST_MECHANICS_AUDIT.md) and [exact 2.7 API decision](../recovery/NATIVE_TRANSFER_AND_CUSTODY_LEVEL2_DECISIONS.md). **Evidence: source and pinned declarations only; no BDS or TPS acceptance.** Do not use the frozen 1.5 line or add future features.
 
+## Historical runtime evidence, segregated from implementation authority
+
+The owner has explicitly authorized carrying forward **evidence only** from accepted historical LAB work. See [curated native MR evidence, NMR-01–10](../recovery/NATIVE_MR_HISTORICAL_EVIDENCE_141.md). At BDS 1.26.63.1, PG20 observed whole-native enchanted-book direct handoff and clean-restart retention; PG42 observed a named/lore item in a nine-slot native entity inventory with the same carrier ID after an owner-reported normal restart. Thus native MR routing and bounded persistent carrier storage are **demonstrated at those historical scopes**, not universally untested. Neither proves crash-atomic journal+inventory custody, full opaque metadata fidelity, the current P4b engine's MR fault path or old-world migration. **No archived code, design/test fixtures, performance claims or Q5 migration decisions are imported**; the existing 1.4.1 source/API decisions below remain authoritative for this phase.
+
 ## Re-evaluation of the active high-cost boundaries
 
 | Mechanism and current call site | Native owner / correct disposition | Unmet Hart-specific guarantee | Falsifiable next proof |

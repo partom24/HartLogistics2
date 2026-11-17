@@ -2,6 +2,8 @@
 
 **Handoff prepared:** 2026-11-16. **Repository:** [partom24/HartLogistics2](https://github.com/partom24/HartLogistics2). **Working branch:** [implementation/native-first-engine-141-20261115](https://github.com/partom24/HartLogistics2/tree/implementation/native-first-engine-141-20261115). **Do not work from default `main` as though it contains the active recovery implementation.**
 
+**Historical native MR runtime evidence (owner-authorized, evidence-only):** [curated PG20/PG23/PG42 carry-forward](recovery/NATIVE_MR_HISTORICAL_EVIDENCE_141.md) records scoped no-experiments LAB passes for whole-ItemStack direct routing and a nine-slot entity inventory retained through normal restart. It is **not** source/design/benchmark authorization for archived 1.5 or proof that P4b contains those later fixes. Base 1.4.1 conversion and the current P4 load objective remain unchanged.
+
 **READ THIS FIRST IN A NEW CHAT.** It consolidates the project objective, owner decisions, frozen baseline, evidence, current candidate, CI, actual blockers and next engineering work. The linked source documents and original files are the authoritative details. The handoff does not authorize production changes or declare Bedrock tests passed.
 
 ## 2026-11-16 pre-BDS Phase A implementation update (latest status)
