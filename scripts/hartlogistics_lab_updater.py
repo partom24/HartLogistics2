@@ -26,7 +26,9 @@ PACKS = [('behavior_pack','behavior_packs',BP_UUID,'world_behavior_packs.json'),
 # The Phase A engine is a single narrowly pinned candidate, not arbitrary
 # modified 1.4.1 source. Baseline hashes remain mandatory for all other assets.
 ENGINE_FILE = 'addon/behavior_pack/scripts/main.js'
-PHASE_A_ENGINE_SHA256 = '5c4a2d414302ef10d76fef21932928592caf2fab84cd000c5b0085cefcdd1b91'
+PHASE_A_ENGINE_SHA256 = '0578e8eb205d9c68fde8926a82c07241b68979c86160c8df4665e316ba2e8b26'
+# Exact P4e full-container native-call candidate, allowed as an upgrade origin.
+INSTALLED_P4E_ENGINE_SHA256 = '5c4a2d414302ef10d76fef21932928592caf2fab84cd000c5b0085cefcdd1b91'
 # Preserve the exact P4d transit-first candidate as an allowed LAB upgrade origin.
 INSTALLED_P4D_ENGINE_SHA256 = '99045ca7179320f5f5e2d9d56286b4386308df7daa5473b8aa7498bf27c44306'
 # Preserve the P4b LAB-candidate hash as a narrowly allowed upgrade origin.
@@ -282,7 +284,10 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
         p4d=original.copy()
         if local=='behavior_pack':
             p4d['scripts/main.js']=INSTALLED_P4D_ENGINE_SHA256
-        if installed_hashes not in (original,prior,intermediate,p2,p3,p4,p4b,p4d,source_hashes):
+        p4e=original.copy()
+        if local=='behavior_pack':
+            p4e['scripts/main.js']=INSTALLED_P4E_ENGINE_SHA256
+        if installed_hashes not in (original,prior,intermediate,p2,p3,p4,p4b,p4d,p4e,source_hashes):
             raise UnsafeLab(f'Unrecognized installed LAB pack contents for {pack_id}')
         plan.append({'source':repo/'addon'/local,'target':target,'registry':reg,
                      'new_registry':patch_registration(raw,pack_id,ver),

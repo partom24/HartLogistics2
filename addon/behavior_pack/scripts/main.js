@@ -3179,7 +3179,7 @@ function exactStackSig(stack) {
     return sig;
 }
 
-function findAcceptSlot(container, stack, requireAutoSeed=false) {
+function findAcceptSlot(container, stack, requireAutoSeed=false, negativeProof) {
     // Native ContainerSlot is a LIVE view. Inspect item type and quantity
     // without copying every unrelated ItemStack. No destination state is cached.
     if (!requireAutoSeed && stack.maxAmount <= 1) {
@@ -3256,6 +3256,12 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
         return undefined; // nonstackable AUTO needs an empty slot, regardless of seed
     }
     let knownFull = occupied === size;
+    // A negative may be reused inside this synchronous column pass ONLY if
+    // all live slots are occupied and NO stack of this type is partially full.
+    // That witness needs no ItemStack reconstruction or metadata assumptions.
+    // Native comparison exceptions and sparse/unknown inventories cannot
+    // produce a reusable rejection.
+    let noTypePartial = true;
     for (let i=0; i<size; i++) {
         const slot = container.getSlot(i);
         let currentType;
@@ -3268,6 +3274,7 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
                 firstEmpty = -1;
                 compatible = undefined;
                 seeded = !requireAutoSeed;
+                noTypePartial = true;
                 i = -1;
                 continue;
             }
@@ -3294,7 +3301,12 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
         if (!compatible && currentType === typeId) {
             const amount = slot.amount;
             const capacity = slot.maxAmount;
+            if (!Number.isInteger(amount) || !Number.isInteger(capacity) ||
+                amount <= 0 || capacity < amount || capacity <= 0) {
+                noTypePartial = false; // Unknown native quantity is NOT proof of no room.
+            }
             if (amount < capacity) {
+                noTypePartial = false; // Even a metadata mismatch is not reusable.
                 try {
                     if (slot.isStackableWith(stack)) {
                         compatible = {slot:i, before:amount,
@@ -3305,6 +3317,13 @@ function findAcceptSlot(container, stack, requireAutoSeed=false) {
         }
         if (seeded && compatible) return compatible;
     }
+
+    // An exact negative certificate means no slot is empty AND no stack of
+    // this type has spare quantity. Any incoming metadata of the same type and
+    // max stack size must therefore be rejected until this callback's state
+    // changes. Do not cache across callbacks/ticks.
+    if (negativeProof && knownFull && noTypePartial && maxAmount > 1 &&
+        !compatible) negativeProof.fullNoTypeCapacity = true;
 
     if (!seeded) return undefined;
     if (compatible) return compatible;
@@ -3635,6 +3654,11 @@ function processColumn(col, globalRemaining) {
 
     let movedTotal = 0;
     let columnBudget = Math.min(PER_COLUMN_BATCH, globalRemaining);
+    // Each entry faces one destination during this synchronous, non-yielding
+    // invocation. A witnessed full/type-without-partial rejection can recur
+    // across the Hopper's five input slots. This map is never persisted and
+    // never shared with another column or tick.
+    const rejectedFullTypes = new Map();
 
     // Five hopper slots; each slot is offered only to this column.
     for (let si=0; si<src.size && columnBudget>0; si++) {
@@ -3696,8 +3720,19 @@ function processColumn(col, globalRemaining) {
                         return movedTotal;
                     }
                 } else {
-                    const slotInfo = findAcceptSlot(dest.container, stack, mode === "auto");
-                    if (!slotInfo) break;
+                    const rejected = rejectedFullTypes.get(e);
+                    if (rejected && rejected.mode === mode &&
+                        rejected.typeId === stack.typeId &&
+                        rejected.maxAmount === stack.maxAmount) break;
+
+                    const proof = {};
+                    const slotInfo = findAcceptSlot(dest.container, stack, mode === "auto", proof);
+                    if (!slotInfo) {
+                        if (proof.fullNoTypeCapacity) rejectedFullTypes.set(e, {
+                            mode, typeId:stack.typeId, maxAmount:stack.maxAmount
+                        });
+                        break;
+                    }
 
                     const want = Math.min(columnBudget, stack.amount, slotInfo.room);
                     if (want <= 0) break;
@@ -3716,6 +3751,9 @@ function processColumn(col, globalRemaining) {
                 }
 
                 if (moved <= 0) break;
+                // A successful write can invalidate admission assumptions
+                // (including when another destination aliases the same chest).
+                rejectedFullTypes.clear();
                 movedTotal += moved;
                 columnBudget -= moved;
             }

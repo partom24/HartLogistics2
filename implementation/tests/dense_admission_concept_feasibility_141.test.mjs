@@ -230,7 +230,7 @@ test("CONCEPT-12 exhaustive 1,024 five-position patterns in varied container siz
   }
 });
 test("CONCEPT-13 no new custody writer, tick cadence or persistent chest ledger",()=>{
-  assert.match(SRC,/function findAcceptSlot\(container, stack, requireAutoSeed=false\)/);
+  assert.match(SRC,/function findAcceptSlot\(container, stack, requireAutoSeed=false(?:, negativeProof)?\)/);
   assert.match(SRC,/function safeMovePartial\(src, srcBlock, srcSlot, dst, dstBlock, dstSlotInfo, amount\)/);
   assert.match(SRC,/system\.runInterval\(schedulerTick,\s*1\)/);
   assert.doesNotMatch(SRC,/knownChestCapacityCache|authoritativeSorterChestCount/);

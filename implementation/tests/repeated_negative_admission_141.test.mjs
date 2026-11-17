@@ -2,7 +2,8 @@
  * Phase A P4g SOURCE-ONLY duplicate-negative-admission exploration.
  * Executes current 1.4.1 processColumn, compactSourceHopper, and findAcceptSlot
  * from the actual candidate source. Counterfactual in-callback rejection reuse
- * is a standalone wrapper NOT installed in gameplay.
+ * was modeled in a standalone wrapper. The P4g source now includes a narrower
+ * FULL and no-same-type-partial per-callback proof, never a general memo.
  *
  * No BDS performance claim. A synthetic repeated-offer example does not tell
  * us how often owner-world Sorters actually repeat identical rejects.
@@ -143,24 +144,24 @@ function state(r){
     moved:r.moved
   };
 }
-test("REPEAT-01 actual processColumn scans same FULL chest once per identical source slot",()=>{
+test("REPEAT-01 P4g actual processColumn avoids four repeated certified-full rejects",()=>{
   const sourceSlots=Array.from({length:5},()=>item("minecraft:stone",1));
   const full=Array.from({length:54},()=>item("minecraft:dirt",64));
   const base=run(sourceSlots,full);
-  assert.equal(base.stats.offers,5);
-  assert.equal(base.dest.calls.getSlot,270);
+  assert.equal(base.stats.offers,1);
+  assert.equal(base.dest.calls.getSlot,54);
   assert.equal(base.moved,0);
   assert.equal(base.dest.calls.hasItem,0,"P4e full-native occupancy fast path preserved");
 });
-test("REPEAT-02 exact-type and metadata guarded synchronous reuse could avoid repeated negative scans in modeled case",()=>{
+test("REPEAT-02 P4g source avoids repeats without a second general-purpose memo",()=>{
   const sourceSlots=Array.from({length:5},()=>item("minecraft:stone",1));
   const full=Array.from({length:54},()=>item("minecraft:dirt",64));
   const baseline=run(sourceSlots,full);
   const modeled=run(sourceSlots,full,{memo:true});
   assert.deepEqual(state(modeled),state(baseline));
-  assert.equal(modeled.stats.reused,4);
+  assert.equal(modeled.stats.reused,0,"The live source already skipped repeat scans");
   assert.equal(modeled.dest.calls.getSlot,54);
-  assert.equal(baseline.dest.calls.getSlot,270);
+  assert.equal(baseline.dest.calls.getSlot,54);
 });
 test("REPEAT-03 type-only rejection reuse would be wrong when incoming stack metadata differs",()=>{
   const full=Array.from({length:54},()=>item("minecraft:dirt",64));
