@@ -1,5 +1,7 @@
 # PG-14 LAB one-cobblestone custody proof — owner test card
 
+> **Historical design notice (2026-11-16):** Q5 was a queue-centric architectural proposal made with limited understanding and has been **superseded** by the [Unified Routing and Custody Engine](../../docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md). Any Q5 references below are historical test context, **not current 1.5 implementation requirements**. Do not change the original test evidence, Q4 data, or frozen UCE source based on this notice.
+
 **Status: offline candidate only until CI and owner expressly authorize a LAB install. No game installation, server access or inventory movement was performed by development tooling.**
 
 ## Exact purpose

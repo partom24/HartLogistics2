@@ -1,5 +1,7 @@
 # PG26 1.5.9 — first ordinary Transporter input prototype
 
+> **Historical design notice (2026-11-16):** Q5 was a queue-centric architectural proposal made with limited understanding and has been **superseded** by the [Unified Routing and Custody Engine](../../docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md). Any Q5 references below are historical test context, **not current 1.5 implementation requirements**. Do not change the original test evidence, Q4 data, or frozen UCE source based on this notice.
+
 **LAB ONLY; BDS not yet run.** This is a new pipe block and a bounded input
 adapter for existing Sorter rules. It is not a released Transporter/Bulk/Q5
 network. Installed predecessor must be exact accepted PG25 `1.5.8`.

@@ -1,5 +1,7 @@
 # PG-13 LAB — Shadow Journal Persistence Gate (BDS 1.26.63.1)
 
+> **Historical design notice (2026-11-16):** Q5 was a queue-centric architectural proposal made with limited understanding and has been **superseded** by the [Unified Routing and Custody Engine](../../docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md). Any Q5 references below are historical test context, **not current 1.5 implementation requirements**. Do not change the original test evidence, Q4 data, or frozen UCE source based on this notice.
+
 **Status: prepared for one owner-run LAB-only acceptance session after guarded deployment; NO actual PG-13 BDS evidence yet.**
 
 ## Exact statement of what is being tested
