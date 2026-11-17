@@ -1,32 +1,39 @@
-# Hart Logistics 2 — Roadmap (1.4.2 baseline checkpoint, 2026-11-17)
+# Hart Logistics 2 — Roadmap (URCE planning line, 2026-11-17)
 
 ## Outcome
 
-Protect the original 1.4.1 Minecraft Bedrock world and feature contract while completing a native-first 1.4.2 development baseline; then plan the next 1.5 **Unified Routing and Custody Engine (URCE)** to scale the owner's [Sorter and storage-room arrays](../OWNER_PRODUCT_OBJECTIVE.md). Source completion, owner BDS acceptance, 1.5 implementation, and release are distinct gates.
+Preserve all Hart Logistics 1.4.1 capabilities and world data through a versioned **1.4.2 native-first baseline**, then build a safe, higher-throughput **1.5 Unified Routing and Custody Engine (URCE)** for the owner's pinned [Sorter/storage-room arrangements](../OWNER_PRODUCT_OBJECTIVE.md) at approximate 1,400-Sorter scale. Maintain exact ItemStacks where needed and count-based ordinary item storage only where native custody is proven. Every runtime/owner acceptance and release requires distinct evidence.
 
 ## Completed
 
-- Immutable original 1.4.1 BP/RP imported at `0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`; 72 file hashes preserved.
-- **HL-142-BASELINE-001 — CLOSED at development/source scope only.** Native-first 1.4.2 code baseline is the previous P4e engine (P4g repeat-rejection cache excluded), with 1.4.2 pack metadata and unchanged identifiers, Q4, Hopper/Sorter/Collector/Receiver behavior and API dependency. [Acceptance evidence and outstanding owner gates](../implementation/BASELINE_142_CLOSEOUT_20261117.md). This is NOT a release or a claim of proven owner-scale throughput.
-- Prior P4e/P4g LAB profiling demonstrates current dense admission cost and P4g's lack of measured reuse; further 1.4.x speculative cache development deliberately stopped.
+- Immutable exact original 1.4.1 source and 72-file fingerprint retained (`0ea3000651c116b0fa1acc2836ab7e1bcfbc6269`).
+- **HL-142-BASELINE-001 — Development/source closeout:** branch `baseline/native-first-142-20261117`, P4e physical admission and Q4 custody preserved, P4g cache removed, BP/RP version 1.4.2 and guarded LAB transition. [Exact baseline/evidence](../implementation/BASELINE_142_CLOSEOUT_20261117.md). **No** complete owner-BDS performance or production-release claim.
+- Source-only P4g correctness but runtime NO-GO for duplicate rejection reuse; no cross-tick global capacity ledger is adopted. Current architecture performance ceiling accepted as development decision; unresolved dense scans recorded.
+- Historical 1.5 design and model evidence classified; the selected architecture is URCE and the old Q5 queue-format plan is superseded.
 
 ## Now
 
-**No active milestone.** The 1.4.2 architecture/optimization iteration is closed. Only preservation, CI, guarded LAB compatibility verification and bounded defects remain on this branch. No 1.5 gameplay development or deployment starts here.
+**HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**
+
+**Goal:** deliver a source-traceable URCE planner/custody architecture and staged integration gates using current 1.4.2 as the only *runtime* foundation. Start with the [architecture and execution charter](../planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md), [selected historical 1.5 reference map](../planning/URCE_HISTORICAL_15_REFERENCE_REVIEW_20261117.md) and [source-observed 1.4.2 writer census](../planning/URCE_150_ACTIVE_142_WRITER_CENSUS_20261117.md).
+
+**Boundary:** documentation/source-only analysis now. No Bulk/Transporter runtime, Q5 migration, code from frozen #79/#82 branch, owner-world upgrade, LAB installation or release. Keep identical BP/RP addon files to 1.4.2 baseline.
+
+**Exit:** complete current writer/source-effects census and candidate planner input/output/equivalence design, explicit durability/HOLD and q2/q3/q4 migration state machine, source-only fault/performance test plan, unresolved native capability proofs and owner decisions before first 1.5 gameplay authorization.
 
 ## Next
 
-- **HL-142-ACCEPT-001 — Pending owner LAB/compatibility gate.** Confirm exact installed source/version, world registry bump and rollback, old data/q2/q3/q4 journals and metadata, routing/filters/redstone/vanilla Hopper behavior, delivered item counts and natural owner-scale performance. Acceptance must identify unresolved source/throughput work honestly; owner release is separate.
-- **HL-URCE-PLAN-001 — Owner-authorized separate 1.5 design planning.** Create a separate branch from the closed 1.4.2 baseline; use selected [URCE contract](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) and individually vetted historical 1.5 design/skeleton references. First define planner and custody contracts, migration and tests; no Q5 schema, Bulk/Transporter gameplay or frozen 1.5 source merge.
+- **HL-142-ACCEPT-001 — Separate owner 1.4.2 LAB acceptance:** exact deployed SHA, pack registry bump and rollback, Q4 preserved data, no loss/duplication/metadata changes, Filter/Auto/Wildcard/Bypass/redstone/Hopper behavior and useful throughput on both pinned array layouts. Scope is independent of URCE *planning*; 1.5 runtime requires this compatibility gate to be acceptably resolved.
+- **HL-URCE-U1-001 — Proposed read-only planner prototype:** only after U0/plan acceptance, source-executed 1.4.2 differential tests with no native writes, no owner installed pack. Revalidate live destination at last responsible moment.
+- **HL-URCE-U2-001 — Proposed unified writer/migration proof:** only after separate authorization and durable physical/journal ownership evidence. Full q2/q3/q4 census, unknown HOLD, no Q5 interim format.
 
 ## Later
 
-- URCE source prototype only after planning decisions and safety gates; unified writer/custody, regional authority, ordinary Bulk Storage, Transporter, native metadata-rich lane and exact old-world migration.
-- Integrated LAB benchmark at 1,400-Sorter owner layout, no-loss/no-duplication/metadata conservation, then distinct release review and production approval.
+- Verified native MR custody and 1.5 integration, bounded regional controllers, ordinary Receiver/Bulk accounts (250,000/200,000 respective accepted capacity targets), Transporter into Sorter path, split/merge/restart/multi-region integration, native profiler comparisons at owner scale, then explicit versioned release authorization.
 
 ## Decisions and blockers
 
-- **Accepted boundary:** 1.4.2 is an architectural performance ceiling decision, **not** a measured 20 TPS certification. Dense 27/54-slot negative admissions remain costly; no general stale capacity cache.
-- **Preservation:** do not lower polling cadence or budgets to hide load. Keep physical Q4 writer, saved-world registry, pack UUIDs, Filter→Auto→Wildcard, nonstackable/MR identity and native Hopper behavior.
-- **Historical exclusion:** Q5 is superseded by URCE; archived unified-custody branch #79/#82 may be cited as a rejected study but not copied/merged as a runtime foundation. Approved standalone source-only historical concepts can inform new independent design contracts.
-- **Open owner acceptance:** exact LAB upgrade from 1.4.1 to 1.4.2; redstone, frame, Q4/migration, mixed cargo, full destination and real 1,400-Sorter performance. No release or production apply approved.
+- **Selected architecture:** URCE control-plane candidate planner + native live data-plane admission + shared custody rule; not a world-wide synchronous scheduler or virtual chest cache. Historical [URCE design contract](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) remains authoritative.
+- **Historical skeleton allowed as selective *reference*:** graph/unknown-topology checks, writer census, bounded pipe source, physical ambiguity HOLD and compatibility tests; old Q5 schema and frozen unified-custody implementation must not be merged.
+- **Unresolved:** 1.4.2 owner LAB acceptance; durable transaction/physical receipt and Q4 recovery; script-owned maintenance fence cannot disable vanilla/foreign writers; no-experiment MR inventory; controller election, partitions and revisions; network-governed Auto versus Bulk priority; real useful throughput at 1,400 Sorters.
+- **No production apply:** CI/source PASS is not a release. Preserve pack UUID, original world keys, native Hopper observations and game data.
