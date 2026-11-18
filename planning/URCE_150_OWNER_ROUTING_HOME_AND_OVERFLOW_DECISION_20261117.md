@@ -5,6 +5,12 @@
 **Applies to:** Explicitly governed URCE networks. Existing standalone Hopper→Sorter networks preserve 1.4.2 Filter → seeded Auto → Wildcard behavior, even when they are upgraded to the 1.5 add-on without joining a governed network.  
 **Supersedes:** The historical blanket policy "Wildcard only after all usable Bulk is full" **for genuinely unclaimed identities**, and the misleading interpretation "always run Filter → Auto → Wildcard → Bulk". Prior general Bulk-before-Wildcard rules remain applicable to identities already claimed by Filter/Auto or held in Bulk.
 
+## 2026-11-18 physical bank and controller follow-up (policy unchanged)
+
+The owner intends the **last transport bank to contain many Wildcard Sorters**, serving genuinely unclaimed identities and the existing **verified-full Bulk exception**. This is a destination-placement intention, **not** permission to divert claimed items to Wildcard before checking authoritative Bulk space or to treat an unloaded bank as full.
+
+There is a distinct **Bulk Storage** block, **not a Bulk Sorter**. Previously, the first Bulk Storage placed in a bank became the Bulk Controller and controllers negotiated which items to pass onward. Those were historical implementations, **not product requirements**; neither one controller per bank nor a named routing **region** is owner-mandated. Engineering may prove a controller-free design or another authority arrangement. Keep all existing ownership, capacity, HOLD and native-custody obligations. See the [OSI-inspired multi-bank research and new-chat takeover](URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md).
+
 ## Owner's actual clarification
 
 > If there is already an item in Bulk Storage, it should not go to Wildcard storage. If an item that's filtered or Auto-sorted has a full chest, and no other valid Sorters can claim it, it should only go to Bulk Storage. Wildcard is reserved for something that legitimately has no other home. The only exception is if the Bulk Storage bank is full, then it should overflow into Wildcard.
