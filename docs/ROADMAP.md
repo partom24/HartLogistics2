@@ -29,6 +29,14 @@ Preserve all Hart Logistics 1.4.1 capabilities and world data through a versione
 
 **OSI-inspired research hypothesis:** separate cheap claim/destination/next-hop selection from intermediate physical forwarding and final native capacity checks, with exact durable custody across every actual ownership boundary. An irrelevant bank should not scan Sorter destination chests; skipping reclassification is not proof that physical Collector–Receiver hops or journal writes vanish. **Source-only comparison first** (four-bank traversal, Auto seed changes, Bulk home and full/unknown behavior, last-bank Wildcard, unload/restart), then BDS validity and performance gates. Do not reproduce seven protocol layers, a globally polled routing table or unproven native item-transfer atomicity.
 
+## Owner-approved 1.5 product end state — 2026-11-18 (supersedes older product assumptions)
+
+**Current authority:** [URCE 1.5 owner-approved product contract](../planning/URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md). Automatically connected **reachable directed acyclic** logistics networks; a Collector–Receiver pair alone may form a network, branches/merges allowed and managed cycle-making links rejected. Preserve Filter→live-seeded Auto, bottom-to-top within a column and favor lower real transactional cost among eligible columns. **No verified home → no movement**; optional terminal Collector is a valid final home, not a network requirement. Genuinely unclaimed item fallback: eligible Wildcard → available terminal Collector → verified Bulk overflow → HOLD in present custody. Claimed/previous Bulk-home rules, verified-full exception and unknown HOLD from ADR-002 still apply.
+
+Favor safe **network-wide Bulk** over mandatory per-bank pools; redistribute automatically only for useful spare capacity, never compete pointlessly with active Receiver cargo. Prioritize exact native MR custody/Wildcard without lossy serialization. Show block /status metrics plus accurate per-item **HOLD/HELD/STORED** and metadata; shared searchable, paginated, read-only-by-default Collector/Receiver/Bulk inventory browser must remain responsive with **250,000** queued items, with separate deliberate safe item retrieval. Primary performance goal is **playable stable BDS** under routing, not an invented TPS claim. Terminal Collector absent is a valid network configuration. Arbitrary external virtual-storage integration is not promised. The design has **owner approval only**: no implementation, native MR proof, LAB acceptance or release authorization.
+
+Earlier statements on this roadmap about the final Wildcard bank describe the owner's pictured layout, **not** the now-accepted universal product requirement.
+
 ## Now
 
 **HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**

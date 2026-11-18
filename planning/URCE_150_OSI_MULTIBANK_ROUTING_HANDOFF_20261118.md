@@ -2,6 +2,8 @@
 
 **Date:** 2026-11-18. **Branch:** `planning/urce-150-20261117` in `partom24/HartLogistics2`. **Authority:** Owner conversation and exact repository source/plan review. **Status:** DESIGN / SOURCE-ONLY RESEARCH; no 1.5 gameplay, BDS run, world mutation, release or performance acceptance. **This document supersedes older controller-per-bank/region assumptions as *requirements*, not the older historical evidence.**
 
+> **2026-11-18 later owner-approved end-state contract (read before the historical analysis below):** [HartLogistics 1.5 owner product contract](URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md) records the accepted automatic reachable-network topology, directed cycle rejection, optional terminal Collector, **no verified home → no movement**, updated unclaimed Wildcard → terminal Collector → verified Bulk fallback → HOLD, network-wide Bulk preference, demand-aware redistribution, MR priority/native custody, HOLD/HELD item-level UI, paginated 250k-item inspection and safe retrieval, playable BDS acceptance. References below to a mandatory final Wildcard bank or per-bank Bulk/controller are **historical layout/research assumptions, not binding product requirements**. The scope is still documentation/source-only; there is no 1.5 gameplay, LAB, world or release approval.
+
 ## Read this first in the next chat
 
 1. **Source foundation:** `baseline/native-first-142-20261117` is the closed development/source baseline (P4e, no P4g rejection cache), but is **not** accepted on owner BDS or authorized for production. Preserve unchanged 1.4.1 original 72-file import and 1.4.2 gameplay/hash controls; no changes to `addon/` in this planning branch.

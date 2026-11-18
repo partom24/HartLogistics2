@@ -1,5 +1,7 @@
 # URCE-ADR-002 — Item homes, Bulk Storage, and true Wildcard overflow
 
+> **2026-11-18 superseding owner product refinement:** [Current owner-approved 1.5 product contract](URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md) preserves ADR-002's claimed-item Filter/Auto → Bulk (verified-full exception → Wildcard) and existing Bulk-home protections, **but** refines genuinely unclaimed routing to **Wildcard → optional terminal Collector → verified Bulk fallback → HOLD**, with no verified home/no movement. Network-wide reachable Bulk is the preferred safe direction; a mandatory final Wildcard bank, one Bulk bank/controller and controller regions are no longer product requirements. This note does not retroactively modify the earlier owner testimony or authorize gameplay.
+
 **Decision owner:** Hart Logistics owner, November 17, 2026.  
 **Status:** **Owner clarified / accepted routing intent; planning contract only**, not a runtime or release implementation.  
 **Applies to:** Explicitly governed URCE networks. Existing standalone Hopper→Sorter networks preserve 1.4.2 Filter → seeded Auto → Wildcard behavior, even when they are upgraded to the 1.5 add-on without joining a governed network.  
