@@ -1,0 +1,80 @@
+# URCE 1.5 — Pre-code architecture readiness, resolved decisions and blocking proofs
+
+**2026-11-18;** branch `planning/urce-150-20261117`. **Status: PRODUCT DIRECTION COMPLETE; SOURCE-ONLY ENGINEERING DESIGN ACTIVE; NOT READY TO AUTHORIZE 1.5 GAMEPLAY/WRITER CODE.**  
+**Primary authorities:** [owner end-state contract](URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md), [Transporter/batching evidence](URCE_150_TRANSPORTER_BATCHING_BDS_CAPTURE_EVIDENCE_20261118.md), [November 18 research handoff](URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md), [U0 current writer census](URCE_150_ACTIVE_142_WRITER_CENSUS_20261117.md), [roadmap](../docs/ROADMAP.md).
+
+This is a **pre-code engineering checklist**, not a request for the owner to choose data structures or an implicit green light for runtime code. Preserve current 1.4.2/gameplay bytes, Q2/Q3/Q4, UUIDs, existing world, native Hopper behavior, original 1.4.1 reference and protected production.
+
+## Decision disposition — no more owner product questions required now
+
+| Area | Settled policy | Code-facing consequence |
+| --- | --- | --- |
+| Directed reachability | Physical/logical supported connections form a network; directed acyclic routing, branches/merges okay; reject managed cycle link | No network-wide assumption of reachability; route exists only source→destination |
+| No home | Unclaimed without verified acceptable home **HOLD in current custodian**; terminal Collector optional | No speculative forwarding, bounce-back or permanent orphan |
+| Destination order | Filter→live seeded Auto, bottom-to-top within column, lower actual transactional cost across eligible columns | Planner separates claim and capacity; native admission stays live |
+| Fallback | Claimed/existing Bulk identity→verified Bulk (proven-full→Wildcard); genuinely unclaimed→Wildcard→terminal Collector→verified Bulk→HOLD | Preserve unknown/unloaded vs proved full and per-item custody |
+| Bulk | Share safe reachable network capacity, 200k ordinary/member; opportunistic automatic redistribution when normal Receiver traffic cannot fill chest | No independent Bulk drain race, virtual count movement for no benefit, or costful global scan |
+| MR | Exact native nonserialized custody, MR service preference, native Wildcard before any proved MR Bulk | Fallback direct-only guard until proven durable native alternative |
+| Player UI | Per-item HELD/STORED and reason/custodian, searchable paginated Collector/Receiver/Bulk, safe explicit retrieval and 250k receiver performance | No queue-wide menu scan, no misleading duplicate counters, no UI-triggered custody writes |
+| Transport & performance | Hopper unchanged and supported; Transporter is high-throughput alternative; clear legitimate bursts fast while keeping players responsive | Distinguish transaction count, moved item quantity, actual delivered rate, native/journal work, peak tick and backlog duration |
+| Scope | URCE 1.5 integrated engine, unique Bulk/Transporter assets; no forced Q5 or HartBots Depot feature | No gameplay implementation until separate authorization; no experiment flags by default |
+
+**Remaining items are proof/implementation design problems, not missing owner requirements.** The earlier P4 source optimization conclusion is accepted as a **handoff boundary**, not proof that more efficient native operations are impossible.
+
+## Engineering decisions resolved here for source-only design
+
+1. **Scheduler units:** Do **not** equate the 1.4.2 16-item cap with a transaction cap. Use distinct accounting for **moved quantity**, **successful transaction count**, **failed admissions**, **native API calls**, **journal/property writes**, **peak tick work** and **useful delivery**. Test 16/32/64 as experiments, not product settings. A safe high-density movement must still fit exact physical/native destination capacity and the last-authoritative-custodian protocol.
+2. **Cost model before shortest distance:** A plausible next hop needs verified reachability plus policy priority; cost estimates can rank equally eligible routes but must never overrule Filter/Auto, block ordering, powered gate, MR fidelity or custody. Use observed/proxy native calls, live admissions and unavoidable handoffs; don't invent weight constants as settled truth.
+3. **Fail closed on uncertain world state:** An unknown/unloaded destination, remote Auto seed, Bulk membership, cycle check, journal receipt or native carrier is **unverified**, not absent/full/free. HOLD, re-evaluate on meaningful state changes, and bound retries; no TTL item deletion.
+4. **Movement/admission separation:** Transporter can accelerate a proven path but must not bypass Sorter policy or directly push into ordinary output chests. Logical forwarding does not by itself remove a necessary custody transition. Hart can reject its managed link; it cannot disable physical vanilla Hopper motion.
+5. **Batch and scheduler guardrails:** Batch the largest verified *beneficial* quantity within a transaction envelope; separately bound transaction attempts and peak work. Prefer ordinary Receiver delivery over redundant Bulk draining; preserve ordinary fairness despite MR priority. No guaranteed live BDS tick-time API and no fixed 64 chosen.
+6. **Runtime status:** No new renderer/menu/storage functionality is accepted merely because the designs are approved; implement and prove separate capability and performance gates.
+
+## U0 — complete direct/transitive writer/source-effect proof (BLOCKING for any new writer)
+
+**Existing partial evidence:** [initial active 1.4.2 census](URCE_150_ACTIVE_142_WRITER_CENSUS_20261117.md) identifies eight custody writer/replay categories: Hopper compaction, physical Sorter transfer, queue ingress, entity-to-Q4 ingress, queue egress, direct MR, physical-journal replay and Q4-journal replay.
+
+**Supplemental exact-source lexical sweep, 2026-11-18:** The 4,417-line `addon/behavior_pack/scripts/main.js` has 175 top-level named function declarations and approximately **60 lines containing the direct mutation/property API expressions** enumerated in this sweep. Relevant examples beyond the eight paths: `giveOrDrop` uses `inv.addItem` and `spawnItem`; `setFilter` changes a held player item; filter-display machinery uses entities, equipment and `runCommand`; frame/mirror handlers alter block permutations/types and issue a `setblock ... destroy` command; registry/logistics/Q4 migration and definition/page helpers call `setWorldDynamic`. The sweep is **not a complete semantic call graph or proof of only 60 writers**—one API call line may occur in many runtime paths, direct `ItemStack` field mutations and implicit Bedrock actions may be missed.
+
+**Still required:** a checked *transitive* mapping of every scheduler/event/menu/startup/recovery callback to reachable native/container/player/entity/frame/world-property mutations; compare active 1.4.2 against intended shared writer and define exact Hart-only fence, evidence before/after, and HOLD/recovery at each. Model vanilla Hopper, players, and other add-ons as independent writers. A full pass cannot be claimed from this lexical sweep. **Status: OPEN.**
+
+## U1 — minimal directed graph and route-eligibility proof (BLOCKING for new forwarding)
+
+**Define, without code yet:** topology node/edge types (Hopper direction, Transporter intake/exit, Sorter-column, Collector→Receiver, terminal Collector, Bulk member, native chest); what the engine actually observes versus what exists only in unloaded chunks; source→destination reachability; cycle validation for proposed links; branch/merge, link deletion, revisions, split/merge, loaded-stale claims and when a downstream Collector may legitimately be terminal.
+
+**Planner contract:** cheap configuration and verified connectivity yield *possible* destinations only. Do not assert chest capacity, MR acceptance, or remote Auto seed from a stale route directory. Filter→live Auto→fallback and partial transfers revalidate at the responsible endpoint. Separate multi-bank skipping of irrelevant checks from actual physical Hopper/Collector–Receiver writes; compare an owner-shaped four-bank graph and approximately 350 four-high columns. Test novel avoided work rather than renaming P4g or naive U1 NO-GO. **Status: SPECIFICATION PARTLY ESTABLISHED; DIFFERENTIAL SOURCE PROOF OPEN.**
+
+## U2 — durable custody, migration and terminal/Bulk semantics (BLOCKING for new storage/writers)
+
+**Specify full state machine before source code:** one authoritative custodian per item quantity; prepare/intent/physical debit/physical credit/commit/recovery and every ambiguous crash cutpoint. Define how read-only route hints differ from actual Native Container/ItemStack/Q4 authority; ownership/epoch reservation for shared Bulk member balances under split/rejoin and temporary unclaimed overflow. Preserve q2/q3/q4 without draining worlds, no Q5 intermediate. Existing 250k Receiver and 200k/new Bulk are distinct capacity contracts. Terminal Collector must have finite proved storage, retrievability and unload-safe status; no "terminal" based only on unavailable downstream chunks.
+
+**Blockers:** world dynamic-property + native inventory write are **not a documented atomic pair**; `Container.transferItem` remainder is **not** a durable receipt; vanilla/foreign writers are not frozen by Hart maintenance. No speculative replay, refund or deletion on ambiguous physical outcomes. Q4 read/migration can cause side effects and must not be invoked merely to reject unsupported MR cargo. **Status: SAFETY RULES ESTABLISHED, RECEIPT/RESTART AND MIGRATION PROOF OPEN.**
+
+## U3 — exact native API and visual/UI feasibility (BLOCKING for runtime endpoint selection)
+
+- Target exact owner BDS **1.26.63.1** and pinned `@minecraft/server 2.7.0`, not just the current online stable docs. Verify short-/long-path Transporter input from deliberate containers; positive live transfer; native block/redstone/loaded state; inventory validity and source-admission at each real custody handoff.
+- Official [Container methods](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/container?view=minecraft-bedrock-stable) expose `moveItem(fromSlot,toSlot,toContainer)` and `transferItem(fromSlot,toContainer)`, **no explicit quantity parameter** and no stated crash atomicity. Do not treat them as a universal batched partial transfer or a certified receipt.
+- Official [1.26.50 technical notes](https://learn.microsoft.com/en-us/minecraft/creator/documents/update1.26.50) mark **custom block-entity containers and their script inventory access experimental**. Existing vanilla `BlockInventoryComponent` does **not** prove stable custom-block native MR slots. Require a *nonexperimental* persistent native MR carrier with exact metadata and restart/unload, or hold implementation without unsafe substitution.
+- Confirm stable UI module, page/action scaling, no entire 250k-entry scan, accurate HELD detail, and deliberate safe item extraction; new Bulk/Transporter unique asset feasibility. **Status: RESEARCHED API SIGNATURES, NATIVE TARGET-BDS PROOF OPEN.**
+
+## P4 baseline / actual BDS performance and telemetry proof
+
+**Frozen developmental source:** 1.4.2 P4e and original 1.4.1; P4g no-hit and naive local lazy-route NO-GOs remain rejected. The Nov17 capture contains ~**9,425** P4e live Sorter admissions / **487,223** native `getSlot` calls / only **21** completed physical Sorter transactions in ~19.727s. Profiler gives **no moved-quantity histogram**; diagnostic Q4 window gives **38 items delivered over 330 game ticks**, not total Sorter delivered items/tick. Do not assert 16 budget was exhausted or claim 32/64 wins.
+
+**Telemetry required:** bounded aggregation of actual moved quantity and transaction count by Sorter/Collector/Receiver/Transporter/Bulk stage, admitted/rejected reasons, per-tick peak transaction attempts, journal writes, native slot reads, Q4 totals and block reason (powered/full/unloaded). Avoid per-item logging and extra scans. Compare no-routing baseline, productive 64-item stack case, idle/powered queue, heavy arrivals, backlog flush, simultaneous normal gameplay and cooldown. Distinguish *script categories* from actual whole-server ticks and attribute other add-ons. Prefer existing VS debugger, server diagnostics and Script Profiler. `40 ms p95 / 50 ms p99` is **only a provisional engineering candidate**, never a new owner hard gate. **Status: CAPTURE ANALYZED, NO MATCHED BATCH TEST OR FULL-OWNER-LAYOUT ACCEPTANCE.**
+
+## Exact remaining gates before each coding boundary
+
+| Gate | Exit condition | Status |
+| --- | --- | --- |
+| G0 — product decisions | Owner-approved end-state with fallback/HOLD, menu, Transporter/Hopper and burst-performance goals | **CLOSED** |
+| G1 — source census | Every relevant mutation/recovery/callback and external writer conflict accounted for | **OPEN; U0 partial** |
+| G2 — route model | Fully specified directed graph, cycle/HOLD rules and source-only four-bank/owner-shape differential matrix | **OPEN; U1 candidate** |
+| G3 — custody protocol | U2 writer authority, Q4 migration, native receipt, crash/unload/split recovery state machine; no unproven commit semantics | **OPEN; safety prerequisite** |
+| G4 — native viability | Stable nonexperimental MR endpoint/Transporter path, target-version API and native custody/menus proved where required | **OPEN; BDS gate** |
+| G5 — comparative performance | Actual quantity/tick, transactions/item, backlog duration, full-server responsiveness and owner-layout acceptance | **OPEN; depends on authorized LAB runtime** |
+| G6 — authorization | Specific separate authorization for gameplay code, owner LAB, world upgrade and later release | **NOT GRANTED by this documentation request** |
+
+**Order of next work:** finish G1 direct/transitive census; specify G2 minimal graph and complete its source-only test matrix; finish G3 U2 safety model; identify G4 native endpoints before a new writer; then seek a discrete code authorization. A **pure, source-only routing-model/test prototype** may be an earlier, separately approved incremental code task after G1/G2 design review, but it must not write gameplay or alter protected worlds. Native acceptance and release remain separately gated.
+
+**Stop conditions:** If any identity/home/route/member authority is ambiguous, physical receipt cannot be proved, a route loop cannot be excluded, a native MR endpoint requires unapproved experiments, or BDS degrades noticeably during owner tests, HOLD safely; never turn a source-only success into permission to move protected cargo.

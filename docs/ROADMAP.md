@@ -37,6 +37,14 @@ Favor safe **network-wide Bulk** over mandatory per-bank pools; redistribute aut
 
 Earlier statements on this roadmap about the final Wildcard bank describe the owner's pictured layout, **not** the now-accepted universal product requirement.
 
+## Performance handoff and pre-code readiness — 2026-11-18
+
+**Owner's direction:** close the P4 native-first optimization line as the current *development* baseline; URCE should avoid irrelevant route/admission work and coordinate **higher-density useful Transporter transfers** as an alternative to unmodified vanilla Hopper cadence. The owner expects exceptional logistics bursts to drain promptly **without making BDS unpleasant to play**, and asks that **items delivered, transactions, per-transaction native/journal work, peak tick cost and backlog duration** be judged separately. No 16/32/64 runtime batch size or specific numeric TPS gate was approved.
+
+**Measured evidence:** [November 17 CPU profiles + Q4 diagnostics](../planning/URCE_150_TRANSPORTER_BATCHING_BDS_CAPTURE_EVIDENCE_20261118.md) show P4e had **9,425** Sorter admission checks / **487,223** native `getSlot` reads / **21** completed Sorter transactions across ~19.7 s; actual Q4 delivery in one separate diagnostics window was **38 items / 330 game ticks**, not a measure of all Sorter cargo. The capture cannot establish actual Sorter items/transaction or that the 16-item limit was binding; optimize *unproductive admissions first* and then prove denser productive transfers in matched tests. Stable Container movement has no explicit move-quantity argument; custom-block native inventory remains an unproved nonexperimental 1.26.63 endpoint.
+
+**Readiness:** [Pre-code gate matrix](../planning/URCE_150_PRECODE_READINESS_AND_PROOF_GATES_20261118.md). Owner product behavior is settled, but U0 complete writer census, U1 directed-graph cost/read proof, U2 physical/Q4 custody state machine, U3 stable native MR/Transporter endpoint and 1.4.2 owner-LAB acceptance are **OPEN**. Continue **HL-URCE-PLAN-001** source/documentation work; no 1.5 gameplay code, LAB execution or release is authorized here.
+
 ## Now
 
 **HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**
