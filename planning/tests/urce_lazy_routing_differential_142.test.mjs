@@ -111,6 +111,27 @@ assert.match(proposed,/for \(const tier of \["filter", "auto", "wildcard"\]\)/);
 assert.doesNotMatch(proposed,/const targets = /);
 assert.match(originalColumn,/const targets = \[\.\.\.specific, \.\.\.auto, \.\.\.wildcard\]/);
 
+let shared=replaceExact(proposed,
+  `            const live = sorterAt(e);
+            if (!live || e.nativeQuarantine || blockIsRedstonePowered(live)) continue;`,
+  `            // Defer even the native Sorter check until the candidate
+            // is actually being attempted, rather than pre-reading it.`,
+  "avoid duplicate candidate validation");
+shared=replaceExact(shared,
+  `                const dest = destinationFor(e);`,
+  `                // One fresh Sorter read for this attempt. Hand the same live
+                // Block to destinationFor; no second sorterAt call.
+                const live = sorterAt(e);
+                if (!live || e.nativeQuarantine || blockIsRedstonePowered(live)) break;
+                const dest = destinationFor(e, live);`,
+  "reuse exact same live block within one synchronous transfer attempt");
+const sharedDestination=replaceExact(extract("destinationFor"),
+  `function destinationFor(entry) {
+    const b = sorterAt(entry);`,
+  `function destinationFor(entry, precheckedSorter) {
+    const b = precheckedSorter ?? sorterAt(entry);`,
+  "pass verified live Sorter block to the actual native destination function");
+
 const functionBodies={
   sorterMode:extract("sorterMode"),
   matchesFilter:extract("matchesFilter"),
@@ -190,7 +211,7 @@ function scenario({
 }={}){
   return {source,entries,sourceLocked,sourceMissing,cap};
 }
-function makeWorld(def){
+function makeWorld(def,{sharedBlock=false}={}){
   const stats=metric();
   const src=makeInventory(def.source,stats,"source");
   const dests=new Map(),blocks=new Map(),collectors=new Map();
@@ -298,7 +319,8 @@ function makeWorld(def){
   const fun={};
   // Evaluation resolves free names at call time using the shared environment
   // and preserves real source behavior for the baseline and counterfactual.
-  const definitions=Object.values(functionBodies).join("\n")+"\n";
+  const bodies=sharedBlock?{...functionBodies,destinationFor:sharedDestination}:functionBodies;
+  const definitions=Object.values(bodies).join("\n")+"\n";
   // Introduce metric wrappers around the actual functions at their boundary.
   const names=Object.keys(functionBodies);
   const obj=vm.runInNewContext(definitions+"\n({"+names.map(n=>n+":"+n).join(",")+"})",env,{timeout:3000});
@@ -319,11 +341,11 @@ function makeWorld(def){
   stats.destinations=dests;
   return {stats,src,dests,env,originalDestination,get journal(){return journal;}};
 }
-function execute(def,lazy){
-  // The previous run must not mutate the next run's source scenario.
+function execute(def,variant=false){
+  // Each run receives a fresh source/destination model, never shared inventory.
   const copy=structuredClone(def);
-  const w=makeWorld(copy);
-  const fn=compile(lazy?proposed:originalColumn,w.env);
+  const w=makeWorld(copy,{sharedBlock:variant==="shared"});
+  const fn=compile(variant==="shared"?shared:(variant?proposed:originalColumn),w.env);
   const col={d:"overworld",x:0,z:0,source:{x:0,y:70,z:0},sorters:copy.entries};
   const moved=fn(col,copy.cap);
   const end={
@@ -339,9 +361,9 @@ function execute(def,lazy){
   const counts=Object.fromEntries(Object.entries(w.stats).filter(([k,v])=>typeof v==="number"));
   return {end,counts};
 }
-function differential(def,label){
+function differential(def,label,variant=true){
   const baseline=execute(def,false);
-  const candidate=execute(def,true);
+  const candidate=execute(def,variant);
   assert.deepEqual(candidate.end,baseline.end,label+": mutation/journal/order differ");
   assert.equal(candidate.counts.getSlot,baseline.counts.getSlot,
     label+": lazy policy must not alter native capacity attempts in this model");
@@ -529,5 +551,90 @@ test("URCE-LAZY-11 350 four-high columns model 1400 Sorter rule evaluations",()=
     baselineSorterAt:liveSorterBase,candidateSorterAt:liveSorterLazy,
     baselineGetSlot:nativeGetSlotBase,candidateGetSlot:nativeGetSlotLazy,
     baselinePhysicalJournals:commitsBase,candidatePhysicalJournals:commitsLazy
+  }));
+});
+
+test("URCE-SHARED-01 one verified live Sorter Block is reused within its attempt",()=>{
+  assert.match(shared,/destinationFor\(e, live\)/);
+  assert.match(sharedDestination,/precheckedSorter \?\? sorterAt\(entry\)/);
+  assert.doesNotMatch(script,/function destinationFor\(entry, precheckedSorter\)/);
+  const def=scenario({
+    source:[plain("minecraft:stone",2),undefined,undefined,undefined,undefined],
+    entries:[
+      {mode:"auto",destination:storage(full())},
+      {mode:"filter",filter:"minecraft:dirt",destination:storage(full())},
+      {mode:"filter",filter:"minecraft:diamond",destination:storage(full())},
+      {mode:"wildcard",destination:storage([undefined,...Array(8).fill(null)])}
+    ]});
+  const {baseline,candidate}=differential(def,"shared native block", "shared");
+  assert.equal(baseline.end.moved,2);
+  assert.ok(candidate.counts.sorterAt<baseline.counts.sorterAt);
+  assert.equal(candidate.counts.getSlot,baseline.counts.getSlot);
+});
+test("URCE-SHARED-02 repeated matching full targets avoid extra Sorter lookups",()=>{
+  const def=scenario({
+    source:Array.from({length:5},()=>plain("minecraft:stone",1)),
+    entries:Array.from({length:4},()=>({
+      mode:"filter",filter:"minecraft:stone",destination:storage(full())
+    }))
+  });
+  const {baseline,candidate}=differential(def,"shared repeated matching full", "shared");
+  assert.ok(candidate.counts.sorterAt<baseline.counts.sorterAt);
+  assert.equal(candidate.counts.getSlot,baseline.counts.getSlot);
+  console.log("URCE MODEL shared-repeated:",JSON.stringify({
+    baselineSorterAt:baseline.counts.sorterAt,candidateSorterAt:candidate.counts.sorterAt,
+    baselineGetSlot:baseline.counts.getSlot,candidateGetSlot:candidate.counts.getSlot
+  }));
+});
+test("URCE-SHARED-03 mixed source outcomes and owner-scale shape are exactly preserved",()=>{
+  const types=["minecraft:stone","minecraft:dirt","minecraft:diamond"];
+  const modes=["filter","auto","wildcard","bypass"];
+  let baseSort=0,sharedSort=0,baseSlot=0,sharedSlot=0,regressed=0;
+  for(let seed=0;seed<144;seed++){
+    let x=(seed+1)*3343;
+    const rand=n=>{x=(Math.imul(x,1664525)+1013904223)>>>0;return x%n;};
+    const slots=Array.from({length:5},()=>{
+      const r=rand(4);
+      return r===0?undefined:plain(types[rand(types.length)],1+rand(7),
+        {meta:rand(3)===0?"named":""});
+    });
+    const entries=Array.from({length:seed%2?5:4},()=>{
+      const mode=modes[rand(4)];
+      const inv=Array.from({length:9},()=>rand(4)===0?undefined:
+        plain(types[rand(3)],rand(2)?64:30));
+      return {mode,filter:types[rand(3)],powered:rand(8)===0,missing:rand(19)===0,
+        destination:storage(inv)};
+    });
+    const {baseline,candidate}=differential(scenario({source:slots,entries}),
+      "shared mixed "+seed,"shared");
+    baseSort+=baseline.counts.sorterAt;sharedSort+=candidate.counts.sorterAt;
+    baseSlot+=baseline.counts.getSlot;sharedSlot+=candidate.counts.getSlot;
+    if(candidate.counts.sorterAt>baseline.counts.sorterAt)regressed++;
+  }
+  assert.equal(sharedSlot,baseSlot);
+  assert.ok(sharedSort<=baseSort);
+  assert.equal(regressed,0,"No repeated live Sorter overreads in the modeled cases");
+  console.log("URCE MODEL shared-mixed-144:",JSON.stringify({
+    baselineSorterAt:baseSort,candidateSorterAt:sharedSort,
+    baselineGetSlot:baseSlot,candidateGetSlot:sharedSlot,regressedCases:regressed
+  }));
+  let bs=0,cs=0,bg=0,cg=0;
+  for(let i=0;i<350;i++){
+    const def=scenario({
+      source:[plain("minecraft:stone",2),undefined,undefined,undefined,undefined],
+      entries:[
+        {mode:"auto",destination:storage(full())},
+        {mode:"filter",filter:"minecraft:dirt",destination:storage(full())},
+        {mode:"filter",filter:"minecraft:diamond",destination:storage(full())},
+        {mode:"wildcard",destination:storage([undefined,...Array(8).fill(null)])}
+      ]});
+    const {baseline,candidate}=differential(def,"shared 350x4 "+i,"shared");
+    bs+=baseline.counts.sorterAt;cs+=candidate.counts.sorterAt;
+    bg+=baseline.counts.getSlot;cg+=candidate.counts.getSlot;
+  }
+  assert.equal(cg,bg);
+  assert.ok(cs<bs);
+  console.log("URCE MODEL shared-350x4:",JSON.stringify({
+    baselineSorterAt:bs,candidateSorterAt:cs,baselineGetSlot:bg,candidateGetSlot:cg
   }));
 });
