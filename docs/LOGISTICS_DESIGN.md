@@ -8,6 +8,10 @@ For exact pre-existing item ingress/egress acceptance see the **[source-traced 1
 
 Every 1.4.1 capability remains supported: existing Sorter FILTER/AUTO/WILDCARD/BYPASS modes and filter semantics, item-frame filtering, Collector/Receiver links, vanilla hoppers and legacy output paths, redstone controls, dropper/dispenser behavior, original identities, queue recovery, legacy q2/q3 conversion and all saved-world state. A network without new blocks must keep the original operating behavior. New routing policies must be opt-in through a correctly established network, never silently applied globally.
 
+## New owner clarification (2026-11-18) — controller topology is optional
+
+**Read the [active OSI-inspired URCE multi-bank takeover](../planning/URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md) before treating older sentences below as architectural mandates.** The owner requires the connected physical **banks** and correct functioning **network**, but did **not** require 'regions'. The former first-placed **Bulk Storage** per-bank controller and controller-to-controller pass/keep negotiation are historical alternatives, not implementation requirements. **There is no Bulk Sorter**. The last bank is intended to host **many Wildcard Sorters** for genuinely unclaimed items and authorized verified-full Bulk overflow. The updated [ADR-002](../planning/URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md) governs routing exceptions. Re-evaluate controller count/elections, membership and advertised routing as *engineering hypotheses* against throughput, authority, unload, restart and no-loss tests; preserve preexisting source/runtime evidence and Q4.
+
 ## Network context
 
 The owner's diagram includes several **transport banks** joined by Collector→Receiver linkages, with an input system and distributed Bulk Storage. Both of these are valid:
