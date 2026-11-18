@@ -320,3 +320,39 @@ test("ORDER-17 execute real Dropper/Dispenser item-entity path: unsafe identity 
   assert.deepEqual(events,["serializeReject"]);
   assert.equal(entity.isValid,true,"Actual source did not remove world-owned item");
 });
+
+test("ORDER-18 actual serialization accesses native metadata and verifies roundtrip before q4 encoding",()=>{
+  function run(compatible){
+    const calls=[];
+    const env={
+      QUEUE_PLAIN_MINECART_IDS:new Set(),
+      queueKnownVanillaNonstack:()=>false,
+      plainMinecartQueueSafe:()=>false,
+      enchantments:()=>{calls.push("enchantments");return [];},
+      dynamicProps:()=>{calls.push("dynamicProps");return {};},
+      rebuildQueueItem:()=>{calls.push("rebuild");return {typeId:"minecraft:stone"};},
+      queueSafeNonstackRoundTrip:()=>false,
+      QUEUE_ENTRY_MAX_CHARS:10000
+    };
+    const stack={
+      typeId:"minecraft:stone",amount:1,maxAmount:64,nameTag:"named",
+      getLore:()=>{calls.push("lore");return ["metadata"];},
+      getCanDestroy:()=>{calls.push("canDestroy");return [];},
+      getCanPlaceOn:()=>{calls.push("canPlaceOn");return [];},
+      getComponent:id=>{calls.push("component:"+id);return undefined;},
+      isStackableWith:()=>{calls.push("compareNative");return compatible;}
+    };
+    return {data:compile(actualSerialize,env)(stack),calls};
+  }
+  const valid=run(true),unrebuildable=run(false);
+  assert.equal(valid.data.typeId,"minecraft:stone");
+  assert.equal(valid.data.nameTag,"named");
+  assert.deepEqual(Array.from(valid.data.lore),["metadata"]);
+  assert.equal(unrebuildable.data,undefined,
+    "Actual serializer refuses a native stack whose reconstruction is not stack-compatible");
+  for(const key of ["enchantments","lore","canDestroy","canPlaceOn",
+    "component:minecraft:durability","component:minecraft:dyeable",
+    "component:minecraft:potion","dynamicProps","rebuild","compareNative"]){
+    assert.ok(valid.calls.includes(key),key+" is part of the real per-offer work");
+  }
+});
