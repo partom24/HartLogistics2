@@ -11,6 +11,8 @@ This is a **pre-code engineering checklist**, not a request for the owner to cho
 
 ## Decision disposition — no more owner product questions required now
 
+**Owner testing policy is settled:** [URCE-ADR-004 — player-first acceptance](URCE_150_OWNER_PLAYER_FIRST_TESTING_DECISION_20261118.md). Any valid player-built topology and legitimate ordinary/MR item must be accepted/assessed by behavior, not preselected XYZ, a reference-room rig, fixed item IDs or developer-chosen network dimensions. Deterministic coordinates/items are permitted only **inside offline reproduction or automated property tests**, never to gate valid gameplay. Include layout translations/rotations, varied valid graph/column sizes, arbitrary ordinary item IDs, and MR fidelity in test generation.
+
 | Area | Settled policy | Code-facing consequence |
 | --- | --- | --- |
 | Directed reachability | Physical/logical supported connections form a network; directed acyclic routing, branches/merges okay; reject managed cycle link | No network-wide assumption of reachability; route exists only source→destination |
@@ -67,13 +69,15 @@ This is a **pre-code engineering checklist**, not a request for the owner to cho
 
 **Frozen developmental source:** 1.4.2 P4e and original 1.4.1; P4g no-hit and naive local lazy-route NO-GOs remain rejected. The Nov17 capture contains ~**9,425** P4e live Sorter admissions / **487,223** native `getSlot` calls / only **21** completed physical Sorter transactions in ~19.727s. Profiler gives **no moved-quantity histogram**; diagnostic Q4 window gives **38 items delivered over 330 game ticks**, not total Sorter delivered items/tick. Do not assert 16 budget was exhausted or claim 32/64 wins.
 
+**Testing contract:** no fixed-coordinate scripted player acceptance and no item-ID allowlist. Use arbitrary player-built valid layouts and item choices, preserving genuinely different MR/ordinary paths. Capture any specific coordinates and identities only after a failure, as reproducer details.
+
 **Telemetry required:** bounded aggregation of actual moved quantity and transaction count by Sorter/Collector/Receiver/Transporter/Bulk stage, admitted/rejected reasons, per-tick peak transaction attempts, journal writes, native slot reads, Q4 totals and block reason (powered/full/unloaded). Avoid per-item logging and extra scans. Compare no-routing baseline, productive 64-item stack case, idle/powered queue, heavy arrivals, backlog flush, simultaneous normal gameplay and cooldown. Distinguish *script categories* from actual whole-server ticks and attribute other add-ons. Prefer existing VS debugger, server diagnostics and Script Profiler. `40 ms p95 / 50 ms p99` is **only a provisional engineering candidate**, never a new owner hard gate. **Status: CAPTURE ANALYZED, NO MATCHED BATCH TEST OR FULL-OWNER-LAYOUT ACCEPTANCE.**
 
 ## Exact remaining gates before each coding boundary
 
 | Gate | Exit condition | Status |
 | --- | --- | --- |
-| G0 — product decisions | Owner-approved end-state with fallback/HOLD, menu, Transporter/Hopper and burst-performance goals | **CLOSED** |
+| G0 — product decisions | Owner-approved end-state, Transporter/Hopper and burst goals, plus **player-first arbitrary-valid-layout/item testing** | **CLOSED** |
 | G1 — source census | Every relevant mutation/recovery/callback and external writer conflict accounted for | **OPEN; U0 partial** |
 | G2 — route model | Fully specified directed graph, cycle/HOLD rules and source-only four-bank/owner-shape differential matrix | **OPEN; U1 candidate** |
 | G3 — custody protocol | U2 writer authority, Q4 migration, native receipt, crash/unload/split recovery state machine; no unproven commit semantics | **OPEN; safety prerequisite** |

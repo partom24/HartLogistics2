@@ -45,6 +45,10 @@ Earlier statements on this roadmap about the final Wildcard bank describe the ow
 
 **Readiness:** [Pre-code gate matrix](../planning/URCE_150_PRECODE_READINESS_AND_PROOF_GATES_20261118.md). Owner product behavior is settled, but U0 complete writer census, U1 directed-graph cost/read proof, U2 physical/Q4 custody state machine, U3 **URCE carrier/Transporter integration** and 1.4.2 owner-LAB acceptance are **OPEN**; **native MR movement/storage primitive feasibility is CLOSED** via [cross-branch audit](../planning/URCE_150_CROSS_BRANCH_NATIVE_MR_EVIDENCE_REUSE_AUDIT_20261118.md). Do not repeat PG20/PG42. Continue **HL-URCE-PLAN-001** source/documentation work; no 1.5 gameplay code, LAB execution or release is authorized here.
 
+## Player-first owner acceptance policy — 2026-11-18
+
+[URCE-ADR-004](../planning/URCE_150_OWNER_PLAYER_FIRST_TESTING_DECISION_20261118.md) supersedes historical exact-XYZ, exact item-ID and prescribed test-rig demands. The owner will test as a **player** using **any valid layout** and **any legitimate item**, with MR/non-MR distinctions only where routing structurally differs. The 1,400-Sorter reference and source-only fixed models are workload examples, never mandatory physical acceptance geometry. Fixed coordinates, identities and case fixtures belong only in optional defect reproduction/automated tests; acceptance judges player-visible behavior, conservation and playability. Keep LAB safety, evidence reuse and explicit implementation/release gates intact.
+
 ## Now
 
 **HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**

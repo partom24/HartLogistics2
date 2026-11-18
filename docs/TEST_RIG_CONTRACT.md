@@ -1,6 +1,8 @@
 # Hart Logistics 2 — Test Rig Cards and Evidence Reuse
 
-**Owner-required testing standard — 2026-11-06. Planning only.** No physical rig in this document has been approved, built or tested.
+> **Current owner testing rule — 2026-11-18:** [URCE-ADR-004 — Player-first, layout-agnostic, item-open testing](../planning/URCE_150_OWNER_PLAYER_FIRST_TESTING_DECISION_20261118.md) **supersedes the fixed rig / exact XYZ / exact item prerequisites below**. The owner may build **any valid arrangement** and use **any legitimate item**, not only pre-selected block coordinates, Sorter-column counts or item IDs. Test MR versus ordinary cargo separately where their routing structure differs. Known fixture coordinates and chosen test items remain useful **optional reproduction data or automated fixtures**, **not owner acceptance gates**. Test safety, evidence reuse, LAB isolation and rollback requirements still apply. Sections below are historical guidance only to the extent compatible with this decision.
+
+**Historical November 6 test-rig standard, refined by owner November 18 player-first policy. Planning only.** No physical rig in this document has been approved, built or tested.
 
 ## What the owner sees first
 
@@ -17,7 +19,7 @@ Every proposed manual or automated integration test starts with a short, plain-l
 > **What is being tested:** Whether a two-Sorter column selects the correct filtered destination without disturbing the existing Collector/Receiver route.  
 > **Why now:** Only if a change touches multi-Sorter column selection or adjacent topology.  
 > **Prior evidence:** The 1.4.1 source implements priority/column routing; no new LAB observation is claimed here.  
-> **Action required:** Source review or an automated check first; a manual LAB setup only if an affected contract remains unproven (**NOT READY** until exact coordinates, counts and isolation have been verified).  
+> **Action required:** Source review or an automated check first; a manual LAB setup only if an affected contract remains unproven (**NOT READY** only if the actual feature's safety/validity conditions or LAB isolation are unverified; arbitrary exact coordinates are not required).  
 > **Pass condition:** The matching item reaches the right destination, with no missing or duplicated items.
 
 Do not bury the summary under long test steps. If the owner already has accepted evidence and the new work cannot affect that path, say **“No repeat test required; previous evidence reused”** and explain the reason.
@@ -34,6 +36,8 @@ Existing evidence can be reused when the underlying behavior, inputs, API contra
 | **Untested new behavior / changed risk** | Prefer source review and deterministic automated checks. If in-game confirmation is truly needed, produce a full READY LAB rig card first. |
 | **Known prior failure** | Preserve minimal reproduction and test only the defect and affected adjacent behavior after the fix. |
 
+**Player-open item testing:** Do not hard-code an acceptance item allowlist into product code, acceptance scripts, or owner instructions. Examples are illustrative, not the only legitimate choices. Distinguish MR and ordinary items by real semantics; user-chosen unusual identities are encouraged to expose bugs. Automated fixtures may use exact IDs to reproduce known defects, but production behavior must remain general.
+
 **No blanket test duplication:** Similar ordinary item IDs (cobblestone, glass, sand), unchanged physical routes and previously established native metadata transfer primitives should not be retested merely because a new milestone begins. Affected queue migration, cross-chunk transaction ownership, new custom-block inventory slots or changed block topology may require new evidence because they introduce genuinely different failure modes. A reusable proof can establish a primitive, without claiming it proves an untested end-to-end integration.
 
 Do not claim that every legacy behavior has runtime acceptance solely from reading 1.4.1 source; do not throw away valid owner knowledge merely because its report isn't yet attached. Ask for prior test artifacts **only when they materially affect a specific acceptance decision**. Maintain no-regression standard for all 1.4.1 capabilities.
@@ -46,18 +50,18 @@ Every test result must state whether the temporary setup has been removed; a sha
 
 ## Rig card: mandatory before owner builds anything
 
-When physical testing is justified, deliver a complete **versioned and prevalidated** card. An incomplete card is **NOT READY** and must not instruct the owner to assemble a rig.
+When physical testing is justified, deliver a concise **versioned card describing valid construction conditions and observable outcomes**. An unsafe or incomprehensible card is **NOT READY**; a card without absolute XYZ or prescriptive block-by-block placement is **not** incomplete.
 
 | Field | Exact requirement |
 | --- | --- |
 | Up-front summary | **What is being tested / Why now / Prior evidence / Action required / Pass condition** (in plain language, first) |
 | Identification | Test ID and goal, relevant ingress/egress IDs, source commit and pack version; target LAB runtime, client, experiment settings |
 | World context | LAB only `C:\Servers\Thomas_MCBedrock - Copy (2)`; actual world ID, dimension, anchor XYZ, new vs 1.4.1-upgrade vs migrated world, chunk-load requirements |
-| Component count | **Exact block types and counts**. State *one Sorter* vs *two Sorters in a single vertical column* vs N explicitly; counts of Collector, Receiver, Hopper, ordinary containers, Bulk Storage, Transporter, item frames and redstone parts |
-| Placement map | Each block's relative/absolute (x,y,z), facing, vertical column order, Hopper output direction, input/output faces and Collector→Receiver links, with a top/side diagram where helpful |
-| Separation / interference | **Required minimum/maximum distance** between this and any other rigs, logistics blocks or item entities, and required clearances, *if relevant and verified*. Otherwise state **“No special inter-rig separation required.”** If detection/isolation range is unknown, mark NOT READY. No invented universal spacing. |
-| Initial state | Modes, item-frame filters, redstone, queue/controller state, item counts, full/partial destination inventory, powered/unpowered Hoppers, other rig activation |
-| Exact steps | Setup, linking, triggers, delays/observation window where needed, what the owner versus automation does and when to record results |
+| Component count | Explain **actual validity constraints** (e.g., connected source and destination, permitted Sorter modes). Any valid number of blocks, banks or column heights may be used unless the tested behavior specifically requires a structural category |
+| Placement map | **Player-chosen valid layout**; explain direction, connectivity and necessary block behavior in plain language. Relative examples/diagrams are optional illustrations, not acceptance requirements. Record actual XYZ only for debugging/reproduction |
+| Separation / interference | Require isolation only when an actual gameplay/safety rule or test attribution demands it; describe the rule. No invented minimum spacing, no arbitrary exact rig locations. Prefer natural gameplay arrangements when safe |
+| Initial state | Relevant expected state and testable variations (including full/partial, power and player-selected filters). **No hardcoded accepted item identifiers**; separate MR and ordinary conditions if structurally relevant |
+| Player actions | Natural placement, linking, item insertion, operation and observation. State a truly required trigger/timing only when necessary; avoid obligatory scripted XYZ-by-XYZ construction |
 | Expected outcome | Destination, item conservation/identity, metadata fidelity where relevant, statuses, logs and explicit PASS/FAIL conditions |
 | Reset / evidence | Safe cleanup and reset from known state in LAB, screenshots/logs/measurements to record, whether same rig can be reused; no access to production |
 
@@ -75,13 +79,12 @@ PASS CONDITION (plain language):
 
 Test ID / source commit / pack version:
 1.4.1 path ID(s) or new feature:
-LAB server / client / experiments / world / dimension:
-World state and chunk loading:
-Exact required block counts (including Sorter column height):
-Anchor XYZ / per-block XYZ / facing / top-side layout:
-Collector/Receiver links / Hopper output direction / pipe faces:
-Rig separation from other devices: numeric verified ___ OR no special separation required:
-Initial items, identities, metadata and inventory/queue contents:
+LAB server / client / experiments / world type:
+Actual validity constraints and chunk-load conditions (if any):
+Player-chosen valid layout / logical connections and direction:
+Optional geometry, XYZ or diagram for reproducing a found defect:
+Player-chosen items; ordinary versus MR behavior classes where relevant:
+Initial inventory, filter, power and queue conditions needed for the behavior:
 Filters / modes / redstone / pause settings:
 Numbered setup steps:
 Numbered test actions / observation conditions:
@@ -93,4 +96,4 @@ Temporary test parameters/hooks/assets and cleanup owner:
 Cleanup completed (or remaining dependent test and due trigger):
 ```
 
-**No current test rig is declared READY.** Readiness is test-specific, and any required distance or component count must be determined before the first setup request.
+**Readiness is about safety, prerequisites, and a clear observable behavior**, not developer-chosen geometry. An owner-selected valid layout and arbitrary legitimate item choices may be READY without absolute coordinates or exact preselected item counts; no blanket in-game test or deployment approval follows from this policy.

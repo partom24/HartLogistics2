@@ -80,6 +80,8 @@ The owner accepts P4/1.4.2 as the native-first optimization boundary for URCE pl
 
 ## F. Source-only and later owner-LAB acceptance cases
 
+**Owner's player-first acceptance rule (November 18):** [URCE-ADR-004](URCE_150_OWNER_PLAYER_FIRST_TESTING_DECISION_20261118.md). The cases below are **illustrative, not prescribed physical layouts or item allowlists**. The owner may test *any valid layout* at any valid coordinates and use *any legitimate item ID*. Acceptance logic cannot depend on a prepared rig or named test item; only actual routing mechanics and MR/ordinary structural classification may distinguish treatment. Record exact positions/IDs only when useful for reproducing an observed defect. Protect the LAB/production boundary.
+
 | Case | Expected evidence |
 | --- | --- |
 | Direct Collector→Receiver-only network, without Bulk or terminal | Valid small network; HOLD items with no home |
