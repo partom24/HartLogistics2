@@ -2,6 +2,9 @@
 
 ## CURRENT — 1.5 URCE planning (separate from 1.4.2)
 
+**NEW CHAT — START HERE (2026-11-18):** [OSI-inspired multi-bank routing, owner corrections, and URCE implementation takeover](planning/URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md). This current handoff supersedes earlier assumptions that a **region**, bank-level Bulk controller or inter-controller mesh is a required product feature. There is **Bulk Storage**, never a "Bulk Sorter"; the first-placed Bulk Storage becoming a controller was a historical design, now optional. The owner's *final bank with many Wildcard Sorters* is the intended unclaimed-item outlet. Explore next-hop routing and independent Bulk custody by source-only comparison, not by prematurely installing a seven-layer OSI implementation or changing the 1.4.2 engine.
+
+
 **Branch:** `planning/urce-150-20261117`, anchored to the [CI-green 1.4.2 native-first compatibility baseline](implementation/BASELINE_142_CLOSEOUT_20261117.md). The owner has authorized **URCE architecture planning**, using the historical 1.5 skeleton selectively as a read-only source of design lessons. No 1.5 gameplay or world migration has been implemented.
 
 **Governed-network routing rule:** [URCE-ADR-002 — Item homes, Bulk overflow and legitimate Wildcard](planning/URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md) is the owner's clarification: Filter/Auto first; claimed-but-blocked or already-in-Bulk identities prefer Bulk; genuinely unclaimed items may go Wildcard; verified-full Bulk may overflow to Wildcard, unknown Bulk must HOLD. No runtime change.
