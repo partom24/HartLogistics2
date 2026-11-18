@@ -1,5 +1,8 @@
 # Hart Logistics 2 — contributor operating contract
 
+> **Current planning-branch takeover (2026-11-18):** Read [OSI-inspired multi-bank routing and owner clarification](planning/URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md) plus the current [URCE charter](planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md) and [roadmap](docs/ROADMAP.md) before continuing. Some inherited instructions below refer to an old Q5-era or pre-source-import state and are **historical where contradicted** by the 1.4.2 baseline and newer owner decisions. The original 1.4.1 source was imported and preserved; `baseline/native-first-142-20261117` is the current *development* baseline, not BDS-accepted. URCE/Q5 correction: Q5 is obsolete; original q2/q3/q4 data and custody remain protected. There is **Bulk Storage**, not 'Bulk Sorter'; **regions and per-bank Bulk controllers are not owner requirements**. The final transport bank has many intended Wildcard Sorters. OSI concepts are research inspiration only, not authorization to create seven subsystems or new gameplay. Scope remains **documentation/source-only planning** on this branch. Do not touch production, owner LAB, gameplay packs, UUIDs, frozen archived #79/#82 code, or release gates without separate authorization.
+
+
 ## Authority and repository boundary
 
 - **Only authorized GitHub repository: partom24/HartLogistics2.** Do not read or write any other repository, including HartBots.
