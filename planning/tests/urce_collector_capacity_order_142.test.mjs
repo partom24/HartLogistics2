@@ -265,6 +265,58 @@ test("ORDER-14 exact source serialization can reconstruct and check rich native 
 test("ORDER-15 no new cached chest capacity or added gameplay writer is used",()=>{
   assert.match(actualLoader,/queueCache\.has\(receiver\.id\)/);
   assert.match(actualCollector,/if \(q\.total >= QUEUE_CAPACITY\) return used/);
-  assert.match(actualSorter,/const room = QUEUE_CAPACITY - queue\.total/);
+  assert.match(originalSorter,/const room = QUEUE_CAPACITY - queue\.total/);
   assert.match(actualEjection,/getQueueJournal\(\)/);
+});
+
+test("ORDER-16 execute real direct-Collector ingress: unqueueable MR requires zero authoritative backlog",()=>{
+  function simulate(total,throws=false){
+    const events=[],item={typeId:"minecraft:modded_item",amount:1,maxAmount:1};
+    const src={
+      isValid:true,get size(){return 1;},
+      firstItem:()=>0,getItem:()=>item
+    };
+    const c={id:"c1",link:"r1",accepted:0};
+    const env={
+      QUEUE_CAPACITY:250000,COLLECTOR_BATCH:16,queueRejectSeen:new Set(),
+      collectorAt:()=>({}),blockIsRedstonePowered:()=>false,
+      findReceiverById:()=>({id:"r1"}),
+      collectorInputSources:()=>[{kind:"hopper",locked:false,container:src,block:{}}],
+      serializeQueueItem:()=>{events.push("serializeReject");return undefined;},
+      loadReceiverQueue:()=>{events.push("authoritativeQueueRead");
+        if(throws)throw Error("unreadable q4");return {total};},
+      receiverAt:()=>({}),receiverOutputHopper:()=>({locked:false,container:{},block:{}}),
+      findAcceptSlot:()=>({slot:0,room:1}),
+      safeMovePartial:()=>{events.push("exactPhysicalMove");return 1;},
+      recordDirectReceiverTransfer:()=>events.push("persistDirectCounters"),
+      markLogisticsDirty:()=>events.push("markDirty"),
+      log:()=>events.push("log"),recoverJournal:()=>events.push("recover")
+    };
+    return {count:compile(actualCollector,env)(c,256),events};
+  }
+  const noBacklog=simulate(0),hasBacklog=simulate(1),unknown=simulate(0,true);
+  assert.equal(noBacklog.count,1,"Direct-only remains possible at precisely zero backlog");
+  assert.ok(noBacklog.events.includes("exactPhysicalMove"));
+  assert.ok(noBacklog.events.includes("persistDirectCounters"));
+  assert.equal(hasBacklog.count,0,"Direct-only cannot overtake queued cargo");
+  assert.equal(hasBacklog.events.includes("exactPhysicalMove"),false);
+  assert.equal(unknown.count,0,"Unreadable queue cannot be treated as zero");
+  assert.ok(unknown.events.includes("log"));
+});
+test("ORDER-17 execute real Dropper/Dispenser item-entity path: unsafe identity stays in world",()=>{
+  const events=[],entity={id:"item-1",typeId:"minecraft:item",isValid:true,amount:1};
+  const col={id:"c1",link:"r1"};
+  const env={
+    ready:true,system:{runTimeout:()=>events.push("retry")},
+    getQueueJournal:()=>undefined,
+    ejectedItemCollector:()=>({collector:col,collectorBlock:{},source:{}}),
+    findReceiverById:()=>({id:"r1"}),
+    itemEntityStack:()=>({typeId:"minecraft:modded_item",amount:1}),
+    serializeQueueItem:()=>{events.push("serializeReject");return undefined;},
+    enqueueFromEjectedEntity:()=>events.push("entityEnqueue"),
+    log:()=>events.push("log"),recoverQueueJournal:()=>events.push("recover")
+  };
+  compile(actualEjection,env)(entity);
+  assert.deepEqual(events,["serializeReject"]);
+  assert.equal(entity.isValid,true,"Actual source did not remove world-owned item");
 });
