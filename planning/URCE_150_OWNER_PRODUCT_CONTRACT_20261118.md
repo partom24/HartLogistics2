@@ -4,13 +4,15 @@
 **Authority:** Direct owner confirmations from the 2026-11-18 URCE continuation conversation.  
 **Status:** **OWNER-APPROVED PRODUCT REQUIREMENTS / PLANNING ONLY**. Nothing here asserts an implemented feature, an API proof, a BDS observation, a world migration, acceptance, permission to change gameplay, or release approval.
 
+**Latest clarification:** [URCE-ADR-003 — Transporter as human-readable network infrastructure](URCE_150_OWNER_TRANSPORTER_INFRASTRUCTURE_DECISION_20261118.md) controls over earlier performance wording that implies pipe-by-pipe item movement.
+
 **Read with:** [November 18 routing research handoff](URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md), [URCE-ADR-002 prior item-home policy](URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md), [architecture charter](URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md), [roadmap](../docs/ROADMAP.md).
 
 **Precedence:** This later owner decision **refines/supersedes conflicting product assumptions** in the November 17 ADR-002, November 18 OSI handoff, older Q5/controller plans, and historical 1.5 documents. Retain those documents as provenance and evidence. In particular, a **mandatory final Wildcard bank, required terminal Collector, one Bulk array/controller per bank, named region, and Q5 intermediate migration** are **not** 1.5 product requirements. The owner's pictured final bank with many Wildcard Sorters is a real layout/intention, not a constraint on every valid network. Preserve prior engineering evidence and all compatibility/safety gates.
 
 ## Desired player-visible outcome
 
-HartLogistics 1.5 routes ordinary and metadata-rich (MR) items through verifiably connected, directed multi-bank systems with as few productive transactions and unnecessary reads as practicable. A roughly 1,400-Sorter installation with predominantly four- to five-high vertical columns, multiple banks, Hopper/Transporter paths, Collector–Receiver links and distributed Bulk Storage must remain playable during heavy movement. Items always retain a discoverable custody location and exact identity. **No verified home means no movement.** Stability and normal player interactions (placing blocks, eating, playing) matter more than an invented TPS or throughput target; measure rather than assume.
+HartLogistics 1.5 routes ordinary and metadata-rich (MR) items across verifiably connected, directed multi-bank systems with as few productive transactions and unnecessary reads as practicable. A roughly 1,400-Sorter installation with predominantly four- to five-high vertical columns, multiple banks, Hopper/Transporter paths, Collector–Receiver links and distributed Bulk Storage must remain playable during heavy movement. Items always retain a discoverable custody location and exact identity. **No verified home means no movement.** Stability and normal player interactions (placing blocks, eating, playing) matter more than an invented TPS or throughput target; measure rather than assume.
 
 ## A. Network membership, topology and routing (accepted)
 
@@ -66,7 +68,7 @@ HartLogistics 1.5 routes ordinary and metadata-rich (MR) items through verifiabl
 
 ## 2026-11-18 performance, Transporter and pre-code follow-up
 
-The owner accepts P4/1.4.2 as the native-first optimization boundary for URCE planning, distinguishes **items moved**, **transaction count**, **per-transaction native/journal work** and **peak tick cost**, and selects **Transporter** as the intended high-throughput alternative to unchanged vanilla Hoppers. Prefer clearing legitimate bursts quickly while the BDS remains playable, with a separate continuous-load proof. **16/32/64 are comparison candidates, not approved runtime settings.** See [the measured November 17 BDS capture and batching evidence](URCE_150_TRANSPORTER_BATCHING_BDS_CAPTURE_EVIDENCE_20261118.md) and [open pre-code proof gates](URCE_150_PRECODE_READINESS_AND_PROOF_GATES_20261118.md). The owner did not approve a numeric TPS hard limit or 1.5 code in this follow-up.
+The owner accepts P4/1.4.2 as the native-first optimization boundary for URCE planning and distinguishes **items moved**, **transaction count**, **per-transaction native/journal work** and **peak tick cost**. **Transporters primarily construct a human-readable logical storage network; they do not require item traversal or a per-block transfer.** URCE is responsible for safe high-throughput endpoint movements along verified routes, avoiding Hopper-per-hop costs where feasible; native Hoppers themselves remain unchanged. Prefer clearing legitimate bursts quickly while the BDS remains playable, with a separate continuous-load proof. **16/32/64 are comparison candidates, not approved runtime settings.** See [the measured November 17 BDS capture and batching evidence](URCE_150_TRANSPORTER_BATCHING_BDS_CAPTURE_EVIDENCE_20261118.md) and [open pre-code proof gates](URCE_150_PRECODE_READINESS_AND_PROOF_GATES_20261118.md). The owner did not approve a numeric TPS hard limit or 1.5 code in this follow-up.
 
 ## E. Performance, scope and proof boundaries (accepted)
 

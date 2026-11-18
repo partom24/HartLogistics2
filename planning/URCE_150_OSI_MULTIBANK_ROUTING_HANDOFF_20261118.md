@@ -6,6 +6,8 @@
 
 > **Later 2026-11-18 P4→URCE / performance and readiness follow-up:** [Measured BDS capture, batching, Transporter and playability](URCE_150_TRANSPORTER_BATCHING_BDS_CAPTURE_EVIDENCE_20261118.md) and [pre-code proof gates](URCE_150_PRECODE_READINESS_AND_PROOF_GATES_20261118.md). P4e's ~9,425 admission checks / 487,223 native slot reads in ~19.7 seconds versus 21 completed Sorter transactions supports *investigating* fewer futile admissions. Q4 item/tick is separately measured, but Sorter transfer quantity is not in the profile. 16/32/64 transfer density is a candidate test, **not** a proven speedup; Transporters are the high-throughput Hopper alternative, with safe native endpoint and custody still unproved. Product decisions closed; U0/U1/U2/U3 and owner-LAB/implementation gates remain open.
 
+**Owner's final Transporter clarification:** [URCE-ADR-003](URCE_150_OWNER_TRANSPORTER_INFRASTRUCTURE_DECISION_20261118.md). The pipe network is primarily **human-understandable visible connectivity**; a valid item may move between actual custodians *without visiting Transporter blocks*. The OSI analogy below must not turn logical edges into compulsory per-segment native item movement. A real Hopper or Collector–Receiver handoff still needs actual native custody when physically required.
+
 ## Read this first in the next chat
 
 1. **Source foundation:** `baseline/native-first-142-20261117` is the closed development/source baseline (P4e, no P4g rejection cache), but is **not** accepted on owner BDS or authorized for production. Preserve unchanged 1.4.1 original 72-file import and 1.4.2 gameplay/hash controls; no changes to `addon/` in this planning branch.
