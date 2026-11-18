@@ -11,6 +11,10 @@ Preserve all Hart Logistics 1.4.1 capabilities and world data through a versione
 - Source-only P4g correctness but runtime NO-GO for duplicate rejection reuse; no cross-tick global capacity ledger is adopted. Current architecture performance ceiling accepted as development decision; unresolved dense scans recorded.
 - Historical 1.5 design and model evidence classified; the selected architecture is URCE and the old Q5 queue-format plan is superseded.
 
+## U1 Collector/Receiver early-capacity research — closed (source only)
+
+[Actual Q4 loader + serialization-order source tests](../planning/URCE_150_U1_COLLECTOR_CAPACITY_FIRST_RESEARCH_20261117.md) resolve the last U1 first-principles question: **NO-GO for unconditional capacity-first**. It saves serializer work only for full queueable items; rejected/unserializable items would now invoke q4 initialization/migration/cleanup and change unreadable-queue errors. Direct-only metadata-rich cargo must confirm authoritative queue total zero, and unsupported ejected items remain world-owned. Keep existing 1.4.2 order. First-principles local routing research is source-only complete, with BDS-dependent Block handoff a separate unapproved candidate.
+
 ## U1 source-only decision — completed evidence, not gameplay
 
 [U1 actual 1.4.2 routing differential](../planning/URCE_150_U1_LAZY_ROUTING_SOURCE_PROOF_20261117.md) now includes 14 source-only tests of naive lazy Filter/Auto/Wildcard and same-attempt native Sorter Block reuse. Outputs and physical journal traces were equivalent in modeled cases. **Naive lazy route rewrite is rejected**: it increased native Sorter block reads in 120/144 mixed cases and did not reduce destination `getSlot` calls. Fresh same-attempt Block reuse saves modeled Sorter block lookups in aggregate but retains dense admission cost and has two individual regressions; no runtime integration authorized.

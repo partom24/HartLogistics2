@@ -48,7 +48,7 @@ A candidate that preserves a single live block for an entire callback would have
 
 **KEEP — 1.4.2 baseline and all current custody:** Do not alter `addon/`, original Hopper polling, Filter→Auto→Wildcard priority, existing Transit-first, Q4 physical/queue writers or budgets. Source-only tests do not close the owner 1.4.2 acceptance gate.
 
-**Next cheapest potentially useful question:** When Collector-linked Receiver capacity is **authoritatively** full, can we avoid `serializeQueueItem` without adding redundant queue I/O or changing unreadable-queue and unsupported-item semantics? This is a separate tightly scoped two-order source proof; not permission for a new queue format or any of the older Q5 schemes.
+**Follow-on research resolved — NO-GO for capacity-first as a general operation:** [Collector/Receiver early-capacity proof](URCE_150_U1_COLLECTOR_CAPACITY_FIRST_RESEARCH_20261117.md) executes the actual 1.4.2 sorter route, Q4 loader, serializer and direct/ejected ingress guards. A full, queueable item can skip serialization, but the unconditional reorder changes world-state loading/migration and error behavior for unsupported items. Keep the original identity-first gate and the direct-only zero-backlog fence; the evidence does not justify a new queue state/cache.
 
 ## Reusable lesson for 1.5 URCE
 
