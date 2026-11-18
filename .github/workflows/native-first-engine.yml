@@ -31,6 +31,9 @@ jobs:
       - name: URCE Collector/Receiver capacity-first source research
         if: github.ref_name == 'planning/urce-150-20261117'
         run: node --test planning/tests/urce_collector_capacity_order_142.test.mjs
+      - name: URCE U1 source-only directed graph and candidate policy planner
+        if: github.ref_name == 'planning/urce-150-20261117'
+        run: node --test planning/tests/urce_u1_route_model.test.mjs
       - name: Confirm original 1.4.1 regression witnesses independently
         shell: bash
         run: |

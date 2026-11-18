@@ -51,7 +51,7 @@ Earlier statements on this roadmap about the final Wildcard bank describe the ow
 
 ## Now
 
-**HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**
+**HL-URCE-PLAN-001 — URCE U1 source-only coding increment authorized by owner, active.** Initial graph/candidate implementation is restricted to `planning/src/`, `planning/tests/`, test-only CI and planning evidence; see [U1 source-only increment](../planning/URCE_150_U1_SOURCE_IMPLEMENTATION_20261118.md). The initial code runs on supplied graph/policy facts and does **not** integrate Bedrock, replace the P4e runtime or provide a live custody writer. Preserve the same milestone ID; do not open a second active milestone.
 
 **Goal:** deliver a source-traceable URCE planner/custody architecture and staged integration gates using current 1.4.2 as the only *runtime* foundation. Start with the [routing early-decision implementation contract](../planning/URCE_150_EARLY_DECISION_ROUTING_CONTRACT_20261117.md), [architecture and execution charter](../planning/URCE_150_ARCHITECTURE_AND_DELIVERY_PLAN_20261117.md), [selected historical 1.5 reference map](../planning/URCE_HISTORICAL_15_REFERENCE_REVIEW_20261117.md) and [source-observed 1.4.2 writer census](../planning/URCE_150_ACTIVE_142_WRITER_CENSUS_20261117.md).
 
