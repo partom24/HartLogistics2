@@ -5,7 +5,7 @@
 **Decision owner:** November 17, 2026 — the owner closed 1.4.1 native-first development as **1.4.2** and authorized **planning** URCE using the old 1.5 skeleton as a *selective reference*.  
 **Status:** **DESIGN / SOURCE REVIEW ONLY**. No 1.5 gameplay, pack manifest change, Q4 migration, feature rollout, LAB install or release authorization.
 
-The selected [URCE design contract on main](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) is authoritative for this new architecture. **URCE** (Unified Routing and Custody Engine) is the name used in the repository; the old Q5-style queue-first architecture is obsolete. This branch does **not** adopt the frozen #79/#82 unified-custody source, cherry-pick its commits or copy its mock ledgers.
+The selected [URCE design contract on main](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) is the architecture starting point, as refined by the **owner's more recent governed-network routing clarification**: [URCE-ADR-002 — Existing item homes, Bulk overflow and legitimate Wildcard](URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md). Its conditional rule supersedes earlier blanket 'Wildcard only when all Bulk is full' wording for genuinely unclaimed items. **URCE** (Unified Routing and Custody Engine) is the name used in the repository; the old Q5-style queue-first architecture is obsolete. This branch does **not** adopt the frozen #79/#82 unified-custody source, cherry-pick its commits or copy its mock ledgers.
 
 ## 1. Success is a product result, not an engine rename
 
@@ -92,7 +92,7 @@ Baseline measurements: `schedulerTick` calls, `processColumn` workload, `destina
 
 **Stop conditions:** loss/duplication, changed native item components, wrong Filter/Auto/Wildcard ordering, mistaken unloaded bank assumptions, unknown durable receipt auto-settled, unexpected world or registry migration, or sustained performance regression. NO-GO stops source promotion and owner deployment.
 
-**Open owner decisions, to resolve during planning:** Auto precedence relative to future Bulk in explicitly governed networks; multi-region controller authority/split-merge/failover; acceptable native MR endpoint in the no-experiments BDS; authoritative physical transaction and global-maintenance-fence semantics; priority of first 1.5 *read-only planner prototype* versus custody research after 1.4.2 owner acceptance.
+**Owner-set routing intent:** For governed networks, first attempt valid Filter and Auto destinations, then prefer verified Bulk for an item claimed by Filter/Auto but blocked/full, or for an identity already stored in Bulk. Truly unclaimed items use Wildcard; a confirmed-full Bulk bank permits Wildcard overflow, whereas unknown/unloaded Bulk capacity HOLDs. See [URCE-ADR-002](URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md). **Still open:** exact bank-versus-network scope of an existing Bulk home, behavior of remote claims during unload, multi-region controller authority/split-merge/failover; acceptable native MR endpoint in the no-experiments BDS; authoritative physical transaction and global-maintenance-fence semantics; priority of first 1.5 *read-only planner prototype* versus custody research after 1.4.2 owner acceptance.
 
 ## 5. Separation and provenance rules
 

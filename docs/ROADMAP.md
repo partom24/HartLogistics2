@@ -19,6 +19,10 @@ Preserve all Hart Logistics 1.4.1 capabilities and world data through a versione
 
 [U1 actual 1.4.2 routing differential](../planning/URCE_150_U1_LAZY_ROUTING_SOURCE_PROOF_20261117.md) now includes 14 source-only tests of naive lazy Filter/Auto/Wildcard and same-attempt native Sorter Block reuse. Outputs and physical journal traces were equivalent in modeled cases. **Naive lazy route rewrite is rejected**: it increased native Sorter block reads in 120/144 mixed cases and did not reduce destination `getSlot` calls. Fresh same-attempt Block reuse saves modeled Sorter block lookups in aggregate but retains dense admission cost and has two individual regressions; no runtime integration authorized.
 
+## Owner routing clarification — selected for governed URCE
+
+[URCE-ADR-002: Existing homes, Bulk overflow, and genuine Wildcard](../planning/URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md): Filter/Auto destinations are attempted first; when a valid Filter/Auto claims the item but no destination admits it, or its identity already lives in authoritative Bulk, use Bulk while verified room exists. **Wildcard is for truly unclaimed items, or an explicit verified-full Bulk exception.** Unknown/unloaded Bulk capacity never counts as full. This refines the older blanket 'Bulk before any Wildcard' language; no 1.4.2 gameplay changes.
+
 ## Now
 
 **HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**
@@ -43,5 +47,5 @@ Preserve all Hart Logistics 1.4.1 capabilities and world data through a versione
 
 - **Selected architecture:** URCE control-plane candidate planner + native live data-plane admission + shared custody rule; not a world-wide synchronous scheduler or virtual chest cache. Historical [URCE design contract](https://github.com/partom24/HartLogistics2/blob/main/docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md) remains authoritative.
 - **Historical skeleton allowed as selective *reference*:** graph/unknown-topology checks, writer census, bounded pipe source, physical ambiguity HOLD and compatibility tests; old Q5 schema and frozen unified-custody implementation must not be merged.
-- **Unresolved:** 1.4.2 owner LAB acceptance; durable transaction/physical receipt and Q4 recovery; script-owned maintenance fence cannot disable vanilla/foreign writers; no-experiment MR inventory; controller election, partitions and revisions; network-governed Auto versus Bulk priority; real useful throughput at 1,400 Sorters.
+- **Unresolved:** 1.4.2 owner LAB acceptance; durable transaction/physical receipt and Q4 recovery; script-owned maintenance fence cannot disable vanilla/foreign writers; no-experiment MR inventory; controller election, partitions and revisions; existing-Bulk-home scope and remote-claim availability under the owner-confirmed conditional priority; real useful throughput at 1,400 Sorters.
 - **No production apply:** CI/source PASS is not a release. Preserve pack UUID, original world keys, native Hopper observations and game data.

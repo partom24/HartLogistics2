@@ -4,6 +4,8 @@
 
 **Branch:** `planning/urce-150-20261117`, anchored to the [CI-green 1.4.2 native-first compatibility baseline](implementation/BASELINE_142_CLOSEOUT_20261117.md). The owner has authorized **URCE architecture planning**, using the historical 1.5 skeleton selectively as a read-only source of design lessons. No 1.5 gameplay or world migration has been implemented.
 
+**Governed-network routing rule:** [URCE-ADR-002 — Item homes, Bulk overflow and legitimate Wildcard](planning/URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md) is the owner's clarification: Filter/Auto first; claimed-but-blocked or already-in-Bulk identities prefer Bulk; genuinely unclaimed items may go Wildcard; verified-full Bulk may overflow to Wildcard, unknown Bulk must HOLD. No runtime change.
+
 **U1 Collector/Receiver decision:** [Complete capacity-first/Q4 serializer research](planning/URCE_150_U1_COLLECTOR_CAPACITY_FIRST_RESEARCH_20261117.md). General queue-capacity-before-serialization is **NO-GO** because it can trigger unwanted Q2/Q3/Q4 loading/migration for unqueueable items. The 1.4.2 native-first engine and LAB remain unchanged.
 
 **U1 source-only proof:** [Lazy routing differential, measured tradeoffs and decision](planning/URCE_150_U1_LAZY_ROUTING_SOURCE_PROOF_20261117.md). The naive lazy route walk is **NO-GO**; using one freshly read native Block within a synchronous destination attempt is a **research candidate**, not a proven BDS optimization. No 1.5 gameplay or saved-world writes occurred.
