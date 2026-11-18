@@ -481,5 +481,53 @@ test("URCE-LAZY-09 deterministic mixed 4-5-high columns differential, no native 
   // Route-only simplification is not automatically a performance win: per-item
   // rechecking of eligible Sorters may actually cost *more* live block reads.
   assert.ok(Number.isInteger(liveSaved)&&Number.isInteger(regressed));
-  // Model-specific counters are documented, not used to promise BDS speedup.
+  console.log("URCE MODEL mixed-144:",JSON.stringify({nativeGetSlotSaved:nativeSaved,sorterAtSaved:liveSaved,sorterAtRegressedCases:regressed,itemsMoved:deliveries}));
+});
+test("URCE-LAZY-10 repeated compatible cargo can increase live block lookups",()=>{
+  const def=scenario({
+    source:Array.from({length:5},()=>plain("minecraft:stone",1)),
+    entries:Array.from({length:4},()=>({
+      mode:"filter",filter:"minecraft:stone",destination:storage(full())
+    }))
+  });
+  const {baseline,candidate}=differential(def,"five slots times four eligible full Filters");
+  assert.equal(baseline.end.moved,0);
+  assert.ok(candidate.counts.sorterAt>baseline.counts.sorterAt,
+    "A lazy per-item live validation repeats work across five source slots");
+  assert.equal(candidate.counts.getSlot,baseline.counts.getSlot);
+  console.log("URCE MODEL repeated-compatible:",JSON.stringify({
+    baselineSorterAt:baseline.counts.sorterAt,candidateSorterAt:candidate.counts.sorterAt,
+    baselineGetSlot:baseline.counts.getSlot,candidateGetSlot:candidate.counts.getSlot
+  }));
+});
+test("URCE-LAZY-11 350 four-high columns model 1400 Sorter rule evaluations",()=>{
+  let nativeGetSlotBase=0,nativeGetSlotLazy=0,liveSorterBase=0,liveSorterLazy=0,
+      commitsBase=0,commitsLazy=0;
+  for(let k=0;k<350;k++){
+    const def=scenario({
+      source:[plain("minecraft:stone",2),undefined,undefined,undefined,undefined],
+      entries:[
+        {mode:"auto",destination:storage(full())},
+        {mode:"filter",filter:"minecraft:dirt",destination:storage(full())},
+        {mode:"filter",filter:"minecraft:diamond",destination:storage(full())},
+        {mode:"wildcard",destination:storage([undefined,...Array(8).fill(null)])}
+      ]
+    });
+    const {baseline,candidate}=differential(def,"modeled 1400-sorter col "+k);
+    nativeGetSlotBase+=baseline.counts.getSlot;
+    nativeGetSlotLazy+=candidate.counts.getSlot;
+    liveSorterBase+=baseline.counts.sorterAt;
+    liveSorterLazy+=candidate.counts.sorterAt;
+    commitsBase+=baseline.counts.journalPrepare;
+    commitsLazy+=candidate.counts.journalPrepare;
+  }
+  assert.equal(nativeGetSlotLazy,nativeGetSlotBase,
+    "A routing-only lazy rewrite does not reduce necessary dense Auto scans");
+  assert.equal(commitsLazy,commitsBase,"Exactly identical physical journal count");
+  assert.ok(liveSorterLazy<liveSorterBase);
+  console.log("URCE MODEL 350x4:",JSON.stringify({
+    baselineSorterAt:liveSorterBase,candidateSorterAt:liveSorterLazy,
+    baselineGetSlot:nativeGetSlotBase,candidateGetSlot:nativeGetSlotLazy,
+    baselinePhysicalJournals:commitsBase,candidatePhysicalJournals:commitsLazy
+  }));
 });
