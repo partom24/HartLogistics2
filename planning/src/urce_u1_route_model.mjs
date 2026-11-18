@@ -40,6 +40,23 @@ export function buildReadOnlyGraph(nodes, links) {
     if (!verified) unknown = true;
     outgoing.get(e.from).push({ ...e, verified });
   }
+  // Existing verified cycles are just as unsafe as a proposed back-edge.
+  // Kahn's walk avoids recursive depth risk in large, stacked networks.
+  const degrees = new Map([...byId.keys()].map(k => [k, 0]));
+  for (const edges of outgoing.values()) for (const edge of edges) {
+    if (edge.verified) degrees.set(edge.to, degrees.get(edge.to) + 1);
+  }
+  const ready = [...degrees].filter(([, d]) => d === 0).map(([k]) => k);
+  let visited = 0;
+  for (let i = 0; i < ready.length; i++) {
+    visited++;
+    for (const edge of outgoing.get(ready[i])) if (edge.verified) {
+      const next = degrees.get(edge.to) - 1;
+      degrees.set(edge.to, next);
+      if (next === 0) ready.push(edge.to);
+    }
+  }
+  if (visited !== byId.size) return { status: "CYCLE", reason: "verified_directed_cycle" };
   return { status: "OK", byId, outgoing, unknown };
 }
 

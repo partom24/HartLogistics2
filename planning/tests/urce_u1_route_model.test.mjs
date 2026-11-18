@@ -132,3 +132,21 @@ test("U1-15 source-only module never imports native Bedrock or changes an invent
   assert.equal(planReadOnlyCandidates({graph:g,source:"src",itemClass:"ordinary",
     offers:[],existingBulkHome:"no",applicableBulkState:"full"}).status,"HOLD");
 });
+
+test("U1-16 a pre-existing directed cycle cannot be trusted for routing",()=>{
+  const graph=buildReadOnlyGraph([n("A"),n("B"),n("C")],
+    [e("A","B"),e("B","C"),e("C","A")]);
+  assert.equal(graph.status,"CYCLE");
+  assert.equal(planReadOnlyCandidates({graph,source:"A",itemClass:"ordinary",
+    offers:[],existingBulkHome:"no",applicableBulkState:"open"}).status,"INVALID");
+});
+
+test("U1-17 columns are ordered by cost while every column stays bottom-to-top",()=>{
+  const nodes=["src","a0","a1","b0"].map(id=>n(id));
+  const x=plan(nodes,[e("src","a0"),e("src","a1"),e("src","b0")],"src",[
+    o("a1","filter",{claim:"yes",columnId:"A",bottomUp:1,estimatedCost:0}),
+    o("a0","filter",{claim:"yes",columnId:"A",bottomUp:0,estimatedCost:50}),
+    o("b0","filter",{claim:"yes",columnId:"B",bottomUp:0,estimatedCost:5})
+  ]);
+  assert.deepEqual(x.stages[0].candidates.map(v=>v.nodeId),["a0","a1","b0"]);
+});
