@@ -23,6 +23,12 @@ Preserve all Hart Logistics 1.4.1 capabilities and world data through a versione
 
 [URCE-ADR-002: Existing homes, Bulk overflow, and genuine Wildcard](../planning/URCE_150_OWNER_ROUTING_HOME_AND_OVERFLOW_DECISION_20261117.md): Filter/Auto destinations are attempted first; when a valid Filter/Auto claims the item but no destination admits it, or its identity already lives in authoritative Bulk, use Bulk while verified room exists. **Wildcard is for truly unclaimed items, or an explicit verified-full Bulk exception.** Unknown/unloaded Bulk capacity never counts as full. This refines the older blanket 'Bulk before any Wildcard' language; no 1.4.2 gameplay changes.
 
+## New owner topology and OSI mapping clarification — 2026-11-18
+
+**Takeover / current implementation research map:** [OSI-inspired multi-bank routing and owner decisions](../planning/URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md). The physical **bank** and connected **network** remain relevant; a named controller **region** is NOT an owner requirement. There is **Bulk Storage**, not a Bulk Sorter. The first Bulk Storage placed being its bank's controller and controller-to-controller routing are historical proposals only; evaluate a read-only logical network directory plus independently accountable Bulk members and shared custody first. The owner intends **many Wildcard Sorters on the final bank** for genuinely unclaimed items and proven-full Bulk exceptions; maintain ADR-002's Filter/Auto/Bulk/HOLD rules.
+
+**OSI-inspired research hypothesis:** separate cheap claim/destination/next-hop selection from intermediate physical forwarding and final native capacity checks, with exact durable custody across every actual ownership boundary. An irrelevant bank should not scan Sorter destination chests; skipping reclassification is not proof that physical Collector–Receiver hops or journal writes vanish. **Source-only comparison first** (four-bank traversal, Auto seed changes, Bulk home and full/unknown behavior, last-bank Wildcard, unload/restart), then BDS validity and performance gates. Do not reproduce seven protocol layers, a globally polled routing table or unproven native item-transfer atomicity.
+
 ## Now
 
 **HL-URCE-PLAN-001 — Owner-authorized URCE 1.5 architecture planning, active.**
