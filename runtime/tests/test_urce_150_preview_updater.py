@@ -235,8 +235,7 @@ class PreviewLabGuard(unittest.TestCase):
             before_regs={item['registry']:item['old_bytes'] for item in plan}
             backup=lab.apply_plan(root,plan)
             tag=backup.name
-            self.assertRegex(tag,r'^lab-[0-9a-f]{12}
-)
+            self.assertRegex(tag,r'^lab-[0-9a-f]{12}$')
             recovered=lab.create_rollback_plan(ROOT,root,tag)
             self.assertEqual(len(recovered),2)
             another_backup=lab.apply_plan(root,recovered)
