@@ -40,6 +40,9 @@ jobs:
       - name: URCE U0 exact 1.4.2 writer and callback source census
         if: github.ref_name == 'planning/urce-150-20261117'
         run: node --test planning/tests/urce_u0_writer_census_142.test.mjs
+      - name: URCE U2 fault-closed custody and transaction-density decision model
+        if: github.ref_name == 'planning/urce-150-20261117'
+        run: node --test planning/tests/urce_u2_custody_protocol.test.mjs
       - name: Confirm original 1.4.1 regression witnesses independently
         shell: bash
         run: |
