@@ -24,8 +24,8 @@ param(
     [switch]$Apply,
     [string]$ExpectedCommit = '',
     [string]$BackupTag = '',
-    [ValidateSet('1.5.1')]
-    [string]$CandidateVersion = '1.5.1'
+    [ValidateSet('1.5.1','1.5.2')]
+    [string]$CandidateVersion = '1.5.2'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -61,6 +61,7 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
 # in Git for explicit rollback of earlier installed candidates.
 $approvedLaunchers = @{
     '1.5.1' = 'Start-HartLogistics-151Lab.ps1'
+    '1.5.2' = 'Start-HartLogistics-152Lab.ps1'
 }
 $approvedBranch = 'dev/urce-150-runtime-20261118'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
