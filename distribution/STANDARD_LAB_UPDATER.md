@@ -47,7 +47,17 @@ A subsequent Git pull does **not** silently deploy an add-on, rewrite Bedrock pa
 - Refuse unrecognized versions, wrong branch/checkout, dirty worktree, symlinked sources, stale pin, unexpected LAB predecessor, production directory, missing backup or any ambiguous ownership. Do not work around a `REFUSED` by hand copying pack files.
 - `main` remains the canonical archive for historical evidence and old operator processes. The current stable launcher is part of the **active URCE branch**; new branches must carry it forward.
 
-## Current versioned safety candidate — 1.5.2
+## 2026-11-19 — 1.5.3 installed-1.5.2 repair path
+
+The owner has **already installed 1.5.2 from exact commit `df9479c87efedebeca9bab8f8f8c4a1fe1148e21`** into the copied LAB using CheckLab followed by explicit `Install -Apply`. They retained installer backup `lab-0bff63ebe84e`. The in-game 1.5.2 status command loads and 1,442 Sorters / 60 Collectors / 38 Receivers / 294,294 queued Q4 items are visible. A new, owner-built two-bank fixture shows **all link attempts HELD: invalid_native_observation**, so 1.5.2 is not accepted for loop guarding. This is a real code/testing blocker, not a request to rebuild the physical 13-bank storage structure.
+
+The stable launcher on the development branch now **defaults to 1.5.3**. The versioned backend `scripts/hartlogistics_153_lab_updater.py` requires the exact **already installed 1.5.2 predecessor** and four reviewed file changes (BP/RP manifests, main script, pure link observer); no new files in the packs, no world queue migration. It must refuse unknown pack bytes or altered registrations. Older 1.5.1/1.5.2 wrappers remain available via explicit `-CandidateVersion` for historical work as appropriate; they do not bypass the new guarded update.
+
+Use the **same Plan / CheckLab / Install -Apply / Rollback -Apply commands above**. Never paste the angle-bracket SHA placeholder literally; assign `$sha` the exact 40-character source commit printed by Plan. CheckLab and a stopped copied-LAB server remain mandatory before Install; this documentation does not authorize installing until the owner chooses to do so. Preserve all Q4 data and both old and new backup directories.
+
+See [1.5.3 two-bank retest card](URCE153_LEGACY_LINK_FIX_LAB_TEST_CARD.md). **No item cargo test until valid forward link and prohibited back-edge rejection are observed in native Bedrock.**
+
+## Historical versioned safety candidate — 1.5.2
 
 The fixed entrypoint `distribution/Start-HartLogistics-Lab.ps1` now defaults to **1.5.2**, preserving the same Plan/CheckLab/Install/Rollback flags and Git-pull workflow. The guarded backend is `scripts/hartlogistics_152_lab_updater.py`, with a pinned, immutable **1.5.1 exact-pack predecessor**. `-CandidateVersion 1.5.1` retains the historical versioned 1.5.1 wrapper (for an explicitly selected prior candidate), but must not be used to bypass the current 1.5.2 source/compatibility gates.
 

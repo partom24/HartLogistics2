@@ -23,6 +23,84 @@ const answer=(decision,reason,extra={})=>({
 const supportedId=id=>typeof id==="string"&&id.length>0;
 
 /**
+ * Historic v2 registries can contain a Collector and a Receiver with the
+ * same deterministic position ID after a player replaces one with the other.
+ * Both saved records (including old Receiver Q4 custody) MUST be retained.
+ * A directed graph cannot contain both under the same node ID, however.
+ *
+ * Resolve only the *read-only observation* against the current, loaded block
+ * type. Do not delete stale registrations or rewrite journals. If the block
+ * cannot be read, or multiple records remain physically ambiguous, quarantine
+ * the position instead of guessing which device is active.
+ */
+export function normalizeObservedEndpoints({collectors,receivers,getBlock}) {
+  const invalid=reason=>({
+    status:"INVALID",reason,collectors:[],receivers:[],conflicts:[]
+  });
+  if(!Array.isArray(collectors)||!Array.isArray(receivers)||
+     typeof getBlock!=="function")return invalid("invalid_registry_input");
+  const entries=[
+    ...collectors.map(record=>({kind:"collector",record})),
+    ...receivers.map(record=>({kind:"receiver",record}))
+  ];
+  const byId=new Map(),conflicts=[];
+  for(const e of entries){
+    const r=e.record;
+    if(!r||!supportedId(r.id)||!supportedId(r.d)||
+       ![r.x,r.y,r.z].every(Number.isSafeInteger)){
+      conflicts.push({id:r?.id??null,reason:"malformed_saved_endpoint"});
+      continue;
+    }
+    if(!byId.has(r.id))byId.set(r.id,[]);
+    byId.get(r.id).push(e);
+  }
+  const chosen=[];
+  for(const [id,group] of byId){
+    if(group.length===1){chosen.push(group[0]);continue;}
+    const at=group[0].record;
+    if(!group.every(e=>e.record.d===at.d&&
+       e.record.x===at.x&&e.record.y===at.y&&e.record.z===at.z)){
+      conflicts.push({id,reason:"conflicting_saved_positions"});
+      continue;
+    }
+    let block;
+    try {block=getBlock(at.d,{x:at.x,y:at.y,z:at.z});}
+    catch(_) {block=undefined;}
+    const type=block?.typeId;
+    const candidates=group.filter(e=>type===(
+      e.kind==="collector"?"hartsorter:collector":"hartsorter:receiver"
+    ));
+    if(candidates.length!==1){
+      conflicts.push({id,reason:type?"ambiguous_active_endpoint":
+        "unavailable_endpoint_collision"});
+      continue;
+    }
+    chosen.push(candidates[0]);
+    conflicts.push({id,reason:"stale_opposite_kind_shadowed"});
+  }
+  // Different historic IDs can also point to the same physical block.
+  // Neither may receive link authority until identity is disambiguated.
+  const byPosition=new Map();
+  for(const e of chosen){
+    const r=e.record,key=r.d+"|"+r.x+"|"+r.y+"|"+r.z;
+    if(!byPosition.has(key))byPosition.set(key,[]);
+    byPosition.get(key).push(e);
+  }
+  const safe=[];
+  for(const group of byPosition.values()){
+    if(group.length===1){safe.push(group[0]);continue;}
+    for(const e of group)
+      conflicts.push({id:e.record.id,reason:"duplicate_position_identity"});
+  }
+  return {
+    status:"OBSERVED",conflicts,
+    collectors:safe.filter(e=>e.kind==="collector").map(e=>e.record),
+    receivers:safe.filter(e=>e.kind==="receiver").map(e=>e.record)
+  };
+}
+
+
+/**
  * Single bounded native/visual world observation shared by link checks
  * operating on one stable same-tick, same-registry snapshot.
  * The LIVE adapter controls its lifetime and invalidates it when registry,
@@ -60,21 +138,30 @@ export function observeSupplyLinkSnapshot({
       throw error;
     }
   }
+  const normalized=normalizeObservedEndpoints({
+    collectors,receivers,getBlock:cachedBlock
+  });
+  if(normalized.status==="INVALID")
+    return {status:"INVALID",reason:normalized.reason,native:null,
+      visual:null,normalized,
+      readCounts:{uniqueWorldReads,cacheHits}};
   const native=observeNativeHopperWitness({
-    collectors,receivers,getBlock:cachedBlock,
-    maxReads:maxNativeReads,maxHopsPerReceiver
+    collectors:normalized.collectors,receivers:normalized.receivers,
+    getBlock:cachedBlock,maxReads:maxNativeReads,maxHopsPerReceiver
   });
   if(native.status==="INVALID")
-    return {status:"INVALID",native,visual:null,
-      readCounts:{uniqueWorldReads,cacheHits}};
+    return {status:"INVALID",reason:native.reason,native,visual:null,
+      normalized,readCounts:{uniqueWorldReads,cacheHits}};
   const visual=observeTransporterComponents({
     anchors:[
-      ...receivers.map(r=>({...r,kind:"receiver"})),
-      ...collectors.map(c=>({...c,kind:"collector"}))
+      ...normalized.receivers.map(r=>({...r,kind:"receiver"})),
+      ...normalized.collectors.map(c=>({...c,kind:"collector"}))
     ],getBlock:cachedBlock,maxReads:maxTransporterReads,maxTransporters
   });
   return {status:visual.status==="INVALID"?"INVALID":"OBSERVED",
-    native,visual,readCounts:{uniqueWorldReads,cacheHits}};
+    reason:visual.status==="INVALID"?visual.reason:null,
+    native,visual,normalized,
+    readCounts:{uniqueWorldReads,cacheHits}};
 }
 
 export function inspectCandidateSupplyLink({
@@ -97,7 +184,13 @@ export function inspectCandidateSupplyLink({
   });
   const native=observed?.native,visual=observed?.visual;
   if(!native||native.status==="INVALID")
-    return answer("HOLD","invalid_native_observation");
+    return answer("HOLD","invalid_native_observation",{
+      observationReason:observed?.reason??native?.reason??"unknown"
+    });
+  if(native.status==="CYCLE"||native.graph?.status==="CYCLE")
+    return answer("REJECT","existing_verified_supply_cycle",{
+      evidence:"native_hopper_positive_witness"
+    });
   if(!visual||visual.status==="INVALID")
     return answer("HOLD","invalid_visual_observation");
   if(!native.graph?.byId?.has(fromCollector)||

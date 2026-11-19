@@ -169,3 +169,66 @@ test("LINK-14 adding a physical bank can invalidate an earlier link snapshot",()
   assert.equal(after.reason,"cycle");
   // No observer mutation; runtime must re-audit when the world changes.
 });
+
+test("LINK-15 old Collector/Receiver position collisions do NOT invalidate two new banks",()=>{
+  const f=worlds(2);f.collectors[0].link=null;
+  const oldReceiverRecord={
+    ...f.collectors[0],queueKey:"q-historical",queued:64,
+    received:180,delivered:116,qVersion:4
+  };
+  const oldCollectorRecord={
+    ...f.receivers[1],link:"R0",accepted:301
+  };
+  // These share a deterministic position ID but not a *physical* type.
+  // Saved Q4 queue ownership and links must remain in registry unchanged.
+  f.receivers.push(oldReceiverRecord);
+  f.collectors.push(oldCollectorRecord);
+  for(let i=0;i<40;i++){
+    const pos={id:"historical-C-"+i,d:f.d,x:3000+i*8,y:73,z:-310};
+    f.collectors.push({...pos,link:i%2?"ghost-R":"R0",accepted:100+i});
+  }
+  for(let i=0;i<25;i++){
+    f.receivers.push({id:"historical-R-"+i,d:f.d,x:4000+i*8,y:73,
+      z:300,queueKey:"old-q"+i,queued:50+i});
+  }
+  const before=JSON.stringify({collectors:f.collectors,receivers:f.receivers});
+  const forward=plan(f,"C0","R1");
+  assert.deepEqual(shape(forward),["SAFE_SNAPSHOT",
+    "no_cycle_in_observed_managed_topology",false,false]);
+  assert.equal(JSON.stringify({collectors:f.collectors,receivers:f.receivers}),before);
+  assert.equal(oldReceiverRecord.queued,64);
+  f.collectors[0].link="R1";
+  assert.equal(plan(f,"C1","R0").decision,"REJECT",
+    "Historic collisions must not bypass the actual two-bank back-edge");
+});
+
+test("LINK-16 an unavailable ambiguous Collector position HOLDS rather than picking a type",()=>{
+  const f=worlds(2);f.collectors[0].link=null;
+  f.receivers.push({...f.collectors[0],queueKey:"q-old",queued:17});
+  const lost=key(f.d,f.collectors[0]);
+  const getBlock=(d,p)=>key(d,p)===lost?undefined:f.getBlock(d,p);
+  const outcome=plan({...f,getBlock},"C0","R1");
+  assert.equal(outcome.decision,"HOLD");
+  assert.equal(outcome.persistPermitted,false);
+});
+
+test("LINK-17 already verified native Hopper loop is REJECTED before accessing an absent graph",()=>{
+  const d="minecraft:overworld",world=new Map(),collectors=[],receivers=[];
+  for(let i=0;i<2;i++){
+    const x=i*20;
+    const r={id:"R"+i,d,x,y:66,z:2};
+    const c={id:"C"+i,d,x:x+3,y:65,z:2,link:"R"+(1-i)};
+    receivers.push(r);collectors.push(c);
+    world.set(key(d,r),block("hartsorter:receiver"));
+    world.set(key(d,c),block("hartsorter:collector"));
+    for(let k=0;k<3;k++)
+      world.set(key(d,{x:x+k,y:65,z:2}),block("minecraft:hopper",5));
+  }
+  const getBlock=(dim,p)=>world.get(key(dim,p))||block("minecraft:air");
+  const decision=inspectCandidateSupplyLink({
+    collectors,receivers,getBlock,fromCollector:"C0",toReceiver:"R1"
+  });
+  assert.equal(decision.decision,"REJECT");
+  assert.equal(decision.reason,"existing_verified_supply_cycle");
+  assert.equal(decision.persistPermitted,false);
+});

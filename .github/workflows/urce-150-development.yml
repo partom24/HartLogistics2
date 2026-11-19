@@ -1,4 +1,4 @@
-name: URCE 1.5.2 link-cycle safety development candidate
+name: URCE 1.5.3 legacy-registry link-safety repair candidate
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-runtime-preview:
-    name: Validate 1.5.2 guarded links, unchanged 4x4 visuals and package
+    name: Validate 1.5.3 historical registry repair and unchanged Q4 writers
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -49,14 +49,18 @@ jobs:
         run: |
           git worktree add --detach "$RUNNER_TEMP/urce151-original" 48a9faad568024b8847465a8551e993d7398e817
           (cd "$RUNNER_TEMP/urce151-original" && python3 -m unittest discover -s runtime/tests -p test_urce_151_visual_updater.py -v)
-      - name: Prove exact 1.5.1 to 1.5.2 guarded update/rollback on disposable worlds
-        run: python3 -m unittest discover -s runtime/tests -p test_urce_152_link_guard_updater.py -v
-      - name: Build non-release 1.5.2 guarded-link preview
+      - name: Preserve exact owner-installed 1.5.2 updater/rollback proof from pinned commit
         run: |
-          python3 tools/build_mcaddon.py --output dist/HartLogistics_152_LINK_GUARD_DEV_UNVERIFIED.mcaddon
+          git worktree add --detach "$RUNNER_TEMP/urce152-installed" df9479c87efedebeca9bab8f8f8c4a1fe1148e21
+          (cd "$RUNNER_TEMP/urce152-installed" && python3 -m unittest discover -s runtime/tests -p test_urce_152_link_guard_updater.py -v)
+      - name: Prove exact 1.5.2 to 1.5.3 guarded upgrade/rollback on disposable worlds
+        run: python3 -m unittest discover -s runtime/tests -p test_urce_153_link_guard_updater.py -v
+      - name: Build non-release 1.5.3 guarded-link preview
+        run: |
+          python3 tools/build_mcaddon.py --output dist/HartLogistics_153_LEGACY_LINK_FIX_DEV_UNVERIFIED.mcaddon
           python3 - <<'PY'
           import json,zipfile,io,pathlib
-          p=pathlib.Path("dist/HartLogistics_152_LINK_GUARD_DEV_UNVERIFIED.mcaddon")
+          p=pathlib.Path("dist/HartLogistics_153_LEGACY_LINK_FIX_DEV_UNVERIFIED.mcaddon")
           assert p.is_file()
           with zipfile.ZipFile(p) as z:
               assert z.testzip() is None
@@ -66,7 +70,7 @@ jobs:
                   with zipfile.ZipFile(io.BytesIO(z.read(f))) as pack:
                       assert pack.testzip() is None
                       m=json.loads(pack.read("manifest.json"))
-                      assert m["header"]["version"]==[1,5,2]
+                      assert m["header"]["version"]==[1,5,3]
                       if "BP" in f:
                           assert "blocks/transporter.json" in pack.namelist()
                           assert "blocks/bulk_storage.json" in pack.namelist()
@@ -96,14 +100,14 @@ jobs:
                               "geometry.hartlogistics.bulk_storage",
                           }
                           assert expected <= identifiers, "Incomplete packaged geometry identifiers"
-          print("1.5.2 GUARDED-LINK SOURCE CANDIDATE PACK VALIDATED; NO BDS PASS")
+          print("1.5.3 LEGACY-LINK FIX SOURCE CANDIDATE PACK VALIDATED; NO BDS PASS")
           PY
       - name: Verify deterministic package and publish exact source/checksums
         run: |
           python3 tools/build_mcaddon.py --output "$RUNNER_TEMP/urce-repeat-build.mcaddon"
           python3 - <<'PY'
           import hashlib, io, json, os, pathlib, subprocess, zipfile
-          package=pathlib.Path("dist/HartLogistics_152_LINK_GUARD_DEV_UNVERIFIED.mcaddon")
+          package=pathlib.Path("dist/HartLogistics_153_LEGACY_LINK_FIX_DEV_UNVERIFIED.mcaddon")
           repeat=pathlib.Path(os.environ["RUNNER_TEMP"])/"urce-repeat-build.mcaddon"
           def digest(data): return hashlib.sha256(data).hexdigest()
           current=package.read_bytes()
@@ -137,15 +141,15 @@ jobs:
           print("Exact URCE preview artifact SHA-256:",record["artifact_sha256"])
           print("Build source:",sha)
           PY
-      - name: Retain unaccepted 1.5.2 LAB link-safety candidate
+      - name: Retain unaccepted 1.5.3 legacy-link fix candidate
         uses: actions/upload-artifact@v4
         with:
-          name: HL-URCE-152-LINK-SAFETY-DEV-NOT-RELEASED
+          name: HL-URCE-153-LEGACY-LINK-FIX-DEV-NOT-RELEASED
           path: |
-            dist/HartLogistics_152_LINK_GUARD_DEV_UNVERIFIED.mcaddon
-            dist/HartLogistics_152_LINK_GUARD_DEV_UNVERIFIED.build-manifest.json
-            distribution/Start-HartLogistics-152Lab.ps1
-            distribution/URCE152_LINK_SAFETY_LAB_TEST_CARD.md
+            dist/HartLogistics_153_LEGACY_LINK_FIX_DEV_UNVERIFIED.mcaddon
+            dist/HartLogistics_153_LEGACY_LINK_FIX_DEV_UNVERIFIED.build-manifest.json
+            distribution/Start-HartLogistics-153Lab.ps1
+            distribution/URCE153_LEGACY_LINK_FIX_LAB_TEST_CARD.md
             distribution/Diagnose-HartLogistics-LABResources.ps1
           retention-days: 14
           if-no-files-found: error
@@ -165,7 +169,7 @@ jobs:
       - name: Parse the actual PowerShell launcher and fail-closed operator modes
         shell: pwsh
         run: |
-          $file = (Resolve-Path 'distribution/Start-HartLogistics-152Lab.ps1').Path
+          $file = (Resolve-Path 'distribution/Start-HartLogistics-153Lab.ps1').Path
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
@@ -180,7 +184,7 @@ jobs:
               $refused = $false
               try { & $file @args | Out-Null }
               catch {
-                  if ($_.Exception.Message -notmatch 'REFUSED URCE 1.5.2 LAB preview') { throw }
+                  if ($_.Exception.Message -notmatch 'REFUSED URCE 1.5.3 LAB preview') { throw }
                   $refused = $true
               }
               if (-not $refused) { throw ('Unsafe launch mode was not refused: '+$args.Mode) }
@@ -250,7 +254,7 @@ jobs:
               },
               { //HartLogistics
                   "pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a",
-                  "version":[1,5,2,],
+                  "version":[1,5,3,],
               },
               { /* HartBots registered resource pack */
                   "pack_id":"316ea1b2-fc60-48e4-afc8-6816b02a5406",
@@ -303,6 +307,13 @@ jobs:
           Push-Location "$env:RUNNER_TEMP\urce151-original"
           try { python -m unittest discover -s runtime/tests -p test_urce_151_visual_updater.py -v }
           finally { Pop-Location }
-      - name: Run current 1.5.2 synthetic Windows upgrade/rollback suite
+      - name: Preserve owner-installed 1.5.2 Windows upgrade/rollback proof from pinned source
         shell: pwsh
-        run: python -m unittest discover -s runtime/tests -p test_urce_152_link_guard_updater.py -v
+        run: |
+          git worktree add --detach "$env:RUNNER_TEMP\urce152-installed" df9479c87efedebeca9bab8f8f8c4a1fe1148e21
+          Push-Location "$env:RUNNER_TEMP\urce152-installed"
+          try { python -m unittest discover -s runtime/tests -p test_urce_152_link_guard_updater.py -v }
+          finally { Pop-Location }
+      - name: Run current 1.5.3 synthetic Windows upgrade/rollback suite
+        shell: pwsh
+        run: python -m unittest discover -s runtime/tests -p test_urce_153_link_guard_updater.py -v

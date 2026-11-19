@@ -21,7 +21,7 @@ const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.2-dev";
+const VERSION = "1.5.3-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -509,7 +509,8 @@ function linkSafetyLabel(result) {
     if (result.decision === "SAFE_SNAPSHOT") return "verified snapshot";
     if (result.decision === "NO_MANAGED_INPUT") return "no managed source";
     return (result.decision === "REJECT" ? "CYCLE BLOCKED" : "ROUTE HOLD") +
-        " (" + (result.reason || "unverified") + ")";
+        " (" + (result.reason || "unverified") +
+        (result.observationReason ? ": " + result.observationReason : "") + ")";
 }
 
 function sorterAt(e) {
@@ -2186,7 +2187,9 @@ function useReceiver(player, block) {
                 player.sendMessage(
                     "§c[Hart Logistics] Link " +
                     (verdict.decision === "REJECT" ? "REJECTED (supply loop)" : "HELD (route unverified)") +
-                    ": " + verdict.reason + ". Existing link retained."
+                    ": " + verdict.reason +
+                    (verdict.observationReason ? " (" + verdict.observationReason + ")" : "") +
+                    ". Existing link retained."
                 );
                 return;
             }

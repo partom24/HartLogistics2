@@ -214,3 +214,40 @@ test("LIVE-13 unknown native results remain UNKNOWN in BOTH overlapping probes",
  assert.equal(obs.visual.unresolved.some(x=>x.reason==="get_block_failed"),true);
  assert.equal(obs.visual.coverageComplete,false);
 });
+
+test("LIVE-14 owner-sized persisted registry with stale opposite-kind IDs is route-observable",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ const oldReceiver={...f.collectors[0],queueKey:"q-old",
+   queued:64,received:125,delivered:61};
+ f.receivers.push(oldReceiver);
+ f.collectors.push({...f.receivers[1],link:"R0",accepted:0});
+ for(let i=0;i<58;i++)
+   f.collectors.push({id:"old-C-"+i,d:"minecraft:overworld",
+     x:5000+i*5,y:80,z:0,link:null});
+ for(let i=0;i<35;i++)
+   f.receivers.push({id:"old-R-"+i,d:"minecraft:overworld",
+     x:7000+i*5,y:80,z:0,queueKey:"q"+i,queued:30+i});
+ const saved=JSON.stringify({collectors:f.collectors,receivers:f.receivers});
+ const forward=request(g,f,0,1,191,true);
+ assert.equal(forward.decision,"SAFE_SNAPSHOT");
+ assert.equal(JSON.stringify({collectors:f.collectors,receivers:f.receivers}),saved);
+ assert.equal(oldReceiver.queued,64);
+ f.collectors[0].link="R1";
+ assert.equal(request(g,f,1,0,191,true).decision,"REJECT");
+});
+
+test("LIVE-15 invalid saved endpoint does not authorize link but gives a scoped diagnosis",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ f.receivers.push({...f.collectors[0],queued:64});
+ const original=f.getBlock;
+ const missing=(d,p)=>p.x===f.collectors[0].x&&
+   p.y===f.collectors[0].y&&p.z===f.collectors[0].z
+   ?undefined:original(d,p);
+ const decision=g.check({collector:f.collectors[0],receiver:f.receivers[1],
+   collectors:f.collectors,receivers:f.receivers,
+   getBlock:missing,currentTick:200,forceFresh:true});
+ assert.equal(decision.decision,"HOLD");
+ assert.equal(decision.persistPermitted,false);
+});

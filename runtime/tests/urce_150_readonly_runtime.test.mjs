@@ -95,8 +95,8 @@ test("DEV-01 both new blocks have unique geometry, atlas, models and textures",(
 test("DEV-02 1.5 BP/RP preserve stable UUIDs and Bedrock 2.7.0",()=>{
  const bp=JSON.parse(read("addon/behavior_pack/manifest.json"));
  const rp=JSON.parse(read("addon/resource_pack/manifest.json"));
- assert.deepEqual(bp.header.version,[1,5,2]);
- assert.deepEqual(rp.header.version,[1,5,2]);
+ assert.deepEqual(bp.header.version,[1,5,3]);
+ assert.deepEqual(rp.header.version,[1,5,3]);
  assert.equal(bp.header.uuid,"4854d263-05dd-4f79-a21c-7ba969295c2d");
  assert.equal(rp.header.uuid,"91316442-0f26-4fbb-88f3-2e39ea843a1a");
  assert.ok(bp.dependencies.some(x=>x.module_name==="@minecraft/server"&&x.version==="2.7.0"));
