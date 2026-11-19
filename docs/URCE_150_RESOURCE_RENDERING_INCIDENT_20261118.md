@@ -74,3 +74,18 @@ Added [offline client Content Log summarizer](../scripts/analyze_bedrock_content
 
 **Next decisive observation:** on the Minecraft **client device**, identify the active/cached version and UUID of HartMods Hart Logistics RP (UUID `91316442-0f26-4fbb-88f3-2e39ea843a1a`, expected version `1.5.0`), whether its effective content contains these six models, and whether higher-priority resource packs override assets. For Windows Minecraft after GDK migration, ordinary local pack roots are under `%APPDATA%\Minecraft Bedrock\users\shared\games\com.mojang\resource_packs`; downloaded server packs may instead be in `%LOCALAPPDATA%\Temp\Minecraft Bedrock\minecraftpe\ResPackDownloads`. Neither folder alone proves which resources Minecraft registered at runtime. Use inspection only; do not indiscriminately purge caches/other add-ons. Fix with a new unique version and guarded 1.5.0→successor installer ONLY after precise fault is identified, and verify actual owner BDS/client rendering before accepting.
 
+
+## 2026-11-18 21:44 EST — RESOLVED: stale client cache from previous 1.5.0 attempt
+
+**Owner runtime confirmation, copied LAB:** After inspecting the client Content Log and determining that a **previous 1.5.0 attempt left stale/cached resource files on the Minecraft client**, the owner cleared the cached files and reconnected. The new owner screenshot shows the formerly magenta/black Sorter faces rendering the intended dark metal panels and gold/cyan markings. The owner explicitly confirmed: "we're fixed, the issue was from a previous 1.5.0 attempt and cached files. once cleared they loaded just fine."
+
+**Disposition: VISUAL INCIDENT CLOSED — OWNER-CONFIRMED PASS for the affected visuals, NOT full 1.5 product acceptance.** Root cause is stale client resource assets from an older build with the same 1.5.0 version, not missing source model geometry, missing atlas PNGs, invalid world JSONC comments, or a player layout issue. The earlier client Content Log's missing geometry lookups represented the client's then-effective pack state, not omissions in the canonical current RP.
+
+**Prevention / scope:**
+- Existing LAB installation remains exact source pin 7fa7951f4a45f6e2a344856f3a715134d50f0fd8; keep rollback tag lab-ad81804f1005. NO pack reinstall, source/gameplay/server/world mutation needed for the fix.
+- Earlier 168/168 installed-file checks proved server pack integrity; they did not prove client cache/activation. For future changed resource payloads, increment both BP and RP pack/module versions and the BP dependency, and test clients that upgrade from an older cache. Do not overwrite distinct assets under the same 1.5.0 version.
+- For a recurrence, inspect duplicate/stale client-side pack copies and loading before rewriting source assets. Do not indiscriminately clear other Minecraft assets, caches, or other add-ons.
+- Setting texturepack-required=true previously did not remove placeholders and was not the fix. The owner can retain or reverse that setting independently; do not mutate it automatically.
+- Player-first testing on any valid layout and legitimate items remains in effect. Full Transporter topology / legacy regression / Bulk-shell acceptance is still separate.
+
+**Evidence:** owner message and post-remediation screenshot demonstrating correctly rendered legacy Sorter faces, with earlier client Content Log SHA-256 e970041e6c0782a5bc63ec2b2becbc8df170f6cb9aa8cba017f39070cfda6734 and 168/168 installed RP checks. Earlier OPEN sections on this page are chronological history, **not current incident status**.

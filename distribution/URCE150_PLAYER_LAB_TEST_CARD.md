@@ -41,3 +41,7 @@ The owner confirmed world_resource_packs.json includes legitimate inline // comm
 
 Actual owner client log shows **39 Block geometry errors per client load**, repeated at 20:58:32 and 21:25:29. Four original Sorter mask models and both new Transporter/Bulk models are **not registered by the Minecraft client**, even though the source and server-installed files contain those identifiers. That explains the magenta checkerboards; the source-side 168 PASS does not imply client RP load success. Treat this as a real **client geometry registration failure**. Do not insist on a fixed layout or a specific test item, do not toggle `texturepack-required` again, and do not diagnose without inspecting actual client-loaded Hart RP content. Full identification evidence and exact log SHA in [resource incident](../docs/URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md).
 
+
+## Visual incident closed — previous 1.5.0 client resource cache
+
+Owner confirmed that obsolete cached client resource files from an earlier 1.5.0 attempt caused the magenta placeholders. After clearing the stale client files, the new screenshot shows correctly rendered legacy Sorter faces. **VISUAL PASS / incident closed.** Existing installed LAB preview stays in place without source or server modifications. Carry on with player-created valid layouts and unrestricted ordinary items (native MR is structurally separate). Full runtime and routing behavior still require gameplay acceptance; see [incident](../docs/URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md).
