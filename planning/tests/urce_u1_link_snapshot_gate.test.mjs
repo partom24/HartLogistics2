@@ -89,7 +89,10 @@ test("LINK-06 unknown/unloaded chunk prevents a positive safe decision",()=>{
 });
 
 test("LINK-07 ambiguous branching pipe cannot create false safe path",()=>{
-  const f=worlds(2,{branched:true});f.collectors[0].link=null;
+  const f=worlds(2);f.collectors[0].link=null;
+  // Branch the *target Receiver 1* component; unrelated branches do not
+  // invalidate a known disconnected source-specific route.
+  f.world.set(key(f.d,{x:14,y:67,z:0}),block("hartsorter:transporter"));
   const result=plan(f,"C0","R1");
   assert.equal(result.decision,"HOLD");
   assert.equal(result.persistPermitted,false);
