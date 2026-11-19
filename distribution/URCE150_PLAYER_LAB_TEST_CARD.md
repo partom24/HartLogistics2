@@ -28,3 +28,7 @@
 If you choose to return to the **exact previous installed LAB packs**, stop the LAB server, save any new test observations, then run the same script from the same pinned source SHA with `-Mode Rollback -BackupTag lab-XXXXXXXXXXXX -Apply -ExpectedCommit FULL_SHA`. The backend verifies current 1.5 hashes, saved prior pack fingerprints, exact backup registries and unrelated world-registration preservation **before writing**. Rollback does **not** undo gameplay changes you manually made in the test world, and never deletes existing world data; use your world backups separately if you want to revert player-created blocks/content. Keep the generated backup of the preview too.
 
 No live server or saved world has been changed by source-only CI. Initial LAB acceptance is owner-run and not yet proven.
+
+## 2026-11-18 missing texture incident note
+
+The owner reported magenta-and-black checkerboards near the existing storage array under the first 1.5.0 candidate. Treat this as a **rendering acceptance failure**, not a player-placement fault. Before further gameplay tests, run the **read-only** [resource delivery diagnostic](Diagnose-HartLogistics-LABResources.ps1), inspect `texturepack-required` and client Creator Content Log, and preserve world/backup states. Source atlas/PNG checks do not establish client RP activation. [Full incident and evidence](../docs/URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md). No fixed XYZ or item selection required.
