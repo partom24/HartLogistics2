@@ -1,3 +1,5 @@
 tile.hartsorter:sorter.name=Hart Sorter
 tile.hartsorter:collector.name=Hart Collector
 tile.hartsorter:receiver.name=Hart Receiver
+tile.hartsorter:transporter.name=Hart Transporter (URCE Development)
+tile.hartsorter:bulk_storage.name=Hart Bulk Storage (URCE Development)

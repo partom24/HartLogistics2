@@ -1,0 +1,64 @@
+name: URCE 1.5 read-only player-facing development candidate
+
+on:
+  push:
+    branches:
+      - dev/urce-150-runtime-20261118
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-runtime-preview:
+    name: Validate U1/U2 source, player-first runtime preview and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1000
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate blueprint and non-release source
+        run: python3 scripts/validate_blueprint.py --release-gate
+      - name: Check all active JavaScript syntax
+        run: |
+          node --check addon/behavior_pack/scripts/main.js
+          node --check addon/behavior_pack/scripts/urce_150_readonly_runtime.js
+      - name: Run pure U1/U2 and player-created topology tests
+        run: |
+          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
+      - name: Build non-release 1.5 development package
+        run: |
+          python3 tools/build_mcaddon.py --output dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon
+          python3 - <<'PY'
+          import json,zipfile,io,pathlib
+          p=pathlib.Path("dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon")
+          assert p.is_file()
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              packs=[f for f in z.namelist() if f.endswith(".mcpack")]
+              assert len(packs)==2
+              for f in packs:
+                  with zipfile.ZipFile(io.BytesIO(z.read(f))) as pack:
+                      assert pack.testzip() is None
+                      m=json.loads(pack.read("manifest.json"))
+                      assert m["header"]["version"]==[1,5,0]
+                      if "BP" in f:
+                          assert "blocks/transporter.json" in pack.namelist()
+                          assert "blocks/bulk_storage.json" in pack.namelist()
+                          assert "scripts/urce_150_readonly_runtime.js" in pack.namelist()
+                      else:
+                          assert "textures/blocks/hartlogistics_transporter.png" in pack.namelist()
+                          assert "textures/blocks/hartlogistics_bulk_storage.png" in pack.namelist()
+          print("1.5 SOURCE-ONLY DEVELOPMENT PREVIEW PACK VALIDATED; NO BDS PASS")
+          PY
+      - name: Retain owner-playable infrastructure preview (not accepted URCE)
+        uses: actions/upload-artifact@v4
+        with:
+          name: HL-URCE-150-READONLY-INFRASTRUCTURE-DEV-NOT-RELEASED
+          path: dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon
+          retention-days: 14
+          if-no-files-found: error

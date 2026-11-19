@@ -1,0 +1,69 @@
+{
+  "format_version": "1.26.30",
+  "minecraft:block": {
+    "description": {
+      "identifier": "hartsorter:bulk_storage",
+      "menu_category": {
+        "category": "items"
+      }
+    },
+    "components": {
+      "minecraft:display_name": "tile.hartsorter:bulk_storage.name",
+      "minecraft:geometry": "geometry.hartlogistics.bulk_storage",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "hartlogistics_bulk_storage",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:item_visual": {
+        "geometry": "geometry.hartlogistics.bulk_storage",
+        "material_instances": {
+          "*": {
+            "texture": "hartlogistics_bulk_storage",
+            "render_method": "opaque"
+          }
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 1.5
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 6
+      },
+      "minecraft:map_color": "#9C712E",
+      "minecraft:movable": {
+        "movement_type": "immovable",
+        "sticky": "none"
+      },
+      "minecraft:loot": "loot_tables/blocks/bulk_storage.json",
+      "minecraft:chest_obstruction": {
+        "obstruction_rule": "never"
+      },
+      "minecraft:selection_box": {
+        "origin": [
+          -8,
+          0,
+          -8
+        ],
+        "size": [
+          16,
+          16,
+          16
+        ]
+      },
+      "minecraft:collision_box": {
+        "origin": [
+          -8,
+          0,
+          -8
+        ],
+        "size": [
+          16,
+          16,
+          16
+        ]
+      }
+    }
+  }
+}

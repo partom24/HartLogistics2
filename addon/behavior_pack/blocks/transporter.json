@@ -1,0 +1,69 @@
+{
+  "format_version": "1.26.30",
+  "minecraft:block": {
+    "description": {
+      "identifier": "hartsorter:transporter",
+      "menu_category": {
+        "category": "items"
+      }
+    },
+    "components": {
+      "minecraft:display_name": "tile.hartsorter:transporter.name",
+      "minecraft:geometry": "geometry.hartlogistics.transporter",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "hartlogistics_transporter",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:item_visual": {
+        "geometry": "geometry.hartlogistics.transporter",
+        "material_instances": {
+          "*": {
+            "texture": "hartlogistics_transporter",
+            "render_method": "opaque"
+          }
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 1.5
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 6
+      },
+      "minecraft:map_color": "#136981",
+      "minecraft:movable": {
+        "movement_type": "immovable",
+        "sticky": "none"
+      },
+      "minecraft:loot": "loot_tables/blocks/transporter.json",
+      "minecraft:chest_obstruction": {
+        "obstruction_rule": "never"
+      },
+      "minecraft:selection_box": {
+        "origin": [
+          -8,
+          0,
+          -8
+        ],
+        "size": [
+          16,
+          16,
+          16
+        ]
+      },
+      "minecraft:collision_box": {
+        "origin": [
+          -8,
+          0,
+          -8
+        ],
+        "size": [
+          16,
+          16,
+          16
+        ]
+      }
+    }
+  }
+}
