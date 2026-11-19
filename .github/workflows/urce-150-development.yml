@@ -174,6 +174,31 @@ jobs:
               if (-not $refused) { throw ('Unsafe launch mode was not refused: '+$args.Mode) }
           }
           Write-Output 'PowerShell syntax and early no-LAB refusal checks PASS'
+      - name: Parse stable Git-checkout updater and verify fail-closed modes
+        shell: pwsh
+        run: |
+          $file = (Resolve-Path 'distribution/Start-HartLogistics-Lab.ps1').Path
+          $tokens=$null; $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
+          if ($errors.Count -gt 0) { throw ('Stable PowerShell syntax: '+($errors | Out-String)) }
+          $refusals = @(
+              @{ Mode='Install' },
+              @{ Mode='Rollback' },
+              @{ Mode='CheckLab' },
+              @{ Mode='Plan'; Apply=$true },
+              @{ Mode='Rollback'; Apply=$true; ExpectedCommit=$env:GITHUB_SHA; BackupTag='not-a-tag' },
+              @{ Mode='Plan'; CandidateVersion='not-approved' }
+          )
+          foreach ($params in $refusals) {
+              $refused = $false
+              try { & $file @params | Out-Null }
+              catch {
+                  if ($_.Exception.Message -notmatch '(REFUSED HartLogistics Git LAB operator|Cannot validate argument on parameter)') { throw }
+                  $refused = $true
+              }
+              if (-not $refused) { throw ('Unsafe stable launch mode allowed: '+$params.Mode) }
+          }
+          Write-Output 'Stable Git-checkout launcher syntax and fail-closed modes PASS'
       - name: Parse read-only LAB resource doctor without opening a server
         shell: pwsh
         run: |
@@ -246,8 +271,12 @@ jobs:
       - name: Run source-only one-file PowerShell Plan through its Git/Python handoff
         shell: pwsh
         run: |
-          & .\distribution\Start-HartLogistics-151Lab.ps1 -Mode Plan -ExpectedCommit $env:GITHUB_SHA
-          if ($LASTEXITCODE -ne 0) { throw 'PowerShell Plan returned nonzero' }
+          # Checkout is detached by default in Actions; use a named branch
+          # in this disposable runner to exercise the real Git-pull entrypoint.
+          git switch -C dev/urce-150-runtime-20261118
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to select approved local branch' }
+          & .\distribution\Start-HartLogistics-Lab.ps1 -Mode Plan -ExpectedCommit $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Git-managed PowerShell Plan returned nonzero' }
       - name: Verify exact installed 1.5.0 prior rollback on Windows snapshot
         shell: pwsh
         run: |

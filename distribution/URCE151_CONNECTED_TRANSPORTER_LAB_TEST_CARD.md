@@ -22,17 +22,20 @@
 
 ## LAB installation (after exact-head CI passes)
 
-Download **`Start-HartLogistics-151Lab.ps1`** from the exact reviewed commit / passing Actions artifact. The one-file PowerShell launcher uses its own isolated Git checkout, verifies a *source pin*, checks that installed packs are the original **exact 1.5.0 predecessor**, verifies JSONC registry bytes and preserves unrelated mod entries.
+Use the **Git-tracked stable launcher**, not a downloaded candidate-specific PS1. Perform the one-time clone described in [the standard updater guide](STANDARD_LAB_UPDATER.md) or reuse an existing clean URCE-branch checkout. For each candidate, run:
 
 ```powershell
-$sha = "<full reviewed 1.5.1 candidate Git SHA>"
-$launcher = "$env:USERPROFILE\Downloads\Start-HartLogistics-151Lab.ps1"
-& $launcher -Mode Plan -ExpectedCommit $sha
-# Stop copied LAB BDS yourself, then:
-& $launcher -Mode CheckLab -ExpectedCommit $sha
-# Only after PASS and explicit decision to update:
-& $launcher -Mode Install -Apply -ExpectedCommit $sha
+Set-Location C:\HartMods\HartLogistics2-URCE
+git pull --ff-only origin dev/urce-150-runtime-20261118
+& .\distribution\Start-HartLogistics-Lab.ps1 -Mode Plan
+$sha = '<full 40-character source SHA printed by Plan>'
+# Stop copied LAB BDS, then:
+& .\distribution\Start-HartLogistics-Lab.ps1 -Mode CheckLab -ExpectedCommit $sha
+# Explicit owner-chosen LAB upgrade only after PASS:
+& .\distribution\Start-HartLogistics-Lab.ps1 -Mode Install -Apply -ExpectedCommit $sha
 ```
+
+To restore old packs/registrations, use the **same stable launcher** in Rollback mode with the **new backup tag from this installation**, `-Apply` and the original pinned `-ExpectedCommit`. Git pull alone never changes the server.
 
 The installer **never touches production, resets worlds, or restarts BDS**, and records a **new** backup tag when installation completes. To restore **only the old installed packs and registrations** later, stop BDS and use the *new backup tag* with `-Mode Rollback -BackupTag lab-XXXXXXXXXXXX -Apply -ExpectedCommit $sha`. A pack rollback does **not** undo player-created blocks or world state. Never substitute the old `Start-HartLogistics-150Lab.ps1` for this upgrade.
 
