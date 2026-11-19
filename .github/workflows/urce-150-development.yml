@@ -188,6 +188,9 @@ jobs:
           } finally {
               if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
           }
+          # The deliberate refusal under test must not poison the wrapper's
+          # final native-command exit status after both assertions succeeded.
+          exit 0
       - name: Run source-only one-file PowerShell Plan through its Git/Python handoff
         shell: pwsh
         run: |
