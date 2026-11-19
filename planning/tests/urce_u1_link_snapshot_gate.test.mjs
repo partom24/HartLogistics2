@@ -106,7 +106,8 @@ test("LINK-08 native unknown output Hopper is not ignored as visual missing-Hopp
     ?undefined:f.getBlock(d,p);
   const result=plan({...f,getBlock:reader},"C0","R1");
   assert.equal(result.decision,"HOLD");
-  assert.equal(result.observationReason,"unloaded_or_unavailable");
+  assert.equal(result.persistPermitted,false);
+  assert.match(result.reason,/unverified|incomplete/);
 });
 
 test("LINK-09 read limits make a prospective link HOLD",()=>{
