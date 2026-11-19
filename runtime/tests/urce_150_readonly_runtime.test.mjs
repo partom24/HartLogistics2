@@ -223,8 +223,11 @@ test("DEV-12 unknown neighbors never auto-disconnect visual ports",()=>{
 test("DEV-13 connected visual updates do not install ticking or cargo writers",()=>{
   const bp=JSON.parse(read("addon/behavior_pack/blocks/transporter.json"))["minecraft:block"];
   assert.equal(bp.components["minecraft:tick"],undefined);
-  assert.doesNotMatch(script,/setInterval|runInterval|registerCustomComponent|\\.setItem\\s*\\(|\\.addItem\\s*\\(|\\.spawnItem\\s*\\(/);
-  assert.match(script,/world\\.afterEvents\\.playerPlaceBlock/);
-  assert.match(script,/world\\.afterEvents\\.playerBreakBlock/);
-  assert.match(script,/block\\.setPermutation\\(permutation\\)/);
+  for(const forbidden of ["setInterval(", "runInterval(", "registerCustomComponent(",
+                          ".setItem(", ".addItem(", ".spawnItem("]){
+    assert.equal(script.includes(forbidden),false,"Unexpected cargo writer/polling: "+forbidden);
+  }
+  assert.ok(script.includes("world.afterEvents.playerPlaceBlock"));
+  assert.ok(script.includes("world.afterEvents.playerBreakBlock"));
+  assert.ok(script.includes("block.setPermutation(permutation)"));
 });

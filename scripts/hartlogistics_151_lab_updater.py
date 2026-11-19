@@ -85,7 +85,7 @@ def validate_candidate(repo=ROOT,original=None):
     changed={k for k in all_now if all_now[k]!=original[k]}
     if changed!=ALLOWED_CHANGE:
         raise UnsafeLab("Source changed outside exact 1.5.0 -> 1.5.1 visual-only delta")
-    main=(repo/"addon/behavior_pack/scripts/main.js").read_text()
+    main=(repo/"addon/behavior_pack/scripts/main.js").read_text(encoding="utf-8")
     unwrapped=main.replace('import "./urce_150_readonly_runtime.js";\n\n','',1)
     unwrapped=unwrapped.replace('const VERSION = "1.5.1-dev";',
                                 'const VERSION = "1.4.2";',1)
@@ -119,7 +119,7 @@ def validate_candidate(repo=ROOT,original=None):
         if block["components"]["minecraft:geometry"]["bone_visibility"].get(face)!=(
             "q.block_state('"+state+"')"):
             raise UnsafeLab("Directional arm not bound to its visual state")
-    runtime=(repo/"addon/behavior_pack/scripts/urce_150_readonly_runtime.js").read_text()
+    runtime=(repo/"addon/behavior_pack/scripts/urce_150_readonly_runtime.js").read_text(encoding="utf-8")
     for marker in ("world.afterEvents.playerPlaceBlock", "world.afterEvents.playerBreakBlock",
                    "block.setPermutation(permutation)", "scheduleVisualsNear",
                    "VISUAL_POSITIONS_PER_TICK = 8"):
