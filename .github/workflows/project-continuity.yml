@@ -1,0 +1,27 @@
+name: Permanent project evidence and tooling continuity
+
+on:
+  push:
+    branches:
+      - main
+      - planning/urce-150-20261117
+      - dev/urce-150-runtime-20261118
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  project-continuity:
+    name: Preserve canonical evidence, PowerShell tools and owner decisions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reject lost/static project resource pointers and branch-local omissions
+        run: python scripts/check_project_continuity.py
+      - name: Prove evidence/PowerShell source-loss regression detection
+        run: python -m unittest discover -s tests -p test_project_continuity.py -v

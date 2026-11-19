@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Evidence Register
 
+> **Permanent project resource discovery:** [canonical cross-branch original evidence and PowerShell tools](CANONICAL_EVIDENCE_AND_TOOLING.md), [immutable reference index](PROJECT_STATIC_RESOURCES.json), [root entrypoint](../PROJECT_CONTINUITY.md). A shorter local register or missing local `.ps1` **never proves** evidence/tools did not exist in the original main/historical branches. Reuse evidence at its original scope; archive launchers are process references only.
+
 The engineering blueprint template's old E-* entries referred to a **different repository/project** and were not Hart Logistics development evidence. Those example claims were replaced. Evidence levels follow [engineering standard](ENGINEERING_STANDARD.md).
 
 | ID | Scope | Evidence level | Source | What it does **not** prove |

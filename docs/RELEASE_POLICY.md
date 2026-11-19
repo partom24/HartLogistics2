@@ -1,5 +1,7 @@
 # Release Policy
 
+> **Permanent project resource discovery:** [canonical cross-branch original evidence and PowerShell tools](CANONICAL_EVIDENCE_AND_TOOLING.md), [immutable reference index](PROJECT_STATIC_RESOURCES.json), [root entrypoint](../PROJECT_CONTINUITY.md). A shorter local register or missing local `.ps1` **never proves** evidence/tools did not exist in the original main/historical branches. Reuse evidence at its original scope; archive launchers are process references only.
+
 **Development is not publication.** Source merged to the main branch is not automatically an approved public or production release.
 
 A release should identify which accepted roadmap milestone(s) it satisfies and where scoped acceptance evidence lives. A roadmap milestone marked Completed does **not** itself constitute release authorization. Exploratory suggestions in the idea inbox are not release scope.

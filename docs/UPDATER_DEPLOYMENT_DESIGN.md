@@ -1,3 +1,5 @@
+> **Permanent project resource discovery:** [canonical cross-branch original evidence and PowerShell tools](CANONICAL_EVIDENCE_AND_TOOLING.md), [immutable reference index](PROJECT_STATIC_RESOURCES.json), [root entrypoint](../PROJECT_CONTINUITY.md). A shorter local register or missing local `.ps1` **never proves** evidence/tools did not exist in the original main/historical branches. Reuse evidence at its original scope; archive launchers are process references only.
+
 # Hart Logistics 2 — Updater Reference, LAB Testing and Production Exclusion
 
 **Phase A 1.4.1 implementation update (2026-11-16):** The active isolated implementation branch includes the [original HartLogistics-only guarded LAB updater](../scripts/hartlogistics_lab_updater.py), adapted to accept ONLY the candidate's pinned engine digest and otherwise preserve all 71 original hashes, plus same-version/downgrade and unknown-pack protections. The full [Phase A LAB handoff](../implementation/PHASE_A_BDS_CANDIDATE_141.md) controls BDS testing. The 2026-11-06 discussion below is historical planning, not current source capability or permission to apply. Production remains a hard deny.
