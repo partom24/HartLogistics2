@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Guarded 1.5.0 -> 1.5.1 connected-pipe visual-only LAB update/rollback.
+"""Guarded 1.5.1 -> 1.5.2 Collector/Receiver loop-safety LAB update/rollback.
 
-Historical 1.5.0 predecessor is EXACT Git commit 7fa7951..., including its
-source and original geometry. No generic same-version replacement. This script
-changes neither cargo/Q4 ownership nor world item data, only verified BP/RP
-files and Hart registered versions via the existing two-pack transaction.
+Predecessor is immutable 1.5.1 commit 48a9faad568024b8847465a8551e993d7398e817.
+Checks exact changed/additional source blobs, same BP/RP UUIDs and matching
+module/dependency versions, and preserves world data and rollback backups.
+No generic same-version replacement, world conversion or production access.
 """
 from __future__ import annotations
 import argparse
