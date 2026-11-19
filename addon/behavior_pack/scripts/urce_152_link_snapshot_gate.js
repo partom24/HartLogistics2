@@ -22,30 +22,58 @@ const answer=(decision,reason,extra={})=>({
 });
 const supportedId=id=>typeof id==="string"&&id.length>0;
 
-export function inspectCandidateSupplyLink({
-  collectors,receivers,getBlock,fromCollector,toReceiver,
+/**
+ * Single bounded native/visual world observation shared by link checks
+ * operating on one stable same-tick, same-registry snapshot.
+ * The LIVE adapter controls its lifetime and invalidates it when registry,
+ * world events, source dimension or simulation tick changes. This snapshot
+ * never grants storage/custody or link-persistence authority.
+ */
+export function observeSupplyLinkSnapshot({
+  collectors,receivers,getBlock,
   maxNativeReads=8192,maxTransporterReads=16000,
   maxHopsPerReceiver=512,maxTransporters=8192
 }) {
-  if(!supportedId(fromCollector)||!supportedId(toReceiver)||
-    !Array.isArray(collectors)||!Array.isArray(receivers)||
-    typeof getBlock!=="function")
-    return answer("HOLD","invalid_link_request");
-
-  // Obtain native-shaped, bounded, read-only world observations from one
-  // caller-provided getBlock adapter; none of these can save a registry link.
+  if(!Array.isArray(collectors)||!Array.isArray(receivers)||
+     typeof getBlock!=="function")
+    return {status:"INVALID",native:null,visual:null};
   const native=observeNativeHopperWitness({
     collectors,receivers,getBlock,maxReads:maxNativeReads,maxHopsPerReceiver
   });
-  if(native.status==="INVALID")return answer("HOLD","invalid_native_observation",
-    {nativeStatus:native.status});
+  if(native.status==="INVALID")
+    return {status:"INVALID",native,visual:null};
   const visual=observeTransporterComponents({
     anchors:[
       ...receivers.map(r=>({...r,kind:"receiver"})),
       ...collectors.map(c=>({...c,kind:"collector"}))
     ],getBlock,maxReads:maxTransporterReads,maxTransporters
   });
-  if(visual.status==="INVALID")return answer("HOLD","invalid_visual_observation");
+  return {status:visual.status==="INVALID"?"INVALID":"OBSERVED",native,visual};
+}
+
+export function inspectCandidateSupplyLink({
+  collectors,receivers,getBlock,fromCollector,toReceiver,
+  maxNativeReads=8192,maxTransporterReads=16000,
+  maxHopsPerReceiver=512,maxTransporters=8192,
+  snapshot=undefined
+}) {
+  if(!supportedId(fromCollector)||!supportedId(toReceiver)||
+    !Array.isArray(collectors)||!Array.isArray(receivers)||
+    typeof getBlock!=="function")
+    return answer("HOLD","invalid_link_request");
+
+  // A supplied snapshot is not a durable authority. The running adapter
+  // MUST create and verify it during the current tick for these exact
+  // registry endpoints; direct source callers receive no write permission.
+  const observed=snapshot??observeSupplyLinkSnapshot({
+    collectors,receivers,getBlock,maxNativeReads,maxTransporterReads,
+    maxHopsPerReceiver,maxTransporters
+  });
+  const native=observed?.native,visual=observed?.visual;
+  if(!native||native.status==="INVALID")
+    return answer("HOLD","invalid_native_observation");
+  if(!visual||visual.status==="INVALID")
+    return answer("HOLD","invalid_visual_observation");
   if(!native.graph?.byId?.has(fromCollector)||
     !native.graph?.byId?.has(toReceiver))
     return answer("HOLD","unknown_link_endpoint");

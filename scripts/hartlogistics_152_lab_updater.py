@@ -51,11 +51,11 @@ REVIEWED_BLOBS={
     "behavior_pack/manifest.json": "3b8097997328353f6327ff9839dbc05b116ceed5",
     "resource_pack/manifest.json": "fa9bb441893aee42f3fec7ab0192ab04fd8d3431",
     "behavior_pack/scripts/urce_152_native_hopper_witness.js": "fad81c48b1be33b5cf9b3dfd59dbfe5257858a1d",
-    "behavior_pack/scripts/main.js": "de5bcdcdfdc1561b12726e439bd8b3c0a45ec338",
+    "behavior_pack/scripts/main.js": "19f8ce1d2c0ad9bdd30d23263480478881409f9e",
     "behavior_pack/scripts/urce_152_transporter_bank_probe.js": "1ad8a5b6943d8d9b64d0ff8613f31d8cac0f99eb",
     "behavior_pack/scripts/urce_152_route_model.js": "9ac2180a869af226d35c613c777919a9d71caa3d",
-    "behavior_pack/scripts/urce_152_link_snapshot_gate.js": "309538f29c185d47ba84348ebc86e7e093ba347b",
-    "behavior_pack/scripts/urce_152_live_link_guard.js": "4e8885730e9d2b008aacd066b271f81f457fbc62",
+    "behavior_pack/scripts/urce_152_link_snapshot_gate.js": "9bb45cffc851ad86219c1f902cf97afd7e58ae4d",
+    "behavior_pack/scripts/urce_152_live_link_guard.js": "5e357ef3e544d6b9bb2c666afe30036c67d3ddaa",
 }
 
 def git_blob_id(data: bytes) -> str:

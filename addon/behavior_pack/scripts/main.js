@@ -462,6 +462,11 @@ function getBlock(dimId, x, y, z) {
     try { return dim.getBlock({x, y, z}); } catch (_) { return undefined; }
 }
 
+// Keep the Bedrock reader identity stable so a same-tick snapshot is reused
+// only for the same dimension/block provider, never for a different test or
+// world view. The underlying Block objects are re-observed on the next tick.
+const liveTopologyBlockReader=(d,p)=>getBlock(d,p.x,p.y,p.z);
+
 // Read-only same-tick gate for each managed Collector->Receiver supply link.
 // The registry remains an identity hint, not a native inventory receipt.
 function liveLinkCheck(col, receiver, forceFresh=false) {
@@ -471,7 +476,7 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     return liveLinkGuard.check({
         collector:col, receiver,
         collectors:logistics.collectors,receivers:logistics.receivers,
-        getBlock:(d,p)=>getBlock(d,p.x,p.y,p.z),
+        getBlock:liveTopologyBlockReader,
         currentTick:system.currentTick,forceFresh
     });
 }

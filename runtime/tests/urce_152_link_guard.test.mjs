@@ -116,3 +116,66 @@ test("LIVE-06 unavailable source or invalid parameter always HOLDS",()=>{
  assert.equal(g.check({collector:f.collectors[0],
   receiver:f.receivers[0],getBlock:f.getBlock}).decision,"HOLD");
 });
+
+test("LIVE-07 distinct links in the same tick share one bounded native world scan",()=>{
+ const f=fixture(13),g=createLiveLinkGuard();
+ f.collectors[12].link=null;
+ const first=request(g,f,0,1,13);
+ assert.equal(first.decision,"SAFE_SNAPSHOT");
+ const reads=f.reads;
+ const second=request(g,f,1,2,13);
+ assert.equal(second.decision,"SAFE_SNAPSHOT");
+ assert.equal(f.reads,reads,"Per-link graph evaluation must not rescan the world");
+ assert.equal(g.stats().worldScans,1);
+ assert.equal(g.stats().decisions,2);
+ assert.equal(g.stats().hasSnapshot,true);
+});
+
+test("LIVE-08 map and topology snapshot do not retain previous tick entries",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ for(let tick=0;tick<240;tick++){
+   assert.equal(request(g,f,0,1,tick).decision,"SAFE_SNAPSHOT");
+   assert.equal(g.stats().decisions,1);
+   assert.equal(g.stats().tick,tick);
+ }
+ assert.equal(g.stats().worldScans,240);
+ g.invalidate();
+ assert.equal(g.stats().decisions,0);
+ assert.equal(g.stats().hasSnapshot,false);
+});
+
+test("LIVE-09 in-place registry mutation cannot reuse previous safe decision",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ assert.equal(request(g,f,0,1,22).decision,"SAFE_SNAPSHOT");
+ const reads=f.reads;
+ f.collectors[1].link="R0";
+ assert.equal(request(g,f,0,1,22).decision,"REJECT");
+ assert.ok(f.reads>reads);
+ assert.equal(g.stats().worldScans,2);
+});
+
+test("LIVE-10 forced fresh check drops same-tick memo and reobserves",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ assert.equal(request(g,f,0,1,50).decision,"SAFE_SNAPSHOT");
+ assert.equal(g.stats().decisions,1);
+ assert.equal(request(g,f,0,1,50,true).decision,"SAFE_SNAPSHOT");
+ assert.equal(g.stats().decisions,0);
+ assert.equal(g.stats().worldScans,2);
+});
+
+test("LIVE-11 source read-provider change triggers re-observation",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ assert.equal(request(g,f,0,1,70).decision,"SAFE_SNAPSHOT");
+ const baseline=g.stats().worldScans;
+ const other=(d,p)=>p.x===22&&p.y===80&&p.z===0
+   ?undefined:f.getBlock(d,p);
+ const result=g.check({collector:f.collectors[0],receiver:f.receivers[1],
+   collectors:f.collectors,receivers:f.receivers,getBlock:other,
+   currentTick:70});
+ assert.equal(result.decision,"HOLD");
+ assert.equal(g.stats().worldScans,baseline+1);
+});
