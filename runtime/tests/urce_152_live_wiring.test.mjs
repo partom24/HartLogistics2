@@ -12,7 +12,8 @@ function original(name,context) {
   assert.ok(start>=0,"missing actual installed function "+name);
   const end=main.indexOf("\nfunction ",start+9);
   const source=main.slice(start,end<0?main.length:end).trim();
-  return vm.runInNewContext("("+source+")",context,{timeout:2000});
+  // Keep a newline before the wrapper close: source may end in a comment.
+  return vm.runInNewContext("("+source+"\n)",context,{timeout:2000});
 }
 function wire({verdict="REJECT",saveFails=false,link="old-receiver"}={}){
   const col={id:"collector-1",link},receiver={id:"receiver-2",x:23,y:62,z:-17};
