@@ -5,6 +5,7 @@ import path from "node:path";
 import vm from "node:vm";
 import {fileURLToPath} from "node:url";
 import {createHash} from "node:crypto";
+import {execFileSync} from "node:child_process";
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const read=p=>fs.readFileSync(path.join(ROOT,p),"utf8");
 const script=read("addon/behavior_pack/scripts/urce_150_readonly_runtime.js");
@@ -94,26 +95,40 @@ test("DEV-01 both new blocks have unique geometry, atlas, models and textures",(
 test("DEV-02 1.5 BP/RP preserve stable UUIDs and Bedrock 2.7.0",()=>{
  const bp=JSON.parse(read("addon/behavior_pack/manifest.json"));
  const rp=JSON.parse(read("addon/resource_pack/manifest.json"));
- assert.deepEqual(bp.header.version,[1,5,1]);
- assert.deepEqual(rp.header.version,[1,5,1]);
+ assert.deepEqual(bp.header.version,[1,5,2]);
+ assert.deepEqual(rp.header.version,[1,5,2]);
  assert.equal(bp.header.uuid,"4854d263-05dd-4f79-a21c-7ba969295c2d");
  assert.equal(rp.header.uuid,"91316442-0f26-4fbb-88f3-2e39ea843a1a");
  assert.ok(bp.dependencies.some(x=>x.module_name==="@minecraft/server"&&x.version==="2.7.0"));
 });
-test("DEV-03 main source imports read-only preview with 1.4.2 movement intact",()=>{
+test("DEV-03 1.5.2 link-cycle guard changes control-plane but not Q4/physical writers",()=>{
  assert.match(main,/import "\.\/urce_150_readonly_runtime\.js"/);
+ assert.match(main,/import \{createLiveLinkGuard\} from "\.\/urce_152_live_link_guard\.js"/);
+ assert.match(main,/const VERSION = "1\.5\.2-dev"/);
  assert.match(main,/function schedulerTick\(\)/);
  assert.match(main,/function logisticsTick\(\)/);
  assert.match(main,/function safeMovePartial\(/);
  assert.match(main,/const QUEUE_CAPACITY = 250000/);
- // Only this import and the dev version string may change original 1.4.2.
- const unwrapped=main.replace('import "./urce_150_readonly_runtime.js";\n\n','')
-   .replace('const VERSION = "1.5.1-dev";','const VERSION = "1.4.2";');
- assert.equal(createHash("sha256").update(unwrapped).digest("hex"),
-   "2183cc3de4d60c9895305e41612644a75360b2baba44403c2387e3679cdc4411",
-   "Do not silently rewrite current 1.4.2 custody or routing engine");
+ assert.match(main,/liveLinkCheck\(col, receiver, true\)/);
+ assert.match(main,/Link save failed; previous link retained/);
+ const before=execFileSync("git",[
+  "show","48a9faad568024b8847465a8551e993d7398e817:addon/behavior_pack/scripts/main.js"
+ ],{cwd:ROOT,encoding:"utf8"});
+ function body(source,name){
+   const start=source.indexOf("function "+name+"(");
+   assert.ok(start>=0,"Expected protected function: "+name);
+   const next=source.indexOf("\nfunction ",start+8);
+   return source.slice(start,next===-1?source.length:next).trimEnd();
+ }
+ for(const name of [
+   "safeMovePartial","recoverJournal","recoverQueueJournal",
+   "enqueueFromSource","dequeueToReceiver","enqueueFromEjectedEntity",
+   "compactSourceHopper"
+ ]) assert.equal(body(main,name),body(before,name),
+   "Do not rewrite protected original 1.4.2 writer "+name);
  assert.doesNotMatch(script,/\.setItem\s*\(|\.setDynamicProperty\s*\(|\.spawnItem\s*\(|\.remove\s*\(/);
 });
+
 test("DEV-04 player-chosen valid connected layout is inspected without cargo writes",()=>{
  const x=worldWithBlocks([
    point(73,12,-405,"hartsorter:transporter"),
