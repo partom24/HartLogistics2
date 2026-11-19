@@ -227,5 +227,113 @@ class PreviewLabGuard(unittest.TestCase):
             })
         finally:tmp.cleanup()
 
+    def test_142_to_150_explicit_rollback_roundtrip_restores_original_bytes(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            plan=lab.discover_plan(ROOT,root)
+            before_files={item['target']:lab.hashes(item['target']) for item in plan}
+            before_regs={item['registry']:item['old_bytes'] for item in plan}
+            backup=lab.apply_plan(root,plan)
+            tag=backup.name
+            self.assertRegex(tag,r'^lab-[0-9a-f]{12}
+)
+            recovered=lab.create_rollback_plan(ROOT,root,tag)
+            self.assertEqual(len(recovered),2)
+            another_backup=lab.apply_plan(root,recovered)
+            self.assertNotEqual(backup,another_backup)
+            for folder,expected in before_files.items():
+                self.assertEqual(lab.hashes(folder),expected)
+            for registry,old in before_regs.items():
+                self.assertEqual(registry.read_bytes(),old)
+            self.assertTrue(backup.is_dir())
+            self.assertTrue(another_backup.is_dir())
+        finally:tmp.cleanup()
+
+    def test_rollback_missing_tag_or_modified_backup_refuses_without_writes(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            backup=lab.apply_plan(root,lab.discover_plan(ROOT,root))
+            current={item['target']:lab.hashes(item['target'])
+                     for item in lab.discover_plan(ROOT,root)}
+            for bad in ['','lab-1234','lab-aaaaaaaaaaaa',
+                        '../_HartLogisticsDeployBackups']:
+                with self.subTest(bad=bad),self.assertRaises(lab.UnsafeLab):
+                    lab.create_rollback_plan(ROOT,root,bad)
+            original=backup/'pack-0/scripts/main.js'
+            original.write_text(original.read_text()+'\n# tampered backup\n')
+            with self.assertRaises(lab.UnsafeLab):
+                lab.create_rollback_plan(ROOT,root,backup.name)
+            for folder,expected in current.items():
+                self.assertEqual(lab.hashes(folder),expected)
+        finally:tmp.cleanup()
+
+    def test_rollback_refuses_unrelated_registry_drift(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            backup=lab.apply_plan(root,lab.discover_plan(ROOT,root))
+            reg=root/'worlds/PlayerWorld/world_behavior_packs.json'
+            before=reg.read_bytes()
+            reg.write_bytes(before.replace(b'3, 2, 1',b'3, 2, 2'))
+            with self.assertRaises(lab.UnsafeLab):
+                lab.create_rollback_plan(ROOT,root,backup.name)
+        finally:tmp.cleanup()
+
+    def test_rollback_refuses_modified_current_preview(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            backup=lab.apply_plan(root,lab.discover_plan(ROOT,root))
+            source=root/'behavior_packs/HartMods_HartLogistics_BP/scripts/main.js'
+            source.write_text(source.read_text()+'\n// unauthorized modification\n')
+            with self.assertRaises(lab.UnsafeLab):
+                lab.create_rollback_plan(ROOT,root,backup.name)
+        finally:tmp.cleanup()
+
+    def test_interrupted_explicit_rollback_restores_preview_and_regs(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            backup=lab.apply_plan(root,lab.discover_plan(ROOT,root))
+            plan=lab.create_rollback_plan(ROOT,root,backup.name)
+            before_files={item['target']:lab.hashes(item['target']) for item in plan}
+            before_regs={item['registry']:item['old_bytes'] for item in plan}
+            rename=Path.rename
+            def fail_second_staged_replace(path,target):
+                if '_HartLogisticsDeployStage' in str(path) and path.name=='1':
+                    raise OSError('Synthetic interrupted post-install rollback')
+                return rename(path,target)
+            with patch.object(Path,'rename',fail_second_staged_replace):
+                with self.assertRaises(OSError):lab.apply_plan(root,plan)
+            for folder,hashes in before_files.items():
+                self.assertEqual(lab.hashes(folder),hashes)
+            for registry,original in before_regs.items():
+                self.assertEqual(registry.read_bytes(),original)
+        finally:tmp.cleanup()
+
+    def test_python_mode_never_touches_lab_without_explicit_check(self):
+        with patch.object(lab,'assert_clean_git') as verify, \
+             patch.object(lab,'assert_server_stopped') as stop, \
+             patch.object(lab,'discover_plan') as discover:
+            self.assertEqual(lab.main(['--commit','a'*40]),0)
+            verify.assert_called_once()
+            stop.assert_not_called()
+            discover.assert_not_called()
+            self.assertEqual(lab.main(['--apply','--commit','a'*40]),2)
+            stop.assert_not_called()
+            discover.assert_not_called()
+
+    def test_powershell_operator_entrypoint_is_one_file_and_pinned(self):
+        p=ROOT/'distribution/Start-HartLogistics-150Lab.ps1'
+        source=p.read_text(encoding='utf-8')
+        for marker in ('Plan','CheckLab','Install','Rollback',
+                       "dev/urce-150-runtime-20261118",
+                       'scripts\\hartlogistics_150_lab_updater.py',
+                       '--check-lab','--confirm-lab-only','--rollback-tag',
+                       '-ExpectedCommit','--commit','--apply',
+                       'HartLogistics2-URCE150-LAB','merge','--ff-only',
+                       'git.exe','Python 3.11'):
+            self.assertIn(marker,source)
+        self.assertNotIn("branch = 'main'",source)
+        self.assertNotIn('HartLogistics2-PG27-LAB',source)
+        self.assertIn('Thomas_MCBedrock - Copy (2)',source)
+
 if __name__=="__main__":
     unittest.main()

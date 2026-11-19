@@ -351,6 +351,86 @@ def discover_plan(repo: Path,root: Path) -> list[dict]:
                      'installed':installed_hashes})
     return plan
 
+def approved_previous_pack_hashes(repo: Path, local: str, version: tuple[int,int,int]) -> list[dict[str,str]]:
+    """Enumerate only exact, historically recorded predecessor source states."""
+    registry=json.loads((repo/'BASELINE_HASHES.json').read_text())
+    prefix='addon/'+local+'/'
+    original={name[len(prefix):]:digest for name,digest in registry['files'].items()
+              if name.startswith(prefix)}
+    if version==PHASE_A_VERSION:
+        expected=original.copy()
+        expected['manifest.json']=BASELINE_142_MANIFESTS[prefix+'manifest.json']
+        if local=='behavior_pack':expected['scripts/main.js']=PHASE_A_ENGINE_SHA256
+        return [expected]
+    if version!=LEGACY_VERSION:
+        raise UnsafeLab('Backup predecessor version is not an accepted 1.4.1/1.4.2 source')
+    candidates=[original]
+    if local=='behavior_pack':
+        for digest in (PREVIOUS_PHASE_A_ENGINE_SHA256, INTERMEDIATE_PHASE_A_ENGINE_SHA256,
+                       INSTALLED_P2_ENGINE_SHA256, INSTALLED_P3_ENGINE_SHA256,
+                       INSTALLED_P4_ENGINE_SHA256, INSTALLED_P4B_ENGINE_SHA256,
+                       INSTALLED_P4D_ENGINE_SHA256, INSTALLED_P4E_ENGINE_SHA256,
+                       INSTALLED_P4G_ENGINE_SHA256):
+            state=original.copy()
+            state['scripts/main.js']=digest
+            candidates.append(state)
+    return candidates
+
+
+def create_rollback_plan(repo: Path, root: Path, tag: str) -> list[dict]:
+    """Only restore a known predecessor from the exact backup of this preview.
+
+    Never accept an arbitrary older pack, same-version replacement or restored
+    world registration if non-Hart entries changed since original installation.
+    Uses ordinary staged/verified apply_plan, which preserves a new backup of
+    the preview before rollback.
+    """
+    if not re.fullmatch(r'lab-[0-9a-f]{12}', tag):
+        raise UnsafeLab('Rollback requires the exact recorded lab-<12 lowercase hex> tag')
+    backup=root/'_HartLogisticsDeployBackups'/tag
+    assert_no_link(backup)
+    if not backup.is_dir():
+        raise UnsafeLab('Recorded LAB backup not found')
+    current=discover_plan(repo,root)
+    result=[]
+    for i,item in enumerate(current):
+        local,installed,pack_id,regname=PACKS[i]
+        # Current installation must exactly match the source to be rolled back.
+        if item['installed']!=item['files'] or (
+                item['old_bytes'].decode('utf-8-sig')!=item['new_registry']):
+            raise UnsafeLab('Installed preview/registrations changed since candidate; refuse rollback')
+        pack=backup/f'pack-{i}'
+        reg=backup/f'registry-{i}.bin'
+        assert_no_link(pack)
+        assert_no_link(reg)
+        if not pack.is_dir() or not reg.is_file():
+            raise UnsafeLab('Incomplete rollback backup')
+        prior_manifest=json.loads((pack/'manifest.json').read_text(encoding='utf-8-sig'))
+        if prior_manifest['header']['uuid']!=pack_id:
+            raise UnsafeLab('Backup pack UUID mismatch')
+        old_version=v3(prior_manifest['header']['version'])
+        stored_hashes=hashes(pack)
+        if stored_hashes not in approved_previous_pack_hashes(repo,local,old_version):
+            raise UnsafeLab('Backup is not an exact known original predecessor')
+        raw=reg.read_bytes()
+        stored=json.loads(remove_jsonc(raw.decode('utf-8-sig')))
+        hits=[e for e in stored if isinstance(e,dict) and
+              str(e.get('pack_id','')).casefold()==pack_id.casefold()]
+        if len(hits)!=1 or v3(hits[0].get('version'))!=old_version:
+            raise UnsafeLab('Backup pack and registered version mismatch')
+        # This precise backup must be the one installed into THIS world:
+        # verify no other world-pack entry or JSONC formatting drifted.
+        new_after_install=patch_registration(raw.decode('utf-8-sig'),
+                                             pack_id,PREVIEW_VERSION)
+        current_bytes=item['old_bytes']
+        bom=b'\xef\xbb\xbf' if raw.startswith(b'\xef\xbb\xbf') else b''
+        if bom+new_after_install.encode('utf-8')!=current_bytes:
+            raise UnsafeLab('World registry drifted since this exact backup; refuse rollback')
+        result.append({**item,'source':pack,'files':stored_hashes,
+                       'new_registry':raw.decode('utf-8-sig')})
+    return result
+
+
 def apply_plan(root: Path,plan: list[dict]) -> Path:
     """Stage, SHA-check, backup, replace, verify, roll back on error."""
     tag='lab-'+uuid.uuid4().hex[:12]
@@ -401,41 +481,64 @@ def apply_plan(root: Path,plan: list[dict]) -> Path:
 def main(argv=None) -> int:
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--server-root',default=LAB)
-    p.add_argument('--commit',help='exact 40-character Git SHA required to apply')
+    p.add_argument('--commit',help='exact 40-character Git SHA')
+    p.add_argument('--check-lab',action='store_true',help='read-only stopped-LAB preflight')
     p.add_argument('--apply',action='store_true',help='explicit LAB write operation')
+    p.add_argument('--confirm-lab-only',action='store_true',
+                   help='required with --apply, never production')
+    p.add_argument('--rollback-tag',help='prior installer-created lab-<12 hex> backup')
     a=p.parse_args(argv)
     try:
         assert_lab_name(a.server_root)
         repo=Path(__file__).resolve().parents[1]
         v=validate_source(repo)
         if a.commit:assert_clean_git(repo,a.commit)
-        if os.name=='nt' and not a.commit:
-            raise UnsafeLab('LAB preview and apply both require exact --commit pin')
-        if a.apply and not a.commit:raise UnsafeLab('--apply requires a pinned --commit SHA')
-        if os.name!='nt':
-            if a.apply:raise UnsafeLab('Apply requires a Windows LAB machine')
-            print('OFFLINE SOURCE CHECK ONLY:',v,'Approved target:',LAB)
-            print('No Minecraft server paths were opened or modified.')
+        if a.apply and not (a.check_lab and a.confirm_lab_only and a.commit):
+            raise UnsafeLab('Apply requires --commit --check-lab --confirm-lab-only')
+        if a.rollback_tag and (not a.check_lab or not a.apply):
+            raise UnsafeLab('Explicit rollback requires stopped-LAB --check-lab and --apply')
+        if a.check_lab and not a.commit:
+            raise UnsafeLab('LAB preflight requires exact --commit')
+        if not a.check_lab:
+            print('1.5 PREVIEW SOURCE PASS:',v,'Target LAB (not accessed):',LAB)
+            print('No Minecraft server, world, inventory or production files were opened.')
             return 0
+        if os.name!='nt':
+            raise UnsafeLab('Real LAB preflight/install/rollback requires Windows')
         root=Path(a.server_root)
         assert_no_link(root)
         if ntpath.normcase(str(root.resolve(strict=True)))!=ntpath.normcase(LAB):
             raise UnsafeLab('LAB root redirected to unexpected location')
         assert_server_stopped()
-        plan=discover_plan(repo,root)
-        for item in plan:print(item['source'],'->',item['target'],'registry:',item['registry'])
-        if all(item['installed']==item['files'] and
+        plan=(create_rollback_plan(repo,root,a.rollback_tag)
+              if a.rollback_tag else discover_plan(repo,root))
+        for item in plan:
+            print('LAB:',item['source'],'->',item['target'],
+                  'registry:',item['registry'])
+        if not a.rollback_tag and all(
+               item['installed']==item['files'] and
                item['old_bytes'].decode('utf-8-sig')==item['new_registry']
                for item in plan):
-            print('LAB already matches pinned 1.5 preview source; no write needed.')
+            print('LAB already exactly matches this pinned 1.5 preview; no write needed.')
             return 0
         if not a.apply:
-            print('DRY RUN: no files changed; explicit approval required for --apply.')
+            print('LAB READ-ONLY PREFLIGHT PASS. No files changed.')
             return 0
         assert_server_stopped()
-        print('LAB deployment complete; backup:',apply_plan(root,plan))
+        # Reinspect all hashes, files and world registrations immediately
+        # before writing; stale plans never authorize a replacement.
+        second=(create_rollback_plan(repo,root,a.rollback_tag)
+                if a.rollback_tag else discover_plan(repo,root))
+        for x,y in zip(plan,second):
+            if (x['installed']!=y['installed'] or
+                    x['old_bytes']!=y['old_bytes'] or x['files']!=y['files']):
+                raise UnsafeLab('LAB state drifted after preflight')
+        backup=apply_plan(root,second)
+        print('LAB', 'ROLLBACK' if a.rollback_tag else 'INSTALL',
+              'COMPLETE; backup:',backup)
+        print('Keep all backup folders. No BDS auto-start. Production untouched.')
         return 0
-    except (UnsafeLab,OSError,ValueError,subprocess.CalledProcessError) as e:
+    except (UnsafeLab,OSError,ValueError,KeyError,subprocess.CalledProcessError) as e:
         print('REFUSED:',e,file=sys.stderr)
         return 2
 
