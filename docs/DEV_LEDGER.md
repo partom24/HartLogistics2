@@ -196,3 +196,10 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Owner's actual installed LAB checks PASSED all prior to the world resource registry. The read-only PowerShell diagnostic rejected valid longstanding inline // addon comments, despite the existing Python LAB updater already supporting JSONC. Classify as diagnostic parser bug, not world corruption or resource pack failure.
 - Corrected the PowerShell resource doctor to read JSONC without modifying source bytes, including quoted URLs, escaped quotes, block comments and trailing commas. Added Windows CI regression with a multi-addon commented registry and unchanged SHA-256 after PASS and expected missing-PNG refusal.
 - The actual magenta/black texture issue remains OPEN pending full installed-LAB checks and client content log. No gameplay, pack, world, server or production changes.
+
+## 2026-11-18 — Owner supplied full successful installed Resource Pack preflight
+
+- The corrected resource doctor completed on the real **copied LAB** with **168 PASS checks**: matching Hart 1.5.0 BP/RP versions and UUIDs, world JSONC registration, all legacy/new atlas aliases/PNG files, filter-display texture and Transporter/Bulk geometry. No files modified.
+- Only warning: **`texturepack-required is not true`**. The BDS setting controls whether the client *must* use world resource packs, but warning alone does **not** prove the client declined the pack or that this caused the checkerboards. Full evidence and bounded next client-download/Creator Content Log / optional LAB-only backed-up force-pack experiment in [incident record](URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md).
+- Do not rewrite protected JSONC or install a speculative same-version pack; pack files pass doctor, root cause is client-facing and remains OPEN.
+
