@@ -1,0 +1,399 @@
+{
+  "schema": 1,
+  "scope": "direct_callsite_lexical_fence_only",
+  "sourceOrigin": "protected 1.4.2 writer and visual-only 1.5.1 preview",
+  "generatedFrom": "active 1.5.1 exact source before gameplay writer migration",
+  "warning": "This scan is not an AST, transitive call graph, external native writer lock or BDS crash-recovery proof. All changed/new callsites require explicit U0 review.",
+  "guardedMethods": [
+    "setItem",
+    "addItem",
+    "remove",
+    "kill",
+    "setDynamicProperty",
+    "setPermutation",
+    "setType",
+    "spawnItem",
+    "spawnEntity",
+    "runCommand",
+    "setLore",
+    "setCanDestroy",
+    "setCanPlaceOn",
+    "addEnchantments"
+  ],
+  "scripts": {
+    "addon/behavior_pack/scripts/main.js": [
+      {
+        "method": "addEnchantments",
+        "signature": "if (vals.length) ec.addEnchantments(vals);",
+        "category": "itemstack_reconstruction",
+        "count": 2,
+        "sampleLines": [
+          2006,
+          2879
+        ]
+      },
+      {
+        "method": "addItem",
+        "signature": "const left = inv.addItem(stack);",
+        "category": "player_item_return",
+        "count": 1,
+        "sampleLines": [
+          2930
+        ]
+      },
+      {
+        "method": "kill",
+        "signature": "try { ent.kill(); } catch (_) {}",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          516
+        ]
+      },
+      {
+        "method": "remove",
+        "signature": "entity.remove();",
+        "category": "q4_custody_or_recovery",
+        "count": 2,
+        "sampleLines": [
+          2226,
+          2654
+        ]
+      },
+      {
+        "method": "remove",
+        "signature": "try { ent.remove(); } catch (_) {",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          515
+        ]
+      },
+      {
+        "method": "remove",
+        "signature": "try { ent.remove(); } catch (_) {}",
+        "category": "visual_or_block_lifecycle",
+        "count": 2,
+        "sampleLines": [
+          626,
+          646
+        ]
+      },
+      {
+        "method": "remove",
+        "signature": "try { extra.remove(); } catch (_) {}",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          555
+        ]
+      },
+      {
+        "method": "runCommand",
+        "signature": "else d.runCommand(`setblock ${p.x} ${p.y} ${p.z} air destroy`);",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          4308
+        ]
+      },
+      {
+        "method": "runCommand",
+        "signature": "ent.runCommand(`replaceitem entity @s slot.weapon.mainhand 0 ${filterData.typeId} 1`);",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          532
+        ]
+      },
+      {
+        "method": "setCanDestroy",
+        "signature": "if (Array.isArray(data.canDestroy) && data.canDestroy.length) s.setCanDestroy(data.canDestroy);",
+        "category": "itemstack_reconstruction",
+        "count": 1,
+        "sampleLines": [
+          1987
+        ]
+      },
+      {
+        "method": "setCanPlaceOn",
+        "signature": "if (Array.isArray(data.canPlaceOn) && data.canPlaceOn.length) s.setCanPlaceOn(data.canPlaceOn);",
+        "category": "itemstack_reconstruction",
+        "count": 1,
+        "sampleLines": [
+          1988
+        ]
+      },
+      {
+        "method": "setDynamicProperty",
+        "signature": "ent.setDynamicProperty(DISPLAY_OWNER_PROP, displayOwnerKey(e));",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          562
+        ]
+      },
+      {
+        "method": "setDynamicProperty",
+        "signature": "player.setDynamicProperty(NATIVE_FRAME_NOTICE_KEY, true);",
+        "category": "property_persistence",
+        "count": 1,
+        "sampleLines": [
+          37
+        ]
+      },
+      {
+        "method": "setDynamicProperty",
+        "signature": "try { s.setDynamicProperty(k, v); } catch (_) {}",
+        "category": "itemstack_reconstruction",
+        "count": 2,
+        "sampleLines": [
+          2017,
+          2885
+        ]
+      },
+      {
+        "method": "setDynamicProperty",
+        "signature": "world.setDynamicProperty(key, value);",
+        "category": "property_persistence",
+        "count": 1,
+        "sampleLines": [
+          111
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "container.setItem(read, undefined);",
+        "category": "native_hopper_compaction",
+        "count": 1,
+        "sampleLines": [
+          3539
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "container.setItem(write, item);",
+        "category": "native_hopper_compaction",
+        "count": 1,
+        "sampleLines": [
+          3538
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "dst.setItem(tx.dstSlot, cur);",
+        "category": "q4_custody_or_recovery",
+        "count": 3,
+        "sampleLines": [
+          2706,
+          3375,
+          3469
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "dst.setItem(tx.dstSlot, item);",
+        "category": "physical_journal_custody",
+        "count": 1,
+        "sampleLines": [
+          3371
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "dst.setItem(tx.dstSlot, moved);",
+        "category": "q4_custody_or_recovery",
+        "count": 2,
+        "sampleLines": [
+          2702,
+          3462
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "hand.setItem(held);",
+        "category": "player_filter_equipment",
+        "count": 1,
+        "sampleLines": [
+          3015
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "hand.setItem(undefined);",
+        "category": "player_filter_equipment",
+        "count": 1,
+        "sampleLines": [
+          3012
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "if (tx.srcAfter === 0) src.setItem(tx.srcSlot, undefined);",
+        "category": "q4_custody_or_recovery",
+        "count": 1,
+        "sampleLines": [
+          2599
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "output.container.setItem(tx.dstSlot, cur);",
+        "category": "q4_custody_or_recovery",
+        "count": 1,
+        "sampleLines": [
+          2502
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "output.container.setItem(tx.dstSlot, moved);",
+        "category": "q4_custody_or_recovery",
+        "count": 1,
+        "sampleLines": [
+          2497
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "src.setItem(srcSlot, remain);",
+        "category": "q4_custody_or_recovery",
+        "count": 2,
+        "sampleLines": [
+          2423,
+          3455
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "src.setItem(srcSlot, undefined);",
+        "category": "q4_custody_or_recovery",
+        "count": 2,
+        "sampleLines": [
+          2419,
+          3451
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "src.setItem(tx.srcSlot, cur);",
+        "category": "physical_journal_custody",
+        "count": 1,
+        "sampleLines": [
+          3396
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "src.setItem(tx.srcSlot, remain);",
+        "category": "q4_custody_or_recovery",
+        "count": 1,
+        "sampleLines": [
+          2603
+        ]
+      },
+      {
+        "method": "setItem",
+        "signature": "src.setItem(tx.srcSlot, undefined);",
+        "category": "physical_journal_custody",
+        "count": 1,
+        "sampleLines": [
+          3392
+        ]
+      },
+      {
+        "method": "setLore",
+        "signature": "if (Array.isArray(data.lore) && data.lore.length) s.setLore(data.lore);",
+        "category": "itemstack_reconstruction",
+        "count": 2,
+        "sampleLines": [
+          1986,
+          2861
+        ]
+      },
+      {
+        "method": "setPermutation",
+        "signature": "b.setPermutation(b.permutation.withState(SORTER_MODE_STATE, wanted));",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          664
+        ]
+      },
+      {
+        "method": "setPermutation",
+        "signature": "target.setPermutation(BlockPermutation.resolve(\"minecraft:frame\", {",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          4051
+        ]
+      },
+      {
+        "method": "setType",
+        "signature": "catch(err) {delete e.i;target.setType(\"minecraft:air\");log(`[Frame] save failed: ${err}`);return false;}",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          4057
+        ]
+      },
+      {
+        "method": "setType",
+        "signature": "if(ev.player?.getGameMode?.()===\"Creative\")support.setType(\"minecraft:air\");",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          4307
+        ]
+      },
+      {
+        "method": "setType",
+        "signature": "try {f.setType(\"minecraft:air\");}catch(err){log(`[Frame] cleanup failed: ${err}`);}",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          4083
+        ]
+      },
+      {
+        "method": "spawnEntity",
+        "signature": "ent = b.dimension.spawnEntity(DISPLAY_ID, pose.location);",
+        "category": "visual_or_block_lifecycle",
+        "count": 1,
+        "sampleLines": [
+          560
+        ]
+      },
+      {
+        "method": "spawnItem",
+        "signature": "player.dimension.spawnItem(left, player.location);",
+        "category": "player_item_return",
+        "count": 1,
+        "sampleLines": [
+          2932
+        ]
+      },
+      {
+        "method": "spawnItem",
+        "signature": "try { player.dimension.spawnItem(stack, player.location); } catch (_) {}",
+        "category": "player_item_return",
+        "count": 1,
+        "sampleLines": [
+          2936
+        ]
+      }
+    ],
+    "addon/behavior_pack/scripts/urce_150_readonly_runtime.js": [
+      {
+        "method": "setPermutation",
+        "signature": "if(changed)block.setPermutation(permutation);",
+        "category": "visual_preview",
+        "count": 1,
+        "sampleLines": [
+          53
+        ]
+      }
+    ]
+  }
+}
