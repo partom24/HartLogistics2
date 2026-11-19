@@ -2,6 +2,12 @@
 
 **Permanent project discovery index.** Maintained at [`main`](https://github.com/partom24/HartLogistics2/blob/main/docs/CANONICAL_EVIDENCE_AND_TOOLING.md) and copied without semantic variation to active development branches. Its entries refer to **immutable Git commits** (not whichever content a branch happens to hold today). [Machine-readable IDs and exact refs](PROJECT_STATIC_RESOURCES.json). **Do not substitute a shortened branch-local evidence register for the original chronology.**
 
+## Physically retained static source copies (all active branches)
+
+**These are real byte-identical Git blob copies, not just links to a branch that might disappear.** [Open the archived project reference folder](project-reference/README.md). The [machine-readable index](PROJECT_STATIC_RESOURCES.json) records each archived path and original Git blob hash, including the full 59 KB main HL-E chronology, PG42 original session, NMR reviews, owner contracts, both owner reference images, PG27 and UCE PowerShell scripts, their Python backends, and the original release policy. CI checks every archived blob against its pinned source identity on **`main` and both active URCE branches**.
+
+PowerShell and Python code is stored under `docs/project-reference/tooling/` with an extra `.txt` suffix **so it cannot accidentally be mistaken for or executed as a current installer**. To build a new LAB release operator, inspect it as process reference and write/version a distinct current candidate script with real tests. The owner should never be required to rediscover historic process or historical evidence.
+
 ## Authority and provenance order
 
 | Question | Find here first | Boundary |

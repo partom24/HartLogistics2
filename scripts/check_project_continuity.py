@@ -23,9 +23,10 @@ REPO = "partom24/HartLogistics2"
 # bytes must be carried to active branches; deliberate catalog revision must
 # update this table in review and mirror the new files to all active branches.
 STATIC_GIT_BLOBS = {
-    "PROJECT_CONTINUITY.md": "c1756c5509d29729926bd27567b50e4a91e1498e",
-    "docs/CANONICAL_EVIDENCE_AND_TOOLING.md": "b1aaa6dd1fb34f580d79cd7bd7e501843358cade",
-    "docs/PROJECT_STATIC_RESOURCES.json": "7ee2c7d6e6d703f08d8fc8da60b4d3e79c63f077",
+    "PROJECT_CONTINUITY.md": "d2f1c7de30d19845aa50a028c16937f0d5dcf170",
+    "docs/CANONICAL_EVIDENCE_AND_TOOLING.md": "54240e05fedf57053ba0b47c252836e8c8e99f31",
+    "docs/PROJECT_STATIC_RESOURCES.json": "3ef456d328f0528c01e4faa185c387079e8ce124",
+    "docs/project-reference/README.md": "19ccb5ec9ba3b55fec02cbf5c83a1904e1d8a484",
 }
 SHA = re.compile(r"^[0-9a-f]{40}$")
 CATEGORIES = {"evidence", "owner-contract", "tool-reference", "release-policy"}
@@ -112,6 +113,27 @@ def check_repository(root: pathlib.Path = ROOT) -> int:
         kind = "tree" if rid == "OWNER-REFERENCE-IMAGES" else "blob"
         wanted = f"https://github.com/{REPO}/{kind}/{commit}/{path}"
         require(item.get("url") == wanted, f"{rid} must link exact immutable source")
+        # Byte-identical archival copy of the *actual* historical source:
+        # a Git SHA/blob checksum, not merely a working GitHub URL. Every
+        # active branch carries this archive and CI refuses deletion/drift.
+        copies = item.get("archived_copies")
+        require(isinstance(copies, list) and copies,
+                f"{rid} missing its physically retained static archive")
+        for archived in copies:
+            require(isinstance(archived, dict), f"{rid} invalid archive record")
+            p, recorded = archived.get("path"), archived.get("git_blob_sha")
+            require(isinstance(p, str) and p.startswith("docs/project-reference/") and
+                    ".." not in pathlib.PurePosixPath(p).parts and "\\" not in p,
+                    f"{rid} archive must remain in the permanent project-reference tree")
+            require(isinstance(recorded, str) and SHA.fullmatch(recorded) is not None,
+                    f"{rid} archive needs original Git blob identity")
+            file = root / p
+            require(file.is_file(), f"{rid} archived source missing: {p}")
+            payload = file.read_bytes()
+            actual = hashlib.sha1(
+                b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload
+            ).hexdigest()
+            require(actual == recorded, f"{rid} archived evidence/tool binary changed: {p}")
         if rid in PROTECTED_SOURCE:
             require(path == PROTECTED_SOURCE[rid],
                     f"{rid} original source path silently changed")
