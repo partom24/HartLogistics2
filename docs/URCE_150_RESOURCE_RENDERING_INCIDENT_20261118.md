@@ -49,3 +49,28 @@ Source examination of the immutable 1.4.2 engine beneath the 1.5 preview shows t
 
 **Next decisive evidence:** one client **Creator Content Log** from the current fresh connection, filtered for missing/failed texture, item, block, geometry, filter_display or pack identifiers; optionally use a no-destruction pick-block/selection outline on one checkerboard to establish whether it is a physical block or a visual entity, and identify the item/pack associated with the actual Filter. No exact XYZ, predefined layout or item allowlist is required. Use visual evidence and source identifiers; if this points to a specific item/other RP, trace that pack before any new 1.5 release. Keep installed candidate and backup `lab-ad81804f1005` unchanged. **Root cause OPEN; client-level diagnostic pending.**
 
+## 2026-11-18 — Definitive client Content Log evidence for magenta custom block faces
+
+Owner attached real **Minecraft CLIENT** log `ContentLog2026-11-18_20-57-29_1.txt` (3,702,746 bytes; 110,536 physical lines; SHA-256 `e970041e6c0782a5bc63ec2b2becbc8df170f6cb9aa8cba017f39070cfda6734`). **Retain this SHA and findings**, but do not commit raw 3.7 MB client logs or turn 36,762 noisy Sound verbose lines into ungrounded gameplay/performance conclusions.
+
+At **20:58:32** and again **21:25:29**, the client emitted exactly **39 [Blocks][error] per load**, **78 block errors total**: 74 model lookup failures plus 4 `minecraft:item_visual` companion failures. All six genuinely unresolved client-side model identifiers:
+
+| Block | Client requested missing asset | Repeated client lookup failures (both loads total) |
+| --- | --- | ---: |
+| `hartsorter:sorter` | `geometry.hartlogistics.sorter_mask_north` | 18 |
+| `hartsorter:sorter` | `geometry.hartlogistics.sorter_mask_south` | 16 |
+| `hartsorter:sorter` | `geometry.hartlogistics.sorter_mask_east` | 16 |
+| `hartsorter:sorter` | `geometry.hartlogistics.sorter_mask_west` | 16 |
+| `hartsorter:bulk_storage` | `geometry.hartlogistics.bulk_storage` | 4 |
+| `hartsorter:transporter` | `geometry.hartlogistics.transporter` | 4 |
+
+Specific examples from original log: lines 4195–4219 (Sorter), 4294–4309 (Bulk and Transporter), 78283–78397 (repeat reload). Six additional `[Effects][error]` messages concern `particles/pending_effect.particle.json` on three timestamps; they are **not identified as Hart Logistics**. The enormous `[Sound][verbose]` stream names missing stone/normal event sounds but **does not explain the custom geometry failures**. There are **no explicit client log errors** about malformed `.geo.json` file contents, texture alias, or failed download; absence of those errors does not establish client pack activation.
+
+**Supersedes prior filter-item/armor-stand speculation for these visible cube failures:** the client specifically names **block geometry and item_visual identifiers**. It is not appropriate to label the root cause an equipped filter-item defect or a missing PNG. Earlier 168/168 installed-LAB checks prove correct **server** pack/atlas paths and source identifiers but cannot prove a Minecraft **client** successfully loaded the same RP. Owner also tested `texturepack-required=true` with no improvement.
+
+**Source comparison:** in exact preview `7fa7951f4a45f6e2a344856f3a715134d50f0fd8`, `addon/resource_pack/models/blocks/sorter_frame_mask.geo.json` does contain all four requested mask identifiers (same Git blob `b4d3f7ff405813ab6ddde3341aca11ad0e69e960` as original main 1.4.2); dedicated `hartlogistics_transporter.geo.json` and `hartlogistics_bulk_storage.geo.json` contain their two identifiers. Official creator docs confirm `models/blocks/` is the expected folder and geometry 1.12.0 and 1.21.0 formats are supported. Consequently the evidence supports **client unresolved model registration**, not a proven omission in the canonical source tree. An old client pack, override/precedence, failed download/activation, or model parsing issue remains unproven; inspect the **effective client-loaded Hart RP**, not just the server's file system. Do not speculate that merely copying/renaming models or toggling force-download fixes it.
+
+Added [offline client Content Log summarizer](../scripts/analyze_bedrock_content_log.py), [parser tests](../runtime/tests/test_urce_150_content_log_parser.py), and CI nested `.mcaddon` model inclusion assertions. **Package integrity ≠ client activation**. No existing world/pack/server data modified, and no 1.5.0 same-version content override. Original LAB backup `lab-ad81804f1005` still needed if rollback is desired.
+
+**Next decisive observation:** on the Minecraft **client device**, identify the active/cached version and UUID of HartMods Hart Logistics RP (UUID `91316442-0f26-4fbb-88f3-2e39ea843a1a`, expected version `1.5.0`), whether its effective content contains these six models, and whether higher-priority resource packs override assets. For Windows Minecraft after GDK migration, ordinary local pack roots are under `%APPDATA%\Minecraft Bedrock\users\shared\games\com.mojang\resource_packs`; downloaded server packs may instead be in `%LOCALAPPDATA%\Temp\Minecraft Bedrock\minecraftpe\ResPackDownloads`. Neither folder alone proves which resources Minecraft registered at runtime. Use inspection only; do not indiscriminately purge caches/other add-ons. Fix with a new unique version and guarded 1.5.0→successor installer ONLY after precise fault is identified, and verify actual owner BDS/client rendering before accepting.
+

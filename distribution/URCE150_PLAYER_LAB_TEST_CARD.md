@@ -36,3 +36,8 @@ The owner reported magenta-and-black checkerboards near the existing storage arr
 ## Original multi-addon registry comments are supported
 
 The owner confirmed world_resource_packs.json includes legitimate inline // comments and has been restarted/tested repeatedly. The initial resource doctor incorrectly rejected those comments with strict ConvertFrom-Json. Its corrected parser accepts JSONC without editing the original file. Do not remove comments, manually rewrite registrations, reinstall the add-on, or restrict testing layouts merely to run this read-only diagnostic.
+
+## Client Content Log result (2026-11-18)
+
+Actual owner client log shows **39 Block geometry errors per client load**, repeated at 20:58:32 and 21:25:29. Four original Sorter mask models and both new Transporter/Bulk models are **not registered by the Minecraft client**, even though the source and server-installed files contain those identifiers. That explains the magenta checkerboards; the source-side 168 PASS does not imply client RP load success. Treat this as a real **client geometry registration failure**. Do not insist on a fixed layout or a specific test item, do not toggle `texturepack-required` again, and do not diagnose without inspecting actual client-loaded Hart RP content. Full identification evidence and exact log SHA in [resource incident](../docs/URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md).
+

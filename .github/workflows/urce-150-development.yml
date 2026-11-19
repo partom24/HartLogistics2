@@ -32,6 +32,8 @@ jobs:
           node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
       - name: Validate complete BP/RP atlas, textures, geometry and display entity chain
         run: node --test runtime/tests/urce_150_resource_integrity.test.mjs
+      - name: Validate client Content Log geometry diagnostic parser
+        run: python3 -m unittest discover -s runtime/tests -p test_urce_150_content_log_parser.py -v
       - name: Validate guarded preview LAB updater against disposable worlds
         run: python3 -m unittest discover -s runtime/tests -p test_urce_150_preview_updater.py -v
       - name: Build non-release 1.5 development package
@@ -57,6 +59,27 @@ jobs:
                       else:
                           assert "textures/blocks/hartlogistics_transporter.png" in pack.namelist()
                           assert "textures/blocks/hartlogistics_bulk_storage.png" in pack.namelist()
+                          # A resource-model reference existing in source says
+                          # nothing about what the game client registered;
+                          # nevertheless catch omissions from nested package.
+                          model_paths = (
+                              "models/blocks/sorter_frame_mask.geo.json",
+                              "models/blocks/hartlogistics_transporter.geo.json",
+                              "models/blocks/hartlogistics_bulk_storage.geo.json",
+                          )
+                          identifiers = set()
+                          for model_path in model_paths:
+                              assert model_path in pack.namelist(), f"Packaged RP geometry omitted: {model_path}"
+                              geometry=json.loads(pack.read(model_path))
+                              identifiers.update(m["description"]["identifier"]
+                                  for m in geometry["minecraft:geometry"])
+                          expected = {
+                              *(f"geometry.hartlogistics.sorter_mask_{d}"
+                                for d in ("north", "south", "east", "west")),
+                              "geometry.hartlogistics.transporter",
+                              "geometry.hartlogistics.bulk_storage",
+                          }
+                          assert expected <= identifiers, "Incomplete packaged geometry identifiers"
           print("1.5 SOURCE-ONLY DEVELOPMENT PREVIEW PACK VALIDATED; NO BDS PASS")
           PY
       - name: Verify deterministic package and publish exact source/checksums
