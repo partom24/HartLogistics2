@@ -1,5 +1,7 @@
 # URCE 1.5 — owner workbook defines a bank (2026-11-19)
 
+> **2026-11-19 owner correction — physical LAB readiness:** The entire **storage structure for 13 banks** is already built, **but Transporters, Receivers and Collectors have NOT yet been placed there**. The workbook is the intended supply-array design, not a live verified HartLogistics network. Earlier owner two-bank Collector/Receiver link screenshots and loop report are a separate prior test/evidence scope and **do not establish that the current 13-bank LAB has those blocks or links installed**. This supersedes loose statements below implying a live HL-equipped 13-bank network. Do not ask owner to rebuild storage; when a safely guarded candidate is ready, the new blocks/connections will be placed and proven in LAB at a separately authorized test step.
+
 **Source:** owner-uploaded `Storage Array.xlsx` (Sheet1, A1:V46) and updated storage-room image, received November 19, 2026. **Explicit correction:** `R19` was accidentally left white in the uploaded worksheet; the owner confirmed that **R19 is Collector→Receiver linkage**, continuous with `R17:R18`. The local corrected review copy is `Storage Array - R19 Corrected.xlsx` (not a tracked gameplay/world file). Do **not** read R19 as an intentional physical gap.
 
 ## Binding vocabulary
