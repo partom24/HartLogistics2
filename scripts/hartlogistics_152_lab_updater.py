@@ -51,7 +51,7 @@ REVIEWED_BLOBS={
     "behavior_pack/manifest.json": "3b8097997328353f6327ff9839dbc05b116ceed5",
     "resource_pack/manifest.json": "fa9bb441893aee42f3fec7ab0192ab04fd8d3431",
     "behavior_pack/scripts/urce_152_native_hopper_witness.js": "fad81c48b1be33b5cf9b3dfd59dbfe5257858a1d",
-    "behavior_pack/scripts/main.js": "19f8ce1d2c0ad9bdd30d23263480478881409f9e",
+    "behavior_pack/scripts/main.js": "c3f7edd11fbaf62312fbd1480b3cb75906f4ae65",
     "behavior_pack/scripts/urce_152_transporter_bank_probe.js": "1ad8a5b6943d8d9b64d0ff8613f31d8cac0f99eb",
     "behavior_pack/scripts/urce_152_route_model.js": "9ac2180a869af226d35c613c777919a9d71caa3d",
     "behavior_pack/scripts/urce_152_link_snapshot_gate.js": "bf6cccdcc08c40be6d1eda782cc93401871dff57",

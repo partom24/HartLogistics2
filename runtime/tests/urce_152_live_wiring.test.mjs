@@ -110,3 +110,109 @@ test("WIRE-07 ejected-item Collector route refuses before reading/removing entit
   call({isValid:true,typeId:"minecraft:item"});
   assert.equal(touches,0);
 });
+
+test("WIRE-08 Receiver Q4 drain HOLDs a queued item before debit on known loop",()=>{
+  let probes=0,writer=0;
+  const receiver={id:"receiver-1",queued:19},queue={total:19};
+  const ctx={
+    receiverAt:()=>({typeId:"hartsorter:receiver"}),
+    blockIsRedstonePowered:()=>false,
+    receiverOutputHopper:()=>({locked:false,container:{isValid:true}}),
+    RECEIVER_BATCH:32,
+    loadReceiverQueue:()=>queue,
+    receiverLinkSafety:()=>{probes++;return {decision:"REJECT",reason:"cycle"};},
+    dequeueToReceiver:()=>{writer++;throw Error("must not debit an unsafe Q4 queue");},
+    log:()=>{},recoverQueueJournal:()=>{throw Error("journal must not change")}
+  };
+  const run=original("processReceiverDrain",ctx);
+  assert.equal(run(receiver,32),0);
+  assert.equal(probes,1);
+  assert.equal(writer,0);
+  assert.equal(queue.total,19,"Receiver retains authoritative queued item count");
+});
+
+test("WIRE-09 Receiver Q4 drain HOLDS uncertain paths without rewriting a queue",()=>{
+  let debits=0;
+  const ctx={
+    receiverAt:()=>({}),
+    blockIsRedstonePowered:()=>false,
+    receiverOutputHopper:()=>({locked:false}),
+    RECEIVER_BATCH:16,
+    loadReceiverQueue:()=>({total:7}),
+    receiverLinkSafety:()=>({decision:"HOLD",reason:"unloaded_route"}),
+    dequeueToReceiver:()=>{debits++;return 1;},
+    log:()=>{},recoverQueueJournal:()=>{}
+  };
+  assert.equal(original("processReceiverDrain",ctx)({id:"R"},16),0);
+  assert.equal(debits,0);
+});
+
+test("WIRE-10 Receiver with no managed Collector keeps native 1.4.2 drain",()=>{
+  let debits=0,queueTotal=3,safetyChecks=0;
+  const ctx={
+    receiverAt:()=>({}),
+    blockIsRedstonePowered:()=>false,
+    receiverOutputHopper:()=>({locked:false}),
+    RECEIVER_BATCH:8,
+    loadReceiverQueue:()=>({total:queueTotal}),
+    receiverLinkSafety:()=>{safetyChecks++;return {decision:"NO_MANAGED_INPUT"};},
+    dequeueToReceiver:(_receiver,_output,budget)=>{
+      const n=Math.min(queueTotal,budget);queueTotal-=n;debits+=n;return n;
+    },
+    log:()=>{},recoverQueueJournal:()=>{}
+  };
+  assert.equal(original("processReceiverDrain",ctx)({id:"R"},8),3);
+  assert.equal(debits,3);
+  assert.equal(safetyChecks,1);
+});
+
+test("WIRE-11 idle Receiver doesn't scan topology or read debit slots",()=>{
+  let scans=0;
+  const ctx={
+    receiverAt:()=>({}),
+    blockIsRedstonePowered:()=>false,
+    receiverOutputHopper:()=>({locked:false}),
+    RECEIVER_BATCH:8,
+    loadReceiverQueue:()=>({total:0}),
+    receiverLinkSafety:()=>{scans++;throw Error("idle safety read not needed");},
+    dequeueToReceiver:()=>{throw Error("idle queue cannot debit")},
+    log:()=>{},recoverQueueJournal:()=>{}
+  };
+  assert.equal(original("processReceiverDrain",ctx)({id:"R"},8),0);
+  assert.equal(scans,0);
+});
+
+test("WIRE-12 multi-source Receiver audit refuses an unsafe contributor",()=>{
+  const source1={id:"C1",link:"R"},source2={id:"C2",link:"R"},
+    source3={id:"C3",link:"other"},receiver={id:"R"};
+  const called=[];
+  const audit=original("receiverLinkSafety",{
+    logistics:{collectors:[source1,source2,source3]},
+    liveLinkCheck:c=>{called.push(c.id);return c.id==="C1"
+      ?{decision:"SAFE_SNAPSHOT"}:{decision:"REJECT",reason:"cycle"};}
+  });
+  const result=audit(receiver);
+  assert.equal(result.decision,"REJECT");
+  assert.equal(result.collectorId,"C2");
+  assert.equal(result.reason,"cycle");
+  assert.deepEqual(called,["C1","C2"]);
+});
+
+test("WIRE-13 receiver safety for unlinked legacy network has no graph scan",()=>{
+  let calls=0;
+  const audit=original("receiverLinkSafety",{
+    logistics:{collectors:[{id:"C",link:"different"}]},
+    liveLinkCheck:()=>{calls++;return {decision:"HOLD"};}
+  });
+  assert.equal(audit({id:"R"}).decision,"NO_MANAGED_INPUT");
+  assert.equal(calls,0);
+});
+
+test("WIRE-14 status labels make verified, blocked and uncertain routes distinguishable",()=>{
+  const label=original("linkSafetyLabel",{});
+  assert.equal(label({decision:"REJECT",reason:"cycle"}),"CYCLE BLOCKED (cycle)");
+  assert.equal(label({decision:"HOLD",reason:"unloaded_route"}),"ROUTE HOLD (unloaded_route)");
+  assert.equal(label({decision:"SAFE_SNAPSHOT"}),"verified snapshot");
+  assert.equal(label({decision:"NO_MANAGED_INPUT"}),"no managed source");
+  assert.equal(label(undefined),"UNKNOWN");
+});

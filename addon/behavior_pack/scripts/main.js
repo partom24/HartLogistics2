@@ -481,6 +481,37 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     });
 }
 
+// Receiver queues do not carry an authoritative per-item originating-Collector
+// map. When any linked source has an unsafe or unknown directed route, HOLD
+// the entire queue at its existing Q4 custodian rather than drain blindly and
+// circulate cargo. No mutation, Q4 reserialization or fake receipt here.
+// A Receiver with no registered incoming Collector keeps legacy drain behavior.
+function receiverLinkSafety(receiver) {
+    if (!receiver?.id) return {decision:"HOLD",reason:"invalid_receiver"};
+    let linked=0;
+    for (const col of logistics.collectors) {
+        if (col.link !== receiver.id) continue;
+        linked++;
+        const result=liveLinkCheck(col,receiver);
+        if (result.decision !== "SAFE_SNAPSHOT") {
+            return {decision:result.decision,reason:result.reason,
+                collectorId:col.id,linked};
+        }
+    }
+    return {decision:linked ? "SAFE_SNAPSHOT" : "NO_MANAGED_INPUT",
+        reason:linked ? "all_linked_sources_safe" : "no_managed_sources",linked};
+}
+
+// Human-readable state uses the same read-only check as ingress/drain. No
+// cargo scanning, automatic relink, queue deletion or journal action.
+function linkSafetyLabel(result) {
+    if (!result) return "UNKNOWN";
+    if (result.decision === "SAFE_SNAPSHOT") return "verified snapshot";
+    if (result.decision === "NO_MANAGED_INPUT") return "no managed source";
+    return (result.decision === "REJECT" ? "CYCLE BLOCKED" : "ROUTE HOLD") +
+        " (" + (result.reason || "unverified") + ")";
+}
+
 function sorterAt(e) {
     const b = getBlock(e.d, e.x, e.y, e.z);
     return b && b.typeId === SORTER_ID ? b : undefined;
@@ -2080,6 +2111,10 @@ function collectorStatus(player, e) {
             ` | queued ${qn}/${QUEUE_CAPACITY}`;
     }
 
+    const routeSafety = e.link
+        ? (linked ? liveLinkCheck(e,linked) :
+            {decision:"HOLD",reason:"linked_receiver_missing"})
+        : {decision:"NO_MANAGED_INPUT"};
     const inputs = collectorInputSources(e);
     const hopperCount = inputs.filter(x => x.kind === "hopper").length;
     const lockedHopperCount = inputs.filter(x => x.kind === "hopper" && x.locked).length;
@@ -2092,6 +2127,7 @@ function collectorStatus(player, e) {
         ` | state: ${powered ? "§cPAUSED (powered)" : "§aactive"}` +
         `§7 | waiting: §f${collectorInputCount(e)}` +
         `§7 | network: §f${queueText}` +
+        `§7 | route safety: §f${linkSafetyLabel(routeSafety)}` +
         `§7 | lifetime accepted: §f${e.accepted ?? 0}`
     );
 }
@@ -2113,6 +2149,7 @@ function receiverStatus(player, e) {
 
     let qn = Number(e.queued) || 0;
     try { qn = loadReceiverQueue(e).total; } catch (_) {}
+    const routeSafety=receiverLinkSafety(e);
 
     player.sendMessage(
         `§7[Receiver] Collectors: §f${linked.length}§7 (` +
@@ -2122,6 +2159,7 @@ function receiverStatus(player, e) {
         `§7 | state: ${powered ? "§cPAUSED (powered)" : "§aactive"}` +
         `§7 | output hopper: §f${output ? containerItemCount(output.container) : "missing"}` +
         `${output?.locked ? " §c(locked)" : ""}` +
+        `§7 | route safety: §f${linkSafetyLabel(routeSafety)}` +
         `§7 | lifetime received/delivered: §f${e.received ?? 0}/${e.delivered ?? 0}`
     );
 }
@@ -3914,6 +3952,7 @@ function processReceiverDrain(receiver, globalRemaining) {
 
     let budget = Math.min(RECEIVER_BATCH, globalRemaining);
     let used = 0;
+    let safetyChecked = false;
 
     while (budget > 0) {
         let q;
@@ -3924,6 +3963,16 @@ function processReceiverDrain(receiver, globalRemaining) {
         }
 
         if (q.total <= 0) break;
+
+        // The native Q4 queue owns these items. Unlike an empty idle queue,
+        // a nonempty queue must not debit toward a known cycle or unverified
+        // source route. Preserve the exact original dequeue/journal writer.
+        if (!safetyChecked) {
+            const safety=receiverLinkSafety(receiver);
+            if (safety.decision !== "SAFE_SNAPSHOT" &&
+                safety.decision !== "NO_MANAGED_INPUT") return used;
+            safetyChecked = true;
+        }
 
         let moved = 0;
         try {
