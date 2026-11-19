@@ -84,6 +84,45 @@ export function sourceReachability(graph, source) {
   return walk(graph, source);
 }
 
+/**
+ * Source-only route snapshot consistency check. Both revision strings and
+ * loaded/verified graph observations are caller-supplied, not Bedrock proof.
+ *
+ * A matching snapshot can only demand a fresh native live recheck. It never
+ * grants physical admission, source debit, journal commit or ownership ACK.
+ * Changes and uncertain source-reachable edges fail closed.
+ */
+export function checkReadOnlyRouteLease({
+  graph, source, path, plannedRevision, currentRevision
+}) {
+  const reply=(decision,reason)=>({decision,reason,executePermitted:false});
+  if (!graph || graph.status!=="OK" || !id(source) ||
+      !id(plannedRevision) || !id(currentRevision) ||
+      !Array.isArray(path) || path.length<2 ||
+      !graph.byId.has(source) || path[0]!==source ||
+      path.length>graph.byId.size || new Set(path).size!==path.length ||
+      path.some(p=>!id(p)||!graph.byId.has(p))) {
+    return reply("REPLAN","invalid_route_snapshot");
+  }
+  if (plannedRevision!==currentRevision) {
+    return reply("REPLAN","topology_revision_changed");
+  }
+  if (path.some(p=>graph.byId.get(p).loaded!==true)) {
+    return reply("HOLD","path_node_unavailable");
+  }
+  for (let i=1;i<path.length;i++) {
+    const edges=graph.outgoing.get(path[i-1]);
+    if (!edges.some(e=>e.to===path[i]&&e.verified)) {
+      return reply("HOLD","path_edge_unverified");
+    }
+  }
+  if (walk(graph,source).unknown) {
+    // A reachable unknown branch can hide a higher-priority claim or cycle.
+    return reply("HOLD","source_routes_unverified");
+  }
+  return reply("REVALIDATE_NATIVE","snapshot_consistent_not_custody_authority");
+}
+
 export function checkManagedLink(graph, from, to) {
   if (!graph || graph.status !== "OK" || !graph.byId.has(from) || !graph.byId.has(to)) {
     return { decision: "REJECT", reason: "invalid_endpoint" };
@@ -201,7 +240,9 @@ export function planReadOnlyCandidates({
   }
   // Unknown remote claims or prior Bulk home prohibit declaring cargo
   // genuinely unclaimed and forwarding toward a speculative Wildcard.
-  if (unresolved || existingBulkHome === "unknown") {
+  // Ordinary Bulk-home state has no bearing on metadata-rich native custody.
+  // Unverified native MR claims/topology still HOLD via unresolved.
+  if (unresolved || (itemClass === "ordinary" && existingBulkHome === "unknown")) {
     return { status: "HOLD", reason: "claim_or_topology_unknown", stages: [], unresolved: true };
   }
   if (itemClass === "mr") {
