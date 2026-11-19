@@ -18,3 +18,9 @@ This is a **playable infrastructure visualization slice only**: the visible adja
 **Player-facing acceptance:** if the owner later separately authorizes LAB installation, they may build any valid layout and click Transporters/Bulk anywhere. Check block visuals, place/break, adjacent endpoint counts, error handling, chunk unload and responsiveness under normal activity. No mandatory exact XYZ, column count or specific item IDs. Old 1.4.2 functionality remains a regression obligation; an actual BDS session is needed before claiming a playable runtime PASS.
 
 **Safety:** This preview never changes an inventory, creates a queue, forwards a native item, or serializes MR cargo. Do not deploy to a protected existing world or production; use the guarded owner LAB updater/backup process only after permission, with the exact versioned commit.
+
+## Guarded owner-LAB path now staged (still not executed)
+
+A **separate** [1.5 infrastructure-preview LAB updater](../scripts/hartlogistics_150_lab_updater.py) preserves the original Phase A 1.4.2 updater unchanged. It requires the exact canonical Windows LAB, a stopped LAB BDS, a clean checkout at the exact `--commit` pin, the correct GitHub origin, strictly known existing pack and world-registry versions, isolated staging and backup, and refuses unknown/changed source or registrations. The same full original 1.4.2 engine is SHA-checked beneath the preview wrapper. Only an authorized controlled LAB install may use `--apply`; no production path is eligible. The [disposable synthetic installer regressions](../runtime/tests/test_urce_150_preview_updater.py) must pass before any owner invocation.
+
+This is not proof that the target BDS actually accepts the new blocks or geometry; player-first LAB validation remains the next distinct acceptance.

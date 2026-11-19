@@ -30,6 +30,8 @@ jobs:
       - name: Run pure U1/U2 and player-created topology tests
         run: |
           node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
+      - name: Validate guarded preview LAB updater against disposable worlds
+        run: python3 -m unittest discover -s runtime/tests -p test_urce_150_preview_updater.py -v
       - name: Build non-release 1.5 development package
         run: |
           python3 tools/build_mcaddon.py --output dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon
