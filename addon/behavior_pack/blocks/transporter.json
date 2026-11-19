@@ -5,11 +5,47 @@
       "identifier": "hartsorter:transporter",
       "menu_category": {
         "category": "items"
+      },
+      "states": {
+        "hartlogistics:connect_north": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_south": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_east": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_west": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_up": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_down": [
+          false,
+          true
+        ]
       }
     },
     "components": {
-      "minecraft:display_name": "tile.hartsorter:transporter.name",
-      "minecraft:geometry": "geometry.hartlogistics.transporter",
+      "minecraft:display_name": "Hart Transporter",
+      "minecraft:geometry": {
+        "identifier": "geometry.hartlogistics.transporter",
+        "bone_visibility": {
+          "north": "q.block_state('hartlogistics:connect_north')",
+          "south": "q.block_state('hartlogistics:connect_south')",
+          "east": "q.block_state('hartlogistics:connect_east')",
+          "west": "q.block_state('hartlogistics:connect_west')",
+          "up": "q.block_state('hartlogistics:connect_up')",
+          "down": "q.block_state('hartlogistics:connect_down')"
+        }
+      },
       "minecraft:material_instances": {
         "*": {
           "texture": "hartlogistics_transporter",
@@ -17,7 +53,7 @@
         }
       },
       "minecraft:item_visual": {
-        "geometry": "geometry.hartlogistics.transporter",
+        "geometry": "geometry.hartlogistics.transporter_item",
         "material_instances": {
           "*": {
             "texture": "hartlogistics_transporter",
@@ -52,18 +88,7 @@
           16
         ]
       },
-      "minecraft:collision_box": {
-        "origin": [
-          -8,
-          0,
-          -8
-        ],
-        "size": [
-          16,
-          16,
-          16
-        ]
-      }
+      "minecraft:collision_box": false
     }
   }
 }

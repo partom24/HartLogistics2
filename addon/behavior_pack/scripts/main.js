@@ -17,7 +17,7 @@ import {
 
 import "./urce_150_readonly_runtime.js";
 
-const VERSION = "1.5.0-dev";
+const VERSION = "1.5.1-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";

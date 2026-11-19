@@ -18,6 +18,10 @@ spec=importlib.util.spec_from_file_location(
 lab=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lab)
 
+@unittest.skipUnless(
+    json.loads((ROOT/"addon/behavior_pack/manifest.json").read_text())["header"]["version"]==[1,5,0],
+    "Historical 1.5.0 installer evidence: run on pinned 7fa7951f worktree only"
+)
 class PreviewLabGuard(unittest.TestCase):
     def test_source_pinned_to_150_and_original_142_engine_unmodified(self):
         self.assertEqual(lab.validate_source(ROOT),(1,5,0))

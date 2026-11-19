@@ -142,7 +142,7 @@ try {
     Check ($r.header.uuid -eq $expectedRp) 'Hart RP UUID'
     $bv=($b.header.version -join '.')
     $rv=($r.header.version -join '.')
-    Check ($bv -eq $rv -and $rv -eq '1.5.0') 'Expected BP/RP 1.5.0 versions'
+    Check ($bv -eq $rv -and $rv -in @('1.5.0','1.5.1')) 'Expected BP/RP 1.5.0 or 1.5.1 versions'
     $deps=@($b.dependencies | Where-Object {
         $_.PSObject.Properties['uuid'] -and $_.PSObject.Properties['version'] -and
         $_.uuid -eq $expectedRp -and ($_.version -join '.') -eq $rv

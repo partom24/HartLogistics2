@@ -1,7 +1,9 @@
 /*
  * Hart Logistics 1.5 development — read-only visible Transporter topology.
- * Player-facing diagnostics only. No item movement, native inventory writes,
- * world mutation, persistent route/capacity cache or custody authority.
+ * Player-facing diagnostics and adjacency-only Transporter arm visuals.
+ * Local visual block permutations may change on player placement/break.
+ * No item movement, native inventory writes, storage properties,
+ * persistent route/capacity cache or custody authority.
  */
 import { world, system } from '@minecraft/server';
 const TRANSPORTER = 'hartsorter:transporter';
@@ -15,6 +17,73 @@ const ENDPOINTS = new Set([
   'hartsorter:sorter','hartsorter:collector','hartsorter:receiver',
   'hartsorter:bulk_storage','minecraft:hopper'
 ]);
+// PG27's accepted 4x4-core pipe arms are now driven only by native
+// *player placement/break* events. No custom global polling interval,
+// no block onTick callbacks and no cargo custody. Visual arms do NOT
+// establish directed routing or inventory transfer authority.
+const VISUAL_ENDPOINTS = new Set([
+  ...ENDPOINTS,
+  'minecraft:chest','minecraft:trapped_chest','minecraft:barrel'
+]);
+const VISUAL_FACES = [
+  {name:'east',x:1,y:0,z:0},{name:'west',x:-1,y:0,z:0},
+  {name:'up',x:0,y:1,z:0},{name:'down',x:0,y:-1,z:0},
+  {name:'south',x:0,y:0,z:1},{name:'north',x:0,y:0,z:-1}
+]);
+const visualPending = new Map();
+let visualScheduled = false;
+const VISUAL_POSITIONS_PER_TICK = 8;
+function updateTransporterVisual(dimension,pos){
+  let block;
+  try{block=dimension.getBlock(pos);}catch(_){return;}
+  if(!block || block.typeId!==TRANSPORTER)return;
+  try{
+    let permutation=block.permutation,changed=false;
+    for(const dir of VISUAL_FACES){
+      let neighbor;
+      try{neighbor=dimension.getBlock(shifted(pos,dir));}catch(_){continue;}
+      if(!neighbor)continue; // Unknown/unloaded never means disconnected.
+      const want=neighbor.typeId===TRANSPORTER||VISUAL_ENDPOINTS.has(neighbor.typeId);
+      const state='hartlogistics:connect_'+dir.name;
+      if(permutation.getState(state)!==want){
+        permutation=permutation.withState(state,want);
+        changed=true;
+      }
+    }
+    if(changed)block.setPermutation(permutation);
+  }catch(_){/* Visual degradation is never cargo authority. */}
+}
+function flushTransporterVisuals(){
+  visualScheduled=false;
+  let n=0;
+  while(visualPending.size && n++<VISUAL_POSITIONS_PER_TICK){
+    const first=visualPending.keys().next().value;
+    const item=visualPending.get(first);
+    visualPending.delete(first);
+    updateTransporterVisual(item.dimension,item.pos);
+  }
+  if(visualPending.size && !visualScheduled){
+    visualScheduled=true;
+    system.run(flushTransporterVisuals);
+  }
+}
+function scheduleVisualsNear(dimension,center){
+  if(!dimension || !center)return;
+  for(const p of [center,...VISUAL_FACES.map(dir=>shifted(center,dir))]){
+    const id=dimension.id+'|'+key(p);
+    if(!visualPending.has(id))visualPending.set(id,{dimension,pos:p});
+  }
+  if(!visualScheduled){
+    visualScheduled=true;
+    system.run(flushTransporterVisuals);
+  }
+}
+world.afterEvents.playerPlaceBlock.subscribe(ev=>{
+  try{scheduleVisualsNear(ev.block.dimension,ev.block.location);}catch(_){}
+});
+world.afterEvents.playerBreakBlock.subscribe(ev=>{
+  try{scheduleVisualsNear(ev.block.dimension,ev.block.location);}catch(_){}
+});
 const ongoing = new Set();
 const recent = new Map();
 let scans = 0;
@@ -91,6 +160,11 @@ world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
   recent.set(player.id,now);
   system.run(()=>{
     if(type===BULK)message(player,'§6Bulk Storage preview. §7No item custody is enabled in this build.');
-    else inspect(player,dimension,location);
+    else {
+      // Reconcile a pre-existing pipe on first interaction after upgrading.
+      // Only local visual permutations change, never native cargo custody.
+      scheduleVisualsNear(dimension,location);
+      inspect(player,dimension,location);
+    }
   });
 });

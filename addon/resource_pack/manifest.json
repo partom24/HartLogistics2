@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics RP",
-    "description": "Hart Logistics 1.5 DEV — dedicated Transporter and Bulk models and textures",
+    "description": "Hart Logistics 1.5.1 DEV — PG27-style 4x4 connecting Transporter geometry",
     "uuid": "91316442-0f26-4fbb-88f3-2e39ea843a1a",
     "version": [
       1,
       5,
-      0
+      1
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         1,
         5,
-        0
+        1
       ]
     }
   ],
