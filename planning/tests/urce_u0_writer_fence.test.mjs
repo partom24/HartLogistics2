@@ -15,19 +15,25 @@ const categories=new Set([
 ]);
 
 function scan(file) {
-  const content=readFileSync(resolve(root,file),"utf8");
+  const lines=readFileSync(resolve(root,file),"utf8").split("\n");
   const sites=new Map();
-  for(const line of content.split("\n")){
+  let scope="module",eventIndex=0;
+  for(const line of lines){
     const normalized=line.trim().replace(/\s+/g," ");
+    const named=line.match(/^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
+    if(named)scope=named[1];
+    else if(/^\s*world\.(?:beforeEvents|afterEvents)\.\w+\.subscribe\(/.test(line))
+      scope="event_"+(++eventIndex);
     const re=new RegExp("\\.\\s*("+register.guardedMethods.join("|")+")\\s*\\(","g");
     for(const found of line.matchAll(re)){
-      const key=found[1]+"::"+normalized;
+      const key=scope+"::"+found[1]+"::"+normalized;
       if(sites.has(key))sites.get(key).count++;
-      else sites.set(key,{method:found[1],signature:normalized,count:1});
+      else sites.set(key,{scope,method:found[1],signature:normalized,count:1});
     }
   }
   return [...sites.values()].sort((a,b)=>
-    a.method.localeCompare(b.method)||a.signature.localeCompare(b.signature));
+    a.scope.localeCompare(b.scope)||a.method.localeCompare(b.method)||
+    a.signature.localeCompare(b.signature));
 }
 
 test("U0-01 all active runtime scripts have a writer-census entry",()=>{
@@ -39,12 +45,13 @@ test("U0-01 all active runtime scripts have a writer-census entry",()=>{
 });
 
 test("U0-02 new/direct native mutations cannot silently bypass the census",()=>{
+  assert.equal(register.schema,2);
   assert.equal(register.scope,"direct_callsite_lexical_fence_only");
   for(const [path,entries] of Object.entries(register.scripts)){
     assert.ok(entries.length>0);
     assert.ok(entries.every(e=>categories.has(e.category)&&e.count>0));
-    const approved=entries.map(({method,signature,count})=>({
-      method,signature,count
+    const approved=entries.map(({scope,method,signature,count})=>({
+      scope,method,signature,count
     }));
     assert.deepEqual(scan(path),approved,
       "Review every new or changed direct inventory/world mutation first");
