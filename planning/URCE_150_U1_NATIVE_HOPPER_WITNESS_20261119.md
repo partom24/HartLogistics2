@@ -23,3 +23,10 @@ The existing `addon/behavior_pack/scripts/main.js` still lacks pre-commit link c
 3. Protect standalone 1.4.2 behavior and source-executed journal traces; add Windows synthetic install/rollback from the exact installed version. Require passing CI, then a separately authorized copied-LAB BDS test using the owner's existing 2-bank and 13-bank layouts.
 
 **Non-negotiable:** a source-only graph witness is never native custody/admission or a durable receipt. Existing world load/unload and external/vanilla inventory operations are not synchronized by this observer.
+
+## Increment 2 — visual Transporter bank-component observation (SOURCE-ONLY)
+
+- `planning/src/urce_u1_transporter_bank_probe.mjs` reads directly adjacent Transporter blocks from injected native-shaped calls and groups bounded face-connected physical runs without querying inventory or assuming a global room/controller is one bank. A complete simple run with exactly one Receiver and one Collector is labeled **CANDIDATE_SINGLE_BANK**; branches, splits and multi-endpoint components remain **UNCLASSIFIED_COMPONENT**. This is just a visual classification hint.
+- A visual-only **potential loop** is a reason to HOLD, never sufficient by itself to REJECT a proved-safe physical route or ALLOW a new link. The positive native Hopper witness remains a stronger REJECT when its actual directed return path is confirmed.
+- Source regressions exercise two-bank visual return, 13 distinct translated/rotated bank-shaped runs, an open chain, disconnected/unknown Transporters, a branching component and bounded scan budgets. The owner's corrected R19 is a worksheet linkage, not a Minecraft-world block coordinate, so it is not fabricated into the runtime probe.
+- **Still not wired to installed 1.5.1 gameplay.** Full directed cargo topology, cycle guard at `useReceiver()`, and safe treatment of existing saved loops remain blocking #86. No `addon/`, manifests, installer, LAB or production modifications.
