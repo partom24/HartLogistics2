@@ -126,6 +126,7 @@ try {
     Write-Host 'Server-side files are checked; the client RP/cache cannot be inspected by this script.'
     Write-Host 'If magenta persists: inspect Minecraft client Content Log and server pack download/cache.'
     Write-Host 'No files were modified.'
+    exit 0
 } catch {
     [Console]::Error.WriteLine($_.Exception.Message)
     exit 2
