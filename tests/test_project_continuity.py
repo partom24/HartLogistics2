@@ -39,6 +39,14 @@ class ContinuityTests(unittest.TestCase):
         callback(data)
         self.registry().write_text(json.dumps(data), encoding="utf-8")
 
+    def test_branch_copy_cannot_silently_modify_canonical_catalog(self):
+        p = self.root/"docs/CANONICAL_EVIDENCE_AND_TOOLING.md"
+        p.write_text(p.read_text().replace("MR movement",
+                 "MR movement proved all hard crashes", 1), encoding="utf-8")
+        with self.assertRaisesRegex(mod.ContinuityError,
+                                    "changed from main"):
+            mod.check_repository(self.root)
+
     def test_missing_original_evidence_ref_refuses(self):
         self.edit_index(lambda d: d.__setitem__("resources",
             [x for x in d["resources"] if x["id"] != "EVIDENCE-HL-E-MAIN"]))
