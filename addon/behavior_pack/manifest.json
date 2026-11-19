@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics BP",
-    "description": "Hart Logistics 1.5.1 DEV — verified 4x4 connected Transporter visuals; existing 1.4.2 cargo unchanged",
+    "description": "Hart Logistics 1.5.2 DEV — guarded Collector/Receiver supply links; 1.4.2 cargo and 4x4 visual Transporters",
     "uuid": "4854d263-05dd-4f79-a21c-7ba969295c2d",
     "version": [
       1,
       5,
-      1
+      2
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         1,
         5,
-        1
+        2
       ]
     },
     {
@@ -32,7 +32,7 @@
       "version": [
         1,
         5,
-        1
+        2
       ],
       "entry": "scripts/main.js"
     }
@@ -47,7 +47,7 @@
       "version": [
         1,
         5,
-        1
+        2
       ]
     }
   ],

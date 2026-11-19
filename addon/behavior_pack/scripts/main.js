@@ -16,8 +16,12 @@ import {
 } from "@minecraft/server";
 
 import "./urce_150_readonly_runtime.js";
+import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
+const liveLinkGuard=createLiveLinkGuard();
+world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
+world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.1-dev";
+const VERSION = "1.5.2-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -456,6 +460,20 @@ function getBlock(dimId, x, y, z) {
     const dim = getDimension(dimId);
     if (!dim) return undefined;
     try { return dim.getBlock({x, y, z}); } catch (_) { return undefined; }
+}
+
+// Read-only same-tick gate for each managed Collector->Receiver supply link.
+// The registry remains an identity hint, not a native inventory receipt.
+function liveLinkCheck(col, receiver, forceFresh=false) {
+    if (!col || !receiver || col.link === undefined) {
+        return {decision:"HOLD",reason:"missing_managed_link"};
+    }
+    return liveLinkGuard.check({
+        collector:col, receiver,
+        collectors:logistics.collectors,receivers:logistics.receivers,
+        getBlock:(d,p)=>getBlock(d,p.x,p.y,p.z),
+        currentTick:system.currentTick,forceFresh
+    });
 }
 
 function sorterAt(e) {
@@ -937,6 +955,7 @@ function registerCollector(block) {
         if (typeof e.accepted !== "number") e.accepted = e.forwarded ?? 0;
     }
     saveLogistics();
+    liveLinkGuard.invalidate();
     return e;
 }
 
@@ -973,6 +992,7 @@ function registerReceiver(block) {
         if (typeof e.delivered !== "number") e.delivered = 0;
     }
     saveLogistics();
+    liveLinkGuard.invalidate();
     return e;
 }
 
@@ -983,6 +1003,7 @@ function markLogisticsAbsent(typeId, dimId, x, y, z) {
     if (e) {
         e.present = false;
         saveLogistics();
+        liveLinkGuard.invalidate();
     }
 }
 
@@ -2114,10 +2135,29 @@ function useReceiver(player, block) {
     if (pendingId) {
         const col = findCollectorById(pendingId);
         if (col) {
+            // Versioned U1 control-plane gate: verify native Hopper direction,
+            // managed Transporter-bank intent and pre-existing links BEFORE
+            // persisting this specific proposed Collector->Receiver edge.
+            const verdict = liveLinkCheck(col, receiver, true);
+            if (verdict.decision !== "SAFE_SNAPSHOT") {
+                player.sendMessage(
+                    "§c[Hart Logistics] Link " +
+                    (verdict.decision === "REJECT" ? "REJECTED (supply loop)" : "HELD (route unverified)") +
+                    ": " + verdict.reason + ". Existing link retained."
+                );
+                return;
+            }
+            const prior = col.link;
             col.link = receiver.id;
-            saveLogistics();
+            try {
+                saveLogistics();
+            } catch (err) {
+                col.link = prior;
+                player.sendMessage("§c[Hart Logistics] Link save failed; previous link retained.");
+                return;
+            }
+            liveLinkGuard.invalidate();
             pendingCollectorByPlayer.delete(player.id);
-
             player.sendMessage(
                 `§a[Hart Logistics] Collector linked to Receiver at ${receiver.x}, ${receiver.y}, ${receiver.z}.`
             );
@@ -2320,7 +2360,7 @@ function processEjectedItemEntity(entity, retries=0, spawnLoc=undefined) {
     }
 
     const receiver = findReceiverById(route.collector.link);
-    if (!receiver) return;
+    if (!receiver || liveLinkCheck(route.collector, receiver).decision !== "SAFE_SNAPSHOT") return;
 
     const stack = itemEntityStack(entity);
     if (!stack || stack.amount <= 0) {
@@ -3126,7 +3166,7 @@ function sorterCollectorRoute(dest, stack) {
     if (blockIsRedstonePowered(dest?.block)) return undefined;
 
     const receiver = findReceiverById(collector.link);
-    if (!receiver) return undefined;
+    if (!receiver || liveLinkCheck(collector, receiver).decision !== "SAFE_SNAPSHOT") return undefined;
 
     // Sorter -> Collector routing is deliberately persistent-queue only.
     // If we cannot prove a safe metadata round trip, the item stays in the
@@ -3749,6 +3789,7 @@ function processCollectorIngress(collector, globalRemaining) {
 
     let used = 0;
     let budget = Math.min(COLLECTOR_BATCH, globalRemaining);
+    let safetyChecked = false;
 
     for (const source of sources) {
         // A powered vanilla hopper is a hard logistics gate. Script API can
@@ -3761,6 +3802,10 @@ function processCollectorIngress(collector, globalRemaining) {
         try {
             if (!source.container?.isValid) continue;
             if (source.container.firstItem() === undefined) continue;
+            if (!safetyChecked) {
+                if (liveLinkCheck(collector, receiver).decision !== "SAFE_SNAPSHOT") return used;
+                safetyChecked = true;
+            }
             sourceSize = source.container.size;
         } catch (_) {
             // Unavailable native inventory: leave its cargo untouched.
