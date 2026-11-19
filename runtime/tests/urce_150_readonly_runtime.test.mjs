@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import {fileURLToPath} from "node:url";
+import {createHash} from "node:crypto";
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const read=p=>fs.readFileSync(path.join(ROOT,p),"utf8");
 const script=read("addon/behavior_pack/scripts/urce_150_readonly_runtime.js");
@@ -74,6 +75,12 @@ test("DEV-03 main source imports read-only preview with 1.4.2 movement intact",(
  assert.match(main,/function logisticsTick\(\)/);
  assert.match(main,/function safeMovePartial\(/);
  assert.match(main,/const QUEUE_CAPACITY = 250000/);
+ // Only this import and the dev version string may change original 1.4.2.
+ const unwrapped=main.replace('import "./urce_150_readonly_runtime.js";\n\n','')
+   .replace('const VERSION = "1.5.0-dev";','const VERSION = "1.4.2";');
+ assert.equal(createHash("sha256").update(unwrapped).digest("hex"),
+   "2183cc3de4d60c9895305e41612644a75360b2baba44403c2387e3679cdc4411",
+   "Do not silently rewrite current 1.4.2 custody or routing engine");
  assert.doesNotMatch(script,/\.setItem\s*\(|\.setDynamicProperty\s*\(|\.spawnItem\s*\(|\.remove\s*\(/);
 });
 test("DEV-04 player-chosen valid connected layout is inspected without native writes",()=>{
