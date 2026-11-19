@@ -29,7 +29,7 @@ const VISUAL_FACES = [
   {name:'east',x:1,y:0,z:0},{name:'west',x:-1,y:0,z:0},
   {name:'up',x:0,y:1,z:0},{name:'down',x:0,y:-1,z:0},
   {name:'south',x:0,y:0,z:1},{name:'north',x:0,y:0,z:-1}
-]);
+];
 const visualPending = new Map();
 let visualScheduled = false;
 const VISUAL_POSITIONS_PER_TICK = 8;

@@ -89,7 +89,14 @@ def validate_candidate(repo=ROOT,original=None):
     unwrapped=main.replace('import "./urce_150_readonly_runtime.js";\n\n','',1)
     unwrapped=unwrapped.replace('const VERSION = "1.5.1-dev";',
                                 'const VERSION = "1.4.2";',1)
-    if hashlib.sha256(unwrapped.encode()).hexdigest()!=old.PHASE_A_ENGINE_SHA256:
+    # Compare byte-for-byte against the immutable owner-approved 1.4.2 tree.
+    # Do not trust an imported constant that may describe a different release
+    # artifact or platform newline representation.
+    baseline=subprocess.run(
+        ["git","-C",str(ROOT),"show",
+         "8c8d9eae4a4396fc8413591b407d0178da6f7a21:addon/behavior_pack/scripts/main.js"],
+        capture_output=True,check=True).stdout
+    if unwrapped.encode("utf-8")!=baseline:
         raise UnsafeLab("Original 1.4.2 cargo engine changed")
     block=json.loads((repo/"addon/behavior_pack/blocks/transporter.json").read_text())["minecraft:block"]
     model=json.loads((repo/"addon/resource_pack/models/blocks/hartlogistics_transporter.geo.json").read_text())["minecraft:geometry"]
