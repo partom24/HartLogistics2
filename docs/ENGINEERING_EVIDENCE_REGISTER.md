@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Evidence Register
 
+> **MANDATORY STATIC CONTINUITY:** [Canonical original evidence and PowerShell process sources](CANONICAL_EVIDENCE_AND_TOOLING.md), [immutable project index](PROJECT_STATIC_RESOURCES.json), and [root discovery contract](../PROJECT_CONTINUITY.md) retain the real prior tests/tools across branch boundaries. The shortened register in this checkout is supplemental, not authority to declare historical proof missing. Original source acceptance limitations still apply.
+
 The engineering blueprint template's old E-* entries referred to a **different repository/project** and were not Hart Logistics development evidence. Those example claims were replaced. Evidence levels follow [engineering standard](ENGINEERING_STANDARD.md).
 
 | ID | Scope | Evidence level | Source | What it does **not** prove |

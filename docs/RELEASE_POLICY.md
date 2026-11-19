@@ -1,5 +1,7 @@
 # Release Policy
 
+> **MANDATORY STATIC CONTINUITY:** [Canonical original evidence and PowerShell process sources](CANONICAL_EVIDENCE_AND_TOOLING.md), [immutable project index](PROJECT_STATIC_RESOURCES.json), and [root discovery contract](../PROJECT_CONTINUITY.md) retain the real prior tests/tools across branch boundaries. The shortened register in this checkout is supplemental, not authority to declare historical proof missing. Original source acceptance limitations still apply.
+
 **Development is not publication.** Source merged to the main branch is not automatically an approved public or production release.
 
 A release should identify which accepted roadmap milestone(s) it satisfies and where scoped acceptance evidence lives. A roadmap milestone marked Completed does **not** itself constitute release authorization. Exploratory suggestions in the idea inbox are not release scope.

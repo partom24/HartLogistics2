@@ -1,3 +1,5 @@
+> **MANDATORY STATIC CONTINUITY:** [Canonical original evidence and PowerShell process sources](CANONICAL_EVIDENCE_AND_TOOLING.md), [immutable project index](PROJECT_STATIC_RESOURCES.json), and [root discovery contract](../PROJECT_CONTINUITY.md) retain the real prior tests/tools across branch boundaries. The shortened register in this checkout is supplemental, not authority to declare historical proof missing. Original source acceptance limitations still apply.
+
 # Hart Logistics 2 — Updater Reference, LAB Testing and Production Exclusion
 
 **Cross-branch distribution correction (2026-11-18):** [Recovered PowerShell-first LAB update workflow](URCE_150_POWERSHELL_DISTRIBUTION_PROCESS_RECOVERY_20261118.md). A one-file PowerShell launcher was the historic owner-facing Plan/CheckLab/Install/Rollback interface; it handled exact Git verification and called a guarded Python backend. Current 1.5.0 preview does not yet ship this operator interface or a full explicit post-install rollback. Previous manual Git/Python handoff is withdrawn as the canonical recommendation.
