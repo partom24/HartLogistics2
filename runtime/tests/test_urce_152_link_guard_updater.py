@@ -1,4 +1,4 @@
-"""1.5.1 -> 1.5.2 visual-only PowerShell backend safety regressions.
+"""1.5.1 -> 1.5.2 guarded Collector/Receiver link PowerShell backend safety regressions.
 
 Every pack/world below is a disposable fixture. No actual LAB or production
 server paths are accessed. Original predecessor reconstructed from pinned Git.
@@ -63,7 +63,7 @@ class LinkGuard152LabTests(unittest.TestCase):
             manifest.write_text(json.dumps(m))
             with self.assertRaises(lab.UnsafeLab):
                 lab.validate_candidate(root,self.original)
-            m["header"]["version"]=[1,5,1]
+            m["header"]["version"]=[1,5,2]
             m["header"]["uuid"]="00000000-0000-0000-0000-000000000001"
             manifest.write_text(json.dumps(m))
             with self.assertRaises(lab.UnsafeLab):
