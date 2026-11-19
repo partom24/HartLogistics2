@@ -29,7 +29,7 @@ jobs:
           node --check addon/behavior_pack/scripts/urce_150_readonly_runtime.js
       - name: Run pure U1/U2 and player-created topology tests
         run: |
-          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
+          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
       - name: Validate complete BP/RP atlas, textures, geometry and display entity chain
         run: node --test runtime/tests/urce_150_resource_integrity.test.mjs
       - name: Validate client Content Log geometry diagnostic parser
