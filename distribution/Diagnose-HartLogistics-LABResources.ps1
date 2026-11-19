@@ -51,7 +51,7 @@ function AtlasPath([string]$relative){
 }
 if($SourceOnly){
     Write-Host 'SOURCE-ONLY diagnostic: no Minecraft server or world inspected.'
-    return
+    exit 0
 }
 try {
     Check (Test-Path -LiteralPath $lab -PathType Container) 'Exact copied LAB exists'
@@ -65,6 +65,7 @@ try {
     $rv=($r.header.version -join '.')
     Check ($bv -eq $rv -and $rv -eq '1.5.0') 'Expected BP/RP 1.5.0 versions'
     $deps=@($b.dependencies | Where-Object {
+        $_.PSObject.Properties['uuid'] -and $_.PSObject.Properties['version'] -and
         $_.uuid -eq $expectedRp -and ($_.version -join '.') -eq $rv
     })
     Check ($deps.Count -eq 1) 'BP links to exactly this RP version'
