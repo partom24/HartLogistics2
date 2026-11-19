@@ -1,5 +1,7 @@
 # Release Policy
 
+> **PROJECT STATIC CONTINUITY:** [Canonical original evidence and historical PowerShell tools](CANONICAL_EVIDENCE_AND_TOOLING.md) and [immutable resource index](PROJECT_STATIC_RESOURCES.json) are authoritative cross-branch discovery sources; start with [root continuity contract](../PROJECT_CONTINUITY.md). This branch's register can be shorter than the full original `main` HL-E chronology. Preserve original acceptance scope. Do not infer absence of prior proof or tooling from a branch checkout.
+
 **Development is not publication.** Source merged to the main branch is not automatically an approved public or production release.
 
 A release should identify which accepted roadmap milestone(s) it satisfies and where scoped acceptance evidence lives. A roadmap milestone marked Completed does **not** itself constitute release authorization. Exploratory suggestions in the idea inbox are not release scope.

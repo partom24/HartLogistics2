@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Evidence Register
 
+> **PROJECT STATIC CONTINUITY:** [Canonical original evidence and historical PowerShell tools](CANONICAL_EVIDENCE_AND_TOOLING.md) and [immutable resource index](PROJECT_STATIC_RESOURCES.json) are authoritative cross-branch discovery sources; start with [root continuity contract](../PROJECT_CONTINUITY.md). This branch's register can be shorter than the full original `main` HL-E chronology. Preserve original acceptance scope. Do not infer absence of prior proof or tooling from a branch checkout.
+
 > **Decision superseded (2026-11-16):** All Q5 references below are **historical**, documenting an outdated queue-centric architectural proposal made with limited understanding of the required network-wide routing/custody engine. Q5 is **not an approved 1.5 subsystem**; the current decision is the [Unified Routing and Custody Engine (URCE)](UNIFIED_ROUTING_CUSTODY_ENGINE.md). Preserve the original records and Q4 compatibility evidence; do not interpret historical tests as approval to implement Q5.
 
 The engineering blueprint template's old E-* entries referred to a **different repository/project** and were not Hart Logistics development evidence. Those example claims were replaced. Evidence levels follow [engineering standard](ENGINEERING_STANDARD.md).

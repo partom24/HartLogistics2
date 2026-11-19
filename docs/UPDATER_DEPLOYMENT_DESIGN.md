@@ -1,3 +1,5 @@
+> **PROJECT STATIC CONTINUITY:** [Canonical original evidence and historical PowerShell tools](CANONICAL_EVIDENCE_AND_TOOLING.md) and [immutable resource index](PROJECT_STATIC_RESOURCES.json) are authoritative cross-branch discovery sources; start with [root continuity contract](../PROJECT_CONTINUITY.md). This branch's register can be shorter than the full original `main` HL-E chronology. Preserve original acceptance scope. Do not infer absence of prior proof or tooling from a branch checkout.
+
 **BUNDLE 1 HISTORICAL CLOSEOUT 2026-11-07:** Owner successfully ran final LAB Cleanup. The temporary probe pack and PowerShell installers have been removed from active Git, while the permanent 1.4.1 source and Bundle 0 Python updater are retained. Older Bundle 1 script links/installation directions on this page describe historical evidence, not live tools. See [final evidence](BUNDLE1_PREPARATION_RESULTS.md).
 
 # Hart Logistics 2 — Updater Reference, LAB Testing and Production Exclusion

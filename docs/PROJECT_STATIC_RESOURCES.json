@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "repository": "partom24/HartLogistics2",
+  "canonical_branch": "main",
+  "canonical_index": "docs/CANONICAL_EVIDENCE_AND_TOOLING.md",
+  "entrypoint": "PROJECT_CONTINUITY.md",
+  "preservation_rule": "These are immutable-source references. Read pinned original evidence/tools across branches, preserve accepted scope, and never execute historical version-specific installers on a current build.",
+  "resources": [
+    {
+      "id": "EVIDENCE-HL-E-MAIN",
+      "category": "evidence",
+      "commit": "56a7b47212630c771ecee2b9dc2af20808e30e8a",
+      "path": "docs/ENGINEERING_EVIDENCE_REGISTER.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/56a7b47212630c771ecee2b9dc2af20808e30e8a/docs/ENGINEERING_EVIDENCE_REGISTER.md",
+      "scope_limit": "The original HL-E chronological evidence register; owner observations are scoped to stated versions"
+    },
+    {
+      "id": "NMR-CURATED",
+      "category": "evidence",
+      "commit": "6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2",
+      "path": "recovery/NATIVE_MR_HISTORICAL_EVIDENCE_141.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2/recovery/NATIVE_MR_HISTORICAL_EVIDENCE_141.md",
+      "scope_limit": "Curated scoped native MR historical evidence; not new runtime acceptance"
+    },
+    {
+      "id": "NMR-CROSS-BRANCH-AUDIT",
+      "category": "evidence",
+      "commit": "6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2",
+      "path": "planning/URCE_150_CROSS_BRANCH_NATIVE_MR_EVIDENCE_REUSE_AUDIT_20261118.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2/planning/URCE_150_CROSS_BRANCH_NATIVE_MR_EVIDENCE_REUSE_AUDIT_20261118.md",
+      "scope_limit": "Cross-branch feasibility gate correction; no full integrated custody proof"
+    },
+    {
+      "id": "PG42-SESSION",
+      "category": "evidence",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/PG42_TEST_SESSION.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/PG42_TEST_SESSION.md",
+      "scope_limit": "Historic entity-inventory session/provenance; not a current implementation"
+    },
+    {
+      "id": "OWNER-PRODUCT-CONTRACT",
+      "category": "owner-contract",
+      "commit": "6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2",
+      "path": "planning/URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2/planning/URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md",
+      "scope_limit": "Owner product decisions; do not treat planning as runtime PASS"
+    },
+    {
+      "id": "OWNER-PLAYER-TESTING",
+      "category": "owner-contract",
+      "commit": "6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2",
+      "path": "planning/URCE_150_OWNER_PLAYER_FIRST_TESTING_DECISION_20261118.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2/planning/URCE_150_OWNER_PLAYER_FIRST_TESTING_DECISION_20261118.md",
+      "scope_limit": "Any valid layout and legitimate items; MR differs structurally"
+    },
+    {
+      "id": "OWNER-REFERENCE-IMAGES",
+      "category": "owner-contract",
+      "commit": "56a7b47212630c771ecee2b9dc2af20808e30e8a",
+      "path": "docs/reference-images",
+      "url": "https://github.com/partom24/HartLogistics2/tree/56a7b47212630c771ecee2b9dc2af20808e30e8a/docs/reference-images",
+      "scope_limit": "Original owner reference images; no arbitrary fixed rig coordinates"
+    },
+    {
+      "id": "PG27-POWERSHELL",
+      "category": "tool-reference",
+      "commit": "56a7b47212630c771ecee2b9dc2af20808e30e8a",
+      "path": "candidates/pg27/Start-HartLogistics-PG27Lab.ps1",
+      "url": "https://github.com/partom24/HartLogistics2/blob/56a7b47212630c771ecee2b9dc2af20808e30e8a/candidates/pg27/Start-HartLogistics-PG27Lab.ps1",
+      "scope_limit": "Historical Plan/CheckLab/Install/Rollback launcher, obsolete versions"
+    },
+    {
+      "id": "PG27-DEPLOY-BACKEND",
+      "category": "tool-reference",
+      "commit": "56a7b47212630c771ecee2b9dc2af20808e30e8a",
+      "path": "candidates/pg27/lab_deploy.py",
+      "url": "https://github.com/partom24/HartLogistics2/blob/56a7b47212630c771ecee2b9dc2af20808e30e8a/candidates/pg27/lab_deploy.py",
+      "scope_limit": "Historical guarded Python backend for PG27 only"
+    },
+    {
+      "id": "PG27-TESTS",
+      "category": "tool-reference",
+      "commit": "56a7b47212630c771ecee2b9dc2af20808e30e8a",
+      "path": "tests/test_pg27_lab_deploy.py",
+      "url": "https://github.com/partom24/HartLogistics2/blob/56a7b47212630c771ecee2b9dc2af20808e30e8a/tests/test_pg27_lab_deploy.py",
+      "scope_limit": "Historical synthetic upgrade and rollback tests"
+    },
+    {
+      "id": "UCE-POWERSHELL",
+      "category": "tool-reference",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/Start-HartLogistics-UCELab.ps1",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/Start-HartLogistics-UCELab.ps1",
+      "scope_limit": "Frozen historical UCE operator process, not current runnable tool"
+    },
+    {
+      "id": "UCE-DEPLOY-BACKEND",
+      "category": "tool-reference",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/lab_deploy.py",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/lab_deploy.py",
+      "scope_limit": "Frozen UCE backend, not to import as gameplay"
+    },
+    {
+      "id": "FREEFORM-POWERSHELL",
+      "category": "tool-reference",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/Start-HartLogistics-FreeformLab.ps1",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/Start-HartLogistics-FreeformLab.ps1",
+      "scope_limit": "Historical player fresh-world Prepare/Finish/Restore flow"
+    },
+    {
+      "id": "FREEFORM-BACKEND",
+      "category": "tool-reference",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/freeform_lab.py",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/freeform_lab.py",
+      "scope_limit": "Historical guarded fresh-world backend"
+    },
+    {
+      "id": "FULLPRODUCT-POWERSHELL",
+      "category": "tool-reference",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/Start-HartLogistics-FullProductLab.ps1",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/Start-HartLogistics-FullProductLab.ps1",
+      "scope_limit": "Historical integrated new-world staged PowerShell process"
+    },
+    {
+      "id": "FULLPRODUCT-BACKEND",
+      "category": "tool-reference",
+      "commit": "c0de08258faacd97799c6a41c62ff1aef2bfbf40",
+      "path": "candidates/uce/full_product_lab.py",
+      "url": "https://github.com/partom24/HartLogistics2/blob/c0de08258faacd97799c6a41c62ff1aef2bfbf40/candidates/uce/full_product_lab.py",
+      "scope_limit": "Historical full-product guarded backend"
+    },
+    {
+      "id": "POWERSHELL-RECOVERY-AUDIT",
+      "category": "evidence",
+      "commit": "05a37c1c78fe9afb4554c9857d9a7c284dcd68be",
+      "path": "docs/URCE_150_POWERSHELL_DISTRIBUTION_PROCESS_RECOVERY_20261118.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/05a37c1c78fe9afb4554c9857d9a7c284dcd68be/docs/URCE_150_POWERSHELL_DISTRIBUTION_PROCESS_RECOVERY_20261118.md",
+      "scope_limit": "Cross-branch 2026-11-18 documentation recovery, not executable installation"
+    },
+    {
+      "id": "RELEASE-POLICY",
+      "category": "release-policy",
+      "commit": "56a7b47212630c771ecee2b9dc2af20808e30e8a",
+      "path": "docs/RELEASE_POLICY.md",
+      "url": "https://github.com/partom24/HartLogistics2/blob/56a7b47212630c771ecee2b9dc2af20808e30e8a/docs/RELEASE_POLICY.md",
+      "scope_limit": "No implied production/public release from CI or LAB testing"
+    }
+  ]
+}

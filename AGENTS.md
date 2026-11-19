@@ -1,5 +1,7 @@
 # Hart Logistics 2 — contributor operating contract
 
+> **PROJECT STATIC CONTINUITY — required before any evidence, release or tool assertion:** Read [PROJECT_CONTINUITY.md](PROJECT_CONTINUITY.md), [canonical full evidence/PowerShell catalog](docs/CANONICAL_EVIDENCE_AND_TOOLING.md), and [immutable-source resource index](docs/PROJECT_STATIC_RESOURCES.json). The full original HL-E register and historical versioned PowerShell launchers are on `main`/pinned historical commits even when a branch-local checkout omits them. An abbreviated branch evidence ledger is **not proof that an item has never been tested**. Historical launchers are process references, not current-version installers; source/CI passes are not production authorization. Check links before asking the owner to repeat known evidence or recreate an existing tool.
+
 > **Binding owner architecture correction (2026-11-16):** Q5 was an outdated, too-narrow decision made with limited understanding of Hart Logistics' network-wide routing/custody requirements. **Do not develop Q5 as a subsystem.** The accepted 1.5 architectural direction is the [Unified Routing and Custody Engine (URCE)](docs/UNIFIED_ROUTING_CUSTODY_ENGINE.md); Q4 remains protected historical saved-world data and must migrate losslessly. References to Q5 in prior tests/records are historical only. The archived 1.5 UCE implementation is FROZEN / DO NOT MERGE or reuse.
 
 ## Current owner development authorization (2026-11-08)
