@@ -557,3 +557,10 @@ Owner executed `scripts/diagnostics/Read-HartLogistics-Bundle2Lab.ps1` from thei
 
 - Owner identified recurring cross-branch loss of historical evidence and operator PowerShell launchers. Canonical **main** reference index: [full original proof and pinned historic tools](CANONICAL_EVIDENCE_AND_TOOLING.md); [static resource manifest](PROJECT_STATIC_RESOURCES.json); [root agent discovery contract](../PROJECT_CONTINUITY.md). Links to original PG20/PG23, PG42 and native MR audit, original owner decisions, PG27/archived UCE PowerShell launchers and guarded Python backends; evidence scope and nonclaims retained.
 - New offline [continuity validator](../scripts/check_project_continuity.py), [regressions](../tests/test_project_continuity.py) and [PR/push workflow](../.github/workflows/project-continuity.yml) reject loss of documented original source pins and primary project pointers. Historical branches remain evidence; active URCE branches receive mirrored project indexes. This is tooling/governance only, with no pack, world, LAB or release changes.
+
+## 2026-11-18 — Static owner-LAB infrastructure evidence carried to main
+
+- Owner confirms **two banks with a Collector→Receiver link each**, visual Transporter inspection 6 and 8 nodes/adjacent endpoint categories, successful stack placement with no missed interactions, and qualitatively similar timings while Hopper routing remained active. No numeric TPS or infinite delivery was demonstrated. [Permanent main source of these scoped observations](URCE_150_OWNER_LAB_INFRA_EVIDENCE_20261118.md), in addition to full original HL-E evidence index and original owner reference images.
+- Owner requests historical PG27 4×4 pixel core plus conditional connecting arms for adjacent known blocks. Active URCE branch implemented **1.5.1** source with preserved 1.4.2 cargo and source-only Windows/Linux CI including exact 1.5.0→1.5.1 safety chain PASS at b51b966b. Owner's existing 1.5.0 LAB is **not automatically updated**; new visual layout still requires player BDS acceptance.
+- Do not conflate old Q5/PG26 gameplay, the scoped new visual architecture, or links with perpetual delivered throughput.
+

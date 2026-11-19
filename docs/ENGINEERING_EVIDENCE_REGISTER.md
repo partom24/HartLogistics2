@@ -153,3 +153,9 @@ The owner reports that several safe transfer behaviors were established during e
 5. All 1.4.1 feature regression paths, no-new-block legacy mode, loaded/unloaded regions and multi-controller topology.
 6. Distinguish SOURCE REVIEW → OFFLINE PASS → RUNTIME OBSERVED → INTEGRATION ACCEPTED → RELEASE APPROVED. None is implied by a document merge.
 
+## 2026-11-18 — HL-E-URCE150-INFRA-002: owner LAB two-bank links and visual/performance observations
+
+- **Original source/linked full record:** [Permanent owner-LAB infrastructure evidence](URCE_150_OWNER_LAB_INFRA_EVIDENCE_20261118.md). Installed 1.5.0 copied LAB pin 7fa7951f, prior visual issue closed by stale-client 1.5.0 cache cleanup. Owner placed a stack of blocks with **zero missed placements**, inspected **6 and 8 Transporters**, and personally confirmed **both Collector→Receiver links in two banks**. Hopper routing remained active; timing perceived comparable, not a numeric TPS/throughput PASS.
+- Pictures showed receiver output Hopper missing and 0 queued at that instant: **do not turn link success into indefinite-delivery acceptance**. User-directed visual target is older PG27 4×4 pixel center pipe that conditionally arms to supported adjacent blocks. Historical PG27 X orientation fix already has HL-E-074 evidence. This is a new source-only 1.5.1 model slice with versioned guarded upgrade/rollback; BDS runtime acceptance still awaits owner.
+- The complete original HL-E chronology is permanently archived and still cited; this is a **new dated follow-up**, not an edit to old proof.
+
