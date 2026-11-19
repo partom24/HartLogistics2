@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildReadOnlyGraph, sourceReachability, checkManagedLink, planReadOnlyCandidates
+  buildReadOnlyGraph, sourceReachability, checkManagedLink, checkReadOnlyRouteLease,
+  planReadOnlyCandidates
 } from "../src/urce_u1_route_model.mjs";
 
 // Every test is pure. IDs, shapes, origins and items are arbitrary fixture data,
@@ -149,4 +150,65 @@ test("U1-17 columns are ordered by cost while every column stays bottom-to-top",
     o("b0","filter",{claim:"yes",columnId:"B",bottomUp:0,estimatedCost:5})
   ]);
   assert.deepEqual(x.stages[0].candidates.map(v=>v.nodeId),["a0","a1","b0"]);
+});
+
+test("U1-18 unknown ordinary Bulk home cannot block safe native MR Wildcard consideration",()=>{
+  const ns=["src","wild","bulk"].map(id=>n(id));
+  const x=plan(ns,[e("src","wild"),e("src","bulk")],"src",
+    [o("wild","wildcard"),o("bulk","bulk")],{
+      itemClass:"mr",existingBulkHome:"unknown",applicableBulkState:"unknown"
+    });
+  assert.equal(x.status,"CANDIDATES");
+  assert.deepEqual(x.stages.map(s=>s.tier),["wildcard"]);
+  assert.equal(x.stages[0].candidates[0].liveAdmissionRequired,true);
+  assert.equal(plan(ns,[e("src","wild"),e("src","bulk")],"src",
+    [o("wild","wildcard")],{
+      itemClass:"ordinary",existingBulkHome:"unknown",applicableBulkState:"unknown"
+    }).status,"HOLD","Ordinary Bulk home still requires verified absence");
+});
+
+test("U1-19 consistent directed route can demand native revalidation, never write authority",()=>{
+  const g=buildReadOnlyGraph([n("src","source"),n("p"),n("dst","sorter")],
+    [e("src","p"),e("p","dst")]);
+  const result=checkReadOnlyRouteLease({graph:g,source:"src",
+    path:["src","p","dst"],plannedRevision:"epoch-7",currentRevision:"epoch-7"});
+  assert.deepEqual(result,{decision:"REVALIDATE_NATIVE",
+    reason:"snapshot_consistent_not_custody_authority",executePermitted:false});
+});
+
+test("U1-20 configuration revision drift forces route replanning",()=>{
+  const g=buildReadOnlyGraph([n("src","source"),n("dst","sorter")],
+    [e("src","dst")]);
+  const base={graph:g,source:"src",path:["src","dst"],
+    plannedRevision:"before",currentRevision:"after"};
+  assert.equal(checkReadOnlyRouteLease(base).decision,"REPLAN");
+  assert.equal(checkReadOnlyRouteLease({...base,currentRevision:""}).decision,"REPLAN");
+});
+
+test("U1-21 broken or unloaded native-shaped paths cannot be treated as accepted",()=>{
+  const nodes=[n("src","source"),n("middle"),n("dst","sorter")];
+  const base={source:"src",path:["src","middle","dst"],
+    plannedRevision:"epoch",currentRevision:"epoch"};
+  const missing=buildReadOnlyGraph(nodes,[e("src","middle")]);
+  assert.deepEqual(checkReadOnlyRouteLease({...base,graph:missing}),{
+    decision:"HOLD",reason:"path_edge_unverified",executePermitted:false});
+  const unloaded=buildReadOnlyGraph([nodes[0],n("middle","transporter",false),nodes[2]],
+    [e("src","middle"),e("middle","dst")]);
+  assert.equal(checkReadOnlyRouteLease({...base,graph:unloaded}).decision,"HOLD");
+  assert.equal(checkReadOnlyRouteLease({...base,graph:missing,path:["src","src","dst"]}).decision,"REPLAN");
+});
+
+test("U1-22 unknown source-reachable branch HOLDs without banning unrelated components",()=>{
+  const nodes=["src","mid","dst","uncertain","island"].map(id=>n(id));
+  const primary=[e("src","mid"),e("mid","dst")];
+  const base={source:"src",path:["src","mid","dst"],
+    plannedRevision:"r",currentRevision:"r"};
+  const unknown=buildReadOnlyGraph(nodes,
+    [...primary,e("src","uncertain","transporter",{verified:false})]);
+  assert.equal(checkReadOnlyRouteLease({...base,graph:unknown}).reason,
+    "source_routes_unverified");
+  const unrelated=buildReadOnlyGraph(nodes,
+    [...primary,e("island","uncertain","transporter",{verified:false})]);
+  assert.equal(checkReadOnlyRouteLease({...base,graph:unrelated}).decision,
+    "REVALIDATE_NATIVE");
 });
