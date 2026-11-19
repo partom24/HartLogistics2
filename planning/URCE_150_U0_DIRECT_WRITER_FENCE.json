@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "scope": "direct_callsite_lexical_fence_only",
-  "sourceOrigin": "protected 1.4.2 writer and 1.5.1 preview",
+  "sourceOrigin": "protected 1.4.2 cargo writers, 1.5.1 visuals, versioned 1.5.2 read-only route adapter and guarded link-control callsites",
   "warning": "Generated scoped signatures are not AST/call-graph or native custody proof; review new/unregistered runtime mutations.",
   "guardedMethods": [
     "setItem",
@@ -28,7 +28,7 @@
         "category": "native_hopper_compaction",
         "count": 1,
         "sampleLines": [
-          3539
+          3579
         ]
       },
       {
@@ -38,7 +38,7 @@
         "category": "native_hopper_compaction",
         "count": 1,
         "sampleLines": [
-          3538
+          3578
         ]
       },
       {
@@ -48,7 +48,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2502
+          2542
         ]
       },
       {
@@ -58,7 +58,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2497
+          2537
         ]
       },
       {
@@ -68,7 +68,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2226
+          2266
         ]
       },
       {
@@ -78,7 +78,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2423
+          2463
         ]
       },
       {
@@ -88,7 +88,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2419
+          2459
         ]
       },
       {
@@ -98,7 +98,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          532
+          550
         ]
       },
       {
@@ -108,27 +108,27 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          4083
+          4128
         ]
       },
       {
-        "scope": "event_9",
+        "scope": "event_11",
         "method": "runCommand",
         "signature": "else d.runCommand(`setblock ${p.x} ${p.y} ${p.z} air destroy`);",
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          4308
+          4353
         ]
       },
       {
-        "scope": "event_9",
+        "scope": "event_11",
         "method": "setType",
         "signature": "if(ev.player?.getGameMode?.()===\"Creative\")support.setType(\"minecraft:air\");",
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          4307
+          4352
         ]
       },
       {
@@ -138,7 +138,7 @@
         "category": "player_item_return",
         "count": 1,
         "sampleLines": [
-          2930
+          2970
         ]
       },
       {
@@ -148,7 +148,7 @@
         "category": "player_item_return",
         "count": 1,
         "sampleLines": [
-          2932
+          2972
         ]
       },
       {
@@ -158,7 +158,7 @@
         "category": "player_item_return",
         "count": 1,
         "sampleLines": [
-          2936
+          2976
         ]
       },
       {
@@ -168,7 +168,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          4051
+          4096
         ]
       },
       {
@@ -178,7 +178,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          4057
+          4102
         ]
       },
       {
@@ -188,7 +188,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          2879
+          2919
         ]
       },
       {
@@ -198,7 +198,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          2885
+          2925
         ]
       },
       {
@@ -208,7 +208,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          2861
+          2901
         ]
       },
       {
@@ -218,7 +218,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          2006
+          2027
         ]
       },
       {
@@ -228,7 +228,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          1987
+          2008
         ]
       },
       {
@@ -238,7 +238,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          1988
+          2009
         ]
       },
       {
@@ -248,7 +248,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          2017
+          2038
         ]
       },
       {
@@ -258,7 +258,7 @@
         "category": "itemstack_reconstruction",
         "count": 1,
         "sampleLines": [
-          1986
+          2007
         ]
       },
       {
@@ -268,7 +268,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          626
+          644
         ]
       },
       {
@@ -278,7 +278,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          646
+          664
         ]
       },
       {
@@ -288,7 +288,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3375
+          3415
         ]
       },
       {
@@ -298,7 +298,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3371
+          3411
         ]
       },
       {
@@ -308,7 +308,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3396
+          3436
         ]
       },
       {
@@ -318,7 +318,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3392
+          3432
         ]
       },
       {
@@ -328,7 +328,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2654
+          2694
         ]
       },
       {
@@ -338,7 +338,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2706
+          2746
         ]
       },
       {
@@ -348,7 +348,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2702
+          2742
         ]
       },
       {
@@ -358,7 +358,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2599
+          2639
         ]
       },
       {
@@ -368,7 +368,7 @@
         "category": "q4_custody_or_recovery",
         "count": 1,
         "sampleLines": [
-          2603
+          2643
         ]
       },
       {
@@ -378,7 +378,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          516
+          534
         ]
       },
       {
@@ -388,7 +388,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          515
+          533
         ]
       },
       {
@@ -398,7 +398,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3469
+          3509
         ]
       },
       {
@@ -408,7 +408,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3462
+          3502
         ]
       },
       {
@@ -418,7 +418,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3455
+          3495
         ]
       },
       {
@@ -428,7 +428,7 @@
         "category": "physical_journal_custody",
         "count": 1,
         "sampleLines": [
-          3451
+          3491
         ]
       },
       {
@@ -438,7 +438,7 @@
         "category": "player_filter_equipment",
         "count": 1,
         "sampleLines": [
-          3015
+          3055
         ]
       },
       {
@@ -448,7 +448,7 @@
         "category": "player_filter_equipment",
         "count": 1,
         "sampleLines": [
-          3012
+          3052
         ]
       },
       {
@@ -458,7 +458,7 @@
         "category": "property_persistence",
         "count": 1,
         "sampleLines": [
-          111
+          115
         ]
       },
       {
@@ -468,7 +468,7 @@
         "category": "property_persistence",
         "count": 1,
         "sampleLines": [
-          37
+          41
         ]
       },
       {
@@ -478,7 +478,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          555
+          573
         ]
       },
       {
@@ -488,7 +488,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          562
+          580
         ]
       },
       {
@@ -498,7 +498,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          560
+          578
         ]
       },
       {
@@ -508,7 +508,7 @@
         "category": "visual_or_block_lifecycle",
         "count": 1,
         "sampleLines": [
-          664
+          682
         ]
       }
     ],
@@ -523,6 +523,11 @@
           53
         ]
       }
-    ]
+    ],
+    "addon/behavior_pack/scripts/urce_152_route_model.js": [],
+    "addon/behavior_pack/scripts/urce_152_native_hopper_witness.js": [],
+    "addon/behavior_pack/scripts/urce_152_transporter_bank_probe.js": [],
+    "addon/behavior_pack/scripts/urce_152_link_snapshot_gate.js": [],
+    "addon/behavior_pack/scripts/urce_152_live_link_guard.js": []
   }
 }
