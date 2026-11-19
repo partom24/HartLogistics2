@@ -1,0 +1,40 @@
+# URCE-ADR-004 — Player-first testing on any valid layout and item identities
+
+**Owner decision:** 2026-11-18. **Status:** OWNER-APPROVED TESTING AND ACCEPTANCE PHILOSOPHY; DOCS/PLANNING ONLY.  
+**Precedence:** This later owner instruction supersedes the **exact XYZ / predeclared block-by-block layout / exact item-ID owner acceptance prerequisites** in earlier `docs/TEST_RIG_CONTRACT.md`, rig cards and historical PG test plans. Preserve those historical records as bounded reproduction evidence. Does not alter code, existing worlds, source fingerprints, or the LAB/production approval boundary.
+
+## Owner's instruction (recorded verbatim)
+
+> "The product should be tested with the mentality of a player. Exact coordinates, layouts and other exact details should not be needed. Any valid layout should be used for in testing."
+>
+> "Code that limits the acceptance to specific items should be avoided. This limits me from being able to use items that could expose issues not found otherwise. This does have an exception with MR/non-MR items since they are structurally different to routing."
+
+## Binding testing contract
+
+1. **The player builds and uses the product normally.** A meaningful integration acceptance exercise is a player placing, connecting, configuring, powering, using and inspecting HartLogistics using an arbitrary **valid** arrangement. Do **not** require the owner to copy a prearranged coordinate pattern, scripted XYZ, particular room, fixed bank count, exact Sorter-column height or specific number of components unless the *feature under test intrinsically requires* the structural property. The published product rules define validity. A valid but unexpected arrangement is not "out of scope" merely because it differs from a developer's fixture.
+2. **Topology invariance.** Correctness derives from verified physical/logical connectivity, source→destination direction, Filter/Auto/Wildcard priority, local bottom-to-top ordering, optional terminal Collector, Bulk eligibility, redstone, admission and custody. No hardcoded coordinate/location, fixed bank topology, presumed specific input slot, precomputed demo rig, specific item name or forced test-only mode may authorize or reject normal routing.
+3. **Arbitrary normal item IDs.** The owner must be free to select *any legitimate item*, including unusual items that reveal errors. Acceptance and production routing must be defined by item capability/identity, not a preselected acceptance allowlist (e.g., test-only cobblestone/glass/sand). A Filter's **player-selected** exact item match and Bedrock-specific item mechanics are real product behavior; those are not prohibited item-ID restrictions. Tests should use representative examples and additional surprising cases, never define the only items the system is allowed to process.
+4. **Structural MR / non-MR exception.** It is correct to have separate test branches for losslessly countable ordinary cargo versus native metadata-rich / nonrepresentable ItemStacks. Demonstrate preservation of exact native identity and backpressure for MR (custom name, lore, enchantments, durability, distinct metadata as relevant). **Do not flatten MR to satisfy an ordinary-item test or bar novel items just because an existing test did not mention them.** Within a class, item-specific cases may be tested when real native characteristics (stack limits, unique metadata, seed semantics) change the behavior; do not create an arbitrary item-by-item certification list.
+5. **Acceptance is behavioral.** Observe actual item counts and item identity at the correct destination or authoritative HOLD, no duplication or loss, reliable links, status/menus, unloaded/full/restart handling, and BDS responsiveness while the player interacts naturally. The result must be judged by the item's real route, not by requiring one named block or hardcoded test coordinates. A valid player setup that fails is a defect or unproven capability, not an excuse to reclassify the setup as invalid after the fact.
+6. **No fixture-based product gates.** Source-only tests may use controlled coordinates, deterministic items and fixed layouts **internally** to reproduce faults, verify graph algorithms or compare performance; use parameterized/property/metamorphic tests to vary coordinates, rotations, bank/column counts, connection order, arbitrary ordinary IDs and MR identity when relevant. Those fixture details **must not leak into gameplay gating**, acceptance scripts, player instructions, code branches or certification. Explain a necessary safety constraint from actual product capability rather than post hoc rig geometry.
+7. **Do not retest accepted primitives.** Reuse cross-branch PG20 native MR movement, PG42 native storage and other accepted prior evidence at original scope. Prior isolated rigs remain historical proof, not new requirements to reconstruct them. Prioritize one meaningful player-valued integrated exercise rather than repeated tiny prescribed manual tests.
+8. **Safety and reproducibility coexist with freedom.** Owner-LAB/production boundaries, current-branch source pin, backups/rollback, no experimental toggles without permission, and explicit deployment authority still apply. **When a bug is found**, record the player-chosen coordinates, facing, item IDs and state *afterward*, solely as helpful reproduction data. If a feature requires a genuine physical orientation/direction, describe the **rule**, not an arbitrary absolute position.
+9. **Evidence should record what was actually tested** (not pretend all valid layouts and all items have been exhaustively exercised). Retain screenshot/log, source version, broad actual geometry/topology and changed behavior, with applicable exact coordinates/item ID only if observed and useful. Code-level generalized properties plus player exploratory testing together support confidence; a single arbitrary test is not universal proof.
+10. **Performance follows player reality.** Evaluate ordinary intermittent loads, exceptional backlog bursts and sustained stress on player-created layouts, including player placing blocks, eating, inventory use and traversal. Source-only 1,400-Sorter owner-shape models are stress *examples*, not a mandatory acceptance layout or proof of all player networks.
+
+## Correct examples
+
+| Scenario | Valid acceptance behavior |
+| --- | --- |
+| Player creates Collector→Receiver only, with no terminal or Bulk | Valid network; legitimate missing home HOLD, not invalid layout |
+| Player places four-high, five-high or other permitted Sorter columns in different orientations | Same route rules; exact absolute location irrelevant |
+| Player builds a converging multi-bank network and picks arbitrary ordinary IDs | Actual reachable home policy, quantity accounting and native admission determine result |
+| Player inserts a uniquely named enchanted item not present in a prepared list | Native MR classifier, exact identity preservation, safe direct/native custody or HOLD; not silently refused by a demo-item allowlist |
+| Player tests a valid Transporter network where cargo never visits pipe blocks | Valid logical connectivity and safe actual endpoint custody; no forced per-segment movement |
+| Player reports a failure with particular XYZ and item | Preserve the observed details for diagnosis; never retroactively call the arbitrary choice an invalid rig |
+
+## Owner-facing test communication
+
+A brief card is still useful: **what changed/what behavior is being tried, why it matters, existing evidence, allowed owner action, observable pass criteria and safe cleanup**. A READY card requires safe LAB scope and an intelligible **validity condition**, not predefined absolute XYZ or a diagram. If the owner asks for step-by-step reproduction of a specific regression, provide exact placements **as an optional reproducible example**, not as a constraint on acceptance.
+
+**Boundary:** Documentation only. No implementation permission, world access, LAB run, server update or release decision is created by this ADR.

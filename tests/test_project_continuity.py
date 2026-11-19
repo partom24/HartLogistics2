@@ -13,9 +13,15 @@ mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 COPY = [
  "PROJECT_CONTINUITY.md", "docs/CANONICAL_EVIDENCE_AND_TOOLING.md",
- "docs/PROJECT_STATIC_RESOURCES.json", "AGENTS.md", "README.md",
+ "docs/PROJECT_STATIC_RESOURCES.json", "docs/project-reference/README.md",
+ "AGENTS.md", "README.md",
  "docs/ENGINEERING_EVIDENCE_REGISTER.md", "docs/UPDATER_DEPLOYMENT_DESIGN.md",
  "docs/RELEASE_POLICY.md"
+]
+ARCHIVED = [
+ source["path"] for item in
+ json.loads((ROOT/"docs/PROJECT_STATIC_RESOURCES.json").read_text())["resources"]
+ for source in item["archived_copies"]
 ]
 
 class ContinuityTests(unittest.TestCase):
@@ -26,7 +32,7 @@ class ContinuityTests(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.root = Path(self.folder.name)
-        for p in COPY:
+        for p in COPY + ARCHIVED:
             f = self.root/p
             f.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT/p, f)
@@ -45,6 +51,18 @@ class ContinuityTests(unittest.TestCase):
                  "MR movement proved all hard crashes", 1), encoding="utf-8")
         with self.assertRaisesRegex(mod.ContinuityError,
                                     "changed from main"):
+            mod.check_repository(self.root)
+
+    def test_archived_powershell_source_must_exist_on_branch(self):
+        p = self.root/"docs/project-reference/tooling/UCE_Start-HartLogistics-UCELab.ps1.txt"
+        p.unlink()
+        with self.assertRaisesRegex(mod.ContinuityError, "archived source missing"):
+            mod.check_repository(self.root)
+
+    def test_original_full_hl_e_register_cannot_be_replaced_by_short_local_version(self):
+        original = self.root/"docs/project-reference/evidence/MAIN_HL_E_CHRONOLOGY.md"
+        original.write_text("a partial branch ledger", encoding="utf-8")
+        with self.assertRaisesRegex(mod.ContinuityError, "archived evidence/tool binary changed"):
             mod.check_repository(self.root)
 
     def test_missing_original_evidence_ref_refuses(self):
