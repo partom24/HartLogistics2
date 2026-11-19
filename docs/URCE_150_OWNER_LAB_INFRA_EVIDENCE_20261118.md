@@ -28,3 +28,14 @@ New source candidate **1.5.1** restores PG27-style connected geometry while prot
 The owner has **NOT yet installed or Bedrock-tested 1.5.1**; the player test should evaluate arms joining and disappearing against whichever valid player arrangement they select, and check existing two bank links without rebuilding them. Bulk storage remains intentionally inactive in both previews.
 
 **Boundary:** The linked endpoints are accepted. "Routes forever" remains a *design expectation*, not evidence of measured indefinite item flow; no claims of full URCE functional routing, MR custody, Bulk storage, cross-chunk capacity, zero-loss transfer, or 1400-Sorter performance PASS are made.
+
+
+## 2026-11-19 owner follow-up — HL-E-URCE151-VISUAL-003
+
+**OWNER-CONFIRMED / FOUR IN-GAME SCREENSHOTS — SCOPED VISUAL PASS.** After the 1.5.1 connected-model candidate was prepared, the owner supplied four in-game screenshots and explicitly confirmed: "**all the transporters are the correct size/shape and connecting to HL blocks**."
+
+**Accepted without repetition:** visible compact Transporter shape/scale and arm connections to HartLogistics components in the owner's player-built layouts. This closes the primary requested PG27-style 4×4-core visual correction and HL-block adjacency-appearance checkpoint. The November 18 line above saying 1.5.1 was not yet player-tested is **superseded for this specific visual scope** by this November 19 owner observation.
+
+**Not newly verified by these screenshots:** exact installer invocation or installed Git SHA / pack hash; all six directions and all non-Hart native endpoints; arm removal/disconnection under block break; across-restart visual repair; item transport, Bulk custody, MR fidelity, directed route selection, sustained 1.5.1 Hopper throughput, p95/TPS, rollback or release. Do not turn visual adjacency into a routing certificate or require the owner to repeat the already accepted model-and-HL-connection visual test. Earlier 1.5.0 Collector-to-Receiver linkage and placement/responsiveness observations retain their own scoped standing.
+
+**Engineering continuation:** keep the 1.5.1 payload stable during remaining acceptance work, continue source-only U1/U2 routing/custody invariants, and request targeted Bedrock evidence only for a materially different remaining capability.
