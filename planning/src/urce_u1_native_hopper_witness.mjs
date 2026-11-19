@@ -119,9 +119,11 @@ export function observeNativeHopperWitness({
               verified:true,loaded:true,witnessHops:seen.size-1});
           } else unknown.push({from:receiver.id,reason:"unregistered_collector"});
         } else if(!started) {
-          // A Receiver without an output Hopper has no proven native handoff.
-          // This is a source-specific absence, not global network closure.
-          unknown.push({from:receiver.id,reason:"receiver_output_not_hopper"});
+          // Receiver-output semantics in protected 1.4.2 require a Hopper
+          // directly underneath. A positively loaded different block is
+          // native-output ABSENCE, not an unloaded/unknown path. A logical
+          // visual bank, if present, is observed separately. Later placement
+          // of a Hopper MUST invalidate any previously safe route snapshot.
         } else if(block.typeId!=="minecraft:air") {
           // Chests, Sorters, Transporters and other endpoints may have other
           // native input/output semantics. Do NOT infer a pass-through path.
