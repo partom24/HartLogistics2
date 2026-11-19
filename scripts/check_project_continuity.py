@@ -8,6 +8,7 @@ metadata, NOT the truth or a re-execution of past owner Bedrock tests.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import pathlib
 import re
@@ -18,6 +19,14 @@ INDEX = "docs/PROJECT_STATIC_RESOURCES.json"
 DOC = "docs/CANONICAL_EVIDENCE_AND_TOOLING.md"
 ENTRY = "PROJECT_CONTINUITY.md"
 REPO = "partom24/HartLogistics2"
+# Git blob identities of the three canonical static files on main. The same
+# bytes must be carried to active branches; deliberate catalog revision must
+# update this table in review and mirror the new files to all active branches.
+STATIC_GIT_BLOBS = {
+    "PROJECT_CONTINUITY.md": "c1756c5509d29729926bd27567b50e4a91e1498e",
+    "docs/CANONICAL_EVIDENCE_AND_TOOLING.md": "b1aaa6dd1fb34f580d79cd7bd7e501843358cade",
+    "docs/PROJECT_STATIC_RESOURCES.json": "7ee2c7d6e6d703f08d8fc8da60b4d3e79c63f077",
+}
 SHA = re.compile(r"^[0-9a-f]{40}$")
 CATEGORIES = {"evidence", "owner-contract", "tool-reference", "release-policy"}
 REQUIRED_IDS = {
@@ -65,6 +74,16 @@ def contents(root: pathlib.Path, path: str) -> str:
 
 def check_repository(root: pathlib.Path = ROOT) -> int:
     root = pathlib.Path(root)
+    for file_name, expected in STATIC_GIT_BLOBS.items():
+        f = root / file_name
+        require(f.is_file(), f"Missing protected project resource: {file_name}")
+        raw = f.read_bytes()
+        actual = hashlib.sha1(
+            b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
+        ).hexdigest()
+        require(actual == expected,
+                f"{file_name} changed from main's pinned static source; "
+                "review, update all active mirrors, and explicitly re-pin")
     entry = contents(root, ENTRY)
     catalog = contents(root, DOC)
     data = json.loads(contents(root, INDEX))
