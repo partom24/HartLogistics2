@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Updater Reference, LAB Testing and Production Exclusion
 
+> **Current 2026-11-18 distribution update:** [URCE 1.5 source→CI→artifact→LAB review](URCE_150_DISTRIBUTION_AND_TESTING_REVIEW_20261118.md) supersedes historical language that no HartLogistics updater exists. Original `scripts/hartlogistics_lab_updater.py` is a guarded **1.4.2-only** installer; new `scripts/hartlogistics_150_lab_updater.py` handles only the **1.5.0 infrastructure preview**, with exact source and installed-predecessor checks. **No owner LAB execution or production deployment has been observed.** Do not use the old updater to deploy 1.5, bypass an installer REFUSED result, use a CI artifact as authorization, or assume it will update changed 1.5.0 bytes in place. Player-first acceptance requires **any valid layout and legitimate items**, not exact XYZ.
+
 **Phase A 1.4.1 implementation update (2026-11-16):** The active isolated implementation branch includes the [original HartLogistics-only guarded LAB updater](../scripts/hartlogistics_lab_updater.py), adapted to accept ONLY the candidate's pinned engine digest and otherwise preserve all 71 original hashes, plus same-version/downgrade and unknown-pack protections. The full [Phase A LAB handoff](../implementation/PHASE_A_BDS_CANDIDATE_141.md) controls BDS testing. The 2026-11-06 discussion below is historical planning, not current source capability or permission to apply. Production remains a hard deny.
 
 **Status (2026-11-06): design and source-reference inspection only. No updater was executed and no server path was accessed.** The owner has explicitly permitted **importing the production updater script into HartLogistics2 before a release candidate exists**, but **prohibits running it, including dry-run/preflight against production, until a release candidate is nominated**. Production mutation also requires a separately authorized release/promotion operation.
@@ -54,7 +56,7 @@ Nine files were inspected, not run:
 - **After candidate nomination:** the owner must separately authorize any execution and explicitly authorize production mutation. Validate nominated exact commit/artifact, pack IDs/version, cold full-server backup, server stopped and no auto-restart, registries, destination root, rollback steps and signed-off lab acceptance.
 - **No shortcuts:** no copying files, promoting packs, adjusting world registries or world state in production merely because an updater script exists or a PR is merged.
 
-No LAB operator should be asked to set up a manual world rig without a [READY test rig card](TEST_RIG_CONTRACT.md). The card starts with a **what is being tested** summary and identifies prior accepted tests that can be skipped; exact placement/count/isolation requirements must be specified before assembly.
+No LAB operator should be asked to test without a clear [player-first test card](TEST_RIG_CONTRACT.md). Explain the changed behavior, prior accepted evidence, safe scope and observable result. **Any valid player-built layout and any legitimate item** may be used; exact XYZ, fixed component counts and chosen demo item IDs are **not prerequisites**. Record them only if needed to reproduce a failure.
 
 ## Known open deployment decisions
 

@@ -57,10 +57,51 @@ jobs:
                           assert "textures/blocks/hartlogistics_bulk_storage.png" in pack.namelist()
           print("1.5 SOURCE-ONLY DEVELOPMENT PREVIEW PACK VALIDATED; NO BDS PASS")
           PY
+      - name: Verify deterministic package and publish exact source/checksums
+        run: |
+          python3 tools/build_mcaddon.py --output "$RUNNER_TEMP/urce-repeat-build.mcaddon"
+          python3 - <<'PY'
+          import hashlib, io, json, os, pathlib, subprocess, zipfile
+          package=pathlib.Path("dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon")
+          repeat=pathlib.Path(os.environ["RUNNER_TEMP"])/"urce-repeat-build.mcaddon"
+          def digest(data): return hashlib.sha256(data).hexdigest()
+          current=package.read_bytes()
+          assert digest(current)==digest(repeat.read_bytes()),"Non-deterministic same-source package!"
+          sha=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip()
+          assert sha==os.environ["GITHUB_SHA"],"Checkout/run identity mismatch"
+          with zipfile.ZipFile(io.BytesIO(current)) as bundle:
+              packs={}
+              for name in sorted(bundle.namelist()):
+                  if not name.endswith(".mcpack"): continue
+                  payload=bundle.read(name)
+                  with zipfile.ZipFile(io.BytesIO(payload)) as contents:
+                      manifest=json.loads(contents.read("manifest.json"))
+                  packs[name]={"sha256":digest(payload),"size_bytes":len(payload),
+                              "uuid":manifest["header"]["uuid"],
+                              "version":manifest["header"]["version"]}
+              assert len(packs)==2
+          record={
+              "status":"SOURCE_ONLY_CI_NOT_BDS_TESTED_NOT_RELEASED",
+              "source_commit":sha,
+              "github_run_id":os.environ["GITHUB_RUN_ID"],
+              "source_branch":os.environ["GITHUB_REF_NAME"],
+              "artifact_name":package.name,
+              "artifact_sha256":digest(current),
+              "artifact_bytes":len(current),
+              "packs":packs,
+              "supported_testing":"Copied LAB only; explicit apply required; no production or release"
+          }
+          output=package.with_suffix(".build-manifest.json")
+          output.write_text(json.dumps(record,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+          print("Exact URCE preview artifact SHA-256:",record["artifact_sha256"])
+          print("Build source:",sha)
+          PY
       - name: Retain owner-playable infrastructure preview (not accepted URCE)
         uses: actions/upload-artifact@v4
         with:
           name: HL-URCE-150-READONLY-INFRASTRUCTURE-DEV-NOT-RELEASED
-          path: dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon
+          path: |
+            dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.mcaddon
+            dist/HartLogistics_150_READONLY_INFRASTRUCTURE_DEV_UNVERIFIED.build-manifest.json
           retention-days: 14
           if-no-files-found: error

@@ -7,6 +7,10 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+import subprocess
+import tarfile
+import io
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location(
@@ -116,6 +120,111 @@ class PreviewLabGuard(unittest.TestCase):
                     "BP" if src=="behavior_pack" else "RP"))
                 self.assertEqual(lab.hashes(ROOT/"addon"/src),lab.hashes(installed_dir))
                 self.assertEqual(json.loads((root/"worlds/PlayerWorld"/reg).read_text())[-1]["version"],[1,5,0])
+        finally:tmp.cleanup()
+
+    def _synthetic_142_lab(self):
+        """Reconstruct exact accepted 1.4.2 source in a disposable world."""
+        tmp,root=self._synthetic_lab()
+        base="8c8d9eae4a4396fc8413591b407d0178da6f7a21"
+        cmd=["git","-C",str(ROOT),"archive","--format=tar",base,
+             "addon/behavior_pack","addon/resource_pack"]
+        archive=subprocess.run(cmd,capture_output=True,check=True).stdout
+        with tarfile.open(fileobj=io.BytesIO(archive)) as members:
+            for member in members:
+                if not member.isfile():continue
+                name=Path(member.name)
+                if name.parts[:2] not in (
+                    ("addon","behavior_pack"),("addon","resource_pack")):
+                    raise AssertionError("unexpected archived path")
+                local=name.parts[1]
+                target=root/("behavior_packs" if local=="behavior_pack" else "resource_packs")/(
+                    "HartMods_HartLogistics_BP" if local=="behavior_pack" else
+                    "HartMods_HartLogistics_RP")
+                dest=target.joinpath(*name.parts[2:])
+                dest.parent.mkdir(parents=True,exist_ok=True)
+                dest.write_bytes(members.extractfile(member).read())
+        # Remove preview-only files that don't exist in the 1.4.2 pack.
+        with tarfile.open(fileobj=io.BytesIO(archive)) as members:
+            expected={
+                (Path(m.name).parts[1],Path(*Path(m.name).parts[2:]).as_posix())
+                for m in members if m.isfile()
+            }
+        for local,installed,pack_id,reg in lab.PACKS:
+            target=root/installed/("HartMods_HartLogistics_"+(
+                "BP" if local=="behavior_pack" else "RP"))
+            for path in target.rglob("*"):
+                if path.is_file() and (local,path.relative_to(target).as_posix()) not in expected:
+                    path.unlink()
+            regfile=root/"worlds/PlayerWorld"/reg
+            regfile.write_text(json.dumps([
+                {"pack_id":"11111111-1111-1111-1111-111111111111","version":[3,2,1]},
+                {"pack_id":pack_id,"version":[1,4,2]}
+            ]))
+        return tmp,root
+
+    def test_real_142_pack_upgrades_without_touching_unrelated_registry_entries(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            before={}
+            for local,installed,pack_id,reg in lab.PACKS:
+                target=root/installed/("HartMods_HartLogistics_"+(
+                    "BP" if local=="behavior_pack" else "RP"))
+                before[local]=lab.hashes(target)
+                self.assertEqual(
+                    before[local]["manifest.json"],
+                    lab.BASELINE_142_MANIFESTS["addon/"+local+"/manifest.json"])
+            plan=lab.discover_plan(ROOT,root)
+            self.assertEqual(len(plan),2)
+            self.assertEqual([list(json.loads(lab.remove_jsonc(item["new_registry"]))[-1]["version"])
+                for item in plan],[[1,5,0],[1,5,0]])
+            for item in plan:
+                self.assertEqual(
+                    json.loads(lab.remove_jsonc(item["new_registry"]))[0],
+                    {"pack_id":"11111111-1111-1111-1111-111111111111","version":[3,2,1]})
+            backup=lab.apply_plan(root,plan)
+            self.assertTrue(backup.exists())
+            for local,installed,pack_id,reg in lab.PACKS:
+                target=root/installed/("HartMods_HartLogistics_"+(
+                    "BP" if local=="behavior_pack" else "RP"))
+                self.assertEqual(lab.hashes(target),lab.hashes(ROOT/"addon"/local))
+                entries=json.loads((root/"worlds/PlayerWorld"/reg).read_text())
+                self.assertEqual(entries[0]["version"],[3,2,1])
+                self.assertEqual(entries[1]["version"],[1,5,0])
+        finally:tmp.cleanup()
+
+    def test_142_to_150_rollback_restores_both_packs_and_world_registries(self):
+        tmp,root=self._synthetic_142_lab()
+        try:
+            plan=lab.discover_plan(ROOT,root)
+            old_files={item["target"]:lab.hashes(item["target"]) for item in plan}
+            old_reg={item["registry"]:item["old_bytes"] for item in plan}
+            original_rename=Path.rename
+            def fail_before_second_pack_replace(path,target):
+                if "_HartLogisticsDeployStage" in str(path) and path.name=="1":
+                    raise OSError("synthetic second-pack failure")
+                return original_rename(path,target)
+            with patch.object(Path,"rename",fail_before_second_pack_replace):
+                with self.assertRaises(OSError):lab.apply_plan(root,plan)
+            for target,files in old_files.items():
+                self.assertEqual(lab.hashes(target),files)
+            for registry,content in old_reg.items():
+                self.assertEqual(registry.read_bytes(),content)
+        finally:tmp.cleanup()
+
+    def test_unknown_changed_same_version_preview_refuses_implicit_update(self):
+        tmp,root=self._synthetic_lab()
+        try:
+            target=root/"resource_packs/HartMods_HartLogistics_RP"/(
+                "textures/blocks/hartlogistics_transporter.png")
+            target.write_bytes(target.read_bytes()+b"unreviewed")
+            before={
+                p:p.read_bytes() for p in (root/"worlds/PlayerWorld").iterdir()
+            }
+            with self.assertRaises(lab.UnsafeLab):
+                lab.discover_plan(ROOT,root)
+            self.assertEqual(before,{
+                p:p.read_bytes() for p in (root/"worlds/PlayerWorld").iterdir()
+            })
         finally:tmp.cleanup()
 
 if __name__=="__main__":

@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+> **Current distribution/testing handoff (2026-11-18):** [URCE 1.5 update distribution audit](docs/URCE_150_DISTRIBUTION_AND_TESTING_REVIEW_20261118.md). The `dev/urce-150-runtime-20261118` branch now produces a **non-release 1.5.0 infrastructure-only preview** with its own `scripts/hartlogistics_150_lab_updater.py`, not a complete URCE cargo engine. Original 1.4.2 installer remains 1.4.2-only; source-only GitHub CI is not owner-BDS acceptance. The installed LAB predecessor needs exact-hash preflight; subsequent changed 1.5 candidates need an explicit version/provenance update path. See the review before distributing, installing or testing.
+
 ## CURRENT — 1.5 URCE planning (separate from 1.4.2)
 
 **NEW CHAT — START HERE (2026-11-18):** [OSI-inspired multi-bank routing, owner corrections, and URCE implementation takeover](planning/URCE_150_OSI_MULTIBANK_ROUTING_HANDOFF_20261118.md). This current handoff supersedes earlier assumptions that a **region**, bank-level Bulk controller or inter-controller mesh is a required product feature. There is **Bulk Storage**, never a "Bulk Sorter"; the first-placed Bulk Storage becoming a controller was a historical design, now optional. The owner's *final bank with many Wildcard Sorters* is the intended unclaimed-item outlet. Explore next-hop routing and independent Bulk custody by source-only comparison, not by prematurely installing a seven-layer OSI implementation or changing the 1.4.2 engine.
