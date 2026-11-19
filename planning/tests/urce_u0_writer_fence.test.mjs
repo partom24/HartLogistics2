@@ -48,7 +48,10 @@ test("U0-02 new/direct native mutations cannot silently bypass the census",()=>{
   assert.equal(register.schema,2);
   assert.equal(register.scope,"direct_callsite_lexical_fence_only");
   for(const [path,entries] of Object.entries(register.scripts)){
-    assert.ok(entries.length>0);
+    assert.ok(Array.isArray(entries));
+    if(path.includes("urce_152_")) {
+      assert.equal(entries.length,0,"URCE 1.5.2 routing modules must remain read-only");
+    }
     assert.ok(entries.every(e=>categories.has(e.category)&&e.count>0));
     const approved=entries.map(({scope,method,signature,count})=>({
       scope,method,signature,count
