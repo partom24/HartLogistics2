@@ -103,9 +103,20 @@ export function inspectCandidateSupplyLink({
   if([...ambiguousBankIds].some(id=>reached.has(id)))
     return answer("HOLD","ambiguous_transporter_component");
   if(visual.status==="INCOMPLETE"){
-    // The visual probe does not yet carry a per-component boundary coverage
-    // certificate; a global incomplete result cannot prove safe absence.
-    return answer("HOLD","incomplete_transporter_observation");
+    // Unknown boundaries are source-specific. A separate, disconnected bank
+    // need not block this source's safe *snapshot*, but any incomplete
+    // component or directly adjacent unreadable anchor on the reachable
+    // branch still HOLDs. A source graph change must invalidate this result.
+    const sourceUnknown=visual.unresolved.some(issue=>{
+      if(typeof issue.anchor==="string")return reached.has(issue.anchor);
+      if(Number.isSafeInteger(issue.component)){
+        const component=visual.components[issue.component-1];
+        if(!component)return true;
+        return component.endpointIds.some(id=>reached.has(id));
+      }
+      return true;
+    });
+    if(sourceUnknown)return answer("HOLD","incomplete_transporter_observation");
   }
   for(const issue of native.unknown){
     if(!reached.has(issue.from))continue;
