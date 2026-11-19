@@ -165,7 +165,7 @@ jobs:
       - name: Parse the actual PowerShell launcher and fail-closed operator modes
         shell: pwsh
         run: |
-          $file = (Resolve-Path 'distribution/Start-HartLogistics-151Lab.ps1').Path
+          $file = (Resolve-Path 'distribution/Start-HartLogistics-152Lab.ps1').Path
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
