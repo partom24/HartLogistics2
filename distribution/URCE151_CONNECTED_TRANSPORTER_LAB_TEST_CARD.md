@@ -1,5 +1,7 @@
 # HartLogistics 1.5.1 — owner LAB connected-Transporter visual acceptance
 
+> **2026-11-19 scoped visual closeout — HL-E-URCE151-VISUAL-003:** The owner supplied four in-game screenshots and confirmed that all Transporters were the correct size/shape and connected visually to HartLogistics blocks. **PASS, do not request repeated core/HL-adjacency visual tests.** Later player-led checks in this card remain optional for that accepted scope; only distinct capabilities (e.g., breaking connections, native container endpoints, restart persistence or live routing) could require additional evidence. Exact 1.5.1 installed Git SHA/installer output was not separately supplied with these screenshots. Evidence: [canonical owner record](../docs/URCE_150_OWNER_LAB_INFRA_EVIDENCE_20261118.md). Visual adjacency is not an item-routing proof.
+
 **This is a new, versioned 1.5.0 → 1.5.1 update candidate, not an instruction to change a world yet.** The **only gameplay/asset differences** from the owner's installed 1.5.0 are the 4×4-core Transporter model, six visual connection states, event-driven connection refresh, and the independent version number. Existing Sorter 1.4.2 cargo/Q4 and Collector/Receiver links remain unchanged. Bulk Storage stays an inactive preview.
 
 ## Evidence already accepted — do not make the owner repeat it
