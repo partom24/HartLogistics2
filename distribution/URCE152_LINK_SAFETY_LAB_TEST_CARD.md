@@ -1,6 +1,6 @@
 # HartLogistics 1.5.2 — guarded Collector/Receiver links (copied LAB only)
 
-**SOURCE CANDIDATE; NOT INSTALLED, NOT BDS-PROVED AND NOT RELEASED.** The owner has already built the physical 13-bank storage structure but has not yet placed Transporters, Receivers or Collectors in that array. No need to rebuild the storage structure or retest the already accepted 4x4 connected-Transporter appearance. The prior two-bank UI link success and closed-loop defect belong to a separate test and cannot prove live link registration in the unpopulated 13-bank build.
+**SOURCE CANDIDATE; NOT INSTALLED, NOT BDS-PROVED AND NOT RELEASED.** The owner has already built the physical 13-bank storage structure and confirms that no Transporters, Receivers or Collectors are currently placed in the copied LAB. No need to rebuild the storage structure or retest the already accepted 4x4 connected-Transporter appearance. The prior two-bank UI link success and closed-loop defect belong to a separate test and cannot prove live link registration in the unpopulated 13-bank build.
 
 ## What changed
 
