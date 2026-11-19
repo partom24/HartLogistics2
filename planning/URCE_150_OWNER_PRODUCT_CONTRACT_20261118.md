@@ -1,5 +1,7 @@
 # HartLogistics 1.5 — Owner-approved product end-state contract
 
+> **2026-11-19 binding bank clarification (owner worksheet):** A **bank is one gray Transport Bank run**, not a room or the entire network. The owner's `Storage Array.xlsx` (Sheet1) shows **13 runs joined by 12 Collector→Receiver linkages**, in a directed Start→End chain. The owner confirmed `R19` is linkage (a missed fill), so do not model a disconnection there. See [worksheet-based bank definition, exact route and scope](URCE_150_OWNER_BANK_DEFINITION_STORAGE_ARRAY_20261119.md). The previously observed 2-bank closed supply loop remains a *prohibited* defect (#86), not an exception. These cell coordinates are illustration-only and never Bedrock world coordinates.
+
 **Decision date:** 2026-11-18. **Repository / branch:** partom24/HartLogistics2, planning/urce-150-20261117.  
 **Authority:** Direct owner confirmations from the 2026-11-18 URCE continuation conversation.  
 **Status:** **OWNER-APPROVED PRODUCT REQUIREMENTS / PLANNING ONLY**. Nothing here asserts an implemented feature, an API proof, a BDS observation, a world migration, acceptance, permission to change gameplay, or release approval.
