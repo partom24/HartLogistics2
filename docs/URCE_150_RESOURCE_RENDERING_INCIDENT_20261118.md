@@ -19,3 +19,11 @@
 - If a specific missing alias, entity texture or resource-cache defect is confirmed: fix that exact source issue and release a **new unique BP/RP version** (not reuse `[1,5,0]` under the same UUID), with an explicit verified **1.5.0 → next-version** PowerShell installer and rollback tests. The old 1.4.2 and 1.5.0 backup snapshots, including owner backup `lab-ad81804f1005`, remain protected.
 
 **Status:** Screenshot = real BDS/client rendering failure. **Root cause OPEN** pending installed-LAB doctor output and client content log. CI asset-chain tests cannot certify a player's live client. The new tests and diagnostics add **no gameplay writers, pack format/version change, gameplay code change, or deployment action**.
+
+## 2026-11-18 — Owner LAB diagnostic: documented JSONC comments are not a defect
+
+The owner ran the first resource doctor on the already-installed 1.5.0 copied LAB. BP/RP UUIDs, versions, dependency, server.properties and active ThomasServer checks all PASSED. The diagnostic then failed because its PowerShell ConvertFrom-Json command could not parse existing inline // annotations in world_resource_packs.json (e.g. //XpVault, //HartLogistics, //HartBots). Owner confirms this format has survived many prior restarts and tests. This is a doctor PARSER BUG, not evidence of a malformed world or the cause of the checkerboard rendering.
+
+The guarded Python installer already uses remove_jsonc to support this existing project data. The diagnostic now uses equivalent read-only, quote-aware comment masking before ConvertFrom-Json, preserving the original registry bytes and unrelated add-ons. The Windows test fixture explicitly contains multiple packs, inline // and /* */ comments, a quoted URL containing //, escaped quotes and trailing commas. CI verifies unchanged SHA-256 of the registry across successful scan and missing-texture refusal.
+
+Root-cause status: missing-texture screenshot is still a real, unclassified client rendering failure. The JSONC parser prevented inspecting resource files and server texturepack-required setting. Run only the corrected read-only diagnostic on the existing LAB; do not remove comments, change pack versions, reinstall, restart, or edit world data to work around this tool bug.

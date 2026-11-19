@@ -32,3 +32,7 @@ No live server or saved world has been changed by source-only CI. Initial LAB ac
 ## 2026-11-18 missing texture incident note
 
 The owner reported magenta-and-black checkerboards near the existing storage array under the first 1.5.0 candidate. Treat this as a **rendering acceptance failure**, not a player-placement fault. Before further gameplay tests, run the **read-only** [resource delivery diagnostic](Diagnose-HartLogistics-LABResources.ps1), inspect `texturepack-required` and client Creator Content Log, and preserve world/backup states. Source atlas/PNG checks do not establish client RP activation. [Full incident and evidence](../docs/URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md). No fixed XYZ or item selection required.
+
+## Original multi-addon registry comments are supported
+
+The owner confirmed world_resource_packs.json includes legitimate inline // comments and has been restarted/tested repeatedly. The initial resource doctor incorrectly rejected those comments with strict ConvertFrom-Json. Its corrected parser accepts JSONC without editing the original file. Do not remove comments, manually rewrite registrations, reinstall the add-on, or restrict testing layouts merely to run this read-only diagnostic.

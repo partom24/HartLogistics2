@@ -21,11 +21,90 @@ function Check([bool]$ok,[string]$message) {
     $script:checks++
     Write-Host ('PASS: '+$message)
 }
+function Remove-JsonCComments([string]$text) {
+    # Matches the project's guarded Python updater: preserve quoted strings
+    # and newline/character offsets while masking // and /* */ comments.
+    # In particular, https:// and escaped quotation marks inside JSON strings
+    # must never be interpreted as comments.
+    $chars=$text.ToCharArray()
+    $inString=$false
+    $i=0
+    while($i -lt $chars.Length){
+        $ch=$chars[$i]
+        if($inString){
+            if($ch -eq [char]92){ $i+=2; continue }
+            if($ch -eq [char]34){ $inString=$false }
+            $i++
+            continue
+        }
+        if($ch -eq [char]34){ $inString=$true; $i++; continue }
+        if($ch -eq [char]47 -and ($i+1) -lt $chars.Length){
+            $next=$chars[$i+1]
+            $end=$i+2
+            if($next -eq [char]47){
+                while($end -lt $chars.Length -and
+                      $chars[$end] -ne [char]10 -and
+                      $chars[$end] -ne [char]13){ $end++ }
+            } elseif($next -eq [char]42){
+                while(($end+1) -lt $chars.Length -and
+                      -not ($chars[$end] -eq [char]42 -and $chars[$end+1] -eq [char]47)){
+                    $end++
+                }
+                if(($end+1) -ge $chars.Length){
+                    throw 'RESOURCE PREFLIGHT REFUSED: Unterminated JSONC block comment'
+                }
+                $end+=2
+            } else {
+                $i++
+                continue
+            }
+            for($k=$i;$k -lt $end;$k++){
+                if($chars[$k] -ne [char]10 -and $chars[$k] -ne [char]13){
+                    $chars[$k]=[char]32
+                }
+            }
+            $i=$end
+            continue
+        }
+        $i++
+    }
+    if($inString){
+        throw 'RESOURCE PREFLIGHT REFUSED: Unterminated JSONC quoted string'
+    }
+
+    # Also tolerate optional trailing commas, without altering commas inside
+    # strings or the underlying registry file.
+    $inString=$false
+    for($i=0;$i -lt $chars.Length;$i++){
+        $ch=$chars[$i]
+        if($inString){
+            if($ch -eq [char]92){ $i++; continue }
+            if($ch -eq [char]34){ $inString=$false }
+            continue
+        }
+        if($ch -eq [char]34){ $inString=$true; continue }
+        if($ch -ne [char]44){ continue }
+        $j=$i+1
+        while($j -lt $chars.Length -and [char]::IsWhiteSpace($chars[$j])){ $j++ }
+        if($j -lt $chars.Length -and
+           ($chars[$j] -eq [char]93 -or $chars[$j] -eq [char]125)){
+            $chars[$i]=[char]32
+        }
+    }
+    return (-join $chars)
+}
 function Json([string]$file){
     if(-not (Test-Path -LiteralPath $file -PathType Leaf)){
         throw ('RESOURCE PREFLIGHT REFUSED: Missing '+$file)
     }
-    Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
+    $raw=Get-Content -LiteralPath $file -Raw -Encoding UTF8
+    try {
+        $normalized=Remove-JsonCComments $raw
+        return ($normalized | ConvertFrom-Json)
+    } catch {
+        throw ('RESOURCE PREFLIGHT REFUSED: Could not parse JSONC in '+
+               $file+': '+$_.Exception.Message)
+    }
 }
 function Refs([object]$obj){
     if($null -eq $obj -or $obj -is [string]){return}

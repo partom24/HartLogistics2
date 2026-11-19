@@ -174,17 +174,42 @@ jobs:
                   'texturepack-required=true'
                   'content-log-file-enabled=true'
               )
-              $registration = @(
-                  @{pack_id='91316442-0f26-4fbb-88f3-2e39ea843a1a';version=@(1,5,0)}
-              ) | ConvertTo-Json -Depth 8
-              Set-Content -LiteralPath (Join-Path $lab 'worlds\ThomasServer\world_resource_packs.json') -Value $registration
+              # Owner-format JSONC with multiple independently registered packs,
+              # inline // annotations, block comments, quoted URLs, escaped
+              # quotation marks, and optional trailing commas. No writes by doctor.
+              $registration = @'
+          [
+              { //XpVault
+                  "pack_id":"71326c42-6c3c-49e4-99e4-6f6e4d64c2f9",
+                  "version":[2,0,2],
+                  "support_url":"https://example.org/path//valid?name=\"test\""
+              },
+              { //HartLogistics
+                  "pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a",
+                  "version":[1,5,0,],
+              },
+              { /* HartBots registered resource pack */
+                  "pack_id":"316ea1b2-fc60-48e4-afc8-6816b02a5406",
+                  "version":[1,7,13]
+              }
+          ]
+          '@
+              $registrationPath = Join-Path $lab 'worlds\ThomasServer\world_resource_packs.json'
+              Set-Content -LiteralPath $registrationPath -Value $registration
+              $hashBefore=(Get-FileHash -LiteralPath $registrationPath -Algorithm SHA256).Hash
               & .\distribution\Diagnose-HartLogistics-LABResources.ps1
-              if ($LASTEXITCODE -ne 0) { throw 'Pack source should pass synthetic LAB resource scan' }
+              if ($LASTEXITCODE -ne 0) { throw 'Commented multi-pack JSONC should PASS synthetic LAB resource scan' }
+              if ((Get-FileHash -LiteralPath $registrationPath -Algorithm SHA256).Hash -ne $hashBefore) {
+                  throw 'Read-only resource doctor modified the original JSONC registration!'
+              }
               $texture = Join-Path $lab 'resource_packs\HartMods_HartLogistics_RP\textures\blocks\hartlogistics_transporter.png'
               Remove-Item -LiteralPath $texture -Force
               & .\distribution\Diagnose-HartLogistics-LABResources.ps1
               if ($LASTEXITCODE -ne 2) { throw 'Missing PNG must fail-closed with exit 2' }
-              Write-Output 'Read-only resource doctor PASS and missing-PNG refusal PASS on disposable runner'
+              if ((Get-FileHash -LiteralPath $registrationPath -Algorithm SHA256).Hash -ne $hashBefore) {
+                  throw 'Diagnostic modified unrelated JSONC registration during missing-asset refusal!'
+              }
+              Write-Output 'JSONC multi-pack read-only diagnostic PASS and missing-PNG refusal PASS on disposable runner'
           } finally {
               if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
           }
