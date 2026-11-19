@@ -157,6 +157,37 @@ jobs:
           if ($errors.Count -gt 0) { throw ('Resource diagnostic PowerShell syntax: '+($errors | Out-String)) }
           & $file -SourceOnly
           if ($LASTEXITCODE -ne 0) { throw 'Read-only resource doctor source mode failed' }
+      - name: Exercise resource doctor on disposable Windows LAB and missing PNG
+        shell: pwsh
+        run: |
+          $lab = 'C:\Servers\Thomas_MCBedrock - Copy (2)'
+          if (Test-Path -LiteralPath $lab) { throw 'Refuse pre-existing Windows test LAB fixture' }
+          try {
+              New-Item -ItemType Directory -Path $lab -Force | Out-Null
+              New-Item -ItemType Directory -Path (Join-Path $lab 'behavior_packs') -Force | Out-Null
+              New-Item -ItemType Directory -Path (Join-Path $lab 'resource_packs') -Force | Out-Null
+              New-Item -ItemType Directory -Path (Join-Path $lab 'worlds\ThomasServer') -Force | Out-Null
+              Copy-Item -LiteralPath 'addon\behavior_pack' -Destination (Join-Path $lab 'behavior_packs\HartMods_HartLogistics_BP') -Recurse
+              Copy-Item -LiteralPath 'addon\resource_pack' -Destination (Join-Path $lab 'resource_packs\HartMods_HartLogistics_RP') -Recurse
+              Set-Content -LiteralPath (Join-Path $lab 'server.properties') -Value @(
+                  'level-name=ThomasServer'
+                  'texturepack-required=true'
+                  'content-log-file-enabled=true'
+              )
+              $registration = @(
+                  @{pack_id='91316442-0f26-4fbb-88f3-2e39ea843a1a';version=@(1,5,0)}
+              ) | ConvertTo-Json -Depth 8
+              Set-Content -LiteralPath (Join-Path $lab 'worlds\ThomasServer\world_resource_packs.json') -Value $registration
+              & .\distribution\Diagnose-HartLogistics-LABResources.ps1
+              if ($LASTEXITCODE -ne 0) { throw 'Pack source should pass synthetic LAB resource scan' }
+              $texture = Join-Path $lab 'resource_packs\HartMods_HartLogistics_RP\textures\blocks\hartlogistics_transporter.png'
+              Remove-Item -LiteralPath $texture -Force
+              & .\distribution\Diagnose-HartLogistics-LABResources.ps1
+              if ($LASTEXITCODE -ne 2) { throw 'Missing PNG must fail-closed with exit 2' }
+              Write-Output 'Read-only resource doctor PASS and missing-PNG refusal PASS on disposable runner'
+          } finally {
+              if (Test-Path -LiteralPath $lab) { Remove-Item -LiteralPath $lab -Force -Recurse }
+          }
       - name: Run source-only one-file PowerShell Plan through its Git/Python handoff
         shell: pwsh
         run: |
