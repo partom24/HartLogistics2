@@ -37,6 +37,9 @@ jobs:
       - name: URCE U1 source-executed actual 1.4.2 filter and native admission boundary
         if: github.ref_name == 'planning/urce-150-20261117'
         run: node --test planning/tests/urce_u1_source_gate_differential_142.test.mjs
+      - name: URCE U0 exact 1.4.2 writer and callback source census
+        if: github.ref_name == 'planning/urce-150-20261117'
+        run: node --test planning/tests/urce_u0_writer_census_142.test.mjs
       - name: Confirm original 1.4.1 regression witnesses independently
         shell: bash
         run: |
