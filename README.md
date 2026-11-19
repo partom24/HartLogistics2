@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+**Cross-branch distribution correction (2026-11-18):** [Recovered PowerShell-first LAB update workflow](docs/URCE_150_POWERSHELL_DISTRIBUTION_PROCESS_RECOVERY_20261118.md). A one-file PowerShell launcher was the historic owner-facing Plan/CheckLab/Install/Rollback interface; it handled exact Git verification and called a guarded Python backend. Current 1.5.0 preview does not yet ship this operator interface or a full explicit post-install rollback. Previous manual Git/Python handoff is withdrawn as the canonical recommendation.
+
 > **Current distribution/testing handoff (2026-11-18):** [URCE 1.5 update distribution audit](docs/URCE_150_DISTRIBUTION_AND_TESTING_REVIEW_20261118.md). The `dev/urce-150-runtime-20261118` branch now produces a **non-release 1.5.0 infrastructure-only preview** with its own `scripts/hartlogistics_150_lab_updater.py`, not a complete URCE cargo engine. Original 1.4.2 installer remains 1.4.2-only; source-only GitHub CI is not owner-BDS acceptance. The installed LAB predecessor needs exact-hash preflight; subsequent changed 1.5 candidates need an explicit version/provenance update path. See the review before distributing, installing or testing.
 
 ## CURRENT — 1.5 URCE planning (separate from 1.4.2)

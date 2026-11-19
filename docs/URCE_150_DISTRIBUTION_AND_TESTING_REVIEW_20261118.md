@@ -24,28 +24,15 @@
 | DIST-07 | There is no evidence that the player's current LAB installed pack hashes/world registry have been matched by a Windows dry-run of this new 1.5 updater. | **OPEN target-specific preflight**. The updater should refuse unknown states rather than improvise an installation. Do not assert initial upgrade or rollback is safe on the owner's actual LAB merely because synthetic tests pass. |
 | DIST-08 | No actual **new URCE end-to-end item-routing runtime** is enabled: U1/U2 are offline models and the new visible blocks are a diagnostics-only shell. | **Separate product gate OPEN**. The current artifact is valid for an **infrastructure preview test**, not for concluding 1.5 cargo throughput, Bulk behavior, or MR custody integration. |
 
-## 3. Canonical source-to-LAB handoff (not an instruction to execute now)
+## 3. Corrected owner distribution — PowerShell-first
 
-**Developer/CI:** freeze a commit, wait for all required CI jobs on that **exact SHA**, collect the successful-run `.mcaddon` and accompanying `.build-manifest.json`; independently record build identity and hash. Do not call it LAB-ready until accepted-predecessor checks and a player test card are scoped.
+The previous review described a manual Git checkout and Python execution as the canonical owner process. **This was incorrect.** See [cross-branch PowerShell process recovery](URCE_150_POWERSHELL_DISTRIBUTION_PROCESS_RECOVERY_20261118.md). Historical HartLogistics PG and UCE LAB candidates used one PowerShell operator launcher for **Plan / CheckLab / Install -Apply / Rollback -BackupTag -Apply**. It managed safe Git source checkout and delegated exact hash/registry/backup operations to a guarded Python backend. A separate UCE PowerShell **Prepare / Finish / Restore** path supported freeform testing on a newly generated LAB world.
 
-**Owner on Windows, after a specific LAB trial is authorized and LAB BDS is stopped** (example commands; substitute the exact *candidate* full SHA, not a moving branch head):
-
-```powershell
-git fetch origin
-git checkout --detach <FULL_40_CHARACTER_APPROVED_CANDIDATE_SHA>
-git status --short
-python scripts/hartlogistics_150_lab_updater.py --commit <FULL_40_CHARACTER_APPROVED_CANDIDATE_SHA>
-# Only after reviewing dry-run source/installed-version/registry checks:
-python scripts/hartlogistics_150_lab_updater.py --commit <FULL_40_CHARACTER_APPROVED_CANDIDATE_SHA> --apply
-```
-
-These commands execute **only from the expected Git checkout** and only on the exact copied LAB path. A refused preflight is a signal to inspect evidence, not to manually copy files around the updater. Do **not** run either updater on production or treat `--apply` as approved by the existence of this procedure. Preserve its reported backup path and do not remove it before acceptance.
-
-**Post-install:** verify Bedrock server start and actual pack version/UUIDs, no loader/script errors, block registration, visible Transporter graph under arbitrary valid placement, absence of accidental 1.5 custody writes, and unaffected previously accepted legacy routing when affected by the wrapper. Retain rollback and source/run ID and observed data. If prior proof remains unaffected, cite evidence instead of rebuilding old manual rigs.
+The current 1.5 preview **does not yet have a matching PowerShell launcher or explicit post-install rollback mode**. CI-green source and mcaddon do NOT establish completion of the historic distribution process. Do not instruct the owner to manually detach Git and invoke Python as the project's ordinary distribution interface. Rebuild the PowerShell operator path with exact current branch and predecessor constraints before an owner installation recommendation.
 
 ## 4. Decision for current distribution
 
-**Current 1.5.0 preview:** after exact-head green CI, may be **nominated for a narrowly scoped owner-controlled infrastructure LAB test**; not accepted for cargo-routing or public release. Its exact installed-predecessor match remains an owner preflight matter.
+**Current 1.5.0 preview:** source and package CI passed, but the historic PowerShell operator release-to-LAB interface and full explicit rollback are not yet present. Complete and test this distribution interface before describing the preview as owner-installable.
 
 **Second 1.5.0 or newer runtime candidate:** **DO NOT** assume the existing installer will apply it; resolve DIST-01 version/provenance upgrade chain and rerun the correct synthetic and actual LAB preflight first. Avoid same-version overwrites that hide changed gameplay bytes.
 
