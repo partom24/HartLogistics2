@@ -47,6 +47,14 @@ A subsequent Git pull does **not** silently deploy an add-on, rewrite Bedrock pa
 - Refuse unrecognized versions, wrong branch/checkout, dirty worktree, symlinked sources, stale pin, unexpected LAB predecessor, production directory, missing backup or any ambiguous ownership. Do not work around a `REFUSED` by hand copying pack files.
 - `main` remains the canonical archive for historical evidence and old operator processes. The current stable launcher is part of the **active URCE branch**; new branches must carry it forward.
 
+## Current versioned safety candidate — 1.5.2
+
+The fixed entrypoint `distribution/Start-HartLogistics-Lab.ps1` now defaults to **1.5.2**, preserving the same Plan/CheckLab/Install/Rollback flags and Git-pull workflow. The guarded backend is `scripts/hartlogistics_152_lab_updater.py`, with a pinned, immutable **1.5.1 exact-pack predecessor**. `-CandidateVersion 1.5.1` retains the historical versioned 1.5.1 wrapper (for an explicitly selected prior candidate), but must not be used to bypass the current 1.5.2 source/compatibility gates.
+
+**Critical owner state:** The owner confirms all 13 **physical storage runs** are built in copied LAB, but no Transporter, Receiver or Collector has been placed in this 13-bank array. The older owner-confirmed 2-bank Collector/Receiver link loop is a *different* regression fixture. Do not infer current 13-bank link registration from the workbook; do not require owner to reconstruct the 13-bank storage room. The current link-safety source candidate is *not* a playable full URCE/Bulk system.
+
+**Install authority remains separate.** Only after a successful exact-HEAD source/Windows updater CI and explicit owner approval may a stopped copied LAB CheckLab determine if the actual installed BP/RP bytes and registrations match 1.5.1. If absent/older/unknown, the updater must REFUSE (do not hand-copy files, skip predecessor versions, or touch production). A Git pull is not an install.
+
 ## Current acceptance scope
 
 Owner-confirmed 1.5.1 Transporter compact 4×4 geometry and face-adjacent HartLogistics visual connections are **scoped visual PASS** (HL-E-URCE151-VISUAL-003). Actual full URCE routing, Bulk custody, native MR carrier integration, quantitative performance and release remain open. This distribution-only change does not enable any new custody writer or touch owner LAB/production files.
