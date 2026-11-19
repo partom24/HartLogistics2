@@ -203,3 +203,9 @@ Dated engineering record for **HartLogistics2 only**. The inherited blueprint te
 - Only warning: **`texturepack-required is not true`**. The BDS setting controls whether the client *must* use world resource packs, but warning alone does **not** prove the client declined the pack or that this caused the checkerboards. Full evidence and bounded next client-download/Creator Content Log / optional LAB-only backed-up force-pack experiment in [incident record](URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md).
 - Do not rewrite protected JSONC or install a speculative same-version pack; pack files pass doctor, root cause is client-facing and remains OPEN.
 
+## 2026-11-18 — Force-client-resource-pack check did not repair checkerboards
+
+- Owner enabled `texturepack-required=true` on the copied LAB, restarted/reconnected and supplied a second screenshot still showing magenta/black render placeholders near the existing storage Sorter/filter-display area. Enforcement is **not the fix**, and the full 168-check server pack PASS remains valid. Do not repeat the same setting experiment or blame historic JSONC comments.
+- Source investigation: populated legacy Sorters use `hartsorter:filter_display` custom armor-stand-runtime entity holding `rebuildItem(e.f)`; its own geometry declares no visible cubes. Therefore the displayed **held filter-item model or another addon item/visual asset** is a plausible narrower missing-texture path, **not confirmed by screenshot alone**. Native Item Frame is a separate original path.
+- Next information must identify actual failing item/resource from **client Creator Content Log** or a no-destruction selection inspection. [Full incident and source distinction](URCE_150_RESOURCE_RENDERING_INCIDENT_20261118.md). No pack/world/deployment source was changed.
+
