@@ -123,3 +123,24 @@ test("LINK-10 relink checking changes no saved Q4/Collector links",()=>{
   assert.equal(plan(f,"C0","R1").decision,"SAFE_SNAPSHOT");
   assert.equal(JSON.stringify(f.collectors),before);
 });
+
+
+test("LINK-11 unrelated unloaded bank does not block a disjoint source snapshot",()=>{
+  const f=worlds(3);
+  f.collectors[0].link=null;f.collectors[1].link=null;
+  const unreachable=key(f.d,{x:26,y:66,z:0});
+  const reader=(d,p)=>key(d,p)===unreachable?undefined:f.getBlock(d,p);
+  const result=plan({...f,getBlock:reader},"C0","R1");
+  assert.equal(result.decision,"SAFE_SNAPSHOT");
+  assert.equal(result.persistPermitted,false);
+});
+
+test("LINK-12 source-reachable uncertain connection remains HOLD",()=>{
+  const f=worlds(3);
+  f.collectors[0].link=null;f.collectors[1].link=null;
+  const reachable=key(f.d,{x:14,y:66,z:0});
+  const reader=(d,p)=>key(d,p)===reachable?undefined:f.getBlock(d,p);
+  const result=plan({...f,getBlock:reader},"C0","R1");
+  assert.equal(result.decision,"HOLD");
+  assert.equal(result.persistPermitted,false);
+});
