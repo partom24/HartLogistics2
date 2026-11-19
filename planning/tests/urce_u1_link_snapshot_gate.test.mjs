@@ -144,3 +144,28 @@ test("LINK-12 source-reachable uncertain connection remains HOLD",()=>{
   assert.equal(result.decision,"HOLD");
   assert.equal(result.persistPermitted,false);
 });
+
+test("LINK-13 Collector->Receiver-only network remains valid with no output Hopper or Transporter",()=>{
+  const f=worlds(1);
+  for(let x=1;x<=4;x++)
+    f.world.delete(key(f.d,{x,y:66,z:0}));
+  f.collectors[0].link=null;
+  const result=plan(f,"C0","R0");
+  assert.equal(result.decision,"SAFE_SNAPSHOT");
+  assert.equal(result.persistPermitted,false);
+  assert.equal(result.executePermitted,false);
+});
+
+test("LINK-14 adding a physical bank can invalidate an earlier link snapshot",()=>{
+  const f=worlds(1);
+  for(let x=1;x<=4;x++)
+    f.world.delete(key(f.d,{x,y:66,z:0}));
+  const before=plan(f,"C0","R0");
+  assert.equal(before.decision,"SAFE_SNAPSHOT");
+  for(let x=1;x<=4;x++)
+    f.world.set(key(f.d,{x,y:66,z:0}),block("hartsorter:transporter"));
+  const after=plan(f,"C0","R0");
+  assert.equal(after.decision,"REJECT");
+  assert.equal(after.reason,"cycle");
+  // No observer mutation; runtime must re-audit when the world changes.
+});
