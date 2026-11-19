@@ -37,18 +37,44 @@ export function observeSupplyLinkSnapshot({
   if(!Array.isArray(collectors)||!Array.isArray(receivers)||
      typeof getBlock!=="function")
     return {status:"INVALID",native:null,visual:null};
+  // Native/visual probes overlap on many endpoint and neighboring blocks.
+  // Deduplicate native getBlock calls in this *single observation*; never
+  // retain Block objects into later ticks, and never invent loaded air.
+  const readCache=new Map();
+  let uniqueWorldReads=0,cacheHits=0;
+  function cachedBlock(d,p) {
+    const key=d+"|"+p.x+"|"+p.y+"|"+p.z;
+    if(readCache.has(key)){
+      cacheHits++;
+      const entry=readCache.get(key);
+      if(entry.failed)throw entry.error;
+      return entry.block;
+    }
+    uniqueWorldReads++;
+    try {
+      const block=getBlock(d,p);
+      readCache.set(key,{failed:false,block});
+      return block;
+    } catch(error) {
+      readCache.set(key,{failed:true,error});
+      throw error;
+    }
+  }
   const native=observeNativeHopperWitness({
-    collectors,receivers,getBlock,maxReads:maxNativeReads,maxHopsPerReceiver
+    collectors,receivers,getBlock:cachedBlock,
+    maxReads:maxNativeReads,maxHopsPerReceiver
   });
   if(native.status==="INVALID")
-    return {status:"INVALID",native,visual:null};
+    return {status:"INVALID",native,visual:null,
+      readCounts:{uniqueWorldReads,cacheHits}};
   const visual=observeTransporterComponents({
     anchors:[
       ...receivers.map(r=>({...r,kind:"receiver"})),
       ...collectors.map(c=>({...c,kind:"collector"}))
-    ],getBlock,maxReads:maxTransporterReads,maxTransporters
+    ],getBlock:cachedBlock,maxReads:maxTransporterReads,maxTransporters
   });
-  return {status:visual.status==="INVALID"?"INVALID":"OBSERVED",native,visual};
+  return {status:visual.status==="INVALID"?"INVALID":"OBSERVED",
+    native,visual,readCounts:{uniqueWorldReads,cacheHits}};
 }
 
 export function inspectCandidateSupplyLink({

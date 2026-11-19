@@ -4,6 +4,7 @@ import {readFileSync} from "node:fs";
 import {resolve,dirname} from "node:path";
 import {fileURLToPath} from "node:url";
 import {createLiveLinkGuard} from "../../addon/behavior_pack/scripts/urce_152_live_link_guard.js";
+import {observeSupplyLinkSnapshot} from "../../addon/behavior_pack/scripts/urce_152_link_snapshot_gate.js";
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"../..");
 const read=p=>readFileSync(resolve(ROOT,p),"utf8");
@@ -178,4 +179,38 @@ test("LIVE-11 source read-provider change triggers re-observation",()=>{
    currentTick:70});
  assert.equal(result.decision,"HOLD");
  assert.equal(g.stats().worldScans,baseline+1);
+});
+
+test("LIVE-12 native Hopper and Transporter observers deduplicate Bedrock Block reads",()=>{
+ const f=fixture(13);
+ const obs=observeSupplyLinkSnapshot({
+   collectors:f.collectors,receivers:f.receivers,getBlock:f.getBlock
+ });
+ assert.equal(obs.status,"OBSERVED");
+ assert.equal(obs.readCounts.uniqueWorldReads,f.reads);
+ assert.ok(obs.readCounts.cacheHits>=26,
+   "The same 13 Receiver and 13 Collector blocks are read by both observers");
+ assert.ok(obs.readCounts.uniqueWorldReads <
+   obs.native.metrics.reads+obs.visual.reads,
+   "A Bedrock endpoint must not be fetched twice for one observation");
+ assert.equal(obs.native.graph.status,"OK");
+ assert.equal(obs.visual.components.length,13);
+});
+
+test("LIVE-13 unknown native results remain UNKNOWN in BOTH overlapping probes",()=>{
+ const f=fixture(2);
+ let calls=0;
+ const read=(d,p)=>{
+   calls++;
+   if(p.x===0&&p.y===80&&p.z===0)throw Error("synthetic unloaded");
+   return f.getBlock(d,p);
+ };
+ const obs=observeSupplyLinkSnapshot({
+   collectors:f.collectors,receivers:f.receivers,getBlock:read
+ });
+ assert.equal(obs.readCounts.uniqueWorldReads,calls);
+ assert.ok(obs.readCounts.cacheHits>=4);
+ assert.equal(obs.native.unknown.some(x=>x.reason==="get_block_failed"),true);
+ assert.equal(obs.visual.unresolved.some(x=>x.reason==="get_block_failed"),true);
+ assert.equal(obs.visual.coverageComplete,false);
 });
