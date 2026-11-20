@@ -1,0 +1,52 @@
+name: URCE 1.5.8 source-only hotpath and custody integration proof
+
+on:
+  push:
+    branches:
+      - dev/urce-158-hotpath-safety-20261120
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-runtime-proofs:
+    name: Source-executed full runtime, Q4 writer fences and topology
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate project, blueprint and live runtime syntax
+        run: |
+          python3 scripts/validate_blueprint.py --release-gate
+          for file in addon/behavior_pack/scripts/*.js; do node --check "$file"; done
+          node --check planning/src/urce_u1_solid_terminal_probe.mjs
+          node --check runtime/tests/urce_full_runtime_native_budget.test.mjs
+      - name: Guard historical physical and Q4 writers
+        run: node --test planning/tests/urce_u0_writer_fence.test.mjs
+      - name: Run full source-executed Bedrock API census with strict budgets
+        run: |
+          mkdir -p "$RUNNER_TEMP/hart-native-source-profiles"
+          node --cpu-prof --cpu-prof-dir="$RUNNER_TEMP/hart-native-source-profiles" --test runtime/tests/urce_native_api_budget_trace.test.mjs
+          node --experimental-vm-modules --cpu-prof --cpu-prof-dir="$RUNNER_TEMP/hart-native-source-profiles" --test runtime/tests/urce_full_runtime_native_budget.test.mjs
+      - name: Pure source topology, existing versioned custody and terminal regression
+        run: |
+          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u1_transporter_bank_probe.test.mjs planning/tests/urce_u1_link_snapshot_gate.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_152_live_wiring.test.mjs runtime/tests/urce_154_perf_idle.test.mjs runtime/tests/urce_155_journal_idle.test.mjs runtime/tests/urce_157_native_boundary_diagnostic.test.mjs runtime/tests/urce_158_solid_terminal_probe.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
+      - name: Bedrock resource and diagnostic parser regression
+        run: |
+          node --test runtime/tests/urce_150_resource_integrity.test.mjs
+          python3 -m unittest discover -s runtime/tests -p test_urce_150_content_log_parser.py -v
+      - name: Preserve full source-only CPU data (NOT native Bedrock latency)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HL-URCE-158-SOURCE-CALL-CENSUS-NOT-BDS
+          path: ${{ runner.temp }}/hart-native-source-profiles/*.cpuprofile
+          if-no-files-found: warn
+      - name: No same-version gameplay build
+        run: |
+          test ! -e dist/HartLogistics_158_RUNTIME_DEV_UNVERIFIED.mcaddon
+          echo "SOURCE-ONLY REVIEW. NO gameplay packaging, installer, world, Q4 or production operations."
