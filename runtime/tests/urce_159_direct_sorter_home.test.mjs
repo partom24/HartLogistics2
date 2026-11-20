@@ -374,3 +374,22 @@ test("GO-24 a nearby unconnected chest, mismatched terminal coordinates, or seco
     assert.equal(run(collector,receiver).decision,"HOLD");
   }
 });
+
+test("GO-25 unrelated terminal chests without a registered local column do NOT trigger a second global graph scan",()=>{
+  const receiver={id:"minecraft:overworld|0|73|0",d:"minecraft:overworld",x:0,y:73,z:0};
+  const collector={id:"C",link:receiver.id};
+  let observed=0,expensive=0;
+  const run=extractMainFunction("liveLinkCheck",{
+    logistics:{collectors:[collector],receivers:[receiver]},
+    activeLogisticsPass:undefined,system:{currentTick:17},
+    liveTopologyBlockReader:()=>undefined,dirty:false,columns:[],
+    liveLinkGuard:{check(){observed++;return {decision:"HOLD",
+      reason:"unverified_native_supply_boundary",
+      sourceReachableUnknownCount:1,
+      observationReason:"unsupported_native_boundary [minecraft:chest @ minecraft:overworld 0,72,-1 from receiver "+receiver.id+"]"};}},
+    directSorterOutlet(){expensive++;throw Error("should not inspect outlet");}
+  });
+  assert.equal(run(collector,receiver).decision,"HOLD");
+  assert.equal(observed,1);
+  assert.equal(expensive,0);
+});
