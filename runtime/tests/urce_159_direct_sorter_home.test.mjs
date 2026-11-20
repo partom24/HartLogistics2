@@ -34,7 +34,8 @@ function inventory(items=[],size=5){
   };
 }
 function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
-  full=false,side=false,sideType="minecraft:hopper",
+  full=false,side=false,sideType="minecraft:hopper",sideAt="hopper",
+  sideDx=1,sideDz=0,sideFacing=0,parallelColumns=0,
   direction=0,locked=false,missing=false,duplicate=false,
   hiddenSorter=false,belowChestHopper=false,mode2="bypass",autoSeed=false}={}){
   const dim="minecraft:overworld",m=new Map();
@@ -50,7 +51,11 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   const chest2=mk("minecraft:barrel",x+1,y-3,z,{inv:inventory()});
   for(const b of [rx,hop,sorter1,sorter2,chest1,chest2,
     mk("minecraft:stone",x,y-4,z)])set(b);
-  if(side)set(mk(sideType,x+1,y-1,z,{inv:sideType==="minecraft:chest"?inventory():undefined}));
+  if(side)set(mk(sideType,x+sideDx,sideAt==="receiver"?y:y-1,z+sideDz,{
+    facing:sideFacing,inv:sideType==="minecraft:chest" ||
+      sideType==="minecraft:barrel" || sideType==="example:active_pipe"
+      ?inventory():undefined
+  }));
   if(hiddenSorter)set(mk("hartsorter:sorter",x,y-4,z));
   if(belowChestHopper)set(mk("minecraft:hopper",x+1,y-4,z,{facing:0}));
   const owners=[
@@ -59,6 +64,14 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   ];
   const column={d:dim,source:{x,y:y-1,z},sorters:owners};
   const columns=duplicate?[column,{...column}]:[column];
+  for(let n=0;n<parallelColumns;n++) {
+    const otherX=x+n+10,otherZ=z;
+    const other=mk("hartsorter:sorter",otherX,y-2,otherZ);
+    set(other);
+    columns.push({d:dim,source:{x:otherX,y:y-1,z:otherZ},
+      sorters:[{d:dim,x:otherX,y:y-2,z:otherZ,m:"filter",
+        f:{match:{typeId:filter}}}]});
+  }
   return {receiver:{d:dim,id:`${dim}|${x}|${y}|${z}`,x,y,z},
     output:hop,columns,owners,inv1,inv2:chest2.getComponent("minecraft:inventory").container,
     readBlock(_d,pos){if(missing&&pos.x===x+1&&pos.y===y-1)return undefined;
@@ -138,15 +151,15 @@ test("GO-08 non-stackable native MR stays outside count-only home adapter",async
   assert.equal(home.status,"HOLD");assert.equal(home.reason,"native_metadata_custody_required");
 });
 for(const [name,config,reason] of [
-  ["side Hopper",{side:true},"side_managed_or_native_route"],
-  ["side Transporter",{side:true,sideType:"hartsorter:transporter"},"side_managed_or_native_route"],
+  ["foreign active side inventory",{side:true,sideType:"example:active_pipe"},"foreign_side_inventory_boundary"],
+  ["side Hopper direction unknown",{side:true,sideFacing:"unknown"},"adjacent_hopper_direction_unknown"],
   ["missing chunk",{missing:true},"side_block_unavailable"],
   ["not-down facing",{direction:5},"output_hopper_not_downward"],
   ["redstone powered",{locked:true},"output_hopper_locked_or_unknown"],
   ["duplicate column",{duplicate:true},"source_column_not_unique"],
   ["unregistered hidden Sorter",{hiddenSorter:true},"sorter_run_boundary_unknown"],
   ["Hopper extracting from output storage",{belowChestHopper:true,mode2:"filter"},"storage_hopper_extractor_present"],
-  ["foreign inventory",{side:true,sideType:"minecraft:chest"},"side_inventory_boundary"]
+  ["duplicate source with competing output",{duplicate:true},"source_column_not_unique"]
 ]){
   test("GO-09 fail-closed "+name,async()=>{
     const {outlet,home}=await evaluation(config);
@@ -154,6 +167,56 @@ for(const [name,config,reason] of [
     assert.equal(home.status,"HOLD");
   });
 }
+
+test("GO-17 all four sides at both Receiver/Hopper heights permit passive chest/barrel neighbors",async()=>{
+  for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+    for(const sideAt of ["receiver","hopper"]) {
+      for(const sideType of ["minecraft:chest","minecraft:barrel"]) {
+        const {outlet,home}=await evaluation({side:true,sideDx:dx,sideDz:dz,sideAt,sideType});
+        assert.equal(outlet.status,"CLOSED_DIRECT_OUTLET",
+          sideType+" at "+sideAt+" "+dx+","+dz+" "+outlet.reason);
+        assert.equal(home.status,"HOME_OBSERVED");
+        assert.equal(home.tier,"filter");
+      }
+    }
+  }
+});
+
+test("GO-18 neighboring native Hopper direction is NOT another outlet of downward source Hopper",async()=>{
+  for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+    for(const sideAt of ["receiver","hopper"]) {
+      for(const sideFacing of [0,1,2,3,4,5]) {
+        const {outlet,home}=await evaluation({side:true,sideDx:dx,sideDz:dz,sideAt,sideFacing});
+        assert.equal(outlet.status,"CLOSED_DIRECT_OUTLET",
+          "adjacent Hopper "+dx+","+dz+" at "+sideAt+" dir "+sideFacing+" "+outlet.reason);
+        assert.equal(home.status,"HOME_OBSERVED");
+      }
+    }
+  }
+});
+
+test("GO-19 registered parallel columns, nearby Hart blocks and dense bank layouts are not phantom side outputs",async()=>{
+  for(const sideType of [
+    "hartsorter:sorter","hartsorter:transporter","hartsorter:collector",
+    "hartsorter:receiver","hartsorter:bulk_storage"
+  ]) {
+    const {outlet,home}=await evaluation({
+      side:true,sideType,parallelColumns:101
+    });
+    assert.equal(outlet.status,"CLOSED_DIRECT_OUTLET",sideType+" "+outlet.reason);
+    assert.equal(home.status,"HOME_OBSERVED");
+  }
+});
+
+test("GO-20 actual native downstream extraction still HOLDs despite harmless neighboring inventory",async()=>{
+  const {outlet,home}=await evaluation({
+    side:true,sideType:"minecraft:chest",belowChestHopper:true
+  });
+  assert.equal(outlet.status,"HOLD");
+  assert.equal(outlet.reason,"storage_hopper_extractor_present");
+  assert.equal(home.status,"HOLD");
+});
+
 test("GO-10 no ItemStack or Block can be retained in a durable custody plan",async()=>{
   const {outlet,home}=await evaluation();
   assert.equal(outlet.persistPermitted,false);
