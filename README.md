@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+> **Owner LAB world policy (2026-11-20):** The LAB world is an **expendable copy/paste snapshot of the owner's 1.4.1 production world** and may be refreshed/recreated for repeatable testing. The **production world is not expendable**; verify LAB target paths, stop LAB BDS and preserve established backups/evidence. Read [the LAB provenance and refresh policy](docs/OWNER_LAB_WORLD_REFRESH_POLICY_20261120.md) before migration rehearsals, LAB resets or release-process planning.
+
 > **PERMANENT SOURCE DISCOVERY:** Before changing engineering assumptions, consult [PROJECT_CONTINUITY.md](PROJECT_CONTINUITY.md), [docs/CANONICAL_EVIDENCE_AND_TOOLING.md](docs/CANONICAL_EVIDENCE_AND_TOOLING.md), and [docs/PROJECT_STATIC_RESOURCES.json](docs/PROJECT_STATIC_RESOURCES.json); preserve original HL-E and PowerShell evidence independently of current candidate status.
 
 > **URCE U0 writer-census source handoff (2026-11-20):** [Active runtime writer/callback/side-effect census](docs/URCE_U0_ACTIVE_RUNTIME_WRITER_CENSUS_20261120.md) records scheduled and event-driven native/Q4/registry/frame/visual writes, transitive callers, write-on-read hazards, source-pinned evidence and open safety gates. Complete this review before introducing a second routing/custody writer. The source-only direct-sink guard is on the active development branch; U0 source review is **not** BDS acceptance.
