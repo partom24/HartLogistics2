@@ -1,5 +1,7 @@
 # Hart Logistics 2 — contributor operating contract
 
+> **URCE U1-C/D source development and recurring performance (2026-11-20):** [C/D read-only local offer and governed shadow handoff](docs/URCE_U1CD_SHADOW_HANDOFF_20261120.md) and [101-column/five-item after-stage comparison](docs/URCE_101_COLUMN_FIVE_ITEM_STAGE_COMPARISON_U1CD_20261120.md) document the dev-branch implementation, safety checks, zero new native writer sites and unchanged expected native call counts. The governed shadow is **not active in gameplay** and neither stage authorizes Q4 migration, slower polling or BDS release.
+
 > **Recurring URCE stage performance comparison:** [101-column / five-item baseline](docs/URCE_101_COLUMN_FIVE_ITEM_STAGE_BASELINE_20261120.md) fixes the 505-Sorter, five-destination, 100-item model and records U1-A/U1-B native call accounting versus the pre-change source. Rerun and extend it after each stage. The -100 typeId result is a focused source-executed stub comparison, **not** full-runtime or BDS timing.
 
 > **URCE U1-B development (2026-11-20):** [Read-only destination observation and legacy registration parity](docs/URCE_U1B_PURE_DESTINATION_OBSERVATION_20261120.md) records the dev-branch destination-probe split, legacy side-effect checks and open gates. Collector registration, live storage admission and Q4/physical custody writers remain on the old path; **no release or migration acceptance is implied**.
