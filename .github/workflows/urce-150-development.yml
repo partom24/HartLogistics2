@@ -281,7 +281,7 @@ jobs:
               },
               { //HartLogistics
                   "pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a",
-                  "version":[1,5,6,],
+                  "version":[1,5,7,],
               },
               { /* HartBots registered resource pack */
                   "pack_id":"316ea1b2-fc60-48e4-afc8-6816b02a5406",
