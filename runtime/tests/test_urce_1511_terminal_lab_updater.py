@@ -54,7 +54,7 @@ class Directional1511UpgradeTests(unittest.TestCase):
             (world/regname).write_text(
                 '[{"pack_id":"11111111-1111-1111-1111-111111111111",'
                 '"version":[5,0,0]},{"pack_id":"'+pack_id+'",'
-                '"version":[1,5,9]}]\n')
+                '"version":[1,5,10]}]\n')
         return temp,root
 
     def test_exact_source_review_and_custody_markers(self):
@@ -62,8 +62,8 @@ class Directional1511UpgradeTests(unittest.TestCase):
         self.assertEqual(len(now["behavior_pack"]),32)
         self.assertEqual(len(now["resource_pack"]),60)
         self.assertEqual(len(lab.ALLOWED_CHANGED),4)
-        self.assertEqual(lab.OLD_VERSION,(1,5,9))
-        self.assertEqual(lab.NEW_VERSION,(1,5,10))
+        self.assertEqual(lab.OLD_VERSION,(1,5,10))
+        self.assertEqual(lab.NEW_VERSION,(1,5,11))
         self.assertEqual(lab.PINNED_1510,"53205e650f6da8e6cd34c6d69f3934ffb73281bc")
         s=(ROOT/"addon/behavior_pack/scripts/main.js").read_text()
         for expected in ("function saveQueueJournal(tx)",
