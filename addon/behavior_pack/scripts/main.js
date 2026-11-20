@@ -567,11 +567,32 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     // A negative memo is never proof of a positive route. The only candidate
     // exception must name THIS Receiver and account for ALL relevant native
     // boundaries, not just the first issue from another source-reachable bank.
-    const soleDirectBoundary=o=>o?.decision==="HOLD" &&
-        o.reason==="unverified_native_supply_boundary" &&
-        o.sourceReachableUnknownCount===1 &&
-        o.observationReason?.startsWith("unsupported_native_boundary [") &&
-        o.observationReason?.endsWith(" from receiver "+receiver.id+"]");
+    const soleDirectBoundary=o=>{
+        if(o?.decision!=="HOLD" ||
+           o.reason!=="unverified_native_supply_boundary" ||
+           o.sourceReachableUnknownCount!==1 ||
+           !o.observationReason?.endsWith(" from receiver "+receiver.id+"]"))
+            return false;
+        if(o.observationReason.startsWith(
+            "unsupported_native_boundary [hartsorter:sorter @"))
+            return true;
+        if(!o.observationReason.startsWith(
+            "unsupported_native_boundary [minecraft:chest @") &&
+           !o.observationReason.startsWith(
+            "unsupported_native_boundary [minecraft:trapped_chest @") &&
+           !o.observationReason.startsWith(
+            "unsupported_native_boundary [minecraft:barrel @"))
+            return false;
+        // A terminal chest anywhere in a 1,442-Sorter world is NOT a
+        // candidate. The Collector's Receiver must own a locally registered
+        // Sorter column immediately BELOW its output Hopper. This zero-
+        // native-read gate runs BEFORE a forceFresh global supply scan.
+        if(dirty)rebuildTopology();
+        return columns.some(col=>col?.d===receiver.d &&
+            col.source?.x===receiver.x &&
+            col.source?.y===receiver.y-1 &&
+            col.source?.z===receiver.z);
+    };
     // Only the exact physical end of THIS output Hopper may resolve the
     // sole unsupported boundary. Native graph cycles/other unknowns are
     // never overridden by a chest existing nearby.
