@@ -61,7 +61,7 @@ After those guarded changes, persistent cost is dominated by the mandatory **1,4
 `planning/tests/urce_u1_terminal_composed_graph.test.mjs` exercises:
 - Receiver→Hopper→Collector→Receiver→Hopper→Collector→Receiver→solid **three-bank** chain, deliberately without Transporters;
 - a long directional segment terminating at the owner's **observed coordinates** `minecraft:cobbled_deepslate @ minecraft:overworld 448,72,-478`, from Receiver `minecraft:overworld|448|73|-523` (geometric reproduction, not verified Bedrock runtime);
-- a return Collector→earlier Receiver closed cycle (REJECT), lower Hopper pulling from the bus (HOLD), chests/barrels/Sorters/dispenser/foreign storage (HOLD), missing chunks and invalid directions (HOLD), and global Block read-budget exhaustion (HOLD);
+- a return Collector→earlier Receiver closed cycle (REJECT), a source-reachable fully oriented native Hopper-output ring (REJECT), a disconnected Hopper ring (not falsely attributed to the source), lower Hopper pulling from the bus (HOLD), chests/barrels/Sorters/dispenser/foreign storage (HOLD), missing chunks and invalid directions (HOLD), and global Block read-budget exhaustion (HOLD);
 - disconnected historic/unloaded Receiver records that must not falsely obstruct an otherwise verified *local* source branch.
 
 **Critical permission boundary:** the combined terminal review reports `LOCAL_TERMINALS_PROVED` for a proved inert local sink, but ALWAYS sets `mayTransferCargo:false`, `mayAuthorizeLink:false`, `persistPermitted:false`, `coverageComplete:false`. It is not yet imported by the live 1.5.7 route guard and cannot release the owner's 16,982 Q4 items. A local stopper does not categorically prove minecart/foreign side-channel absence or every branch of a real world.
