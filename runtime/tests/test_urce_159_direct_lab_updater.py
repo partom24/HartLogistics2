@@ -198,7 +198,7 @@ class Governed159LabTests(unittest.TestCase):
                 lab.read_live_plan(ROOT,root,self.originals)
             self.assertIn("READ-ONLY PACK DIFFERENCES",str(ctx.exception))
             self.assertIn("NO FILES CHANGED",str(ctx.exception))
-            self.assertEqual(main.read_bytes(),(target/"scripts/main.js").read_bytes())
+            self.assertEqual(lab.old.hashes(target),actual)  # CheckLab must not alter any pack byte.
             self.assertEqual((root/"worlds/PlayerWorld/level.dat").read_bytes(),
                              b"worldQ4-do-not-touch\x00\xff\x01")
         finally:tmp.cleanup()
