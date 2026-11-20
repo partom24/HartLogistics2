@@ -1,0 +1,6 @@
+* text=auto
+*.ps1 text eol=crlf
+*.js text eol=lf
+*.json text eol=lf
+*.mcfunction text eol=lf
+*.png binary

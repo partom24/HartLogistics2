@@ -1,0 +1,61 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "HartLogistics Fresh LAB BP",
+    "description": "Fresh LAB 0.2.0: 1.4.1 assets and controls; addressed physical Hopper routing",
+    "uuid": "f450bff5-6b68-42e5-a07d-616f87c01918",
+    "version": [
+      0,
+      2,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      50
+    ]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "df9e429b-3617-4870-a39d-8140a6e28242",
+      "version": [
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "565152e2-7f33-4785-b765-2293e19b1691",
+      "version": [
+        0,
+        2,
+        0
+      ],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.7.0"
+    },
+    {
+      "uuid": "39f2d6c6-9b79-4754-a2e2-fd27c1ec1d63",
+      "version": [
+        0,
+        2,
+        0
+      ]
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "HartMods"
+    ],
+    "license": "MPL-2.0",
+    "product_type": "addon"
+  }
+}

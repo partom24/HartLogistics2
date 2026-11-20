@@ -1,0 +1,36 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "HartLogistics Fresh LAB RP",
+    "description": "Fresh LAB 0.2.0: 1.4.1 assets and controls; addressed physical Hopper routing",
+    "uuid": "39f2d6c6-9b79-4754-a2e2-fd27c1ec1d63",
+    "version": [
+      0,
+      2,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      50
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "3ae5166a-0706-4114-a029-7b1c7b7854c3",
+      "version": [
+        0,
+        2,
+        0
+      ]
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "HartMods"
+    ],
+    "license": "MPL-2.0",
+    "product_type": "addon"
+  }
+}
