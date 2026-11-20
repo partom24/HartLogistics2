@@ -17,7 +17,8 @@ import {
 
 import "./urce_150_readonly_runtime.js";
 import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
-import {observeSorterDestination, proveLocalColumnTransit, orderedLocalSorterCandidates} from "./urce_column_local_decisions.js";
+import {observeSorterDestination, proveLocalColumnTransit} from "./urce_column_local_decisions.js";
+import {prepareLocalColumnFrame} from "./urce_column_offer_bridge.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
@@ -3760,7 +3761,12 @@ function processColumn(col, globalRemaining) {
         // Bypass never appears in activeSorters. A Filter with no item accepts none.
         // Candidate order is read-only. AUTO seeds are deliberately checked
         // only when the current storage destination is actually attempted.
-        const targets = orderedLocalSorterCandidates(activeSorters, stack, sorterMode, matchesFilter);
+        // U1-C: preserve legacy order; shadow offers are intentionally OFF
+        // in normal gameplay until governed evidence is explicitly supplied.
+        const frame = prepareLocalColumnFrame({
+            activeSorters, stack, modeOf:sorterMode, matches:matchesFilter
+        });
+        const targets = frame.targets;
 
         if (!targets.length) continue;
 
