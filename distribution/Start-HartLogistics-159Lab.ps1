@@ -144,5 +144,20 @@ if ($Mode -in @('Install','Rollback')) {
 }
 if ($Mode -eq 'Rollback') { $modeArgs += @('--rollback-tag', $BackupTag) }
 
-& $pyName @pyArgs @modeArgs
-if ($LASTEXITCODE -ne 0) { Refuse ('URCE preview command refused/failed (exit ' + $LASTEXITCODE + ')') }
+# Python reports genuine preflight refusals on stderr. Under Windows
+# PowerShell 5.1 with Stop that text would otherwise appear as a confusing
+# NativeCommandError before its real process exit code can be handled.
+# Relax only this native call, then fail closed on the actual exit status.
+function Invoke-ReviewedLabPython {
+    $ErrorActionPreference = 'Continue'
+    $PSNativeCommandUseErrorActionPreference = $false
+    $result = & $pyName @pyArgs @modeArgs 2>&1
+    $exitCode = $LASTEXITCODE
+    foreach ($line in @($result)) {
+        if ($null -ne $line) { Write-Output ([string]$line) }
+    }
+    if ($exitCode -ne 0) {
+        Refuse ('URCE preview command refused/failed (exit ' + $exitCode + '); no LAB changes authorized')
+    }
+}
+Invoke-ReviewedLabPython
