@@ -34,7 +34,7 @@ const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.10-dev";
+const VERSION = "1.5.11-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -570,9 +570,25 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     const soleDirectBoundary=o=>o?.decision==="HOLD" &&
         o.reason==="unverified_native_supply_boundary" &&
         o.sourceReachableUnknownCount===1 &&
-        o.observationReason?.startsWith(
-            "unsupported_native_boundary [hartsorter:sorter @") &&
+        o.observationReason?.startsWith("unsupported_native_boundary [") &&
         o.observationReason?.endsWith(" from receiver "+receiver.id+"]");
+    // Only the exact physical end of THIS output Hopper may resolve the
+    // sole unsupported boundary. Native graph cycles/other unknowns are
+    // never overridden by a chest existing nearby.
+    const exactDirectBoundary=(observed,outlet)=>{
+        if(outlet?.status!=="CLOSED_DIRECT_OUTLET")return false;
+        if(outlet.nativeTerminal){
+            const t=outlet.nativeTerminal;
+            const at=t.location;
+            return observed?.observationReason===
+                "unsupported_native_boundary ["+t.typeId+" @ "+receiver.d+" "+
+                at.x+","+at.y+","+at.z+" from receiver "+receiver.id+"]";
+        }
+        return observed?.observationReason===
+            "unsupported_native_boundary [hartsorter:sorter @ "+receiver.d+" "+
+            receiver.x+","+(receiver.y-2)+","+receiver.z+
+            " from receiver "+receiver.id+"]";
+    };
     if (!soleDirectBoundary(observed)) return observed;
     // Even if the ordinary guard reused a 20-tick negative, do a FRESH full
     // graph observation before considering the narrowly closed native route.
@@ -582,7 +598,7 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
         if(!soleDirectBoundary(observed)) return observed;
     }
     const outlet=directSorterOutlet(receiver);
-    if (outlet.status!=="CLOSED_DIRECT_OUTLET") return observed;
+    if(!exactDirectBoundary(observed,outlet)) return observed;
     return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_SORTER",
         reason:"closed_receiver_hopper_sorter_storage_outlet",
         executePermitted:false,persistPermitted:false};
@@ -644,7 +660,24 @@ function directNativeHome(receiver,item,output) {
         inventory:block=>block.getComponent("minecraft:inventory")?.container,
         autoSeed:directNativeAutoSeed,admit:findAcceptSlot
     });
-    return offer.status==="HOME_OBSERVED" ? offer : undefined;
+    if(offer.status!=="HOME_OBSERVED")return undefined;
+    // The active Filter/Auto/Wildcard owner was proved with live, actual
+    // storage admission. In a Hopper->terminal-chest physical layout we
+    // cannot safely let vanilla redirect claimed cargo. Credit that owner
+    // directly through the ORIGINAL Q4 dequeue journal and no second writer.
+    if(outlet.directToClaimedHome){
+        const owner=outlet.owners.find(o=>o.entry===offer.owner);
+        if(!owner)return undefined;
+        const destination=owner.destination;
+        let target;
+        try {
+            const container=destination.getComponent("minecraft:inventory")?.container;
+            if(!container?.isValid)return undefined;
+            target={block:destination,container};
+        }catch(_){return undefined;}
+        return {...offer,output:target,directClaimed:true};
+    }
+    return {...offer,output};
 }
 
 // Receiver queues do not carry an authoritative per-item originating-Collector
@@ -2700,21 +2733,23 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
         return 0;
     }
 
-    const slotInfo = findAcceptSlot(output.container, item);
+    // A legacy Q4 queue can hold a large backlog with no proven destination.
+    // Never speculatively send cargo into a native Hopper facing a terminal
+    // chest: vanilla can redirect items away from a selected Filter home.
+    // Instead, the SAME original Q4 dequeue writer may credit the verified
+    // Sorter-owned chest directly. All custody, journal and recovery remain
+    // in this one writer, with no additional transfer scheduler.
+    let outputTarget=output;
+    if (governedLane!=="LEGACY_UNGOVERNED") {
+        if(governedLane!=="DIRECT_NATIVE_SORTER")return 0;
+        const home=directNativeHome(receiver,item,output);
+        if(!home)return 0;
+        outputTarget=home.output;
+    }
+    const slotInfo = findAcceptSlot(outputTarget.container, item);
     if (!slotInfo) return 0;
-
     const move = Math.min(maxMove, Number(first.amount) || 0, slotInfo.room, item.maxAmount);
     if (move <= 0) return 0;
-
-    // A legacy Q4 queue can hold a large backlog with no proven destination.
-    // Do not discharge it speculatively into a Hopper to find a home later.
-    // Revalidate the exact current ordinary head and native home BEFORE the
-    // unchanged queue journal and source debit (the only custody writer).
-    // An unlinked historic Receiver is the legacy standalone Q4 path, not
-    // a newly governed source. Preserve its original 1.4.2 drain behavior.
-    if (governedLane!=="LEGACY_UNGOVERNED" &&
-        (governedLane!=="DIRECT_NATIVE_SORTER" ||
-         !directNativeHome(receiver,item,output))) return 0;
 
     const qBefore = Number(first.amount) || 0;
     const qAfter = Math.max(0, qBefore - move);
@@ -2730,7 +2765,7 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
         delivered: q.meta.delivered + move
     };
 
-    const dstState = queueSlotState(output.container, slotInfo.slot);
+    const dstState = queueSlotState(outputTarget.container, slotInfo.slot);
     const itemSig = queueDataSignature(first.data);
 
     const tx = {
@@ -2741,8 +2776,8 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
         qAfter,
         qMetaBefore: metaBefore,
         qMetaAfter: queueMetaSnapshot(metaAfter),
-        dstD: output.block.dimension.id,
-        dst: output.block.location,
+        dstD: outputTarget.block.dimension.id,
+        dst: outputTarget.block.location,
         dstSlot: slotInfo.slot,
         dstSig: itemSig,
         dstBefore: dstState.amount,
@@ -2762,12 +2797,12 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     if (tx.dstBefore === 0) {
         const moved = rebuildQueueItem(first.data, move);
         if (!moved) throw new Error("could not rebuild queued destination item");
-        output.container.setItem(tx.dstSlot, moved);
+        outputTarget.container.setItem(tx.dstSlot, moved);
     } else {
-        const cur = output.container.getItem(tx.dstSlot);
+        const cur = outputTarget.container.getItem(tx.dstSlot);
         if (!cur) throw new Error("receiver destination changed during dequeue");
         cur.amount = tx.dstAfter;
-        output.container.setItem(tx.dstSlot, cur);
+        outputTarget.container.setItem(tx.dstSlot, cur);
     }
 
     markLogisticsDirty();
