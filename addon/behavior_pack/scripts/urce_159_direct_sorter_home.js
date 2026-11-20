@@ -13,7 +13,10 @@
  * Native directional flow is decisive; merely adjacent passive storage,
  * parallel registered columns, or native Hoppers do not imply an outgoing edge.
  * This is an exclusively CLOSED local native outlet, NOT a generic network
- * discovery algorithm. Unknown side routes, foreign inventory or incomplete
+ * discovery algorithm. An outward-facing native Hopper may feed a physically
+ * terminal chest, but Q4 must credit the positively selected Sorter home
+ * directly rather than risk vanilla diverting claimed cargo into the Hopper.
+ * Unknown side routes, foreign inventory or incomplete
  * registry/Bedrock observations HOLD. No global claim absence is inferred from
  * the Collector/Receiver graph.
  *
@@ -59,9 +62,38 @@ export function inspectDirectSorterOutlet({receiver,readBlock,columns,
   const hopper=observed(readBlock,d,{x,y:y-1,z});
   if(hopper?.typeId!==HOPPER)return fail("output_hopper_unavailable");
   const direction=safeState(hopper,"facing_direction");
-  if(direction!==0&&direction!==1)return fail("output_hopper_not_downward");
+  // The native source Hopper can either point downward into its registered
+  // Sorter column, or outward to a positively observed *passive terminal*
+  // chest/barrel while a Sorter column remains directly beneath the source.
+  // In the second case the Q4 writer must credit the chosen Sorter home
+  // DIRECTLY: it must NEVER speculate through the lateral Hopper, since
+  // vanilla would be able to divert a claimed Filter item to that chest.
+  const hopperOffsets={
+    0:{x:0,y:-1,z:0},1:{x:0,y:-1,z:0},
+    2:{x:0,y:0,z:-1},3:{x:0,y:0,z:1},
+    4:{x:-1,y:0,z:0},5:{x:1,y:0,z:0}
+  };
+  const out=hopperOffsets[direction];
+  if(!out)return fail("output_hopper_direction_unknown");
   const locked=safeState(hopper,"toggle_bit");
   if(locked!==false&&locked!==0)return fail("output_hopper_locked_or_unknown");
+  let nativeTerminal;
+  if(direction!==0&&direction!==1) {
+    const target=observed(readBlock,d,{x:x+out.x,y:y-1,z:z+out.z});
+    if(!target)return fail("native_terminal_unavailable");
+    if(!["minecraft:chest","minecraft:trapped_chest","minecraft:barrel"].includes(target.typeId))
+      return fail("output_hopper_not_downward_or_terminal");
+    try {
+      const inv=target.getComponent?.("minecraft:inventory")?.container;
+      if(!inv?.isValid)return fail("native_terminal_inventory_unavailable");
+    }catch(_){return fail("native_terminal_inventory_unavailable");}
+    const under=observed(readBlock,d,{
+      x:x+out.x,y:y-2,z:z+out.z
+    });
+    if(!under)return fail("native_terminal_extraction_unknown");
+    if(under.typeId===HOPPER)return fail("native_terminal_extractor_present");
+    nativeTerminal=target;
+  }
 
   // Observe ADJACENT blocks for unknown side extraction, not for mere
   // proximity. A downward Hopper has exactly one native output: (x,y-2,z).
@@ -139,6 +171,9 @@ export function inspectDirectSorterOutlet({receiver,readBlock,columns,
   if(!owners.length)return fail("no_active_storage_claimants");
   return {status:"CLOSED_DIRECT_OUTLET",receiverId:receiver.id,
     outputBlock:hopper,owners,sourceColumn:column,
+    // Lateral native output does not authorize cargo into that native Hopper:
+    // Q4 must directly credit a verified Filter/Auto/Wildcard owner chest.
+    directToClaimedHome:!!nativeTerminal,nativeTerminal,
     executePermitted:false,persistPermitted:false,mayAuthorizeCargo:false};
 }
 
