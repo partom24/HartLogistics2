@@ -34,14 +34,32 @@ ALLOWED_CHANGE={
     "behavior_pack/manifest.json",
     "resource_pack/manifest.json",
     "behavior_pack/scripts/main.js",
+    "behavior_pack/scripts/urce_152_live_link_guard.js",
+    "behavior_pack/scripts/urce_152_shadow_evidence_bridge.js",
+    "behavior_pack/scripts/urce_column_local_decisions.js",
+    "behavior_pack/scripts/urce_column_offer_bridge.js",
+    "behavior_pack/scripts/urce_source_claim_coverage.js",
+    "behavior_pack/scripts/urce_source_scoped_shadow.js",
 }
-# Hotpath-only: no new cargo permission, saved Q4 writer or world change.
+# Hotpath + reviewed, nonexecuting U1 helpers; no new custody authority.: no new cargo permission, saved Q4 writer or world change.
 # Retain the existing fail-closed native Hopper boundary behavior.
-ADDED_FILES=set()
+ADDED_FILES={
+    "behavior_pack/scripts/urce_152_shadow_evidence_bridge.js",
+    "behavior_pack/scripts/urce_column_local_decisions.js",
+    "behavior_pack/scripts/urce_column_offer_bridge.js",
+    "behavior_pack/scripts/urce_source_claim_coverage.js",
+    "behavior_pack/scripts/urce_source_scoped_shadow.js",
+}
 REVIEWED_BLOBS={
     "behavior_pack/manifest.json": "5d6df9058518af4193607f906f83496c833c56bc",
     "resource_pack/manifest.json": "a391402982ffc4f65ac984ef507334e293ec5c7c",
-    "behavior_pack/scripts/main.js": "780b22746a50055ca4eef8030b4a301bf6248f8f",
+    "behavior_pack/scripts/main.js": "4bdef5d9402e91e33078eb0601ab7c5de87310d6",
+    "behavior_pack/scripts/urce_152_live_link_guard.js": "76dd50d472313b3798554bedc3dbd5313842ecc3",
+    "behavior_pack/scripts/urce_152_shadow_evidence_bridge.js": "ee2c71c9fb84340f7110ccb3a2d52fc0fc5a688f",
+    "behavior_pack/scripts/urce_column_local_decisions.js": "1892b4168a972ad634c6ae20306e1af7d71d5dd9",
+    "behavior_pack/scripts/urce_column_offer_bridge.js": "9154d763f39f5827dc8a974351b3526c6e67abb5",
+    "behavior_pack/scripts/urce_source_claim_coverage.js": "be169f0de7acacc045ca81d8828c487ec7fe72bc",
+    "behavior_pack/scripts/urce_source_scoped_shadow.js": "4c1c5d228d00299c73b14cefe853f0cca930da37",
 }
 
 def git_blob_id(data: bytes) -> str:
@@ -112,11 +130,16 @@ def validate_candidate(repo=ROOT,original=None):
                    'Existing physical transfer journal is unresolved',
                    'liveLinkCheck(route.collector, receiver)',
                    'liveLinkCheck(collector, receiver)',
-                   'observationReason:result.observationReason'):
+                   'observationReason:result.observationReason',
+                   'prepareLocalColumnFrame({',
+                   'proveLocalColumnTransit(col.sorters, src, sorterMode, matchesFilter)'):
         if marker not in main:raise UnsafeLab("Missing link guard: "+marker)
     for name in ("urce_152_route_model.js","urce_152_native_hopper_witness.js",
                  "urce_152_transporter_bank_probe.js",
-                 "urce_152_link_snapshot_gate.js","urce_152_live_link_guard.js"):
+                 "urce_152_link_snapshot_gate.js","urce_152_live_link_guard.js",
+                 "urce_152_shadow_evidence_bridge.js",
+                 "urce_column_local_decisions.js","urce_column_offer_bridge.js",
+                 "urce_source_claim_coverage.js","urce_source_scoped_shadow.js"):
         src=(repo/"addon/behavior_pack/scripts"/name).read_text(encoding="utf-8")
         for forbidden in (".setItem(", ".addItem(", ".spawnItem(",
                           ".setDynamicProperty(", ".runInterval("):
