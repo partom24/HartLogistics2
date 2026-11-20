@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev/urce-150-runtime-20261118
+      - test/urce-full-runtime-native-budget-20261119
   workflow_dispatch:
 
 permissions:
@@ -41,6 +42,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/hart-native-mock-profiles"
           node --cpu-prof --cpu-prof-dir="$RUNNER_TEMP/hart-native-mock-profiles" --test runtime/tests/urce_native_api_budget_trace.test.mjs
+          node --experimental-vm-modules --cpu-prof --cpu-prof-dir="$RUNNER_TEMP/hart-native-mock-profiles" --test runtime/tests/urce_full_runtime_native_budget.test.mjs
       - name: Retain source-executed simulated CPU profile (NOT native Bedrock TPS)
         if: always()
         uses: actions/upload-artifact@v4
