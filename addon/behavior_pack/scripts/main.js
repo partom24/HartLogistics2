@@ -2739,14 +2739,14 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     // Instead, the SAME original Q4 dequeue writer may credit the verified
     // Sorter-owned chest directly. All custody, journal and recovery remain
     // in this one writer, with no additional transfer scheduler.
-    let outputTarget=output;
+    // The existing output parameter retains the ORIGINAL Q4 custody writer.
     if (governedLane!=="LEGACY_UNGOVERNED") {
         if(governedLane!=="DIRECT_NATIVE_SORTER")return 0;
         const home=directNativeHome(receiver,item,output);
         if(!home)return 0;
-        outputTarget=home.output;
+        output=home.output;
     }
-    const slotInfo = findAcceptSlot(outputTarget.container, item);
+    const slotInfo = findAcceptSlot(output.container, item);
     if (!slotInfo) return 0;
     const move = Math.min(maxMove, Number(first.amount) || 0, slotInfo.room, item.maxAmount);
     if (move <= 0) return 0;
@@ -2765,7 +2765,7 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
         delivered: q.meta.delivered + move
     };
 
-    const dstState = queueSlotState(outputTarget.container, slotInfo.slot);
+    const dstState = queueSlotState(output.container, slotInfo.slot);
     const itemSig = queueDataSignature(first.data);
 
     const tx = {
@@ -2776,8 +2776,8 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
         qAfter,
         qMetaBefore: metaBefore,
         qMetaAfter: queueMetaSnapshot(metaAfter),
-        dstD: outputTarget.block.dimension.id,
-        dst: outputTarget.block.location,
+        dstD: output.block.dimension.id,
+        dst: output.block.location,
         dstSlot: slotInfo.slot,
         dstSig: itemSig,
         dstBefore: dstState.amount,
@@ -2797,12 +2797,12 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     if (tx.dstBefore === 0) {
         const moved = rebuildQueueItem(first.data, move);
         if (!moved) throw new Error("could not rebuild queued destination item");
-        outputTarget.container.setItem(tx.dstSlot, moved);
+        output.container.setItem(tx.dstSlot, moved);
     } else {
-        const cur = outputTarget.container.getItem(tx.dstSlot);
+        const cur = output.container.getItem(tx.dstSlot);
         if (!cur) throw new Error("receiver destination changed during dequeue");
         cur.amount = tx.dstAfter;
-        outputTarget.container.setItem(tx.dstSlot, cur);
+        output.container.setItem(tx.dstSlot, cur);
     }
 
     markLogisticsDirty();
