@@ -1,0 +1,21 @@
+# HartLogistics 1.5.6 — regression correction and controlled idle BDS test
+
+**Source only; no 1.5.6 LAB installation yet.** Exact owner 1.5.5 BDS startup is directly screenshot-observed (`[Hart Logistics 1.5.5-dev] ready: sorters=1442, collectors=73, receivers=54`). The exact predecessor is pinned to Git SHA `bc4c1674767cb0e79e90472b3cde0d73531246d4`. Previously preserved 1.5.5 install backup tag must be retained, along with `lab-6868c8d64947`, `lab-c77b47f7c165`, and `lab-0bff63ebe84e`.
+
+## Measured 1.5.5 regression
+
+Owner-uploaded `diagnostics_2026-11-19_20-17-59.*.mcstats` are three segments of one session, 456 native script-tick samples: median **27.154ms**, p90 **100.685ms**, max **217.462ms**, **16.01%** above 50ms and **10.31%** above 100ms. The latest measured 1.5.4 post-restart control (280 samples): p50 **22.073ms**, p90 **29.838ms**, max **116.993ms**, **5.36%** above 50ms. These are separate short captures, not randomized controlled trials.
+
+Owner's 1.5.5 JS CPU profile spans **29.895s** of sampled time, with `schedulerTick` **17.295s inclusive**, `logisticsTick` **10.749s**, native `System::currentTick` **10.775s self / 36.0%** and `Dimension::getBlock` **8.801s / 29.4%**. The new idle journal guard calls `system.currentTick` each scheduler pass, and contributes about **11.090s inclusive** in the newest capture. Previous native `World::getDynamicProperty` cost fell from **46.3% in 1.5.4** to **3.9% in 1.5.5**, so the journal audit logic was effective but its native tick-clock access was not. JS/TS are duplicate views of the same profile. Do NOT claim 1.5.5 reached the performance goal or assume its spikes are unrelated to the addon.
+
+## Reviewed 1.5.6 change and strict constraints
+
+Only the **original `main.js`** and two versioned BP/RP manifests change. The idle journal `sorterJournalPending()` now uses a cheap **in-JS pass counter incremented by the already scheduled `system.runInterval(schedulerTick,1)` callback**; it never accesses native `system.currentTick`. The guard still audits native pending journal every 20 active scheduler passes, starts unknown/pending, retries failed native reads, and updates after successful Hart journal writes. Integer overflow forces a fresh audit; pausing the scheduler cannot accidentally grant a new physical transaction.
+
+**Most importantly:** Starting any NEW physical `saveJournal(tx)` still performs a FRESH native `world.getDynamicProperty(JOURNAL_KEY)` check and refuses overwriting an unresolved record. Receiver `logisticsTick` still independently checks this same native journal. Original exact physical `safeMovePartial`, Q4 queue page/definition writers, recoveries, route-safety HOLD and Transporter geometry are unchanged. Previous native `@minecraft/server 2.7.0` and pack UUIDs remain pinned. Source tests give the `system.currentTick` getter a **throwing implementation** and assert successful 200-tick idle, new tx/clear, pending/journal failure recovery, 20-pass bounded audit and no stale positive permission. This is a regression fix, NOT proof of native Bedrock speedup.
+
+## Owner next step (ONLY after exact-head CI green)
+
+Using Git-tracked `distribution/Start-HartLogistics-Lab.ps1` on the approved dev branch, confirm exact full 1.5.6 SHA in Plan. With the copied LAB server STOPPED, run `CheckLab -ExpectedCommit <full SHA>` to verify exact owner-installed 1.5.5 predecessor bytes and registrations. Only on explicit owner Install -Apply is the transaction performed, with a new rollback tag. **No world reset, production mutation, queue deletion, automatic BDS restart or replay side effects**.
+
+Then start copied LAB and verify `[Hart Logistics 1.5.6-dev]`; compare same stationary/no-added-cargo full 13-bank loaded area after similar time from startup and with the same VS Code/BDS settings. Capture the complete `.mcstats` segments and ONE corresponding JS `.cpuprofile`. Key acceptance is that `System::currentTick` from idle `sorterJournalPending` disappears; script_tick p50/p90 and >50ms incidence improve against native 1.5.5. A 1.5.4-like p90 is a target, **not a promised number**. Do not introduce cargo or force a pipe-free cycle while performance #87 and generic topology #86 remain open. Preserve all saved queues.

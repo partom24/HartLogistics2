@@ -35,7 +35,11 @@ function fixture({initial=undefined}={}){
      else state.set(key,value);
    }
  };
- const system={currentTick:1};
+ const system={
+   // A real Bedrock accessor call in the idle journal path would destroy
+   // the CPU budget under the owner's native profiler.
+   get currentTick(){throw Error("Unexpected native System.currentTick getter");}
+ };
  const env=vm.runInNewContext(
   liveGuard+"\n"+writer+"\n"+scheduler+
     "\n({schedulerTick,saveJournal,sorterJournalPending,sorterJournalGate})",
@@ -56,7 +60,7 @@ function fixture({initial=undefined}={}){
    set failWrite(v){failWrite=v;}
  };
 }
-const tick=(f,n)=>{f.system.currentTick=n;f.env.schedulerTick();};
+const tick=(f,n)=>{f.env.schedulerTick();};
 
 test("IDLE-J1 200 idle Sorter ticks need at most 11 native physical-journal reads",()=>{
  const f=fixture();
@@ -142,4 +146,29 @@ test("IDLE-J8 scheduler and Receiver retain independent native journal checks",(
  assert.match(main,/function recoverJournal\(\)[\s\S]*?world\.getDynamicProperty\(JOURNAL_KEY\)/);
  assert.match(main,/function safeMovePartial\([\s\S]*?saveJournal\(tx\);[\s\S]*?saveJournal\(undefined\);/);
  assert.match(main,/function schedulerTick\(\)[\s\S]*?if \(sorterJournalPending\(\)\) return;/);
+});
+
+
+test("IDLE-J9 native System.currentTick must never be read by idle scheduler or journal writer",()=>{
+ const f=fixture();
+ for(let i=1;i<=200;i++)tick(f,i);
+ f.env.saveJournal({op:"pending"});
+ tick(f,201);
+ f.env.saveJournal(undefined);
+ tick(f,202);
+ assert.equal(f.reads,11,"10 bounded idle reads and one fresh transaction preflight");
+ assert.equal(f.writes,2);
+});
+
+test("IDLE-J10 inactive scheduler does not invent polling ticks",()=>{
+ const f=fixture();
+ tick(f,1);
+ const before=f.env.sorterJournalGate.checkedPass;
+ assert.equal(before,1);
+ // Scheduler is scheduled each tick but does not advance the audit if
+ // initial registry is not ready; the next active pass remains fail-closed.
+ // Runtime implementation cannot see a fake world-absolute tick here.
+ for(let i=0;i<100;i++)f.env.sorterJournalPending();
+ assert.equal(f.env.sorterJournalGate.checkedPass,before);
+ assert.equal(f.reads,1);
 });

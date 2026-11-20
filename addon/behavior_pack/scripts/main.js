@@ -21,7 +21,7 @@ const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.5-dev";
+const VERSION = "1.5.6-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -116,18 +116,25 @@ function log(msg) {
 // saveJournal() reads native storage again before its write. A pending
 // journal from any source also blocks Receiver drain via its original native
 // check. Only empty idle Sorter polling uses this bounded read-through gate.
+// A JS pass counter is maintained by the already per-tick scheduler.
+// Bedrock's native System.currentTick getter is surprisingly expensive in
+// the owner profiler; do not call it for the cheap idle journal decision.
+// Only physical transfer commencement may grant custody: saveJournal(tx)
+// ALWAYS performs a new native read and refuses an unresolved transaction.
 const SORTER_JOURNAL_AUDIT_TICKS = 20;
-const sorterJournalGate = {known:false,pending:true,checkedTick:-1};
+let sorterSchedulerPass = 0;
+const sorterJournalGate = {known:false,pending:true,checkedPass:-1};
 function sorterJournalPending() {
-    const tick = system.currentTick;
-    if (!sorterJournalGate.known || !Number.isSafeInteger(tick) ||
-        tick < sorterJournalGate.checkedTick ||
-        tick - sorterJournalGate.checkedTick >= SORTER_JOURNAL_AUDIT_TICKS) {
+    const pass = sorterSchedulerPass;
+    if (!sorterJournalGate.known ||
+        sorterJournalGate.checkedPass < 0 ||
+        pass < sorterJournalGate.checkedPass ||
+        pass - sorterJournalGate.checkedPass >= SORTER_JOURNAL_AUDIT_TICKS) {
         try {
             const pending = world.getDynamicProperty(JOURNAL_KEY);
             sorterJournalGate.pending = !!pending;
-            sorterJournalGate.known = Number.isSafeInteger(tick);
-            sorterJournalGate.checkedTick = sorterJournalGate.known ? tick : -1;
+            sorterJournalGate.known = true;
+            sorterJournalGate.checkedPass = pass;
         } catch (_) {
             // A failed native journal read cannot become a safe clearance.
             sorterJournalGate.pending = true;
@@ -147,10 +154,11 @@ function setWorldDynamic(key, value) {
         throw err;
     }
     if (key === JOURNAL_KEY) {
+        // Write success updates the in-process safety gate immediately.
+        // It does NOT excuse the next new transaction's fresh native check.
         sorterJournalGate.pending = !!value;
-        sorterJournalGate.known = Number.isSafeInteger(system.currentTick);
-        sorterJournalGate.checkedTick =
-            sorterJournalGate.known ? system.currentTick : -1;
+        sorterJournalGate.known = true;
+        sorterJournalGate.checkedPass = sorterSchedulerPass;
     }
 }
 
@@ -4094,6 +4102,15 @@ function logisticsTick() {
 
 function schedulerTick() {
     if (!ready) return;
+    // Only an in-process integer is advanced here, NEVER a native tick
+    // accessor. The existing runInterval(schedulerTick,1) calls once/tick.
+    // Overflow has a fail-closed reset; this also forces an immediate audit.
+    if (sorterSchedulerPass >= Number.MAX_SAFE_INTEGER) {
+        sorterSchedulerPass = 0;
+        sorterJournalGate.known = false;
+    } else {
+        sorterSchedulerPass++;
+    }
     // Only the idle poll shares a bounded cache. The transaction writer
     // performs its own *fresh* native unresolved-journal preflight.
     if (sorterJournalPending()) return;
