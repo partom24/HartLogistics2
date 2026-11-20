@@ -172,6 +172,37 @@ class Governed159LabTests(unittest.TestCase):
                 lab.rollback_plan(ROOT,root,tag.name,self.originals)
         finally:tmp.cleanup()
 
+    def test_read_only_byte_drift_diagnosis_remains_refused(self):
+        tmp,root=self.synthetic_lab((1,5,8))
+        try:
+            target=root/"behavior_packs/HartMods_HartLogistics_BP"
+            main=target/"scripts/main.js"
+            main.write_bytes(main.read_bytes()+b"\n// unexpected local edit")
+            (target/"runtime-generated.log").write_bytes(b"diagnostic artifact")
+            (target/"scripts/urce_152_link_snapshot_gate.js").unlink()
+            expected=lab.expected_previous(self.originals,(1,5,8))["behavior_pack"]
+            actual=lab.old.hashes(target)
+            report=lab.describe_installed_pack_drift("behavior_pack",(1,5,8),actual,expected)
+            self.assertIn("READ-ONLY PACK DIFFERENCES",report)
+            self.assertIn("missing=1",report)
+            self.assertIn("unexpected=1",report)
+            self.assertIn("modified=1",report)
+            self.assertIn("MISSING scripts/urce_152_link_snapshot_gate.js",report)
+            self.assertIn("UNEXPECTED runtime-generated.log",report)
+            self.assertIn("MODIFIED scripts/main.js",report)
+            self.assertIn("expected_sha256=",report)
+            self.assertIn("installed_sha256=",report)
+            self.assertIn("\n  MODIFIED",report)
+            self.assertNotIn("worldQ4-do-not-touch",report)
+            with self.assertRaises(lab.UnsafeLab) as ctx:
+                lab.read_live_plan(ROOT,root,self.originals)
+            self.assertIn("READ-ONLY PACK DIFFERENCES",str(ctx.exception))
+            self.assertIn("NO FILES CHANGED",str(ctx.exception))
+            self.assertEqual(main.read_bytes(),(target/"scripts/main.js").read_bytes())
+            self.assertEqual((root/"worlds/PlayerWorld/level.dat").read_bytes(),
+                             b"worldQ4-do-not-touch\x00\xff\x01")
+        finally:tmp.cleanup()
+
     def test_tampered_backup_refused_and_not_replayed(self):
         tmp,root=self.synthetic_lab((1,5,8))
         try:
