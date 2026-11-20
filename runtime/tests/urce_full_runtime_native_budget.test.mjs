@@ -47,7 +47,7 @@ class Stack {
   setCanPlaceOn(){}
 }
 function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
-                  blocked=false,legacy=false,direct=false}={}) {
+                  blocked=false,legacy=false,direct=false,directSideChest=false}={}) {
   const metrics=counters();
   const blocks=new Map(), properties=new Map(), timers=[], intervals=[], listeners=new Map();
   let currentTick=0;
@@ -131,7 +131,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
       ...(legacy?{}:{i:[p.x,p.y,p.z-1,2]})});
   }
   const cols=[],recs=[],collectorSources=[],receiverOutputs=[];
-  const directChests=[];
+  const directChests=[],directSideChests=[];
   for(let i=0;i<receivers;i++){
     const p={x:80000+i*20,y:70,z:0},id=key(DIM,p),queueKey="q"+(i+1);
     block("hartsorter:receiver",p);
@@ -144,6 +144,10 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
         states:{"minecraft:cardinal_direction":"east","hartlogistics:mode":"filter"}});
       const chest=block("minecraft:chest",{x:p.x+1,y:68,z:p.z},{items:[]});
       directChests.push(chest.container);
+      if(directSideChest) {
+        const side=block("minecraft:chest",{x:p.x+1,y:69,z:p.z},{items:[]});
+        directSideChests.push(side.container);
+      }
       block("minecraft:stone",{...p,y:67});
       registry.push({d:DIM,x:p.x,y:68,z:p.z,m:"filter",
         f:{match:{typeId:"minecraft:cobblestone"}}});
@@ -210,7 +214,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     }
   }
   function emit(name,ev){for(const callback of listeners.get(name)??[])callback(ev);}
-  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,properties,warnings,intervals,world,
+  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,directSideChests,properties,warnings,intervals,world,
     get tick(){return currentTick;}};
 }
 function publish(label,fixture,ticks,extra={}) {
@@ -322,6 +326,29 @@ test("FULL-NATIVE-07 real governed Collector to Q4 to Hopper to Sorter to chest"
     "A native chest write still requires the original physical journal");
   assert.ok(n(counts,"Container.setItem")>=2,
     "No bypass of the original physical source and destination setItem calls");
+});
+test("FULL-NATIVE-08 passively adjacent chest does not block real Collector/Q4/Sorter delivery",async()=>{
+  const f=fixture({sorters:0,collectors:1,receivers:1,direct:true,directSideChest:true});
+  await f.loadFullRuntime();f.advance(7);
+  f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+  f.metrics.reset();
+  f.advance(1);
+  assert.equal(f.collectorSources[0].inspect()[0],0);
+  assert.equal(f.receiverOutputs[0].inspect()[0],4,
+    "The 1.5.10 Hopper must discharge along its physically verified downward path");
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q1")).q,0,
+    "Native side chest must not change Q4 ownership");
+  f.metrics.reset();
+  f.advance(1);
+  const {counts}=publish("four cobblestone via Q4/down Hopper/Sorter next to passive chest",f,1);
+  assert.equal(f.receiverOutputs[0].inspect()[0],0);
+  assert.equal(f.directChests[0].inspect()[0],4,
+    "All four items must reach actual Filter chest, not passive neighbor");
+  assert.equal(f.directSideChests[0].inspect()[0],0,
+    "Side chest must receive zero items while native Hopper points down");
+  assert.ok(n(counts,"World.setDynamicProperty.hartsorter:journal_v1")>=2,
+    "Native Sorter physical custody journal remains mandatory");
+  assert.ok(n(counts,"Container.setItem")>=2);
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
   const f=fixture({sorters:64,collectors:0,receivers:0,legacy:true});
