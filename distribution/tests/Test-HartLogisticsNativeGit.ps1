@@ -38,6 +38,10 @@ try {
     }
     if (-not $failedClosed) { throw 'Nonzero Git exit was incorrectly accepted' }
     if ($ErrorActionPreference -ne 'Stop') { throw 'Git helper modified caller error preference' }
+    # PowerShell's -Command host returns the last native process exit status,
+    # even when that deliberately failing command was successfully caught.
+    # Clear this *test-only* expected-failure status after the assertion.
+    $global:LASTEXITCODE = 0
     Write-Output ('PASS: Native Git stderr, source clone/pull, nonzero exit refusal, and strict preference on PS ' + $PSVersionTable.PSVersion)
 } finally {
     if (Test-Path -LiteralPath $root) {
