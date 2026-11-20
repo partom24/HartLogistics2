@@ -92,6 +92,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Regression - Git clone progress on stderr under Windows PowerShell 5.1 Stop
+        shell: powershell
+        run: |
+          & .\\distribution\\tests\\Test-HartLogisticsNativeGit.ps1
+      - name: Regression - native Git behavior under PowerShell 7 Stop
+        shell: pwsh
+        run: |
+          & .\\distribution\\tests\\Test-HartLogisticsNativeGit.ps1
       - name: Validate stable and 1.5.9 PowerShell source and early refusal
         shell: pwsh
         run: |
