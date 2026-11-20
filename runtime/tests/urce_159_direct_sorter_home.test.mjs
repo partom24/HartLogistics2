@@ -210,7 +210,7 @@ test("GO-19 registered parallel columns, nearby Hart blocks and dense bank layou
 
 test("GO-20 actual native downstream extraction still HOLDs despite harmless neighboring inventory",async()=>{
   const {outlet,home}=await evaluation({
-    side:true,sideType:"minecraft:chest",belowChestHopper:true
+    side:true,sideType:"minecraft:chest",belowChestHopper:true,mode2:"filter"
   });
   assert.equal(outlet.status,"HOLD");
   assert.equal(outlet.reason,"storage_hopper_extractor_present");
