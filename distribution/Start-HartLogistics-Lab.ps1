@@ -24,8 +24,8 @@ param(
     [switch]$Apply,
     [string]$ExpectedCommit = '',
     [string]$BackupTag = '',
-    [ValidateSet('1.5.1','1.5.2','1.5.3','1.5.4','1.5.5','1.5.6','1.5.7')]
-    [string]$CandidateVersion = '1.5.7'
+    [ValidateSet('1.5.1','1.5.2','1.5.3','1.5.4','1.5.5','1.5.6','1.5.7','1.5.8')]
+    [string]$CandidateVersion = '1.5.8'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -67,6 +67,7 @@ $approvedLaunchers = @{
     '1.5.5' = 'Start-HartLogistics-155Lab.ps1'
     '1.5.6' = 'Start-HartLogistics-156Lab.ps1'
     '1.5.7' = 'Start-HartLogistics-157Lab.ps1'
+    '1.5.8' = 'Start-HartLogistics-158Lab.ps1'
 }
 $approvedBranch = 'dev/urce-150-runtime-20261118'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
