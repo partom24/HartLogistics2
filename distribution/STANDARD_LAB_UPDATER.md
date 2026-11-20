@@ -1,5 +1,7 @@
 # Standard Git-managed HartLogistics LAB updater
 
+> **CURRENT OPERATOR STATUS (owner local 2026-11-19):** This guide contains historical 1.5.1–1.5.6 procedures. **Current development candidate is 1.5.7** with validated source and copied-LAB install gate, and the owner's screenshots now show its **new diagnostic behavior running in BDS**, with concrete `minecraft:cobbled_deepslate` termination at `448,72,-478` from Receiver `448,73,-523`. The owner has **not supplied the exact 1.5.7 installer/backup output**. Keep the affected redstone block **powered**, preserve Q4 (last owner 16,982 items) and use the exact current Git HEAD and `distribution/Start-HartLogistics-Lab.ps1` Plan → read-only CheckLab → separately user-approved Install. Review [1.5.7 handoff](../docs/URCE_157_NEXT_CHAT_HANDOFF_20261119.md) and [owner test card](URCE157_BOUNDARY_LAB_TEST_CARD.md) for current commands and conditions. All old install backups remain in place. Do not follow the old 1.5.1 default described below as if it were current.
+
 **Owner process decision — 2026-11-19.** New candidates must NOT require downloading a new PowerShell file. Maintain one stable tracked entrypoint: `distribution/Start-HartLogistics-Lab.ps1` on the active development branch. The matching versioned launcher and Python backend stay tracked in that same repository. For the current candidate, the stable entrypoint dispatches to the existing guarded **1.5.0 → 1.5.1** operator. It does not change BP/RP, worlds, backups or the release boundary.
 
 ## One-time Git checkout (Windows PowerShell)
