@@ -41,7 +41,7 @@ ALLOWED_CHANGED={
 REVIEWED_BLOBS={
     "behavior_pack/manifest.json":"c813576987fbee8899cd1310b7342ba02af5ad52",
     "resource_pack/manifest.json":"6cc2bb06cf32d361dddf47aaac0fc83d0769893d",
-    "behavior_pack/scripts/main.js":"3d3a57b8b09680d9efee7469b7b35f24bbbe4265",
+    "behavior_pack/scripts/main.js":"1440b3967b671b250d978bc2de43d7ccb304d998",
     "behavior_pack/scripts/urce_159_direct_sorter_home.js":"5f62a1da38393efe3ed9d882aeddefb94b819678"
 }
 
@@ -119,9 +119,9 @@ def validate_source(repo=ROOT,original=None):
                   'routeKind:"DIRECT_NATIVE_SORTER"',
                   'if(directClosed)continue;',
                   'saveQueueJournal(tx);',
-                  'outputTarget.container.setItem(tx.dstSlot, moved);',
+                  'output.container.setItem(tx.dstSlot, moved);',
                   'persistQueueMeta(receiver, q, metaAfter);',
-                  'outputTarget=home.output;',
+                  'output=home.output;',
                   'exactDirectBoundary(observed,outlet)'):
         if token not in main:raise UnsafeLab("Q4 custody integration changed: "+token)
     for token in ("native_terminal_extractor_present",
