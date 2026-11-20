@@ -2,7 +2,7 @@
 
 ## ACTIVE CONTINUOUS-DEVELOPMENT DIRECTIVE — owner adopted 2026-11-20
 
-**This is the operating entrypoint for any new agent or resumed conversation, even if the first thing found is a current build, `main.js`, a manifest, a recent commit or a stage handoff.** First read [DEVELOPMENT_START_HERE.md](DEVELOPMENT_START_HERE.md), then the protected [PROJECT_CONTINUITY.md](PROJECT_CONTINUITY.md) and its canonical evidence index, the owner-approved 1.5 product contract, [HL-URCE-OWN-001](docs/URCE_COLUMN_COORDINATOR_OWNERSHIP_CONTRACT_20261120.md), and applicable lessons. **Do not select the next task from the most recent stage heading without reviewing the project.**
+**This is the operating entrypoint for any new agent or resumed conversation, even if the first thing found is a current build, `main.js`, a manifest, a recent commit or a stage handoff.** First read [DEVELOPMENT_START_HERE.md](DEVELOPMENT_START_HERE.md), then the protected [PROJECT_CONTINUITY.md](PROJECT_CONTINUITY.md) and [the canonical evidence index](docs/CANONICAL_EVIDENCE_AND_TOOLING.md), the owner-approved 1.5 product contract, [HL-URCE-OWN-001](docs/URCE_COLUMN_COORDINATOR_OWNERSHIP_CONTRACT_20261120.md), and applicable lessons. **Do not select the next task from the most recent stage heading without reviewing the project.**
 
 **The owner has authorized ongoing source-controlled development toward a playable candidate without routine approval pauses.** The older planning-only / PG-stage-only permissions preserved farther down this document are historical and must not silently override that later authorization. Production, public release, BDS LAB installation and world-changing operations retain their separate safety and owner-approval boundaries.
 
