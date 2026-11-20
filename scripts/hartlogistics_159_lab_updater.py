@@ -41,7 +41,8 @@ CHANGE_158={
     "behavior_pack/manifest.json",
     "resource_pack/manifest.json",
     "behavior_pack/scripts/main.js",
-    "behavior_pack/scripts/urce_159_direct_sorter_home.js"
+    "behavior_pack/scripts/urce_159_direct_sorter_home.js",
+    "behavior_pack/scripts/urce_152_link_snapshot_gate.js"
 }
 EXTRA_157={
     "behavior_pack/scripts/urce_152_live_link_guard.js",
@@ -58,9 +59,10 @@ ADDED_157=ADDED_158 | (EXTRA_157-{
 REVIEWED_BLOBS={
     "behavior_pack/manifest.json":"8ea518d9ad202092bbc4f6f60de9ad62e270d81e",
     "resource_pack/manifest.json":"5a0fbaa977143f9cc9eaad9ac345a2985ec457b2",
-    "behavior_pack/scripts/main.js":"be91a27ef5feffb055f9621ee4c9282b2b45f441",
+    "behavior_pack/scripts/main.js":"17a3b4492981a97121647b8ca9d059384eeeb50d",
     "behavior_pack/scripts/urce_159_direct_sorter_home.js":"2054387343d34ecc6e6947bf14943c2229913288",
     "behavior_pack/scripts/urce_152_live_link_guard.js":"76dd50d472313b3798554bedc3dbd5313842ecc3",
+    "behavior_pack/scripts/urce_152_link_snapshot_gate.js":"36ad8de96b92375a1b5d7928d0528e94c74ff217",
     "behavior_pack/scripts/urce_152_shadow_evidence_bridge.js":"ee2c71c9fb84340f7110ccb3a2d52fc0fc5a688f",
     "behavior_pack/scripts/urce_column_local_decisions.js":"1892b4168a972ad634c6ae20306e1af7d71d5dd9",
     "behavior_pack/scripts/urce_column_offer_bridge.js":"9154d763f39f5827dc8a974351b3526c6e67abb5",
