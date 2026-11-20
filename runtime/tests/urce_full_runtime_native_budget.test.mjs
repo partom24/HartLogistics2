@@ -302,8 +302,8 @@ test("FULL-NATIVE-05 every unrelated vanilla item spawn must have a bounded Coll
     {eventCount:1,fixtureNote:"Includes five real source retry attempts and normal intervals"});
   assert.equal(n(counts,"System.runTimeout"),5,
     "Original entitySpawn callback plus four retry timers must be measured");
-  assert.ok(n(counts,"Dimension.getBlock")<=5*(73*9+3),
-    "Per-spawn retries must not introduce unbounded native reads");
+  assert.equal(n(counts,"Dimension.getBlock"),5*(73*7+1),
+    "All five retries still run, but DISTANT spawned items cannot trigger any native Collector lookups");
   assert.equal(n(counts,"Container.setItem"),0);
   assert.equal(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1"),0);
 });
