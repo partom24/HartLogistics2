@@ -265,13 +265,15 @@ export function inspectCandidateSupplyLink({
     });
     if(sourceUnknown)return answer("HOLD","incomplete_transporter_observation");
   }
-  for(const issue of native.unknown){
-    if(!reached.has(issue.from))continue;
-    // In a complete one-input/one-output managed visual bank, a receiver
-    // with NO native Hopper below can still have a logical bank route;
-    // this is not permission for physical item movement.
-    if(issue.reason==="receiver_output_not_hopper"&&logicalBanks.has(issue.from))
-      continue;
+  // Count ALL source-reachable unsatisfied native boundaries first. A
+  // narrowly proved local Sorter outlet may resolve only a SINGLE exact
+  // boundary, never conceal a second unknown bank/return path by resolving
+  // whichever issue happened to appear first in the observer's list.
+  const relevantNativeUnknown=native.unknown.filter(issue=>
+    reached.has(issue.from) &&
+    !(issue.reason==="receiver_output_not_hopper"&&logicalBanks.has(issue.from))
+  );
+  for(const issue of relevantNativeUnknown){
     const where=issue.reason==="unsupported_native_boundary" &&
       issue.position && typeof issue.blockType==="string"
       ? " ["+issue.blockType+" @ "+issue.dimension+" "+
@@ -281,7 +283,8 @@ export function inspectCandidateSupplyLink({
     // The complete reason is displayed on the Collector, and forwarded
     // by the Receiver status. No skipped HOLD and no new cargo permission.
     return answer("HOLD","unverified_native_supply_boundary",{
-      observationReason:issue.reason+where
+      observationReason:issue.reason+where,
+      sourceReachableUnknownCount:relevantNativeUnknown.length
     });
   }
   // Source-level graph decision only. The real game's link handler must
