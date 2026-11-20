@@ -1,5 +1,8 @@
 # HartLogistics2 — development pickup and delivery entrypoint
 
+**Current 1.5.10 directional-column candidate (owner's all-valid-column layout requirement):** [BDS layout regression, directional Hopper neighbor proof, exact 1.5.9-origin guarded updater, and next LAB acceptance](docs/URCE_1510_DIRECTIONAL_COLUMNS_LAB_HANDOFF_20261120.md). This source-only candidate is not BDS-accepted or a full multi-bank URCE release. The owner's 1.5.9 installed LAB remains separate and untouched.
+
+
 **Owner-approved operating direction:** 2026-11-20. This is a **navigation and execution directive**, not an acceptance certificate or replacement for protected historical records.
 
 **Whenever resuming development, even when first handed a current build, a file path, a manifest, a source file, a commit or a recent stage handoff: READ THIS FIRST, then follow the pointers below.** Do not let the newest stage number, commit message, current installed candidate or source file become the sole project brief.
