@@ -17,8 +17,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Source-only forensic match of observed installed 1.5.8 BP hashes
-        run: python3 scripts/urce_159_find_installed_predecessor.py
       - name: Zero new custody writer and native script syntax
         run: |
           for file in addon/behavior_pack/scripts/*.js; do node --check "$file"; done
@@ -41,7 +39,7 @@ jobs:
         run: |
           python3 scripts/validate_blueprint.py --release-gate
           node --test runtime/tests/urce_150_resource_integrity.test.mjs
-      - name: Verify exact owner-installed 1.5.10 upgrade and synthetic rollback
+      - name: Verify exact installed 1.5.9 predecessor upgrade to 1.5.10 and rollback
         run: python3 -m unittest discover -s runtime/tests -p test_urce_1510_directional_lab_updater.py -v
       - name: Deterministic 1.5.10 full integrated BP/RP source candidate
         run: |
@@ -69,7 +67,7 @@ jobs:
                   "status":"SOURCE_AND_SYNTHETIC_ONLY_NO_BDS_ACCEPTANCE",
                   "pack_uuids":ids,
                   "sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
-                  "scope":"Closed direct Receiver/Hopper/Sorter/native storage, precommit Q4 home proof; ordinary only; generic paths HOLD",
+                  "scope":"Direction-aware native Hopper/Sorter columns, adjacent passive vanilla inventories, original Q4 home proof; multi-bank paths HOLD",
                   "installation":"Copied LAB stopped CheckLab + explicit owner Apply only; never production"}
           assert result["source_sha"]==os.environ["GITHUB_SHA"]
           p.with_suffix(".build-manifest.json").write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
@@ -119,6 +117,6 @@ jobs:
             }
             if (-not $refused) { throw ('Missing mandatory -Apply refusal: '+$file) }
           }
-      - name: Synthetic dual predecessor BP/RP upgrade, interrupted recovery and rollback
+      - name: Synthetic exact 1.5.9 predecessor BP/RP upgrade, interrupted recovery and rollback
         shell: pwsh
         run: python -m unittest discover -s runtime/tests -p test_urce_1510_directional_lab_updater.py -v
