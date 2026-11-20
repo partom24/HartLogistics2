@@ -50,7 +50,7 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   const chest2=mk("minecraft:barrel",x+1,y-3,z,{inv:inventory()});
   for(const b of [rx,hop,sorter1,sorter2,chest1,chest2,
     mk("minecraft:stone",x,y-4,z)])set(b);
-  if(side)set(mk(sideType,x+1,y-1,z));
+  if(side)set(mk(sideType,x+1,y-1,z,{inv:sideType==="minecraft:chest"?inventory():undefined}));
   if(hiddenSorter)set(mk("hartsorter:sorter",x,y-4,z));
   const owners=[
     {d:dim,x,y:y-3,z,m:mode2,f:{match:{typeId:filter}}},
