@@ -30,6 +30,14 @@ The **read-only stopped copied-LAB CheckLab** checks actual installed BP and RP 
 
 **Actual installed LAB predecessor remains UNKNOWN until the user's local read-only CheckLab is executed.** No claim of source-only code actually opening the real LAB or native-world fingerprint.
 
+## Windows PowerShell source pull: avoid native Git stderr false failures
+
+Windows PowerShell 5.1 with `$ErrorActionPreference = 'Stop'` may turn Git's **normal** `Cloning into ...` stderr progress into a terminating `NativeCommandError`; that message alone does **not** prove clone failure. Do not bypass the safeguards, delete an existing partial checkout automatically, or globally disable strict error handling.
+
+For a **first-time bootstrap** (before the source helper exists), use `git clone --quiet --single-branch --branch dev/urce-159-governed-home-20261120 https://github.com/partom24/HartLogistics2.git C:\\HartMods\\HartLogistics2-URCE159-LAB`. If the directory already exists, verify its `.git`, origin, branch, clean status and HEAD; use `git pull --quiet --ff-only origin dev/urce-159-governed-home-20261120` only on a valid checkout. A clone is **source only**, never LAB installation.
+
+After checking out this branch, both `distribution/Start-HartLogistics-Lab.ps1` and `distribution/Start-HartLogistics-159Lab.ps1` use the tracked `distribution/Invoke-HartLogisticsNativeGit.ps1` wrapper. This isolates the PowerShell native stderr handling **inside Git invocations**, checks `$LASTEXITCODE` after every command, rejects nonzero exit status and preserves strict behavior elsewhere. `distribution/tests/Test-HartLogisticsNativeGit.ps1` exercises real offline clone, fast-forward pull, genuine Git rejection and caller strictness in Windows PowerShell 5.1 **and** PowerShell 7 on CI.
+
 ## Mandatory repeated source tests and performance records
 
 The [1.5.9 workflow](https://github.com/partom24/HartLogistics2/actions/workflows/urce-159-governed-source.yml) runs Linux + Windows synthetic operator gates, source syntax, protected U0 zero-new-writer fence, owner U1 route/claim closure, link/cycle checks, Q4/U2/journal/custody/recovery, full shipped `main.js` with Bedrock native-call instrumentation, resource validation and deterministic BP/RP packaging. **Check the exact current HEAD's workflow conclusion; this document is not a certificate.**
