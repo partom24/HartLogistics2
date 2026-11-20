@@ -37,6 +37,19 @@ PREDECESSORS={
     (1,5,7): "8bb696129a668699e0867aa1e6786a8716d1ef3a",
     (1,5,8): "b81e32ed23ce18283e6edcd3a8809d6fcf6bf71a"
 }
+# Owner CheckLab: a second fully pinned 1.5.8 source with 26 BP / 60 RP
+# files; two installed script SHA256s match this Git history commit exactly.
+# Every installed pack byte is STILL checked before upgrades or rollback.
+EARLY_158_LAB_ORIGIN="65d2cc5fdc6922997c084b8f6e58d99052cb7893"
+OBSERVED_158_MAIN_SHA256="efd3e80c18e9856d8ceecf279209df7226d8169547a98df1b7214f75f95d9d0e"
+OBSERVED_158_LINK_SHA256="a401e649abd57558dbbddd5123768acc9816e532ebab4c3eaf257a62752362f2"
+EARLY_158_MISSING_HELPERS={
+    "scripts/urce_152_shadow_evidence_bridge.js",
+    "scripts/urce_column_local_decisions.js",
+    "scripts/urce_column_offer_bridge.js",
+    "scripts/urce_source_claim_coverage.js",
+    "scripts/urce_source_scoped_shadow.js"
+}
 CHANGE_158={
     "behavior_pack/manifest.json",
     "resource_pack/manifest.json",
@@ -75,7 +88,7 @@ def git_blob_id(data: bytes) -> str:
 
 def prior_hashes(repo=ROOT,commit=None):
     """One immutable pack file set only; no files from current HEAD."""
-    if commit not in PREDECESSORS.values():
+    if commit not in (*PREDECESSORS.values(),EARLY_158_LAB_ORIGIN):
         raise UnsafeLab("Unknown historic source commit")
     cmd=["git","-C",str(repo)]
     entries=subprocess.run(
@@ -189,6 +202,30 @@ def expected_previous(originals,version):
                    if path.startswith(local+"/")}
             for local,_,_,_ in PACKS}
 
+def approved_predecessor_pairs(repo=ROOT,originals=None):
+    """Exact paired BP+RP file trees; never version-only or per-file trust."""
+    if originals is None:originals=prior_hashes_by_version(repo)
+    legacy={v:expected_previous(originals,v) for v in PREDECESSORS}
+    early_flat=prior_hashes(repo,EARLY_158_LAB_ORIGIN)
+    early={
+        local:{name.split("/",1)[1]:digest for name,digest in early_flat.items()
+               if name.startswith(local+"/")}
+        for local,_,_,_ in PACKS
+    }
+    bp=early["behavior_pack"]
+    rp=early["resource_pack"]
+    if (len(bp)!=26 or len(rp)!=60 or
+        bp.get("scripts/main.js")!=OBSERVED_158_MAIN_SHA256 or
+        bp.get("scripts/urce_152_live_link_guard.js")!=OBSERVED_158_LINK_SHA256 or
+        any(name in bp for name in EARLY_158_MISSING_HELPERS) or
+        early["resource_pack"]!=legacy[(1,5,8)]["resource_pack"]):
+        raise UnsafeLab("Early 1.5.8 historical source provenance changed; refuse")
+    return {
+        (1,5,7):(legacy[(1,5,7)],),
+        (1,5,8):(legacy[(1,5,8)],early)
+    }
+
+
 def describe_installed_pack_drift(local,version,actual,expected):
     """Pure, read-only, bounded file-by-file byte-hash mismatch report.
 
@@ -223,6 +260,7 @@ def describe_installed_pack_drift(local,version,actual,expected):
 def read_live_plan(repo,root,originals=None):
     if originals is None:originals=prior_hashes_by_version(repo)
     candidate=validate_candidate(repo,originals)
+    provenance=approved_predecessor_pairs(repo,originals)
     props=root/"server.properties"
     if not (root/"bedrock_server.exe").is_file() or not props.is_file():
         raise UnsafeLab("Not an authorized BDS LAB server")
@@ -252,10 +290,17 @@ def read_live_plan(repo,root,originals=None):
         if version not in (*PREDECESSORS,NEW_VERSION):
             raise UnsafeLab("Installed version not one of exact 1.5.7/1.5.8/1.5.9")
         actual=old.hashes(target)
-        allowed=(candidate[local] if version==NEW_VERSION else
-                 expected_previous(originals,version)[local])
-        if actual!=allowed:
-            raise UnsafeLab(describe_installed_pack_drift(local,version,actual,allowed))
+        allowed=(candidate[local],) if version==NEW_VERSION else tuple(
+            source[local] for source in provenance[version])
+        if actual not in allowed:
+            # Choose the nearest fully approved snapshot for diagnosis only.
+            # A diagnostic does not authorize installation.
+            def distance(expected):
+                return len(set(expected)^set(actual))+sum(
+                    actual[path]!=expected[path]
+                    for path in set(actual)&set(expected))
+            nearest=min(allowed,key=distance)
+            raise UnsafeLab(describe_installed_pack_drift(local,version,actual,nearest))
         registry=world/registry_name
         old.assert_no_link(registry)
         if not registry.is_file():raise UnsafeLab("Missing world pack registration")
@@ -275,12 +320,19 @@ def read_live_plan(repo,root,originals=None):
         })
     if len({item["version"] for item in plan})!=1:
         raise UnsafeLab("Mixed installed BP/RP versions")
+    version=plan[0]["version"]
+    if version!=NEW_VERSION and not any(
+        all(item["installed"]==source[item["local"]] for item in plan)
+        for source in provenance[version]
+    ):
+        raise UnsafeLab("Mixed historical BP/RP snapshots; no coherent predecessor")
     return plan
 
 def rollback_plan(repo,root,tag,originals=None):
     if not re.fullmatch(r"lab-[0-9a-f]{12}",tag):
         raise UnsafeLab("Rollback requires exact installer-created backup tag")
     if originals is None:originals=prior_hashes_by_version(repo)
+    provenance=approved_predecessor_pairs(repo,originals)
     current=read_live_plan(repo,root,originals)
     if current[0]["version"]!=NEW_VERSION:
         raise UnsafeLab("Rollback requires exactly installed 1.5.9")
@@ -302,8 +354,8 @@ def rollback_plan(repo,root,tag,originals=None):
         if previous_version is not None and version!=previous_version:
             raise UnsafeLab("Mixed backup versions")
         previous_version=version
-        before=expected_previous(originals,version)
-        if old.hashes(saved)!=before[item["local"]]:
+        saved_hashes=old.hashes(saved)
+        if not any(saved_hashes==source[item["local"]] for source in provenance[version]):
             raise UnsafeLab("Tampered/unknown predecessor backup")
         raw=reg.read_bytes()
         parsed=json.loads(old.remove_jsonc(raw.decode("utf-8-sig")))
@@ -317,8 +369,13 @@ def rollback_plan(repo,root,tag,originals=None):
         if bom+updated.encode("utf-8")!=item["old_bytes"]:
             raise UnsafeLab("Unrelated registry drift since this exact backup")
         result.append({**item,"source":saved,
-                       "files":before[item["local"]],
+                       "files":saved_hashes,
                        "new_registry":raw.decode("utf-8-sig")})
+    if not any(
+        all(item["files"]==source[item["local"]] for item in result)
+        for source in provenance[previous_version]
+    ):
+        raise UnsafeLab("Mixed BP/RP backup origins; refuse cross-snapshot rollback")
     return result
 
 def main(argv=None):
@@ -342,7 +399,7 @@ def main(argv=None):
         originals=prior_hashes_by_version(ROOT)
         source=validate_candidate(ROOT,originals)
         if not a.check_lab:
-            print("1.5.9 SOURCE PASS: exact 1.5.7/1.5.8 predecessor routes, Q4 single-writer native home lane")
+            print("1.5.9 SOURCE PASS: exact 1.5.7 and dual immutable 1.5.8 BP/RP predecessors; Q4 single-writer native home lane")
             print("New BP files:",len(source["behavior_pack"]),"RP files:",len(source["resource_pack"]))
             print("NO LAB OR PRODUCTION SERVER FILES ACCESSED.")
             return 0
