@@ -150,3 +150,37 @@ test("PARITY WRITER no second Q4/native mutation authority",()=>{
   assert.doesNotMatch(p,forbidden);
  }
 });
+
+test("PARITY Q4 actual shipping dequeue debits once into native output Hopper, or HOLDs unchanged",()=>{
+ for(const closed of [true,false]){
+  const calls=[],queue={total:4,meta:{head:0,tail:1,total:4,delivered:0}};
+  const first={id:"q1",seq:0,amount:4,data:{typeId:"minecraft:cobblestone"}};
+  const slots=[];
+  const output={
+   block:{location:{x:0,y:69,z:0},dimension:{id:"minecraft:overworld"}},
+   container:{isValid:true,size:5,getItem(i){return slots[i];},
+     setItem(i,v){calls.push("nativeCredit");slots[i]=v;}}
+  };
+  const deps={
+   loadReceiverQueue:()=>queue,queueHeadEntry:()=>first,
+   rebuildQueueItem:(data,amount)=>({typeId:data.typeId,amount,maxAmount:64}),
+   findAcceptSlot:()=>({slot:0,room:64}),
+   directNativeTerminal:()=>({status:closed?"CLOSED_NATIVE_TERMINAL":"HOLD",
+     outputBlock:output.block}),
+   directNativeHome:()=>{throw Error("Chest terminal is not a Sorter outlet");},
+   queueMetaSnapshot:meta=>({...meta}),queueSlotState:()=>({amount:0}),
+   queueDataSignature:()=>"signature",
+   saveQueueJournal:tx=>calls.push(tx?"journalBegin":"journalClear"),
+   clearQueueEntry:()=>calls.push("Q4Debit"),
+   persistQueueEntry:()=>calls.push("Q4Partial"),
+   persistQueueMeta:(_r,_q,m)=>{queue.meta=m;queue.total=m.total;calls.push("Q4Meta");},
+   markLogisticsDirty:()=>calls.push("markDirty"),log:()=>{}
+  };
+  const dequeue=shippingFunction("dequeueToReceiver",deps);
+  assert.equal(dequeue({id:"R"},output,4,"DIRECT_NATIVE_TERMINAL"),closed?4:0);
+  assert.equal(queue.total,closed?0:4);
+  assert.equal(slots[0]?.amount||0,closed?4:0);
+  assert.deepEqual(calls,closed?
+    ["journalBegin","Q4Debit","Q4Meta","nativeCredit","markDirty","journalClear"] :[]);
+ }
+});
