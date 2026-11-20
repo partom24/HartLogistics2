@@ -1,7 +1,7 @@
 # URCE U1-A — Read-only Column-local Decision Integration
 
 **Date:** 2026-11-20
-**Status:** Source implementation committed on \`dev/urce-150-runtime-20261118\`; **local decision-boundary increment only**, not completed URCE routing authority, not adaptive scheduling, not Bedrock BDS or migration acceptance.
+**Status:** Source implementation committed on `dev/urce-150-runtime-20261118`; **local decision-boundary increment only**, not completed URCE routing authority, not adaptive scheduling, not Bedrock BDS or migration acceptance.
 **Contract:** [HL-URCE-OWN-001](URCE_COLUMN_COORDINATOR_OWNERSHIP_CONTRACT_20261120.md)
 **Predecessor audit:** [U0 writer census](URCE_U0_ACTIVE_RUNTIME_WRITER_CENSUS_20261120.md)
 **Owner-LAB policy:** [Expendable 1.4.1 production-copy LAB](OWNER_LAB_WORLD_REFRESH_POLICY_20261120.md)
@@ -21,8 +21,8 @@
 - Conducted an **in-memory V8 source execution** of the *fetched committed helper text*, comparing **6,144 transit**, **3,072 candidate order**, **10 destination types** and **3 negative safety** cases: **9,229 comparisons, zero decision differences**. This was an independent direct-function comparison, not execution of the Node test file or full Bedrock script runtime.
 - Recomputed the U0 source change guard across **eight** local import modules: **46 direct mutation-method source occurrences and 18 world-property helper call sites, zero guard differences**. The helper contributes **zero** new mutation sites.
 - Parsed the modified main.js (after removing ESM imports purely for syntax validation) with a JavaScript engine: **PASS**.
-- Compared **23 named safety-sensitive functions** between the pre-change main.js blob \`780b22746a50055ca4eef8030b4a301bf6248f8f\` and updated blob \`c0bfc2f18acdb937f519d12d79d145c93804bc3d\`: identical source for both custody journals, Q4 loading/ingress/discharge, recovery, native physical writer, compaction, routing budgets, relevant filter and destination admission routines.
-- **Not yet performed:** Node \`--experimental-vm-modules --test\` CI execution of the new unit test or existing full-runtime test suite, BDS profiling/real transfers, LAB copied-world migration rehearsal, or owner-playable acceptance. Do not treat source-equivalence counts as latency or native item conservation proof. The code is a development candidate only.
+- Compared **23 named safety-sensitive functions** between the pre-change main.js blob `780b22746a50055ca4eef8030b4a301bf6248f8f` and updated blob `c0bfc2f18acdb937f519d12d79d145c93804bc3d`: identical source for both custody journals, Q4 loading/ingress/discharge, recovery, native physical writer, compaction, routing budgets, relevant filter and destination admission routines.
+- **Not yet performed:** Node `--experimental-vm-modules --test` CI execution of the new unit test or existing full-runtime test suite, BDS profiling/real transfers, LAB copied-world migration rehearsal, or owner-playable acceptance. Do not treat source-equivalence counts as latency or native item conservation proof. The code is a development candidate only.
 
 ## Why this is safe with future Q4 → URCE migration
 
