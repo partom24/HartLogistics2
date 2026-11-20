@@ -346,6 +346,7 @@ test("GO-23 native chest boundary must match THIS Receiver's exact directed Hopp
     logistics:{collectors:[collector],receivers:[receiver]},
     liveTopologyBlockReader:()=>undefined,
     activeLogisticsPass:undefined,system:{currentTick:7},
+    dirty:false,columns:[{d:"minecraft:overworld",source:{x:0,y:72,z:0}}],
     liveLinkGuard:{check(){return issue;}},
     directSorterOutlet(){return {status:"CLOSED_DIRECT_OUTLET",
       nativeTerminal:{typeId:"minecraft:chest",location:{x:0,y:72,z:-1}}};}
@@ -364,6 +365,7 @@ test("GO-24 a nearby unconnected chest, mismatched terminal coordinates, or seco
       logistics:{collectors:[collector],receivers:[receiver]},
       liveTopologyBlockReader:()=>undefined,activeLogisticsPass:undefined,
       system:{currentTick:7},
+      dirty:false,columns:[{d:"minecraft:overworld",source:{x:0,y:72,z:0}}],
       liveLinkGuard:{check(){return {decision:"HOLD",reason:"unverified_native_supply_boundary",
         sourceReachableUnknownCount:count,observationReason:reason};}},
       directSorterOutlet(){return {status:"CLOSED_DIRECT_OUTLET",
