@@ -552,31 +552,35 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     if (!col || !receiver || col.link === undefined) {
         return {decision:"HOLD",reason:"missing_managed_link"};
     }
-    const observed = liveLinkGuard.check({
+    const context={
         collector:col, receiver,
         collectors:logistics.collectors,receivers:logistics.receivers,
         getBlock:liveTopologyBlockReader,
-        // Same native clock value for all checks in this synchronous pass.
-        // Outside logisticsTick (player/UI/pre-save checks) read the clock
-        // directly, so cross-tick/unscheduled safety never depends on a
-        // stale JS counter. Nullish memo also handles legitimate tick zero.
+        // One native clock observation per synchronous logistics pass.
+        // This value is not retained across a later callback or tick.
         currentTick:activeLogisticsPass
             ? (activeLogisticsPass.nativeTick ??= system.currentTick)
             : system.currentTick,
         forceFresh
-    });
-    // The old native witness treats a Hopper ending in a Sorter as UNKNOWN.
-    // A single physically closed Receiver -> downward Hopper -> native-storage
-    // Sorter outlet is the only specialized positive observation introduced
-    // here. No positive route memo, broad terminal exception, or new writer.
-    // Never override a verified cycle, a different HOLD reason, or a missing
-    // managed link. Q4 discharge still requires its OWN item-specific proof.
-    if (observed.decision !== "HOLD" ||
-        observed.reason !== "unverified_native_supply_boundary" ||
-        !observed.observationReason?.startsWith(
-            "unsupported_native_boundary [hartsorter:sorter @") ||
-        !observed.observationReason?.endsWith(
-            " from receiver "+receiver.id+"]")) return observed;
+    };
+    let observed=liveLinkGuard.check(context);
+    // A negative memo is never proof of a positive route. The only candidate
+    // exception must name THIS Receiver and account for ALL relevant native
+    // boundaries, not just the first issue from another source-reachable bank.
+    const soleDirectBoundary=o=>o?.decision==="HOLD" &&
+        o.reason==="unverified_native_supply_boundary" &&
+        o.sourceReachableUnknownCount===1 &&
+        o.observationReason?.startsWith(
+            "unsupported_native_boundary [hartsorter:sorter @") &&
+        o.observationReason?.endsWith(" from receiver "+receiver.id+"]");
+    if (!soleDirectBoundary(observed)) return observed;
+    // Even if the ordinary guard reused a 20-tick negative, do a FRESH full
+    // graph observation before considering the narrowly closed native route.
+    // A new unknown branch or a cycle never becomes cargo permission.
+    if(!forceFresh) {
+        observed=liveLinkGuard.check({...context,forceFresh:true});
+        if(!soleDirectBoundary(observed)) return observed;
+    }
     const outlet=directSorterOutlet(receiver);
     if (outlet.status!=="CLOSED_DIRECT_OUTLET") return observed;
     return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_SORTER",
