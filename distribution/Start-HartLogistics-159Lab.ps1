@@ -91,10 +91,11 @@ function Assert-Unlinked([string]$Path) {
         $current = $parent.FullName
     }
 }
+# Keep strict PowerShell failure behavior while allowing Git's ordinary
+# stderr progress text. The helper checks the native Git exit code itself.
+. (Join-Path $PSScriptRoot 'Invoke-HartLogisticsNativeGit.ps1')
 function GitText([string[]]$Words) {
-    $output = & git.exe -C $checkout @Words 2>&1
-    if ($LASTEXITCODE -ne 0) { Refuse ('Git failed: ' + ($Words -join ' ')) }
-    return (($output | Out-String).Trim())
+    return (Invoke-HartLogisticsNativeGit -GitArguments (@('-C', $checkout) + $Words))
 }
 
 Assert-Unlinked $checkout
@@ -102,8 +103,9 @@ if (-not (Test-Path -LiteralPath $checkout)) {
     if ($Mode -eq 'Rollback') {
         Refuse 'Existing pinned Git checkout required for safe rollback'
     }
-    $output = & git.exe clone --quiet --single-branch --branch $branch $origin $checkout 2>&1
-    if ($LASTEXITCODE -ne 0) { Refuse ('Authorized Git clone failed: ' + ($output | Out-String)) }
+    Invoke-HartLogisticsNativeGit -GitArguments @(
+        'clone','--quiet','--single-branch','--branch',$branch,$origin,$checkout
+    ) | Out-Null
 }
 Assert-Unlinked $checkout
 $actualOrigin = GitText -Words @('remote','get-url','origin')
@@ -117,10 +119,12 @@ if (GitText -Words @('status','--porcelain','--untracked-files=all')) {
     Refuse 'Git workspace contains local changes'
 }
 if ($Mode -ne 'Rollback') {
-    $output = & git.exe -C $checkout fetch --quiet --no-tags origin $branch 2>&1
-    if ($LASTEXITCODE -ne 0) { Refuse 'Git fetch failed' }
-    $output = & git.exe -C $checkout merge --quiet --ff-only FETCH_HEAD 2>&1
-    if ($LASTEXITCODE -ne 0) { Refuse 'Git fast-forward failed; no changes forced' }
+    Invoke-HartLogisticsNativeGit -GitArguments @(
+        '-C',$checkout,'fetch','--quiet','--no-tags','origin',$branch
+    ) | Out-Null
+    Invoke-HartLogisticsNativeGit -GitArguments @(
+        '-C',$checkout,'merge','--quiet','--ff-only','FETCH_HEAD'
+    ) | Out-Null
 }
 $head = GitText -Words @('rev-parse','HEAD')
 if ($head -notmatch '^[0-9a-f]{40}$') { Refuse 'Unable to pin Git commit' }
