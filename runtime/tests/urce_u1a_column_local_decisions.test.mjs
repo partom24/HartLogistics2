@@ -114,10 +114,10 @@ test("U1-A preserves Filter/Auto/Wildcard order with bottom-to-top stability",as
   ];
   for(const type of ["minecraft:cobblestone","minecraft:stone","minecraft:dirt"]){
     assert.deepEqual(
-      orderedLocalSorterCandidates(list,stack(type),modeOf,matches).map(x=>x.id),
+      Array.from(orderedLocalSorterCandidates(list,stack(type),modeOf,matches),x=>x.id),
       baselineCandidates(list,stack(type),modeOf,matches).map(x=>x.id));
   }
-  assert.deepEqual(orderedLocalSorterCandidates(list,stack("minecraft:cobblestone"),modeOf,matches).map(x=>x.id),
+  assert.deepEqual(Array.from(orderedLocalSorterCandidates(list,stack("minecraft:cobblestone"),modeOf,matches),x=>x.id),
     ["f0","f2","a0","a1","w0","w1"]);
 });
 test("U1-A is read-only, actually integrated, and leaves existing custody writers",()=>{
