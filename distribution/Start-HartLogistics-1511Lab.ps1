@@ -72,7 +72,7 @@ Write-Output ('Using Python '+$version+' at '+$pyName)
 if (-not $env:LOCALAPPDATA) { Refuse 'LOCALAPPDATA missing' }
 
 $origin = 'https://github.com/partom24/HartLogistics2.git'
-$branch = 'dev/urce-1511-directional-columns-20261120'
+$branch = 'dev/urce-1511-native-terminal-20261120'
 $checkout = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'HartLogistics2-URCE1511-LAB'))
 if ($checkout -match '^[A-Za-z]:\\Servers(\\|$)') {
     Refuse 'Git source workspace may not be inside a Minecraft server'
