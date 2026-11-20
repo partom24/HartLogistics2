@@ -1,5 +1,7 @@
 # Hart Logistics 2 — contributor operating contract
 
+> **Recurring URCE stage performance comparison:** [101-column / five-item baseline](docs/URCE_101_COLUMN_FIVE_ITEM_STAGE_BASELINE_20261120.md) fixes the 505-Sorter, five-destination, 100-item model and records U1-A/U1-B native call accounting versus the pre-change source. Rerun and extend it after each stage. The -100 typeId result is a focused source-executed stub comparison, **not** full-runtime or BDS timing.
+
 > **URCE U1-B development (2026-11-20):** [Read-only destination observation and legacy registration parity](docs/URCE_U1B_PURE_DESTINATION_OBSERVATION_20261120.md) records the dev-branch destination-probe split, legacy side-effect checks and open gates. Collector registration, live storage admission and Q4/physical custody writers remain on the old path; **no release or migration acceptance is implied**.
 
 > **URCE U1-A development (2026-11-20):** [Read-only Column-local decision integration and evidence](docs/URCE_U1A_COLUMN_LOCAL_DECISIONS_20261120.md) records the new dev-branch classifier/transit/order module and its source-executed equivalence checks. This is **not** an activated global URCE planner, adaptive poll rate, Q4 migration, or BDS-accepted release. Continue with U1-B side-effect-free destination observation and differential coverage.
