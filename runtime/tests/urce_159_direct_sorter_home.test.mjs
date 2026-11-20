@@ -36,7 +36,7 @@ function inventory(items=[],size=5){
 function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   full=false,side=false,sideType="minecraft:hopper",
   direction=0,locked=false,missing=false,duplicate=false,
-  hiddenSorter=false,mode2="bypass",autoSeed=false}={}){
+  hiddenSorter=false,belowChestHopper=false,mode2="bypass",autoSeed=false}={}){
   const dim="minecraft:overworld",m=new Map();
   const key=(X,Y,Z)=>`${X}|${Y}|${Z}`;
   const set=(b)=>m.set(key(b.location.x,b.location.y,b.location.z),b);
@@ -52,6 +52,7 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
     mk("minecraft:stone",x,y-4,z)])set(b);
   if(side)set(mk(sideType,x+1,y-1,z,{inv:sideType==="minecraft:chest"?inventory():undefined}));
   if(hiddenSorter)set(mk("hartsorter:sorter",x,y-4,z));
+  if(belowChestHopper)set(mk("minecraft:hopper",x+1,y-4,z,{facing:0}));
   const owners=[
     {d:dim,x,y:y-3,z,m:mode2,f:{match:{typeId:filter}}},
     {d:dim,x,y:y-2,z,m:mode,f:{match:{typeId:filter}}}
@@ -144,6 +145,7 @@ for(const [name,config,reason] of [
   ["redstone powered",{locked:true},"output_hopper_locked_or_unknown"],
   ["duplicate column",{duplicate:true},"source_column_not_unique"],
   ["unregistered hidden Sorter",{hiddenSorter:true},"sorter_run_boundary_unknown"],
+  ["Hopper extracting from output storage",{belowChestHopper:true},"storage_hopper_extractor_present"],
   ["foreign inventory",{side:true,sideType:"minecraft:chest"},"side_inventory_boundary"]
 ]){
   test("GO-09 fail-closed "+name,async()=>{
@@ -162,6 +164,7 @@ test("GO-11 source integration retains exactly one journaled Q4 discharge author
   const s=fs.readFileSync(path.join(ROOT,"addon/behavior_pack/scripts/main.js"),"utf8");
   assert.match(s,/inspectDirectSorterOutlet\(/);
   assert.match(s,/inspectDirectItemHome\(/);
+  assert.match(s,/from receiver "\+receiver\.id\+"\]"/);
   assert.match(s,/dequeueToReceiver\(receiver, output, budget, governedLane\)/);
   assert.match(s,/governedLane!=="DIRECT_NATIVE_SORTER"/);
   assert.match(s,/saveQueueJournal\(tx\);/);
