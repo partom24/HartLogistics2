@@ -96,6 +96,8 @@ function countedIdleFixture({
   world,system,ready:true,dirty:false,columns,rrStart:0,
   logistics:registry,collectorRrStart:0,receiverRrStart:0,
   GLOBAL_MOVE_BUDGET:256,LOGISTICS_GLOBAL_BUDGET:256,
+  COLLECTOR_BATCH:Number(main.match(/const COLLECTOR_BATCH\s*=\s*(\d+);/)[1]),
+  RECEIVER_BATCH:Number(main.match(/const RECEIVER_BATCH\s*=\s*(\d+);/)[1]),
   QUEUE_JOURNAL_KEY:"hartsorter:queue_journal_v1",
   JOURNAL_KEY:"hartsorter:journal_v1",
   safeJsonParse:(value,fallback)=>value===undefined?fallback:JSON.parse(value),
