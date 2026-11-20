@@ -55,7 +55,7 @@ class Governed159LabTests(unittest.TestCase):
             "output.container.setItem(tx.dstSlot, moved);"
         ): self.assertIn(preserved,original)
 
-    def synthetic_lab(self,predecessor):
+    def synthetic_lab(self,predecessor,source_commit=None):
         tmp=tempfile.TemporaryDirectory()
         root=Path(tmp.name)
         (root/"bedrock_server.exe").write_bytes(b"synthetic executable")
@@ -65,7 +65,7 @@ class Governed159LabTests(unittest.TestCase):
         # A Q4-like world payload is opaque and must survive every pack swap.
         (world/"level.dat").write_bytes(b"worldQ4-do-not-touch\x00\xff\x01")
         for _,folder,_,_ in lab.PACKS:(root/folder).mkdir()
-        sha=lab.PREDECESSORS[predecessor]
+        sha=source_commit or lab.PREDECESSORS[predecessor]
         archive=subprocess.run(
             ["git","-C",str(ROOT),"archive","--format=tar",sha,
              "addon/behavior_pack","addon/resource_pack"],
@@ -121,6 +121,58 @@ class Governed159LabTests(unittest.TestCase):
                     self.assertEqual((root/"worlds/PlayerWorld/level.dat").read_bytes(),before)
                     self.assertTrue(backup.is_dir())
                 finally:tmp.cleanup()
+
+    def test_observed_early_158_whole_pack_upgrade_and_exact_rollback(self):
+        # The owner's LAB showed 26 BP files, 60 RP files and these two
+        # specific script hashes. Both are pinned to one real Git commit.
+        origin=lab.EARLY_158_LAB_ORIGIN
+        pairs=lab.approved_predecessor_pairs(ROOT,self.originals)
+        early=pairs[(1,5,8)][1]
+        self.assertEqual(len(early["behavior_pack"]),26)
+        self.assertEqual(len(early["resource_pack"]),60)
+        self.assertEqual(early["behavior_pack"]["scripts/main.js"],
+                         lab.OBSERVED_158_MAIN_SHA256)
+        self.assertEqual(early["behavior_pack"]["scripts/urce_152_live_link_guard.js"],
+                         lab.OBSERVED_158_LINK_SHA256)
+        self.assertNotEqual(early["behavior_pack"],
+                            pairs[(1,5,8)][0]["behavior_pack"])
+        tmp,root=self.synthetic_lab((1,5,8),source_commit=origin)
+        try:
+            plan=lab.read_live_plan(ROOT,root,self.originals)
+            self.assertEqual(len(plan),2)
+            self.assertTrue(all(item["installed"]==early[item["local"]]
+                                for item in plan))
+            before={item["local"]:lab.old.hashes(item["target"]) for item in plan}
+            registries={item["local"]:item["registry"].read_bytes() for item in plan}
+            world=root/"worlds/PlayerWorld/level.dat"
+            opaque=world.read_bytes()
+            backup=lab.old.apply_plan(root,plan)
+            installed=lab.read_live_plan(ROOT,root,self.originals)
+            self.assertTrue(all(item["version"]==(1,5,9) for item in installed))
+            restore=lab.rollback_plan(ROOT,root,backup.name,self.originals)
+            self.assertTrue(all(item["files"]==early[item["local"]]
+                                for item in restore))
+            lab.old.apply_plan(root,restore)
+            restored=lab.read_live_plan(ROOT,root,self.originals)
+            for item in restored:
+                self.assertEqual(lab.old.hashes(item["target"]),before[item["local"]])
+                self.assertEqual(item["registry"].read_bytes(),registries[item["local"]])
+            self.assertEqual(world.read_bytes(),opaque)
+        finally:tmp.cleanup()
+
+    def test_observed_early_158_drift_cannot_auto_authorize(self):
+        tmp,root=self.synthetic_lab((1,5,8),source_commit=lab.EARLY_158_LAB_ORIGIN)
+        try:
+            target=root/"behavior_packs/HartMods_HartLogistics_BP"
+            main=target/"scripts/main.js"
+            main.write_bytes(main.read_bytes()+b"\\n// unknown local edits")
+            before=lab.old.hashes(target)
+            with self.assertRaises(lab.UnsafeLab) as ctx:
+                lab.read_live_plan(ROOT,root,self.originals)
+            self.assertIn("MODIFIED scripts/main.js",str(ctx.exception))
+            self.assertEqual(lab.old.hashes(target),before)
+            self.assertFalse((root/"_HartLogisticsDeployBackups").exists())
+        finally:tmp.cleanup()
 
     def test_tampered_source_identity_and_unknown_new_file_refused(self):
         tmp,root=self.source_copy()
