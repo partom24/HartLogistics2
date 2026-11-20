@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Source-only forensic match of observed installed 1.5.8 BP hashes
+        run: python3 scripts/urce_159_find_installed_predecessor.py
       - name: Zero new custody writer and native script syntax
         run: |
           for file in addon/behavior_pack/scripts/*.js; do node --check "$file"; done
