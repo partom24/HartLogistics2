@@ -528,6 +528,11 @@
     "addon/behavior_pack/scripts/urce_152_native_hopper_witness.js": [],
     "addon/behavior_pack/scripts/urce_152_transporter_bank_probe.js": [],
     "addon/behavior_pack/scripts/urce_152_link_snapshot_gate.js": [],
-    "addon/behavior_pack/scripts/urce_152_live_link_guard.js": []
+    "addon/behavior_pack/scripts/urce_152_live_link_guard.js": [],
+    "addon/behavior_pack/scripts/urce_152_shadow_evidence_bridge.js": [],
+    "addon/behavior_pack/scripts/urce_column_local_decisions.js": [],
+    "addon/behavior_pack/scripts/urce_column_offer_bridge.js": [],
+    "addon/behavior_pack/scripts/urce_source_claim_coverage.js": [],
+    "addon/behavior_pack/scripts/urce_source_scoped_shadow.js": []
   }
 }
