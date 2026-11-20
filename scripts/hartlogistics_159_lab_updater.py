@@ -14,6 +14,7 @@ no generic terminal permission, no opaque native MR custody writer.
 from __future__ import annotations
 import argparse
 import hashlib
+from functools import lru_cache
 import importlib.util
 import json
 import ntpath
@@ -86,8 +87,14 @@ REVIEWED_BLOBS={
 def git_blob_id(data: bytes) -> str:
     return hashlib.sha1(("blob "+str(len(data))+"\0").encode("ascii")+data).hexdigest()
 
+@lru_cache(maxsize=8)
 def prior_hashes(repo=ROOT,commit=None):
-    """One immutable pack file set only; no files from current HEAD."""
+    """Immutable Git-object file hashes only; NEVER cache live LAB hashes.
+
+    A full 80+ file Git history snapshot is constant for a specific commit.
+    Avoid re-running hundreds of subprocesses while a stopped-LAB preflight
+    and reversible upgrade tests repeatedly validate immutable origins.
+    """
     if commit not in (*PREDECESSORS.values(),EARLY_158_LAB_ORIGIN):
         raise UnsafeLab("Unknown historic source commit")
     cmd=["git","-C",str(repo)]
