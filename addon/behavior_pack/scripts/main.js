@@ -17,6 +17,7 @@ import {
 
 import "./urce_150_readonly_runtime.js";
 import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
+import {classifySorterDestinationType, proveLocalColumnTransit, orderedLocalSorterCandidates} from "./urce_column_local_decisions.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
@@ -3228,14 +3229,6 @@ function facingOffset(block) {
     }
 }
 
-function supportedStorage(block) {
-    if (!block) return false;
-    const id = block.typeId;
-    if (id === "minecraft:chest" || id === "minecraft:trapped_chest" || id === "minecraft:barrel") return true;
-    if (id === "minecraft:shulker_box" || id.endsWith("_shulker_box")) return true;
-    return false;
-}
-
 function destinationFor(entry) {
     const b = sorterAt(entry);
     if (!b) return undefined;
@@ -3253,11 +3246,13 @@ function destinationFor(entry) {
         return undefined;
     }
     if (!dest) return undefined;
+    // Pure type classification must not register a Collector or probe storage.
+    const destinationKind = classifySorterDestinationType(dest.typeId, COLLECTOR_ID);
 
     // A Hart Collector is now a first-class logical Sorter destination.
     // The Sorter never writes an inventory into the Collector block itself;
     // it commits directly into that Collector's linked Receiver queue.
-    if (dest.typeId === COLLECTOR_ID) {
+    if (destinationKind === "collector") {
         const id = logisticsId(
             dest.dimension.id,
             dest.location.x,
@@ -3276,7 +3271,7 @@ function destinationFor(entry) {
         return {kind:"collector", block:dest, collector};
     }
 
-    if (!supportedStorage(dest)) return undefined;
+    if (destinationKind !== "storage") return undefined;
     const c = dest.getComponent("minecraft:inventory")?.container;
     if (!c || !c.isValid) return undefined;
     return {kind:"storage", block:dest, container:c};
@@ -3735,40 +3730,7 @@ function processColumn(col, globalRemaining) {
     // must not resolve every native Sorter just to reject unrelated cargo.
     // AUTO has live destination seeds and WILDCARD accepts broadly, so neither
     // can be rejected from the registry alone. Unknown modes fail conservative.
-    let provenTransit = true;
-    let hasFilter = false;
-    for (const e of col.sorters) {
-        const mode = sorterMode(e);
-        if (mode !== "filter" && mode !== "bypass") {
-            provenTransit = false;
-            break;
-        }
-        if (mode === "filter") hasFilter = true;
-    }
-
-    if (provenTransit && hasFilter) {
-        // A native Hopper may contain five distinct identities. Every occupied
-        // slot must miss every local Filter before it is safe to skip routing.
-        // An unreadable slot, unknown item or filter exception is NOT transit.
-        let observedItem = false;
-        try {
-            const sourceSize = src.size;
-            for (let si=0; si<sourceSize && provenTransit; si++) {
-                const stack = src.getItem(si);
-                if (!stack) continue;
-                observedItem = true;
-                for (const e of col.sorters) {
-                    if (sorterMode(e) === "filter" && e.f && matchesFilter(stack, e.f)) {
-                        provenTransit = false;
-                        break;
-                    }
-                }
-            }
-            if (!observedItem) provenTransit = false;
-        } catch (_) {
-            provenTransit = false;
-        }
-    }
+    const provenTransit = proveLocalColumnTransit(col.sorters, src, sorterMode, matchesFilter);
 
     if (provenTransit) {
         // Compaction is distinct from routing. The original engine compacts
@@ -3808,13 +3770,9 @@ function processColumn(col, globalRemaining) {
         // Priority: exact Filter -> destination-seeded Auto -> Wildcard;
         // within each priority keep original bottom-to-top column order.
         // Bypass never appears in activeSorters. A Filter with no item accepts none.
-        const specific = activeSorters.filter(e => sorterMode(e) === "filter" && e.f && matchesFilter(stack, e.f));
-        // Defer AUTO seed checks until this target is actually attempted.
-        // Otherwise every eligible chest is scanned in candidate selection
-        // and then again just before insertion, even if Filter handled cargo.
-        const auto = activeSorters.filter(e => sorterMode(e) === "auto");
-        const wildcard = activeSorters.filter(e => sorterMode(e) === "wildcard");
-        const targets = [...specific, ...auto, ...wildcard];
+        // Candidate order is read-only. AUTO seeds are deliberately checked
+        // only when the current storage destination is actually attempted.
+        const targets = orderedLocalSorterCandidates(activeSorters, stack, sorterMode, matchesFilter);
 
         if (!targets.length) continue;
 
