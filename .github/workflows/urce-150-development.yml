@@ -36,7 +36,7 @@ jobs:
         run: node --test planning/tests/urce_u0_writer_fence.test.mjs
       - name: Run pure U1/U2 and player-created topology tests
         run: |
-          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u1_transporter_bank_probe.test.mjs planning/tests/urce_u1_link_snapshot_gate.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_152_live_wiring.test.mjs runtime/tests/urce_154_perf_idle.test.mjs runtime/tests/urce_155_journal_idle.test.mjs runtime/tests/urce_157_native_boundary_diagnostic.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
+          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u1_transporter_bank_probe.test.mjs planning/tests/urce_u1_link_snapshot_gate.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_152_live_wiring.test.mjs runtime/tests/urce_154_perf_idle.test.mjs runtime/tests/urce_155_journal_idle.test.mjs runtime/tests/urce_157_native_boundary_diagnostic.test.mjs runtime/tests/urce_158_solid_terminal_probe.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
       - name: Trace representative idle native API calls and enforce budgets before player LAB
         run: |
           mkdir -p "$RUNNER_TEMP/hart-native-mock-profiles"
