@@ -204,6 +204,69 @@ test("U1-F local claim frame and independently audited candidates must agree",as
   verifyNoAuthority(result);
 });
 
+test("U1-F closed 101-column five-item census selects all 100 correct modeled homes",async()=>{
+  const {graph,evaluate}=await load();
+  const types=["minecraft:cobblestone","minecraft:dirt","minecraft:gravel",
+    "minecraft:stone","minecraft:sand"];
+  const homes=[21,41,61,81,101];
+  const nodes=[{id:"source",kind:"source",loaded:true}],edges=[];
+  const all=[];
+  for(let column=1;column<=101;column++){
+    for(let slot=0;slot<5;slot++){
+      const id="column-"+column+"-sorter-"+slot;
+      const destination=homes.indexOf(column);
+      nodes.push({id,kind:"sorter",loaded:true});
+      edges.push({from:"source",to:id,kind:"local",verified:true,loaded:true});
+      all.push({id,column,slot,
+        filterId:destination>=0&&slot===0?types[destination]:"minecraft:diamond"});
+    }
+  }
+  const model=graph(nodes,edges);
+  assert.equal(model.status,"OK");
+  const projection={
+    status:"OBSERVED",graph:model,sourceClaimCoverage:"UNKNOWN",
+    executePermitted:false
+  };
+  const totals=Object.fromEntries(types.map(type=>[type,0]));
+  for(let arrival=0;arrival<100;arrival++){
+    const itemType=types[arrival%5],tick=arrival*8+1;
+    const f={
+      projection,source:"source",currentTick:tick,
+      enumeration:{
+        kind:"independent_item_claim_census",status:"CLOSED",
+        source:"source",observedTick:tick,closure:closure(),
+        claimantNodeIds:all.map(x=>x.id)
+      },
+      observations:all.map(x=>({
+        nodeId:x.id,tier:"filter",columnId:"column-"+x.column,
+        bottomUp:x.slot,claim:x.filterId===itemType?"yes":"no",
+        evidenceKind:"filter_config",observedTick:tick
+      })),
+      frame:{status:"NO_LOCAL_CLAIM",captured:true,
+        targets:[],offers:[]},
+      itemClass:"ordinary",existingBulkHome:"no",
+      applicableBulkState:"full"
+    };
+    const result=evaluate(f);
+    assert.equal(result.decision,"SHADOW_CANDIDATES");
+    assert.equal(result.plan.unresolved,false);
+    assert.equal(result.audit.claimantCount,505);
+    assert.equal(result.plan.stages.length,1);
+    const matched=result.plan.stages[0].candidates;
+    assert.equal(matched.length,1,"one compatible home per item");
+    assert.equal(matched[0].columnId,"column-"+homes[arrival%5]);
+    verifyNoAuthority(result);
+    totals[itemType]++;
+  }
+  for(const type of types)assert.equal(totals[type],20);
+  // This fixture's *closed source graph* is synthetic, and performs 505
+  // claim checks per item. None of that enumerator or graph runs on
+  // normal source-Hopper ticks in main.js.
+  const main=fs.readFileSync(path.join(SCRIPT,"main.js"),"utf8");
+  assert.doesNotMatch(main,/auditSourceClaimCoverage\s*\(/);
+  assert.doesNotMatch(main,/evaluateAuditedGovernedShadow\s*\(/);
+});
+
 test("U1-F module has no live runtime import, native API or persistent writer",()=>{
   const src=fs.readFileSync(path.join(SCRIPT,"urce_source_claim_coverage.js"),"utf8");
   const main=fs.readFileSync(path.join(SCRIPT,"main.js"),"utf8");
