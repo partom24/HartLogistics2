@@ -47,7 +47,11 @@ A subsequent Git pull does **not** silently deploy an add-on, rewrite Bedrock pa
 - Refuse unrecognized versions, wrong branch/checkout, dirty worktree, symlinked sources, stale pin, unexpected LAB predecessor, production directory, missing backup or any ambiguous ownership. Do not work around a `REFUSED` by hand copying pack files.
 - `main` remains the canonical archive for historical evidence and old operator processes. The current stable launcher is part of the **active URCE branch**; new branches must carry it forward.
 
-## 2026-11-20 — active 1.5.4 idle-CPU mitigation candidate
+## 2026-11-20 — current 1.5.5 guarded idle-journal source candidate
+
+The copied LAB is owner-confirmed on 1.5.4 (exact SHA 4154b456589528a93fc341826cd42490efef3d0a). The stable Git-pulled launcher defaults to 1.5.5 on this branch, with a new exact-pinned 1.5.4→1.5.5 Python updater. The pack delta is exactly three files: behavior and resource manifests, plus main.js. The original native debit/credit and Q4 recovery bodies, 4x4 Transporter geometry, identities, journal data and world registries are unchanged. Idle Sorter checks revalidate physical journal state every 20 ticks; every new physical transaction independently checks the actual native journal immediately before writing, rejecting an unresolved prior entry. This does NOT cache route authorization or cargo ownership. Run Plan and read-only CheckLab on a stopped COPIED LAB before any separate user-approved Install -Apply with exact full SHA. Preserve backup lab-6868c8d64947 and all earlier tags. No installed 1.5.5 or native speedup has yet been verified; compare fresh diagnostics under matched conditions and keep #87 open.
+
+## 2026-11-20 — historical 1.5.4 idle-CPU mitigation candidate
 
 **Installed copied-LAB predecessor:** version 1.5.3 from owner-confirmed exact source `aa108516b4fe5553b152bc6caf51a2cf8635037e`. Existing owner installation backups `lab-0bff63ebe84e` and `lab-c77b47f7c165` must be preserved. No 1.5.4 installation has yet been authorized.
 

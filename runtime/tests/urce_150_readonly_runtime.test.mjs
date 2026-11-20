@@ -95,16 +95,16 @@ test("DEV-01 both new blocks have unique geometry, atlas, models and textures",(
 test("DEV-02 1.5 BP/RP preserve stable UUIDs and Bedrock 2.7.0",()=>{
  const bp=JSON.parse(read("addon/behavior_pack/manifest.json"));
  const rp=JSON.parse(read("addon/resource_pack/manifest.json"));
- assert.deepEqual(bp.header.version,[1,5,4]);
- assert.deepEqual(rp.header.version,[1,5,4]);
+ assert.deepEqual(bp.header.version,[1,5,5]);
+ assert.deepEqual(rp.header.version,[1,5,5]);
  assert.equal(bp.header.uuid,"4854d263-05dd-4f79-a21c-7ba969295c2d");
  assert.equal(rp.header.uuid,"91316442-0f26-4fbb-88f3-2e39ea843a1a");
  assert.ok(bp.dependencies.some(x=>x.module_name==="@minecraft/server"&&x.version==="2.7.0"));
 });
-test("DEV-03 1.5.4 link-cycle guard changes control-plane but not Q4/physical writers",()=>{
+test("DEV-03 1.5.5 link-cycle guard changes control-plane but not Q4/physical writers",()=>{
  assert.match(main,/import "\.\/urce_150_readonly_runtime\.js"/);
  assert.match(main,/import \{createLiveLinkGuard\} from "\.\/urce_152_live_link_guard\.js"/);
- assert.match(main,/const VERSION = "1\.5\.4-dev"/);
+ assert.match(main,/const VERSION = "1\.5\.5-dev"/);
  assert.match(main,/function schedulerTick\(\)/);
  assert.match(main,/function logisticsTick\(\)/);
  assert.match(main,/function safeMovePartial\(/);

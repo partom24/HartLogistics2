@@ -21,7 +21,7 @@ const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.4-dev";
+const VERSION = "1.5.5-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -111,8 +111,47 @@ function log(msg) {
     console.warn(`[Hart Logistics ${VERSION}] ${msg}`);
 }
 
+// The native physical journal is written only by Hart's saveJournal().
+// Never rely on an idle cached absence when opening a NEW transaction:
+// saveJournal() reads native storage again before its write. A pending
+// journal from any source also blocks Receiver drain via its original native
+// check. Only empty idle Sorter polling uses this bounded read-through gate.
+const SORTER_JOURNAL_AUDIT_TICKS = 20;
+const sorterJournalGate = {known:false,pending:true,checkedTick:-1};
+function sorterJournalPending() {
+    const tick = system.currentTick;
+    if (!sorterJournalGate.known || !Number.isSafeInteger(tick) ||
+        tick < sorterJournalGate.checkedTick ||
+        tick - sorterJournalGate.checkedTick >= SORTER_JOURNAL_AUDIT_TICKS) {
+        try {
+            const pending = world.getDynamicProperty(JOURNAL_KEY);
+            sorterJournalGate.pending = !!pending;
+            sorterJournalGate.known = Number.isSafeInteger(tick);
+            sorterJournalGate.checkedTick = sorterJournalGate.known ? tick : -1;
+        } catch (_) {
+            // A failed native journal read cannot become a safe clearance.
+            sorterJournalGate.pending = true;
+            sorterJournalGate.known = false;
+        }
+    }
+    return sorterJournalGate.pending;
+}
 function setWorldDynamic(key, value) {
-    world.setDynamicProperty(key, value);
+    try {
+        world.setDynamicProperty(key, value);
+    } catch (err) {
+        if (key === JOURNAL_KEY) {
+            sorterJournalGate.known = false;
+            sorterJournalGate.pending = true;
+        }
+        throw err;
+    }
+    if (key === JOURNAL_KEY) {
+        sorterJournalGate.pending = !!value;
+        sorterJournalGate.known = Number.isSafeInteger(system.currentTick);
+        sorterJournalGate.checkedTick =
+            sorterJournalGate.known ? system.currentTick : -1;
+    }
 }
 
 function locKey(dim, x, y, z) {
@@ -448,6 +487,12 @@ function saveJournal(tx) {
     if (tx === undefined) {
         setWorldDynamic(JOURNAL_KEY, undefined);
     } else {
+        // Source-specific physical debit is the only point that can open
+        // a new journal. Re-read native persistence NOW, even when the
+        // idle Sorter poll had a cached clear result this tick. Never
+        // overwrite an unresolved previous debit/credit transaction.
+        if (world.getDynamicProperty(JOURNAL_KEY))
+            throw new Error("Existing physical transfer journal is unresolved");
         setWorldDynamic(JOURNAL_KEY, JSON.stringify(tx));
     }
 }
@@ -4049,7 +4094,9 @@ function logisticsTick() {
 
 function schedulerTick() {
     if (!ready) return;
-    if (world.getDynamicProperty(JOURNAL_KEY)) return;
+    // Only the idle poll shares a bounded cache. The transaction writer
+    // performs its own *fresh* native unresolved-journal preflight.
+    if (sorterJournalPending()) return;
     if (getQueueJournal()) return;
     if (dirty) rebuildTopology();
     if (!columns.length) return;

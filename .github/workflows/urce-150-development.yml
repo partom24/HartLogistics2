@@ -1,4 +1,4 @@
-name: URCE 1.5.4 bounded idle CPU and fail-closed cache candidate
+name: URCE 1.5.5 idle journal safety and CPU candidate
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-runtime-preview:
-    name: Validate 1.5.4 idle CPU fixes, unchanged Q4 and native rollback
+    name: Validate 1.5.5 journal polling and protected original physical/Q4 transfers
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,7 +36,7 @@ jobs:
         run: node --test planning/tests/urce_u0_writer_fence.test.mjs
       - name: Run pure U1/U2 and player-created topology tests
         run: |
-          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u1_transporter_bank_probe.test.mjs planning/tests/urce_u1_link_snapshot_gate.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_152_live_wiring.test.mjs runtime/tests/urce_154_perf_idle.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
+          node --test planning/tests/urce_u1_route_model.test.mjs planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u1_transporter_bank_probe.test.mjs planning/tests/urce_u1_link_snapshot_gate.test.mjs planning/tests/urce_u2_custody_protocol.test.mjs runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_152_live_wiring.test.mjs runtime/tests/urce_154_perf_idle.test.mjs runtime/tests/urce_155_journal_idle.test.mjs runtime/tests/urce_150_readonly_runtime.test.mjs
       - name: Validate complete BP/RP atlas, textures, geometry and display entity chain
         run: node --test runtime/tests/urce_150_resource_integrity.test.mjs
       - name: Validate client Content Log geometry diagnostic parser
@@ -57,14 +57,18 @@ jobs:
         run: |
           git worktree add --detach "$RUNNER_TEMP/urce153-installed" aa108516b4fe5553b152bc6caf51a2cf8635037e
           (cd "$RUNNER_TEMP/urce153-installed" && python3 -m unittest discover -s runtime/tests -p test_urce_153_link_guard_updater.py -v)
-      - name: Prove exact 1.5.3 to 1.5.4 guarded update/rollback in synthetic LAB
-        run: python3 -m unittest discover -s runtime/tests -p test_urce_154_idle_perf_updater.py -v
-      - name: Build non-release 1.5.4 idle-performance preview
+      - name: Preserve exact installed 1.5.4 source and rollback tests
         run: |
-          python3 tools/build_mcaddon.py --output dist/HartLogistics_154_IDLE_CPU_DEV_UNVERIFIED.mcaddon
+          git worktree add --detach "$RUNNER_TEMP/urce154-installed" 4154b456589528a93fc341826cd42490efef3d0a
+          (cd "$RUNNER_TEMP/urce154-installed" && python3 -m unittest discover -s runtime/tests -p test_urce_154_idle_perf_updater.py -v)
+      - name: Prove exact 1.5.4 to 1.5.5 bounded journal update and rollback
+        run: python3 -m unittest discover -s runtime/tests -p test_urce_155_journal_updater.py -v
+      - name: Build non-release 1.5.5 journal idle-CPU preview
+        run: |
+          python3 tools/build_mcaddon.py --output dist/HartLogistics_155_JOURNAL_IDLE_DEV_UNVERIFIED.mcaddon
           python3 - <<'PY'
           import json,zipfile,io,pathlib
-          p=pathlib.Path("dist/HartLogistics_154_IDLE_CPU_DEV_UNVERIFIED.mcaddon")
+          p=pathlib.Path("dist/HartLogistics_155_JOURNAL_IDLE_DEV_UNVERIFIED.mcaddon")
           assert p.is_file()
           with zipfile.ZipFile(p) as z:
               assert z.testzip() is None
@@ -74,7 +78,7 @@ jobs:
                   with zipfile.ZipFile(io.BytesIO(z.read(f))) as pack:
                       assert pack.testzip() is None
                       m=json.loads(pack.read("manifest.json"))
-                      assert m["header"]["version"]==[1,5,4]
+                      assert m["header"]["version"]==[1,5,5]
                       if "BP" in f:
                           assert "blocks/transporter.json" in pack.namelist()
                           assert "blocks/bulk_storage.json" in pack.namelist()
@@ -104,14 +108,14 @@ jobs:
                               "geometry.hartlogistics.bulk_storage",
                           }
                           assert expected <= identifiers, "Incomplete packaged geometry identifiers"
-          print("1.5.4 IDLE-CPU SOURCE CANDIDATE PACK VALIDATED; NO BDS PASS")
+          print("1.5.5 JOURNAL-IDLE SOURCE CANDIDATE PACK VALIDATED; NO BDS PASS")
           PY
       - name: Verify deterministic package and publish exact source/checksums
         run: |
           python3 tools/build_mcaddon.py --output "$RUNNER_TEMP/urce-repeat-build.mcaddon"
           python3 - <<'PY'
           import hashlib, io, json, os, pathlib, subprocess, zipfile
-          package=pathlib.Path("dist/HartLogistics_154_IDLE_CPU_DEV_UNVERIFIED.mcaddon")
+          package=pathlib.Path("dist/HartLogistics_155_JOURNAL_IDLE_DEV_UNVERIFIED.mcaddon")
           repeat=pathlib.Path(os.environ["RUNNER_TEMP"])/"urce-repeat-build.mcaddon"
           def digest(data): return hashlib.sha256(data).hexdigest()
           current=package.read_bytes()
@@ -145,15 +149,15 @@ jobs:
           print("Exact URCE preview artifact SHA-256:",record["artifact_sha256"])
           print("Build source:",sha)
           PY
-      - name: Retain unaccepted 1.5.4 bounded idle-CPU candidate
+      - name: Retain unaccepted 1.5.5 bounded journal idle-CPU candidate
         uses: actions/upload-artifact@v4
         with:
-          name: HL-URCE-154-IDLE-CPU-DEV-NOT-RELEASED
+          name: HL-URCE-155-JOURNAL-IDLE-DEV-NOT-RELEASED
           path: |
-            dist/HartLogistics_154_IDLE_CPU_DEV_UNVERIFIED.mcaddon
-            dist/HartLogistics_154_IDLE_CPU_DEV_UNVERIFIED.build-manifest.json
-            distribution/Start-HartLogistics-154Lab.ps1
-            distribution/URCE154_IDLE_CPU_LAB_TEST_CARD.md
+            dist/HartLogistics_155_JOURNAL_IDLE_DEV_UNVERIFIED.mcaddon
+            dist/HartLogistics_155_JOURNAL_IDLE_DEV_UNVERIFIED.build-manifest.json
+            distribution/Start-HartLogistics-155Lab.ps1
+            distribution/URCE155_JOURNAL_IDLE_LAB_TEST_CARD.md
             distribution/Diagnose-HartLogistics-LABResources.ps1
           retention-days: 14
           if-no-files-found: error
@@ -173,7 +177,7 @@ jobs:
       - name: Parse the actual PowerShell launcher and fail-closed operator modes
         shell: pwsh
         run: |
-          $file = (Resolve-Path 'distribution/Start-HartLogistics-154Lab.ps1').Path
+          $file = (Resolve-Path 'distribution/Start-HartLogistics-155Lab.ps1').Path
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
@@ -188,7 +192,7 @@ jobs:
               $refused = $false
               try { & $file @args | Out-Null }
               catch {
-                  if ($_.Exception.Message -notmatch 'REFUSED URCE 1.5.4 LAB preview') { throw }
+                  if ($_.Exception.Message -notmatch 'REFUSED URCE 1.5.5 LAB preview') { throw }
                   $refused = $true
               }
               if (-not $refused) { throw ('Unsafe launch mode was not refused: '+$args.Mode) }
@@ -258,7 +262,7 @@ jobs:
               },
               { //HartLogistics
                   "pack_id":"91316442-0f26-4fbb-88f3-2e39ea843a1a",
-                  "version":[1,5,4,],
+                  "version":[1,5,5,],
               },
               { /* HartBots registered resource pack */
                   "pack_id":"316ea1b2-fc60-48e4-afc8-6816b02a5406",
@@ -325,6 +329,13 @@ jobs:
           Push-Location "$env:RUNNER_TEMP\urce153-installed"
           try { python -m unittest discover -s runtime/tests -p test_urce_153_link_guard_updater.py -v }
           finally { Pop-Location }
-      - name: Run current 1.5.4 synthetic Windows update/rollback suite
+      - name: Preserve installed 1.5.4 Windows updater from exact pinned source
         shell: pwsh
-        run: python -m unittest discover -s runtime/tests -p test_urce_154_idle_perf_updater.py -v
+        run: |
+          git worktree add --detach "$env:RUNNER_TEMP\urce154-installed" 4154b456589528a93fc341826cd42490efef3d0a
+          Push-Location "$env:RUNNER_TEMP\urce154-installed"
+          try { python -m unittest discover -s runtime/tests -p test_urce_154_idle_perf_updater.py -v }
+          finally { Pop-Location }
+      - name: Prove current 1.5.5 Windows synthetic upgrade/rollback
+        shell: pwsh
+        run: python -m unittest discover -s runtime/tests -p test_urce_155_journal_updater.py -v

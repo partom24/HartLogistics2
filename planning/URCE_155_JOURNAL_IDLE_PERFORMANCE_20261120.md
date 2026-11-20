@@ -1,0 +1,15 @@
+# URCE 1.5.5 — safe idle physical-journal gate (2026-11-20)
+
+## Evidence-driven selection
+
+Owner BDS/VS Code files before and after 1.5.4 restart were parsed directly: before script p50 25.018ms / p90 64.428ms (192 samples); after restart p50 22.073ms / p90 29.838ms (280 samples), but 8/280 ticks still >100ms. The after-restart 20.67s JS CPU profile attributed 13.543s (65.5%) to schedulerTick and 8.835s to a direct `World::getDynamicProperty` child under that scheduler, compared with 5.708s for logisticsTick. Every active Sorter column remains polled because Bedrock has no verified native Hopper inventory-change event; speculative global throttling would allow items to pass matching columns undetected. The dominant repeated journal property read is a safer targeted candidate for reduction.
+
+## Direct control-plane mitigation and invariants
+
+Introduced `sorterJournalPending()` in `main.js` with an unknown/pending bootstrap and bounded **20-tick** native audit, updated synchronously after successful `setWorldDynamic(JOURNAL_KEY,...)` calls. On native read or write failure, pending remains or becomes TRUE (no false clearance). Other world properties are unaffected; external native changes are discovered at expiry. Crucially, `saveJournal(tx)` for a NEW physical debit always reads the **live native** journal first and raises if any unresolved data exist, guaranteeing an idle cached `false` can never overwrite a native recovery record. The original `safeMovePartial`, `recoverJournal`, `dequeueToReceiver`, `enqueueFromSource`, `compactSourceHopper` and Q4 writer bodies remain unchanged. The `logisticsTick` original direct native journal block remains unchanged too. This preserves crash-recovery gates while moving the expensive idle read to a bounded cadence; it does not cache positive topology/cargo admission.
+
+Proof tests execute the original `main.js` guard and `saveJournal`/scheduler source in Node stubs, including 200-tick idle read reduction, restart with a pending journal, immediate Hart write/clear, out-of-band pending journal protected at transaction time, retry-on-error and unchanged Receiver direct check. All source, U0 writer census, previous 1.5.4 exact-predecessor Windows installer/rollback and new 1.5.5 source/rollback tests must pass. The exact 1.5.4 installed source SHA `4154b456589528a93fc341826cd42490efef3d0a` is a strict immutable predecessor; only BP/RP manifests and main.js are allowed to change.
+
+## Scope and limitations
+
+This is a **source-only, development candidate** until the owner chooses a copied-LAB installation; no owner world/pack was modified by this work. Actual 20-TPS/idle improvement remains unmeasured. CPU profiler instrumentation can overweight expensive native accessor calls; the baseline and rerun should use comparable settings. Full generic Transporter-optional directed cycle discovery (#86), Bulk custody and legitimate multi-bank item routing remain future work, blocked pending idle performance (#87) and source-specific routing proof. Preserve all historical Q4 queues and original 1.4.2 writer bodies.
