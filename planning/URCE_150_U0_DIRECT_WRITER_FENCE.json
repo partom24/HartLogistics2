@@ -533,6 +533,7 @@
     "addon/behavior_pack/scripts/urce_column_local_decisions.js": [],
     "addon/behavior_pack/scripts/urce_column_offer_bridge.js": [],
     "addon/behavior_pack/scripts/urce_source_claim_coverage.js": [],
-    "addon/behavior_pack/scripts/urce_source_scoped_shadow.js": []
+    "addon/behavior_pack/scripts/urce_source_scoped_shadow.js": [],
+    "addon/behavior_pack/scripts/urce_159_direct_sorter_home.js": []
   }
 }
