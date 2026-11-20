@@ -155,7 +155,8 @@ test("U1-A is read-only, actually integrated, and leaves existing custody writer
   const src=fs.readFileSync(MODULE,"utf8"),main=fs.readFileSync(MAIN,"utf8");
   assert.match(main,/from "\.\/urce_column_local_decisions\.js"/);
   assert.match(main,/proveLocalColumnTransit\(col\.sorters, src, sorterMode, matchesFilter\)/);
-  assert.match(main,/orderedLocalSorterCandidates\(activeSorters, stack, sorterMode, matchesFilter\)/);
+  assert.match(main,/prepareLocalColumnFrame\(\{/);
+  assert.match(main,/const targets = frame\.targets/);
   assert.match(main,/observeSorterDestination\(entry, sorterAt, facingOffset, COLLECTOR_ID\)/);
   assert.match(src,/classifySorterDestinationType\(dest\.typeId, collectorId\)/);
   assert.match(main,/function destinationFor\(entry\)[\s\S]*?registerCollector\(dest\)/);
