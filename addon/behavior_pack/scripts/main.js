@@ -574,7 +574,9 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     if (observed.decision !== "HOLD" ||
         observed.reason !== "unverified_native_supply_boundary" ||
         !observed.observationReason?.startsWith(
-            "unsupported_native_boundary [hartsorter:sorter @")) return observed;
+            "unsupported_native_boundary [hartsorter:sorter @") ||
+        !observed.observationReason?.endsWith(
+            " from receiver "+receiver.id+"]")) return observed;
     const outlet=directSorterOutlet(receiver);
     if (outlet.status!=="CLOSED_DIRECT_OUTLET") return observed;
     return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_SORTER",
