@@ -93,12 +93,11 @@ while ($true) {
     if ($null -eq $parent) { break }
     $current = $parent.FullName
 }
+# Native Git stderr is not a failure signal. The shared helper checks its
+# exit code and prevents benign progress from terminating Windows PowerShell.
+. (Join-Path $PSScriptRoot 'Invoke-HartLogisticsNativeGit.ps1')
 function GitText([string[]]$Words) {
-    $output = & git.exe -C $repoRoot @Words 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Refuse ('Git source check failed: ' + ($Words -join ' '))
-    }
-    return (($output | Out-String).Trim())
+    return (Invoke-HartLogisticsNativeGit -GitArguments (@('-C', $repoRoot) + $Words))
 }
 $gitRoot = GitText -Words @('rev-parse','--show-toplevel')
 if ([IO.Path]::GetFullPath($gitRoot).TrimEnd('\','/') -ine $repoRoot.TrimEnd('\','/')) {
