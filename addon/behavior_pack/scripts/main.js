@@ -17,7 +17,7 @@ import {
 
 import "./urce_150_readonly_runtime.js";
 import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
-import {classifySorterDestinationType, proveLocalColumnTransit, orderedLocalSorterCandidates} from "./urce_column_local_decisions.js";
+import {observeSorterDestination, proveLocalColumnTransit, orderedLocalSorterCandidates} from "./urce_column_local_decisions.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
@@ -3230,29 +3230,16 @@ function facingOffset(block) {
 }
 
 function destinationFor(entry) {
-    const b = sorterAt(entry);
-    if (!b) return undefined;
-    const off = facingOffset(b);
-    if (!off) return undefined;
-
-    let dest;
-    try {
-        dest = b.dimension.getBlock({
-            x: b.location.x + off.x,
-            y: b.location.y,
-            z: b.location.z + off.z
-        });
-    } catch (_) {
-        return undefined;
-    }
-    if (!dest) return undefined;
-    // Pure type classification must not register a Collector or probe storage.
-    const destinationKind = classifySorterDestinationType(dest.typeId, COLLECTOR_ID);
+    // Pure live observation is separate from the legacy controlled Collector
+    // registration/admission below. It cannot write queues or world state.
+    const observation = observeSorterDestination(entry, sorterAt, facingOffset, COLLECTOR_ID);
+    if (!observation) return undefined;
+    const dest = observation.block;
 
     // A Hart Collector is now a first-class logical Sorter destination.
     // The Sorter never writes an inventory into the Collector block itself;
     // it commits directly into that Collector's linked Receiver queue.
-    if (destinationKind === "collector") {
+    if (observation.kind === "collector") {
         const id = logisticsId(
             dest.dimension.id,
             dest.location.x,
@@ -3271,7 +3258,8 @@ function destinationFor(entry) {
         return {kind:"collector", block:dest, collector};
     }
 
-    if (destinationKind !== "storage") return undefined;
+    // The observation is already a known storage block; obtain inventory live.
+    if (observation.kind !== "storage") return undefined;
     const c = dest.getComponent("minecraft:inventory")?.container;
     if (!c || !c.isValid) return undefined;
     return {kind:"storage", block:dest, container:c};
