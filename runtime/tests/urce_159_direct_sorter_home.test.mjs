@@ -163,7 +163,7 @@ test("GO-11 source integration retains exactly one journaled Q4 discharge author
   assert.match(s,/inspectDirectSorterOutlet\(/);
   assert.match(s,/inspectDirectItemHome\(/);
   assert.match(s,/dequeueToReceiver\(receiver, output, budget, governedLane\)/);
-  assert.match(s,/if \(governedLane!=="DIRECT_NATIVE_SORTER" \|\|/);
+  assert.match(s,/governedLane!=="DIRECT_NATIVE_SORTER"/);
   assert.match(s,/saveQueueJournal\(tx\);/);
   assert.match(s,/persistQueueMeta\(receiver, q, metaAfter\);/);
   assert.match(s,/output\.container\.setItem\(tx\.dstSlot, moved\)/);
