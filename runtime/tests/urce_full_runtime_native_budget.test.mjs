@@ -47,7 +47,8 @@ class Stack {
   setCanPlaceOn(){}
 }
 function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
-                  blocked=false,legacy=false,direct=false,directSideChest=false}={}) {
+                  blocked=false,legacy=false,direct=false,directSideChest=false,
+                  directedTerminalChest=false}={}) {
   const metrics=counters();
   const blocks=new Map(), properties=new Map(), timers=[], intervals=[], listeners=new Map();
   let currentTick=0;
@@ -131,11 +132,13 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
       ...(legacy?{}:{i:[p.x,p.y,p.z-1,2]})});
   }
   const cols=[],recs=[],collectorSources=[],receiverOutputs=[];
-  const directChests=[],directSideChests=[];
+  const directChests=[],directSideChests=[],nativeTerminals=[];
   for(let i=0;i<receivers;i++){
     const p={x:80000+i*20,y:70,z:0},id=key(DIM,p),queueKey="q"+(i+1);
     block("hartsorter:receiver",p);
-    receiverOutputs.push(block("minecraft:hopper",{...p,y:69},{items:[],facing:0}).container);
+    receiverOutputs.push(block("minecraft:hopper",{...p,y:69},{
+      items:[],facing:directedTerminalChest && i===0 ? 2 : 0
+    }).container);
     if(blocked)block("minecraft:chest",{...p,y:68},{items:[]});
     if(direct&&i===0){
       // The Receiver output Hopper ends DOWNWARD at the top Sorter. The only
@@ -144,6 +147,11 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
         states:{"minecraft:cardinal_direction":"east","hartlogistics:mode":"filter"}});
       const chest=block("minecraft:chest",{x:p.x+1,y:68,z:p.z},{items:[]});
       directChests.push(chest.container);
+      if(directedTerminalChest) {
+        nativeTerminals.push(block("minecraft:chest",
+          {x:p.x,y:69,z:p.z-1},{items:[]}).container);
+        block("minecraft:stone",{x:p.x,y:68,z:p.z-1});
+      }
       if(directSideChest) {
         const side=block("minecraft:chest",{x:p.x+1,y:69,z:p.z},{items:[]});
         directSideChests.push(side.container);
@@ -214,7 +222,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     }
   }
   function emit(name,ev){for(const callback of listeners.get(name)??[])callback(ev);}
-  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,directSideChests,properties,warnings,intervals,world,
+  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,directSideChests,nativeTerminals,properties,warnings,intervals,world,
     get tick(){return currentTick;}};
 }
 function publish(label,fixture,ticks,extra={}) {
@@ -349,6 +357,23 @@ test("FULL-NATIVE-08 passively adjacent chest does not block real Collector/Q4/S
   assert.ok(n(counts,"World.setDynamicProperty.hartsorter:journal_v1")>=2,
     "Native Sorter physical custody journal remains mandatory");
   assert.ok(n(counts,"Container.setItem")>=2);
+});
+test("FULL-NATIVE-09 exact outgoing Hopper end chest does not misroute Filter cargo",async()=>{
+  const f=fixture({sorters:0,collectors:1,receivers:1,direct:true,directedTerminalChest:true});
+  await f.loadFullRuntime();f.advance(7);
+  f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+  f.metrics.reset();
+  f.advance(1);
+  const {counts}=publish("4 cobblestone via original Q4 directly into chosen Sorter Filter chest; native outgoing Hopper points at terminal chest",f,1);
+  assert.equal(f.collectorSources[0].inspect()[0],0,"Collector enqueued exactly four items");
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q1")).q,0,"Receiver Q4 has no held items");
+  assert.equal(f.directChests[0].inspect()[0],4,"Intended Sorter Filter chest owns all four items");
+  assert.equal(f.nativeTerminals[0].inspect()[0],0,"Native terminal chest did NOT intercept claimed Filter cargo");
+  assert.equal(f.receiverOutputs[0].inspect()[0],0,"Q4 writer skipped Hopper which could divert item");
+  assert.ok(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1")>=4,
+    "Original Q4 enqueue and direct Filter chest dequeue use one journal");
+  assert.equal(n(counts,"World.setDynamicProperty.hartsorter:journal_v1"),0,
+    "No fictitious physical Sorter transfer; one Q4 chest credit is the only writer");
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
   const f=fixture({sorters:64,collectors:0,receivers:0,legacy:true});
