@@ -11,6 +11,7 @@
 import {
   inspectCandidateSupplyLink,observeSupplyLinkSnapshot
 } from "./urce_152_link_snapshot_gate.js";
+import {projectObservedShadowGraph} from "./urce_152_shadow_evidence_bridge.js";
 
 export function createLiveLinkGuard() {
   const memo=new Map(),negativeMemo=new Map();
@@ -138,5 +139,38 @@ export function createLiveLinkGuard() {
     }
     return result;
   }
-  return {check,invalidate,stats};
+  /**
+   * Diagnostic-only view of a previously materialized SAME-TICK snapshot.
+   * This performs zero world reads, never invokes check(), and never
+   * promotes a negative memo entry to a positive observation.
+   *
+   * Registry content and reader identity must be unchanged. Returning a
+   * newly constructed graph (not internal snapshot references) prevents a
+   * shadow consumer from mutating the live safety guard's observations.
+   */
+  function peekShadowEvidence({
+    collectors,receivers,getBlock,currentTick:tick
+  }) {
+    const hold=reason=>({
+      status:"HOLD",reason,graph:undefined,
+      sourceClaimCoverage:"UNKNOWN",worldCoverage:"UNKNOWN",
+      executePermitted:false,persistPermitted:false,
+      mayAuthorizeCargo:false
+    });
+    if (!Number.isSafeInteger(tick) || tick!==currentTick ||
+        !snapshot || !recordVersion ||
+        !Array.isArray(collectors) || !Array.isArray(receivers) ||
+        snapshot.collectors!==collectors ||
+        snapshot.receivers!==receivers ||
+        snapshot.getBlock!==getBlock ||
+        recordVersion.collectors!==collectors ||
+        recordVersion.receivers!==receivers ||
+        recordVersion.getBlock!==getBlock ||
+        !sameRecords(collectors,recordVersion.collectorRecords) ||
+        !sameRecords(receivers,recordVersion.receiverRecords)) {
+      return hold("no_fresh_matching_observation");
+    }
+    return projectObservedShadowGraph(snapshot.observations);
+  }
+  return {check,invalidate,stats,peekShadowEvidence};
 }
