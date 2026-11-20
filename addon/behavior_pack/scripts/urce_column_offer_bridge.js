@@ -27,13 +27,9 @@ export function prepareLocalColumnFrame({
             targets:[], offers:[], executePermitted:false};
     }
 
-    let targets;
-    try {
-        targets = orderedLocalSorterCandidates(activeSorters, stack, modeOf, matches);
-    } catch (_) {
-        return {status:"UNKNOWN", reason:"local_match_unavailable",
-            targets:[], offers:[], executePermitted:false};
-    }
+    // Keep existing exception behavior at the live call boundary.
+    // A matcher failure may not be silently converted to an accepted transit.
+    const targets = orderedLocalSorterCandidates(activeSorters, stack, modeOf, matches);
 
     // Fast live path: do not construct duplicate filter signatures, inventories,
     // ItemStack snapshots or governed graph proof on every cargo observation.
