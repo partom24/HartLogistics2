@@ -124,7 +124,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
   const registry=[];
   for(let i=0;i<sorters;i++){
     const p={x:i*4,y:64,z:0};
-    block("hartsorter:sorter",p,{states:{"hartlogistics:mode":"filter"}});
+    block("hartsorter:sorter",p,{states:{"hartlogistics:mode":"filter","minecraft:cardinal_direction":"north"}});
     block("minecraft:hopper",{...p,y:65},{items:[]});
     registry.push({d:DIM,...p,m:"filter",f:{typeId:"minecraft:diamond"},
       ...(legacy?{}:{i:[p.x,p.y,p.z-1,2]})});
@@ -220,8 +220,8 @@ test("FULL-NATIVE-01 all registered periodic runtime paths: 1,442 empty sources,
   assert.equal(n(counts,"Container.setItem"),0,"Empty inventory must never mutate");
   assert.equal(n(counts,"Dimension.getBlock"),(1442+73*8+54*3)*ticks,
     "Missing or newly added native block observation must be explicitly reviewed");
-  assert.equal(n(counts,"Container.firstItem"),1442*ticks,
-    "Empty Sorter firstItem remains one read per source; never scan slots");
+  assert.equal(n(counts,"Container.firstItem"),(1442+73)*ticks,
+    "Empty Sorter and directed Collector sources each require one emptiness read");
   assert.equal(n(counts,"Container.getItem"),0);
   assert.ok(n(counts,"World.getDimension")<=3,"Dimension handles should stay cached");
   assert.ok(n(counts,"World.getDynamicProperty.hartsorter:journal_v1")<=ticks+12);
@@ -246,6 +246,8 @@ test("FULL-NATIVE-02 stationary, linked cargo includes REAL graph guard, Hopper 
 test("FULL-NATIVE-03 eligible live source exercises real custody writer and receiver drain",async()=>{
   const f=fixture({sorters:0,collectors:1,receivers:1,stationary:true,blocked:false});
   await f.loadFullRuntime();f.advance(7);f.metrics.reset();
+  f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+  f.metrics.reset(); // exclude the fixture injection from measured native writes
   f.advance(1);
   const {counts}=publish("one loaded eligible Collector -> Q4 -> Receiver",f,1);
   assert.ok(n(counts,"System.currentTick")>0,"Route guard must be genuinely invoked");
