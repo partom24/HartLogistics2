@@ -36,9 +36,10 @@ class Governed159LabTests(unittest.TestCase):
         self.assertEqual(set(result),{"behavior_pack","resource_pack"})
         self.assertEqual(lab.NEW_VERSION,(1,5,9))
         self.assertEqual(set(lab.PREDECESSORS),{(1,5,7),(1,5,8)})
-        self.assertEqual(len(lab.REVIEWED_BLOBS),10)
+        self.assertEqual(len(lab.REVIEWED_BLOBS),11)
         self.assertIn("behavior_pack/scripts/urce_159_direct_sorter_home.js",
                       lab.ADDED_158)
+        self.assertIn("behavior_pack/scripts/urce_152_link_snapshot_gate.js", lab.CHANGE_158)
         self.assertIn("behavior_pack/scripts/urce_159_direct_sorter_home.js",
                       lab.ADDED_157)
         # No new field, legacy Q4 format, identity, or extra cargo writer.
