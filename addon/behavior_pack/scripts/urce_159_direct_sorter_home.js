@@ -10,6 +10,8 @@
  * A Receiver discharges only into its verified downward-facing native Hopper,
  * which is also the live source immediately above one complete registered
  * vertical Sorter column, and every non-Bypass Sorter outputs to native storage.
+ * Native directional flow is decisive; merely adjacent passive storage,
+ * parallel registered columns, or native Hoppers do not imply an outgoing edge.
  * This is an exclusively CLOSED local native outlet, NOT a generic network
  * discovery algorithm. Unknown side routes, foreign inventory or incomplete
  * registry/Bedrock observations HOLD. No global claim absence is inferred from
@@ -61,15 +63,32 @@ export function inspectDirectSorterOutlet({receiver,readBlock,columns,
   const locked=safeState(hopper,"toggle_bit");
   if(locked!==false&&locked!==0)return fail("output_hopper_locked_or_unknown");
 
-  // No unverified native or logical side outlet may be silently discarded.
-  // A loaded foreign inventory is treated as a possible external writer.
+  // Observe ADJACENT blocks for unknown side extraction, not for mere
+  // proximity. A downward Hopper has exactly one native output: (x,y-2,z).
+  // A vanilla chest/barrel beside that Hopper cannot steal its cargo; a
+  // second Hopper next to it also cannot pull horizontally from it. These
+  // are valid tightly packed player storage layouts and adjacent columns.
+  // Side Hoppers with observable direction may supply items INTO this bus,
+  // but cannot turn its downward output into a sideward route. The existing
+  // Q4 discharge checks its Hopper is empty before credit and rechecks the
+  // live home each time. Unknown third-party inventories with potentially
+  // active side extraction still HOLD; no claim of arbitrary mod compatibility.
   for(const h of [y,y-1])for(const side of OFFSETS) {
     const near=observed(readBlock,d,{x:x+side.x,y:h,z:z+side.z});
     if(!near)return fail("side_block_unavailable");
-    if(HART_SIDE.has(near.typeId))return fail("side_managed_or_native_route");
+    if(near.typeId===HOPPER) {
+      const nativeDirection=safeState(near,"facing_direction");
+      if(![0,1,2,3,4,5].includes(nativeDirection))
+        return fail("adjacent_hopper_direction_unknown");
+      continue;
+    }
+    if(HART_SIDE.has(near.typeId))continue;
     try {
       const container=near.getComponent?.("minecraft:inventory")?.container;
-      if(container)return fail("side_inventory_boundary");
+      // Vanilla side inventories are passive relative to a downward Hopper.
+      // Unknown foreign inventory side effects cannot be ruled out.
+      if(container&&!near.typeId.startsWith("minecraft:"))
+        return fail("foreign_side_inventory_boundary");
     } catch (_) {return fail("side_inventory_unverified");}
   }
   const matches=columns.filter(col=>col?.d===d&&
