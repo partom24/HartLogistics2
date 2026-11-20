@@ -217,7 +217,7 @@ def describe_installed_pack_drift(local,version,actual,expected):
         if len(paths)>20:
             lines.append("  "+label+" ... "+str(len(paths)-20)+" additional paths")
     lines.append("NO FILES CHANGED. Do not install. Share this read-only report for review.")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def read_live_plan(repo,root,originals=None):
