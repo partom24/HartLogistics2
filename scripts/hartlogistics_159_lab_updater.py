@@ -58,8 +58,8 @@ ADDED_157=ADDED_158 | (EXTRA_157-{
 REVIEWED_BLOBS={
     "behavior_pack/manifest.json":"8ea518d9ad202092bbc4f6f60de9ad62e270d81e",
     "resource_pack/manifest.json":"5a0fbaa977143f9cc9eaad9ac345a2985ec457b2",
-    "behavior_pack/scripts/main.js":"bce99ec72c3f674dda7d4f08d8bcc86ac2260555",
-    "behavior_pack/scripts/urce_159_direct_sorter_home.js":"e5f1cc48c21754b3d03385c2d85ea1507c295941",
+    "behavior_pack/scripts/main.js":"be91a27ef5feffb055f9621ee4c9282b2b45f441",
+    "behavior_pack/scripts/urce_159_direct_sorter_home.js":"2054387343d34ecc6e6947bf14943c2229913288",
     "behavior_pack/scripts/urce_152_live_link_guard.js":"76dd50d472313b3798554bedc3dbd5313842ecc3",
     "behavior_pack/scripts/urce_152_shadow_evidence_bridge.js":"ee2c71c9fb84340f7110ccb3a2d52fc0fc5a688f",
     "behavior_pack/scripts/urce_column_local_decisions.js":"1892b4168a972ad634c6ae20306e1af7d71d5dd9",
