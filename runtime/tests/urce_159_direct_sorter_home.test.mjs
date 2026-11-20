@@ -37,6 +37,7 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   full=false,side=false,sideType="minecraft:hopper",sideAt="hopper",
   sideDx=1,sideDz=0,sideFacing=0,parallelColumns=0,
   direction=0,locked=false,missing=false,duplicate=false,
+  nativeTerminal=false,terminalExtractor=false,terminalType="minecraft:chest",
   hiddenSorter=false,belowChestHopper=false,mode2="bypass",autoSeed=false}={}){
   const dim="minecraft:overworld",m=new Map();
   const key=(X,Y,Z)=>`${X}|${Y}|${Z}`;
@@ -45,6 +46,10 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   const hop=mk("minecraft:hopper",x,y-1,z,{facing:direction,locked});
   const items=full?[{typeId:filter,amount:64,maxAmount:64}]:[];
   const inv1=inventory(items);
+  if(nativeTerminal) {
+    set(mk(terminalType,x,y-1,z-1,{inv:inventory()}));
+    set(mk(terminalExtractor?"minecraft:hopper":"minecraft:stone",x,y-2,z-1));
+  }
   const sorter1=mk("hartsorter:sorter",x,y-2,z);
   const sorter2=mk("hartsorter:sorter",x,y-3,z);
   const chest1=mk("minecraft:chest",x+1,y-2,z,{inv:inv1});
@@ -154,7 +159,7 @@ for(const [name,config,reason] of [
   ["foreign active side inventory",{side:true,sideType:"example:active_pipe"},"foreign_side_inventory_boundary"],
   ["side Hopper direction unknown",{side:true,sideFacing:"unknown"},"adjacent_hopper_direction_unknown"],
   ["missing chunk",{missing:true},"side_block_unavailable"],
-  ["not-down facing",{direction:5},"output_hopper_not_downward"],
+  ["unverified lateral output",{direction:5},"output_hopper_not_downward_or_terminal"],
   ["redstone powered",{locked:true},"output_hopper_locked_or_unknown"],
   ["duplicate column",{duplicate:true},"source_column_not_unique"],
   ["unregistered hidden Sorter",{hiddenSorter:true},"sorter_run_boundary_unknown"],
@@ -217,6 +222,30 @@ test("GO-20 actual native downstream extraction still HOLDs despite harmless nei
   assert.equal(home.status,"HOLD");
 });
 
+
+test("GO-21 native Hopper points north into positively witnessed passive terminal but Q4 must select Sorter Filter home",async()=>{
+  const {outlet,home}=await evaluation({direction:2,nativeTerminal:true});
+  assert.equal(outlet.status,"CLOSED_DIRECT_OUTLET");
+  assert.equal(outlet.directToClaimedHome,true);
+  assert.equal(outlet.nativeTerminal.location.y,72);
+  assert.equal(outlet.nativeTerminal.location.z,-1);
+  assert.equal(home.status,"HOME_OBSERVED");
+  assert.equal(home.tier,"filter");
+  assert.notEqual(outlet.nativeTerminal,outlet.owners.find(o=>o.entry===home.owner).destination);
+});
+
+test("GO-22 a lateral output pointing into unverified or actively extracted storage must HOLD",async()=>{
+  for(const opts of [
+    {direction:2},
+    {direction:2,nativeTerminal:true,terminalType:"minecraft:stone"},
+    {direction:2,nativeTerminal:true,terminalExtractor:true}
+  ]){
+    const {outlet,home}=await evaluation(opts);
+    assert.equal(outlet.status,"HOLD",JSON.stringify(opts));
+    assert.equal(home.status,"HOLD");
+  }
+});
+
 test("GO-10 no ItemStack or Block can be retained in a durable custody plan",async()=>{
   const {outlet,home}=await evaluation();
   assert.equal(outlet.persistPermitted,false);
@@ -232,7 +261,7 @@ test("GO-11 source integration retains exactly one journaled Q4 discharge author
   assert.match(s,/governedLane!=="DIRECT_NATIVE_SORTER"/);
   assert.match(s,/saveQueueJournal\(tx\);/);
   assert.match(s,/persistQueueMeta\(receiver, q, metaAfter\);/);
-  assert.match(s,/output\.container\.setItem\(tx\.dstSlot, moved\)/);
+  assert.match(s,/outputTarget\.container\.setItem\(tx\.dstSlot, moved\)/);
   assert.match(s,/if\(directClosed\)continue;/);
 });
 
@@ -244,7 +273,8 @@ function extractMainFunction(name,scope){
   return vm.runInNewContext("("+src.slice(start,end<0?src.length:end).trim()+"\n)",scope);
 }
 function linkFixture({first,second,forceFresh=false}){
-  const receiver={id:"minecraft:overworld|0|73|0"};
+  const receiver={id:"minecraft:overworld|0|73|0",
+    d:"minecraft:overworld",x:0,y:73,z:0};
   const collector={id:"C",link:receiver.id};
   const base={decision:"HOLD",reason:"unverified_native_supply_boundary",
     sourceReachableUnknownCount:1,
@@ -301,4 +331,44 @@ test("GO-16 forced user-link validation does one fresh graph scan, never cached 
   const f=linkFixture({forceFresh:true});
   assert.equal(f.verdict.decision,"SAFE_SNAPSHOT");
   assert.deepEqual(f.seen,[true]);assert.equal(f.outlets.length,1);
+});
+
+test("GO-23 native chest boundary must match THIS Receiver's exact directed Hopper output",()=>{
+  const receiverId="minecraft:overworld|0|73|0";
+  const issue={
+    decision:"HOLD",reason:"unverified_native_supply_boundary",
+    sourceReachableUnknownCount:1,
+    observationReason:"unsupported_native_boundary [minecraft:chest @ minecraft:overworld 0,72,-1 from receiver "+receiverId+"]"
+  };
+  const receiver={id:receiverId,d:"minecraft:overworld",x:0,y:73,z:0};
+  const collector={id:"C",link:receiver.id};
+  const oldLink=extractMainFunction("liveLinkCheck",{
+    logistics:{collectors:[collector],receivers:[receiver]},
+    liveTopologyBlockReader:()=>undefined,
+    activeLogisticsPass:undefined,system:{currentTick:7},
+    liveLinkGuard:{check(){return issue;}},
+    directSorterOutlet(){return {status:"CLOSED_DIRECT_OUTLET",
+      nativeTerminal:{typeId:"minecraft:chest",location:{x:0,y:72,z:-1}}};}
+  });
+  assert.equal(oldLink(collector,receiver).routeKind,"DIRECT_NATIVE_SORTER");
+});
+
+test("GO-24 a nearby unconnected chest, mismatched terminal coordinates, or second unknown cannot certify a native route",()=>{
+  for(const [reason,count] of [
+    ["unsupported_native_boundary [minecraft:chest @ minecraft:overworld 1,72,-1 from receiver minecraft:overworld|0|73|0]",1],
+    ["unsupported_native_boundary [minecraft:chest @ minecraft:overworld 0,72,-1 from receiver minecraft:overworld|0|73|0]",2]
+  ]) {
+    const receiver={id:"minecraft:overworld|0|73|0",d:"minecraft:overworld",x:0,y:73,z:0};
+    const collector={id:"C",link:receiver.id};
+    const run=extractMainFunction("liveLinkCheck",{
+      logistics:{collectors:[collector],receivers:[receiver]},
+      liveTopologyBlockReader:()=>undefined,activeLogisticsPass:undefined,
+      system:{currentTick:7},
+      liveLinkGuard:{check(){return {decision:"HOLD",reason:"unverified_native_supply_boundary",
+        sourceReachableUnknownCount:count,observationReason:reason};}},
+      directSorterOutlet(){return {status:"CLOSED_DIRECT_OUTLET",
+        nativeTerminal:{typeId:"minecraft:chest",location:{x:0,y:72,z:-1}}};}
+    });
+    assert.equal(run(collector,receiver).decision,"HOLD");
+  }
 });
