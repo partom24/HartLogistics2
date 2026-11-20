@@ -2416,21 +2416,21 @@ function ejectedItemCollector(entity, spawnLoc=undefined) {
     for (const collector of logistics.collectors) {
         if (collector.present === false || collector.d !== dimId || !collector.link) continue;
 
-        const c = collectorAt(collector);
-        if (!c) continue;
-
-        // A deliberately powered Collector must reject ALL ingress, including
-        // Dropper/Dispenser ejections. The only exception is a short pulse-local
-        // grace window when the same source pulse momentarily powers the adjacent
-        // Collector while ejecting the item.
-        if (!collectorAllowsEjectedPulse(c)) continue;
-
-        // A dropper ejecting into a solid Collector normally spawns the item at
-        // the source face, overlapping the Collector during its first tick. A
-        // small tolerance avoids making capture dependent on sub-tick motion.
+        // The original per-Collector spatial admission bound is a pure
+        // comparison against the observed spawn position and persisted
+        // Collector coordinates. Reject distant items BEFORE any native
+        // getBlock, redstone, direction or inventory access. This cannot
+        // accept a new item and does not skip a potentially eligible one.
         if (loc.x < collector.x - 0.35 || loc.x > collector.x + 1.35 ||
             loc.y < collector.y - 0.35 || loc.y > collector.y + 1.35 ||
             loc.z < collector.z - 0.35 || loc.z > collector.z + 1.35) continue;
+
+        const c = collectorAt(collector);
+        if (!c) continue;
+
+        // Still verify the LIVE powered Collector for any item inside the
+        // exact old tolerance; event timing and pulse grace are unchanged.
+        if (!collectorAllowsEjectedPulse(c)) continue;
 
         const offsets = [
             {x:0,y:1,z:0}, {x:0,y:-1,z:0},
