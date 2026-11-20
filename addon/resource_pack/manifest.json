@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics RP",
-    "description": "Hart Logistics 1.5.8 DEV — hotpath call reductions; terminal boundary remains fail-closed",
+    "description": "Hart Logistics 1.5.9 DEV — governed direct native Sorter home; Q4 custody retained",
     "uuid": "91316442-0f26-4fbb-88f3-2e39ea843a1a",
     "version": [
       1,
       5,
-      8
+      9
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         1,
         5,
-        8
+        9
       ]
     }
   ],

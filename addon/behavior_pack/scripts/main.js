@@ -29,11 +29,12 @@ import "./urce_150_readonly_runtime.js";
 import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
 import {observeSorterDestination, proveLocalColumnTransit} from "./urce_column_local_decisions.js";
 import {prepareLocalColumnFrame} from "./urce_column_offer_bridge.js";
+import {inspectDirectSorterOutlet, inspectDirectItemHome} from "./urce_159_direct_sorter_home.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.8-dev";
+const VERSION = "1.5.9-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -551,19 +552,99 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     if (!col || !receiver || col.link === undefined) {
         return {decision:"HOLD",reason:"missing_managed_link"};
     }
-    return liveLinkGuard.check({
+    const context={
         collector:col, receiver,
         collectors:logistics.collectors,receivers:logistics.receivers,
         getBlock:liveTopologyBlockReader,
-        // Same native clock value for all checks in this synchronous pass.
-        // Outside logisticsTick (player/UI/pre-save checks) read the clock
-        // directly, so cross-tick/unscheduled safety never depends on a
-        // stale JS counter. Nullish memo also handles legitimate tick zero.
+        // One native clock observation per synchronous logistics pass.
+        // This value is not retained across a later callback or tick.
         currentTick:activeLogisticsPass
             ? (activeLogisticsPass.nativeTick ??= system.currentTick)
             : system.currentTick,
         forceFresh
+    };
+    let observed=liveLinkGuard.check(context);
+    // A negative memo is never proof of a positive route. The only candidate
+    // exception must name THIS Receiver and account for ALL relevant native
+    // boundaries, not just the first issue from another source-reachable bank.
+    const soleDirectBoundary=o=>o?.decision==="HOLD" &&
+        o.reason==="unverified_native_supply_boundary" &&
+        o.sourceReachableUnknownCount===1 &&
+        o.observationReason?.startsWith(
+            "unsupported_native_boundary [hartsorter:sorter @") &&
+        o.observationReason?.endsWith(" from receiver "+receiver.id+"]");
+    if (!soleDirectBoundary(observed)) return observed;
+    // Even if the ordinary guard reused a 20-tick negative, do a FRESH full
+    // graph observation before considering the narrowly closed native route.
+    // A new unknown branch or a cycle never becomes cargo permission.
+    if(!forceFresh) {
+        observed=liveLinkGuard.check({...context,forceFresh:true});
+        if(!soleDirectBoundary(observed)) return observed;
+    }
+    const outlet=directSorterOutlet(receiver);
+    if (outlet.status!=="CLOSED_DIRECT_OUTLET") return observed;
+    return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_SORTER",
+        reason:"closed_receiver_hopper_sorter_storage_outlet",
+        executePermitted:false,persistPermitted:false};
+}
+
+// A strict synchronous real-world observer. The registry is only an identity
+// hint: the pure model re-verifies every actual Sorter block and storage output.
+// Rebuild the ordinary in-memory topology only if registry mutation dirtied it.
+// This never calls destinationFor() (which can register/persist Collectors).
+function directSorterOutlet(receiver) {
+    if (dirty) rebuildTopology();
+    return inspectDirectSorterOutlet({
+        receiver,readBlock:liveTopologyBlockReader,columns,
+        modeOf:sorterMode,
+        observeDestination:(e,verifiedBlock)=>
+            observeSorterDestination(e,()=>verifiedBlock,facingOffset,COLLECTOR_ID)
     });
+}
+
+// Auto has a live *claim* even when its chest is full. Distinguish a
+// completely inspected missing seed from a failed native inventory read.
+function directNativeAutoSeed(container,stack) {
+    try {
+        if (!container?.isValid || !Number.isSafeInteger(container.size))
+            return undefined;
+        const wanted=stack.typeId==="minecraft:enchanted_book"
+            ? enchantments(stack).map(x=>x.id).sort().join("|") : undefined;
+        for(let i=0;i<container.size;i++){
+            const slot=container.getSlot(i);
+            if(!slot) return undefined;
+            if(!slot.hasItem() || slot.typeId!==stack.typeId)continue;
+            if(wanted!==undefined){
+                const seed=slot.getItem();
+                if(!seed)return undefined;
+                if(enchantments(seed).map(x=>x.id).sort().join("|")!==wanted)
+                    continue;
+            }
+            return true;
+        }
+        return false;
+    } catch (_) {return undefined;}
+}
+
+// This is an item-specific *admission preflight* at the original Q4 writer
+// boundary, never a separate item debit/credit. Receiver, Hopper, Sorter
+// configuration and destination are all observed again in this same stack.
+function directNativeHome(receiver,item,output) {
+    if(output?.block?.dimension?.id!==receiver.d ||
+       output.block.location?.x!==receiver.x ||
+       output.block.location?.y!==receiver.y-1 ||
+       output.block.location?.z!==receiver.z) return undefined;
+    try {
+        if(output.container.firstItem()!==undefined)return undefined;
+    }catch(_){return undefined;}
+    const outlet=directSorterOutlet(receiver);
+    const offer=inspectDirectItemHome({
+        outlet,item,matches:matchesFilter,
+        powered:blockIsRedstonePowered,
+        inventory:block=>block.getComponent("minecraft:inventory")?.container,
+        autoSeed:directNativeAutoSeed,admit:findAcceptSlot
+    });
+    return offer.status==="HOME_OBSERVED" ? offer : undefined;
 }
 
 // Receiver queues do not carry an authoritative per-item originating-Collector
@@ -574,6 +655,7 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
 function receiverLinkSafety(receiver) {
     if (!receiver?.id) return {decision:"HOLD",reason:"invalid_receiver"};
     let linked=0;
+    let directClosed=false;
     for (const col of logistics.collectors) {
         if (col.link !== receiver.id) continue;
         linked++;
@@ -583,9 +665,11 @@ function receiverLinkSafety(receiver) {
                 observationReason:result.observationReason,
                 collectorId:col.id,linked};
         }
+        if(result.routeKind==="DIRECT_NATIVE_SORTER")directClosed=true;
     }
     return {decision:linked ? "SAFE_SNAPSHOT" : "NO_MANAGED_INPUT",
-        reason:linked ? "all_linked_sources_safe" : "no_managed_sources",linked};
+        reason:linked ? "all_linked_sources_safe" : "no_managed_sources",
+        routeKind:directClosed?"DIRECT_NATIVE_SORTER":undefined,linked};
 }
 
 // Human-readable state uses the same read-only check as ingress/drain. No
@@ -2603,7 +2687,7 @@ function enqueueFromSource(receiver, collector, source, srcSlot, move, itemData)
     return actualMove;
 }
 
-function dequeueToReceiver(receiver, output, maxMove) {
+function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     const q = loadReceiverQueue(receiver);
     if (q.total <= 0) return 0;
 
@@ -2621,6 +2705,16 @@ function dequeueToReceiver(receiver, output, maxMove) {
 
     const move = Math.min(maxMove, Number(first.amount) || 0, slotInfo.room, item.maxAmount);
     if (move <= 0) return 0;
+
+    // A legacy Q4 queue can hold a large backlog with no proven destination.
+    // Do not discharge it speculatively into a Hopper to find a home later.
+    // Revalidate the exact current ordinary head and native home BEFORE the
+    // unchanged queue journal and source debit (the only custody writer).
+    // An unlinked historic Receiver is the legacy standalone Q4 path, not
+    // a newly governed source. Preserve its original 1.4.2 drain behavior.
+    if (governedLane!=="LEGACY_UNGOVERNED" &&
+        (governedLane!=="DIRECT_NATIVE_SORTER" ||
+         !directNativeHome(receiver,item,output))) return 0;
 
     const qBefore = Number(first.amount) || 0;
     const qAfter = Math.max(0, qBefore - move);
@@ -3874,6 +3968,7 @@ function processCollectorIngress(collector, globalRemaining) {
     let used = 0;
     let budget = Math.min(COLLECTOR_BATCH, globalRemaining);
     let safetyChecked = false;
+    let directClosed = false;
 
     for (const source of sources) {
         // A powered vanilla hopper is a hard logistics gate. Script API can
@@ -3887,7 +3982,9 @@ function processCollectorIngress(collector, globalRemaining) {
             if (!source.container?.isValid) continue;
             if (source.container.firstItem() === undefined) continue;
             if (!safetyChecked) {
-                if (liveLinkCheck(collector, receiver).decision !== "SAFE_SNAPSHOT") return used;
+                const link=liveLinkCheck(collector, receiver);
+                if(link.decision !== "SAFE_SNAPSHOT") return used;
+                directClosed=link.routeKind==="DIRECT_NATIVE_SORTER";
                 safetyChecked = true;
             }
             sourceSize = source.container.size;
@@ -3924,6 +4021,11 @@ function processCollectorIngress(collector, globalRemaining) {
                 }
                 continue;
             }
+
+            // No native MR carrier endpoint has yet been proved at this new
+            // direct Sorter outlet. Never use ordinary Q4 or the physical
+            // direct-only fallback to speculate about its final home.
+            if(directClosed)continue;
 
             // Non-stackable or metadata we cannot prove round-trips safely:
             // never serialize it. If Receiver is currently loaded AND there is
@@ -3997,6 +4099,7 @@ function processReceiverDrain(receiver, globalRemaining) {
     let budget = Math.min(RECEIVER_BATCH, globalRemaining);
     let used = 0;
     let safetyChecked = false;
+    let governedLane;
 
     while (budget > 0) {
         let q;
@@ -4021,14 +4124,21 @@ function processReceiverDrain(receiver, globalRemaining) {
         // source route. Preserve the exact original dequeue/journal writer.
         if (!safetyChecked) {
             const safety=receiverLinkSafety(receiver);
-            if (safety.decision !== "SAFE_SNAPSHOT" &&
-                safety.decision !== "NO_MANAGED_INPUT") return used;
+            if (safety.decision==="NO_MANAGED_INPUT") {
+                governedLane="LEGACY_UNGOVERNED";
+            } else if (safety.decision==="SAFE_SNAPSHOT" &&
+                       safety.routeKind==="DIRECT_NATIVE_SORTER") {
+                governedLane=safety.routeKind;
+            } else {
+                // Managed path without a proved home: preserve Q4 custody.
+                return used;
+            }
             safetyChecked = true;
         }
 
         let moved = 0;
         try {
-            moved = dequeueToReceiver(receiver, output, budget);
+            moved = dequeueToReceiver(receiver, output, budget, governedLane);
         } catch (err) {
             log(`Receiver queue drain failed for ${receiver.id}: ${err}`);
             recoverQueueJournal();
