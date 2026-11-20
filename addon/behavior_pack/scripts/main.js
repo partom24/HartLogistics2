@@ -6,6 +6,8 @@
 // Maintainer pickup note (documentation only; no gameplay behavior):
 // This source file / current 1.5.x build is NOT the complete project brief.
 // Before continuing development, read ../../../DEVELOPMENT_START_HERE.md
+// or https://github.com/partom24/HartLogistics2/blob/main/DEVELOPMENT_START_HERE.md
+// (the repository docs may not be in a packaged behavior pack).
 // followed by ../../../AGENTS.md, ../../../PROJECT_CONTINUITY.md,
 // the owner product contract and HL-URCE-OWN-001. A stage handoff's
 // "Next: U1-G" is not an authorization to skip product/contract review.
