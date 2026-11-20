@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics BP",
-    "description": "Hart Logistics 1.5.9 DEV — governed direct native Sorter home; Q4 custody retained",
+    "description": "Hart Logistics 1.5.10 DEV — directional Hopper/Sorter column adjacency; Q4 custody retained",
     "uuid": "4854d263-05dd-4f79-a21c-7ba969295c2d",
     "version": [
       1,
       5,
-      9
+      10
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         1,
         5,
-        9
+        10
       ]
     },
     {
@@ -32,7 +32,7 @@
       "version": [
         1,
         5,
-        9
+        10
       ],
       "entry": "scripts/main.js"
     }
@@ -47,7 +47,7 @@
       "version": [
         1,
         5,
-        9
+        10
       ]
     }
   ],
