@@ -27,11 +27,18 @@ async function load(){
   const root=make("urce_source_claim_coverage.js");
   await root.link(specifier=>make(path.basename(specifier)));
   await root.evaluate();
+  // The U1-E projector is not imported by U1-F, so link/evaluate it
+  // separately before accessing namespace (Node vm.SourceTextModule).
+  const projector=make("urce_152_shadow_evidence_bridge.js");
+  if(projector.status==="unlinked"){
+    await projector.link(specifier=>make(path.basename(specifier)));
+    await projector.evaluate();
+  }
   return {
     audit:root.namespace.auditSourceClaimCoverage,
     evaluate:root.namespace.evaluateAuditedGovernedShadow,
     graph:make("urce_152_route_model.js").namespace.buildReadOnlyGraph,
-    project:make("urce_152_shadow_evidence_bridge.js").namespace.projectObservedShadowGraph
+    project:projector.namespace.projectObservedShadowGraph
   };
 }
 const TICK=36;
