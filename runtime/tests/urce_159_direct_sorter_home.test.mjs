@@ -145,7 +145,7 @@ for(const [name,config,reason] of [
   ["redstone powered",{locked:true},"output_hopper_locked_or_unknown"],
   ["duplicate column",{duplicate:true},"source_column_not_unique"],
   ["unregistered hidden Sorter",{hiddenSorter:true},"sorter_run_boundary_unknown"],
-  ["Hopper extracting from output storage",{belowChestHopper:true},"storage_hopper_extractor_present"],
+  ["Hopper extracting from output storage",{belowChestHopper:true,mode2:"filter"},"storage_hopper_extractor_present"],
   ["foreign inventory",{side:true,sideType:"minecraft:chest"},"side_inventory_boundary"]
 ]){
   test("GO-09 fail-closed "+name,async()=>{
