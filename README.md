@@ -1,5 +1,8 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+**Owner BDS terminal-chest issue / 1.5.11 source candidate:** [exact chest-end HOLD at 469,72,-498, directed native Hopper proof, Q4-only Filter home credit, safety gates and stopped-LAB handoff](docs/URCE_1511_NATIVE_TERMINAL_CHEST_HANDOFF_20261120.md). This is source-tested, **not installed or Bedrock-accepted**; the owner's 1.5.10 LAB remains unchanged.
+
+
 **Current 1.5.10 directional-column candidate (owner's all-valid-column layout requirement):** [BDS layout regression, directional Hopper neighbor proof, exact 1.5.9-origin guarded updater, and next LAB acceptance](docs/URCE_1510_DIRECTIONAL_COLUMNS_LAB_HANDOFF_20261120.md). This source-only candidate is not BDS-accepted or a full multi-bank URCE release. The owner's 1.5.9 installed LAB remains separate and untouched.
 
 
