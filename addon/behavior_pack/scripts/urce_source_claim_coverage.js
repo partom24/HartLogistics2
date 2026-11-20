@@ -5,6 +5,7 @@
  */
 
 import {sourceReachability} from "./urce_152_route_model.js";
+import {evaluateSourceScopedShadow} from "./urce_source_scoped_shadow.js";
 
 /**
  * U1-F — audit completeness of SOURCE-RELEVANT item-claim observations.
@@ -150,4 +151,54 @@ export function auditSourceClaimCoverage({
         executePermitted:false,persistPermitted:false,
         mayAuthorizeCargo:false
     };
+}
+
+
+/**
+ * U1-F guarded bridge into U1-D's read-only route policy.
+ * U1-D's raw coverage parameter is NOT evidence; only this separate
+ * source-specific ledger can conditionally supply COMPLETE for a CLOSED
+ * caller-provided model. All results remain NONEXECUTING.
+ *
+ * This function is not called by the main gameplay runtime.
+ */
+export function evaluateAuditedGovernedShadow({
+    projection,source,currentTick,enumeration,observations,frame,
+    itemClass="ordinary",existingBulkHome="unknown",
+    applicableBulkState="unknown"
+}) {
+    const audit=auditSourceClaimCoverage({
+        projection,source,currentTick,enumeration,observations,itemClass
+    });
+    if (audit.status!=="COMPLETE_FOR_SHADOW") {
+        return {decision:"SHADOW_HOLD",reason:audit.reason,
+            audit,executePermitted:false,persistPermitted:false};
+    }
+    if (frame?.captured!==true || !Array.isArray(frame.offers)) {
+        return {decision:"SHADOW_HOLD",reason:"local_frame_not_verified",
+            audit,executePermitted:false,persistPermitted:false};
+    }
+    const audited=new Map(audit.offers.map(o=>[o.nodeId,o]));
+    const localIds=new Set();
+    for (const local of frame.offers) {
+        const proof=audited.get(local?.nodeId);
+        if (!proof || localIds.has(local.nodeId) ||
+            proof.tier!==local.tier ||
+            (local.claim==="yes" && proof.claim==="no")) {
+            return {decision:"SHADOW_HOLD",
+                reason:"local_offer_not_reconciled",
+                audit,executePermitted:false,persistPermitted:false};
+        }
+        localIds.add(local.nodeId);
+    }
+    const remote=audit.offers.filter(o=>!localIds.has(o.nodeId));
+    const verifiedNodes=audit.offers.filter(o=>o.verified)
+        .map(o=>o.nodeId);
+    const shadow=evaluateSourceScopedShadow({
+        scope:"GOVERNED_SOURCE",frame,graph:projection.graph,
+        source,itemClass,coverage:audit.coverage,externalOffers:remote,
+        verifiedNodes,existingBulkHome,applicableBulkState
+    });
+    return {...shadow,audit,executePermitted:false,
+        persistPermitted:false};
 }
