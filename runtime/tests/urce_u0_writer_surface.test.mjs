@@ -21,6 +21,7 @@ const SCRIPTS=path.join(ROOT,"addon/behavior_pack/scripts");
 const MODULES=[
   "main.js",
   "urce_column_local_decisions.js",
+  "urce_column_offer_bridge.js",
   "urce_150_readonly_runtime.js",
   "urce_152_live_link_guard.js",
   "urce_152_link_snapshot_gate.js",
@@ -64,6 +65,7 @@ const expected={
     updateTransporterVisual:{setPermutation:1}
   },
   "urce_column_local_decisions.js":{},
+  "urce_column_offer_bridge.js":{},
   "urce_152_live_link_guard.js":{},
   "urce_152_link_snapshot_gate.js":{},
   "urce_152_native_hopper_witness.js":{},
