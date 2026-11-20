@@ -1,5 +1,38 @@
 # Hart Logistics 2 — contributor operating contract
 
+## ACTIVE CONTINUOUS-DEVELOPMENT DIRECTIVE — owner adopted 2026-11-20
+
+**This is the operating entrypoint for any new agent or resumed conversation, even if the first thing found is a current build, `main.js`, a manifest, a recent commit or a stage handoff.** First read [DEVELOPMENT_START_HERE.md](DEVELOPMENT_START_HERE.md), then the protected [PROJECT_CONTINUITY.md](PROJECT_CONTINUITY.md) and its canonical evidence index, the owner-approved 1.5 product contract, [HL-URCE-OWN-001](docs/URCE_COLUMN_COORDINATOR_OWNERSHIP_CONTRACT_20261120.md), and applicable lessons. **Do not select the next task from the most recent stage heading without reviewing the project.**
+
+**The owner has authorized ongoing source-controlled development toward a playable candidate without routine approval pauses.** The older planning-only / PG-stage-only permissions preserved farther down this document are historical and must not silently override that later authorization. Production, public release, BDS LAB installation and world-changing operations retain their separate safety and owner-approval boundaries.
+
+### Delivery target, not stage-count target
+
+- **Immediate delivery goal:** the next safe, **meaningfully integrated, installable and player-exercisable URCE development candidate**, with its actual supported feature scope and test evidence clearly described. The candidate must preserve baseline gameplay. It is **not automatically feature complete, LAB accepted, or release ready**.
+- **Final product goal:** deliver the full owner-approved **native-first URCE** with arbitrary valid player-built networks, governed Filter/Auto/fallback policy, Collector/Receiver/Bulk/Transporter roles, exact native metadata-rich ItemStack custody, scalable retrieval/status, lossless Q4 upgrade, recovery and acceptable player experience.
+- **A completed stage, source commit, mock test, design document or passing unit suite is not the stopping condition.** When further safe work is available in the current task, proceed toward an integrated deliverable. Do not imply work will continue asynchronously after the turn ends. Stop only for a real missing owner decision, safety blocker, unavailable tool/required test/deployment access, or an appropriately verified requested deliverable; when blocked, provide usable source-controlled progress and the exact next action.
+
+### Before choosing each task
+
+1. **Reconcile current reality:** verify the actual checkout/commit, manifest, active runtime imports and writers, tests/CI and installed LAB status if known. Separate implemented runtime behavior from models, prototype/shadow modules, future product design and historical source.
+2. **Follow authority precedence:** owner-approved product/ADR and native-first architecture define the **what** and **how**; immutable continuity/evidence catalogs define historical proof; branch handoffs and alphabetic roadmaps are *planning aids* that may be reprioritized. A build's name or newest stage cannot erase earlier ledgers or supersede an owner decision.
+3. **Choose the highest-value safe task:** an end-to-end playable capability, a hard integration/migration blocker, necessary conservation evidence or a measurable runtime bottleneck. Consider a simpler native Bedrock mechanism and reuse existing code before adding a new abstraction, persistent index, duplicate observer, scheduler or item writer.
+4. **State the gate:** identify route/custody/metadata/Q4 preservation requirements and the specific behavioral/performance proof needed. Do not mistake a clean endpoint graph for globally complete item claim evidence; U1-F currently has no trusted in-game producer of a closed claimant census.
+
+### During and after work
+
+1. Implement the smallest verified path to useful integrated gameplay. Preserve standalone native Hopper transit and exact 1.4.1 capabilities; one routing policy, one logical custody authority with protected existing adapters; no second debit/credit writer or unverified positive route cache.
+2. Execute available applicable tests rather than only writing them. Include full-runtime scheduled/event/Q4/recovery behavior where relevant; fix regressions before adding stages. Distinguish **source reasoning**, **source-executed fixture**, **actual Node/CI run**, **BDS LAB observation**, and **owner/release acceptance**.
+3. After each meaningful increment, repeat the [101-column/five-item fixed comparison](docs/URCE_101_COLUMN_FIVE_ITEM_STAGE_BASELINE_20261120.md), plus task-relevant multibank, native metadata, migration, crash/restart, and full-runtime budget tests. Compare actual native calls, JS allocations/CPU, latency/peak ticks, moved quantity and item identity without mislabeling projected/carry-forward values as measurements.
+4. Preserve all Q2/Q3/Q4 saved state, IDs/UUIDs, registry links, journals, held items, one-tick baseline until slower polling is proved safe, and future **Q4 → URCE** durable single-authority cutover. The [LAB is an expendable production-copy snapshot](docs/OWNER_LAB_WORLD_REFRESH_POLICY_20261120.md); the original production world is not.
+5. Report exactly what changed, which tests **actually executed**, where custody/routing authority still resides, outstanding blockers, and the next **highest-value** task. Recheck product alignment every three meaningful increments or whenever a major assumption fails. **Do not automatically start U1-G just because U1-F was the latest completed letter.**
+
+### Source-first / current-build-first pickup safeguard
+
+If you enter via `addon/behavior_pack/scripts/main.js`, a packaged build or a deployment script, **stop before treating that artifact as the whole project**. Follow [DEVELOPMENT_START_HERE.md](DEVELOPMENT_START_HERE.md) and the canonical records; then check the correct branch and current manifest. A static source file cannot tell you what prior BDS evidence proved or whether its installed LAB counterpart is current. The source comment in the active 1.5 development entrypoint is a navigation hint, not runtime behavior or an auto-enforced tool rule.
+
+---
+
 > **URCE U1-F source-claim completeness (2026-11-20):** [Source-scoped item-claim census and conditional nonexecuting shadow proof](docs/URCE_U1F_SOURCE_CLAIM_COMPLETENESS_20261120.md) plus the [101-column/five-item post-F comparison](docs/URCE_101_COLUMN_FIVE_ITEM_STAGE_COMPARISON_U1F_20261120.md) document the dev-branch implementation. **A clean Collector/Receiver graph never establishes complete Filter/Auto/Bulk claims**; the current runtime has no trusted in-world source-closed enumerator, so no new custody, Wildcard fallback, slower polling or Q4 migration is authorized.
 
 > **URCE U1-E guarded evidence integration (2026-11-20):** [Same-tick Collector/Receiver topology shadow reuse and proof boundary](docs/URCE_U1E_SAME_TICK_TOPOLOGY_SHADOW_REUSE_20261120.md) and [after-stage 101-column comparison](docs/URCE_101_COLUMN_FIVE_ITEM_STAGE_COMPARISON_U1E_20261120.md) record source-executed multi-bank, cycle, unloaded/unknown and full-runtime stub results. The shadow projection adds **zero native reads** when consulted after an already-mapped same-tick live check; it **never** proves item-home coverage or authorizes custody. Actual Node CI/BDS acceptance remains open.
