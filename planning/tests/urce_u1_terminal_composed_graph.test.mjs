@@ -124,3 +124,35 @@ test("DIRECTED-TERMINAL-08 disconnected unknown path does not poison the verifie
   assert.equal(out.native.unknown.some(x=>x.from==="R-unrelated"),true);
   assert.equal(out.provenTerminals[0].receiverId,"R2");
 });
+
+test("DIRECTED-TERMINAL-09 native Hopper ring feeding back into its own earlier Hopper is a verified loop, never terminal",()=>{
+  const f=makeChain();
+  // Receiver R2 enters the horizontal ring at (20,72,0).
+  // Every Hopper orientation and every return block are positively loaded.
+  f.put({x:20,y:72,z:0},"minecraft:hopper",5);
+  f.put({x:21,y:72,z:0},"minecraft:hopper",3);
+  f.put({x:21,y:72,z:1},"minecraft:hopper",4);
+  f.put({x:20,y:72,z:1},"minecraft:hopper",2);
+  const result=f.check();
+  assert.equal(result.decision,"REJECT");
+  assert.equal(result.reason,"verified_native_hopper_output_cycle");
+  assert.equal(result.cycleFrom,"R2");
+  assert.equal(result.persistPermitted,false);
+  assert.equal(result.mayTransferCargo,false);
+});
+test("DIRECTED-TERMINAL-10 a disconnected native Hopper loop does not fabricate a return to the live source",()=>{
+  const f=makeChain();
+  const remote={id:"R-remote",d:D,x:1000,y:73,z:0};
+  f.receivers.push(remote);
+  f.put(remote,"hartsorter:receiver");
+  f.put({x:1000,y:72,z:0},"minecraft:hopper",5);
+  f.put({x:1001,y:72,z:0},"minecraft:hopper",3);
+  f.put({x:1001,y:72,z:1},"minecraft:hopper",4);
+  f.put({x:1000,y:72,z:1},"minecraft:hopper",2);
+  const result=f.check();
+  assert.equal(result.decision,"LOCAL_TERMINALS_PROVED");
+  assert.equal(result.provenTerminals[0].receiverId,"R2");
+  assert.equal(result.native.unknown.some(x=>
+    x.from==="R-remote"&&x.reason==="native_hopper_cycle"),true);
+  assert.equal(result.mayTransferCargo,false);
+});
