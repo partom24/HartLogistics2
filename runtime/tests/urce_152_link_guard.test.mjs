@@ -89,7 +89,7 @@ test("LIVE-04 a pre-existing saved cycle cannot ingest by revalidating its link"
  assert.equal(request(g,f,1,0).decision,"REJECT");
 });
 
-test("LIVE-05 same-tick memo is invalidated on block changes and next tick",()=>{
+test("LIVE-05 explicit block changes invalidate even denied link memo",()=>{
  const f=fixture(1),g=createLiveLinkGuard();
  const first=request(g,f,0,0);
  assert.equal(first.decision,"REJECT");
@@ -102,7 +102,7 @@ test("LIVE-05 same-tick memo is invalidated on block changes and next tick",()=>
  assert.ok(f.reads>reads);
  const reads2=f.reads;
  request(g,f,0,0,6);
- assert.ok(f.reads>reads2);
+ assert.equal(f.reads,reads2,"negative cycle refusal is safe to reuse briefly");
 });
 
 test("LIVE-06 unavailable source or invalid parameter always HOLDS",()=>{
@@ -250,4 +250,84 @@ test("LIVE-15 invalid saved endpoint does not authorize link but gives a scoped 
    getBlock:missing,currentTick:200,forceFresh:true});
  assert.equal(decision.decision,"HOLD");
  assert.equal(decision.persistPermitted,false);
+});
+
+test("LIVE-16 stationary prohibited loop stops rescanning native blocks each tick",()=>{
+ const f=fixture(13),g=createLiveLinkGuard();
+ f.collectors[12].link="R0";
+ const first=request(g,f,0,1,10);
+ assert.equal(first.decision,"REJECT");
+ const initial=f.reads;
+ for(let tick=11;tick<30;tick++){
+   const next=request(g,f,0,1,tick);
+   assert.equal(next.decision,"REJECT");
+   assert.equal(f.reads,initial,"A cached REJECT cannot authorize cargo");
+ }
+ assert.equal(g.stats().worldScans,1);
+ assert.equal(g.stats().negativeHits,19);
+ request(g,f,0,1,30);
+ assert.ok(f.reads>initial,"Denial is automatically re-observed at bounded TTL");
+ assert.equal(g.stats().worldScans,2);
+});
+
+test("LIVE-17 unloaded HOLD is also a fail-closed negative, then retries",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ const original=f.getBlock;
+ const reader=(d,p)=>p.x===20&&p.y===80&&p.z===0?undefined:original(d,p);
+ const check=(tick,forceFresh=false)=>g.check({
+   collector:f.collectors[0],receiver:f.receivers[1],
+   collectors:f.collectors,receivers:f.receivers,getBlock:reader,
+   currentTick:tick,forceFresh
+ });
+ assert.equal(check(1).decision,"HOLD");
+ const before=g.stats().worldScans;
+ for(let i=2;i<21;i++)assert.equal(check(i).decision,"HOLD");
+ assert.equal(g.stats().worldScans,before);
+ assert.equal(check(21).decision,"HOLD");
+ assert.equal(g.stats().worldScans,before+1);
+});
+
+test("LIVE-18 forceFresh bypasses a cached negative, preserving link preflight",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ const lost=loc("minecraft:overworld",f.receivers[1]);
+ f.world.delete(lost);
+ assert.equal(request(g,f,0,1,3).decision,"HOLD");
+ f.world.set(lost,block("hartsorter:receiver"));
+ const before=g.stats().worldScans;
+ assert.equal(request(g,f,0,1,4,true).decision,"SAFE_SNAPSHOT");
+ assert.equal(g.stats().worldScans,before+1);
+});
+
+test("LIVE-19 native place/break invalidation clears a negative immediately",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ const lost=loc("minecraft:overworld",f.receivers[1]);
+ f.world.delete(lost);
+ assert.equal(request(g,f,0,1,4).decision,"HOLD");
+ f.world.set(lost,block("hartsorter:receiver"));
+ g.invalidate();
+ assert.equal(request(g,f,0,1,5).decision,"SAFE_SNAPSHOT");
+ assert.equal(g.stats().negativeDecisions,0);
+});
+
+test("LIVE-20 positive link checks still fully reobserve on the next tick",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[0].link=null;
+ const first=request(g,f,0,1,10);
+ assert.equal(first.decision,"SAFE_SNAPSHOT");
+ const prior=f.reads;
+ assert.equal(request(g,f,0,1,11).decision,"SAFE_SNAPSHOT");
+ assert.ok(f.reads>prior,"Never reuse ALLOW across ticks");
+ assert.equal(g.stats().negativeHits,0);
+});
+
+test("LIVE-21 same-tick in-place link mutation clears a negative",()=>{
+ const f=fixture(2),g=createLiveLinkGuard();
+ f.collectors[1].link="R0";
+ assert.equal(request(g,f,0,1,30).decision,"REJECT");
+ f.collectors[1].link=null;
+ assert.equal(request(g,f,0,1,30).decision,"SAFE_SNAPSHOT");
+ assert.equal(g.stats().negativeDecisions,0);
 });

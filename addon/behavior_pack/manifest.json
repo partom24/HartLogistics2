@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics BP",
-    "description": "Hart Logistics 1.5.3 DEV — legacy-registry tolerant link-cycle guard and Q4 safety",
+    "description": "Hart Logistics 1.5.4 DEV — bounded negative route memo and native dimension cache, Q4 unchanged",
     "uuid": "4854d263-05dd-4f79-a21c-7ba969295c2d",
     "version": [
       1,
       5,
-      3
+      4
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         1,
         5,
-        3
+        4
       ]
     },
     {
@@ -32,7 +32,7 @@
       "version": [
         1,
         5,
-        3
+        4
       ],
       "entry": "scripts/main.js"
     }
@@ -47,7 +47,7 @@
       "version": [
         1,
         5,
-        3
+        4
       ]
     }
   ],

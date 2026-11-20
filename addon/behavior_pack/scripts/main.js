@@ -21,7 +21,7 @@ const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.3-dev";
+const VERSION = "1.5.4-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -452,8 +452,18 @@ function saveJournal(tx) {
     }
 }
 
+// Dimension handles represent permanent native world dimensions, NOT
+// loaded chunks or Block objects. Reuse valid handles; retry missing/throwing
+// lookups so unknown dimensions still fail closed and can recover on load.
+const dimensionHandleCache = new Map();
 function getDimension(id) {
-    try { return world.getDimension(id); } catch (_) { return undefined; }
+    const known=dimensionHandleCache.get(id);
+    if (known) return known;
+    try {
+        const dim=world.getDimension(id);
+        if (dim) dimensionHandleCache.set(id,dim);
+        return dim;
+    } catch (_) { return undefined; }
 }
 
 function getBlock(dimId, x, y, z) {

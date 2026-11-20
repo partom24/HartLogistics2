@@ -47,6 +47,14 @@ A subsequent Git pull does **not** silently deploy an add-on, rewrite Bedrock pa
 - Refuse unrecognized versions, wrong branch/checkout, dirty worktree, symlinked sources, stale pin, unexpected LAB predecessor, production directory, missing backup or any ambiguous ownership. Do not work around a `REFUSED` by hand copying pack files.
 - `main` remains the canonical archive for historical evidence and old operator processes. The current stable launcher is part of the **active URCE branch**; new branches must carry it forward.
 
+## 2026-11-20 — active 1.5.4 idle-CPU mitigation candidate
+
+**Installed copied-LAB predecessor:** version 1.5.3 from owner-confirmed exact source `aa108516b4fe5553b152bc6caf51a2cf8635037e`. Existing owner installation backups `lab-0bff63ebe84e` and `lab-c77b47f7c165` must be preserved. No 1.5.4 installation has yet been authorized.
+
+**Current Git launcher default is 1.5.4.** Use the same `distribution/Start-HartLogistics-Lab.ps1` source/Plan/CheckLab/Install/Rollback workflow, not a separately downloaded script. The new `scripts/hartlogistics_154_lab_updater.py` locks the EXACT installed 1.5.3 pack/registration hashes, four candidate file blobs (BP/RP manifests, `main.js`, and the pure `urce_152_live_link_guard.js`) and the same BDS server 2.7.0 compatibility. Plan is SOURCE-ONLY; CheckLab is read-only and requires stopped copied-LAB; Install -Apply requires explicit owner choice and a matching pinned full SHA.
+
+**Owner profiling gate:** The current 1.5.3 `.mcstats` script ticks have p50≈74ms, p90≈101ms. The 1.5.4 candidate implements native Dimension-handle reuse and a 20-tick **negative-only** result cache, never caching a safe route across ticks. Source synthetic timing does not establish BDS speed. Compare the same idle location and profiler settings after an approved new LAB installation using [URCE154 idle CPU test card](URCE154_IDLE_CPU_LAB_TEST_CARD.md). Do not introduce cargo or rebuild the full array. Optional-Transporter loop detection remains a separate unsolved requirement.
+
 ## 2026-11-19 — 1.5.3 installed-1.5.2 repair path
 
 The owner has **already installed 1.5.2 from exact commit `df9479c87efedebeca9bab8f8f8c4a1fe1148e21`** into the copied LAB using CheckLab followed by explicit `Install -Apply`. They retained installer backup `lab-0bff63ebe84e`. The in-game 1.5.2 status command loads and 1,442 Sorters / 60 Collectors / 38 Receivers / 294,294 queued Q4 items are visible. A new, owner-built two-bank fixture shows **all link attempts HELD: invalid_native_observation**, so 1.5.2 is not accepted for loop guarding. This is a real code/testing blocker, not a request to rebuild the physical 13-bank storage structure.
