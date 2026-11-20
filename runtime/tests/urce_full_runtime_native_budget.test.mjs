@@ -47,7 +47,7 @@ class Stack {
   setCanPlaceOn(){}
 }
 function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
-                  blocked=false,legacy=false}={}) {
+                  blocked=false,legacy=false,direct=false}={}) {
   const metrics=counters();
   const blocks=new Map(), properties=new Map(), timers=[], intervals=[], listeners=new Map();
   let currentTick=0;
@@ -131,11 +131,23 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
       ...(legacy?{}:{i:[p.x,p.y,p.z-1,2]})});
   }
   const cols=[],recs=[],collectorSources=[],receiverOutputs=[];
+  const directChests=[];
   for(let i=0;i<receivers;i++){
     const p={x:80000+i*20,y:70,z:0},id=key(DIM,p),queueKey="q"+(i+1);
     block("hartsorter:receiver",p);
     receiverOutputs.push(block("minecraft:hopper",{...p,y:69},{items:[],facing:0}).container);
     if(blocked)block("minecraft:chest",{...p,y:68},{items:[]});
+    if(direct&&i===0){
+      // The Receiver output Hopper ends DOWNWARD at the top Sorter. The only
+      // native-storage output is the verified local chest, not another bank.
+      block("hartsorter:sorter",{...p,y:68},{
+        states:{"minecraft:cardinal_direction":"east","hartlogistics:mode":"filter"}});
+      const chest=block("minecraft:chest",{x:p.x+1,y:68,z:p.z},{items:[]});
+      directChests.push(chest.container);
+      block("minecraft:stone",{...p,y:67});
+      registry.push({d:DIM,x:p.x,y:68,z:p.z,m:"filter",
+        f:{match:{typeId:"minecraft:cobblestone"}}});
+    }
     recs.push({id,d:DIM,...p,present:true,queueKey,qVersion:4,qGen:0,qShards:0,
       received:0,delivered:0,queued:0});
     properties.set("hartsorter:q4m_"+queueKey,JSON.stringify({v:4,h:0,t:0,n:1,q:0,r:0,d:0}));
@@ -198,7 +210,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     }
   }
   function emit(name,ev){for(const callback of listeners.get(name)??[])callback(ev);}
-  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,properties,warnings,intervals,world,
+  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,properties,warnings,intervals,world,
     get tick(){return currentTick;}};
 }
 function publish(label,fixture,ticks,extra={}) {
@@ -258,7 +270,7 @@ test("FULL-NATIVE-02 stationary, linked cargo includes REAL graph guard, Hopper 
   assert.equal(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1"),0,
     "Unknown routes cannot write Q4");
 });
-test("FULL-NATIVE-03 eligible live source exercises real custody writer and receiver drain",async()=>{
+test("FULL-NATIVE-03 queueable ingress retains Q4 custody when no home is verified",async()=>{
   const f=fixture({sorters:0,collectors:1,receivers:1,stationary:false,blocked:false});
   await f.loadFullRuntime();f.advance(7);f.metrics.reset();
   f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
@@ -273,11 +285,43 @@ test("FULL-NATIVE-03 eligible live source exercises real custody writer and rece
   assert.ok(n(counts,"World.setDynamicProperty.Q4")>0,
     "Test must exercise native Q4 persistence");
   assert.equal(f.collectorSources[0].inspect()[0],0,"Real ingress debits the physical Hopper");
-  assert.equal(f.receiverOutputs[0].inspect()[0],4,"Real drain credits the physical Receiver output Hopper");
+  assert.equal(f.receiverOutputs[0].inspect()[0],0,
+    "No source-reachable native home: original Q4 queue retains all four items");
+  const raw=f.properties.get("hartsorter:q4m_q1");
+  assert.ok(raw,"Existing Q4 meta remains persisted");
+  assert.equal(JSON.parse(raw).q,4,"Exactly four Q4 items remain authoritatively held");
   assert.ok(n(counts,"Dimension.getBlock")<50,
     "One eligible route must not scan a whole artificial room");
   assert.ok(n(counts,"Container.getItem")<=16,"Avoid slot rereads during one routed item");
   assert.ok(n(counts,"World.setDynamicProperty.Q4")<=8,"Keep Q4 writes bounded per transfer");
+});
+test("FULL-NATIVE-07 real governed Collector to Q4 to Hopper to Sorter to chest",async()=>{
+  const f=fixture({sorters:0,collectors:1,receivers:1,direct:true});
+  await f.loadFullRuntime();f.advance(7);f.metrics.reset();
+  f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+  f.metrics.reset();
+  f.advance(1);
+  const first=f.metrics.snapshot();
+  assert.equal(f.collectorSources[0].inspect()[0],0,
+    "The original Q4 enqueue writer debits exactly four native source items");
+  assert.equal(f.receiverOutputs[0].inspect()[0],4,
+    "The original Q4 dequeue writer credits only the proved native source Hopper");
+  assert.equal(f.directChests[0].inspect()[0],0,"Sorter has not yet consumed Hopper cargo");
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q1")).q,0,
+    "Q4 debit and Hopper credit conserve four units without a second writer");
+  assert.ok(n(first,"World.setDynamicProperty.hartsorter:queue_journal_v1")>=4,
+    "Original Q4 ingress and dequeue must both journal");
+  f.metrics.reset();
+  f.advance(1);
+  const {counts}=publish("governed Collector -> Q4 -> Hopper -> Filter Sorter -> native chest",f,1);
+  assert.equal(f.receiverOutputs[0].inspect()[0],0,
+    "The original physical Sorter writer debits its proven native Hopper");
+  assert.equal(f.directChests[0].inspect()[0],4,
+    "The original physical Sorter writer credits exactly four cobblestone");
+  assert.ok(n(counts,"World.setDynamicProperty.hartsorter:journal_v1")>=2,
+    "A native chest write still requires the original physical journal");
+  assert.ok(n(counts,"Container.setItem")>=2,
+    "No bypass of the original physical source and destination setItem calls");
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
   const f=fixture({sorters:64,collectors:0,receivers:0,legacy:true});
