@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Guarded exact installed 1.5.10 -> 1.5.11 directional-column LAB upgrade.
+"""Guarded exact installed 1.5.10 -> 1.5.11 terminal Hopper chest LAB upgrade.
 
-The owner's actual BDS 1.5.10 pack was installed from Git source 2b65ccd...
-after exact 1.5.8->1.5.10 preflight. This upgrade allows ONLY that one
+The owner's copied LAB 1.5.10 pack was installed from exact Git source
+53205e650f6da8e6cd34c6d69f3934ffb73281bc through its stopped preflight.
+This upgrade allows ONLY that one
 byte-for-byte BP+RP source predecessor, and preserves the original Q4 writer,
 world, registry identities and the unrelated production server. No clone,
 world reset, auto-restart or destructive recovery is performed.
