@@ -96,6 +96,9 @@ function countedIdleFixture({
  };
  const vars={
   world,system,ready:true,dirty:false,columns,rrStart:0,
+  // This MICRO test extracts logisticsTick without its lexical module scope.
+  // It substitutes liveLinkCheck; only FULL-NATIVE-02 measures its true clock.
+  activeLogisticsPass:undefined,
   logistics:registry,collectorRrStart:0,receiverRrStart:0,
   GLOBAL_MOVE_BUDGET:256,LOGISTICS_GLOBAL_BUDGET:256,
   COLLECTOR_BATCH:Number(main.match(/const COLLECTOR_BATCH\s*=\s*(\d+);/)[1]),
