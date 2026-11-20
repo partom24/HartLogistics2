@@ -1,5 +1,7 @@
 # Hart Logistics 2 — contributor operating contract
 
+> **RELEASE BLOCKER — ORIGINAL 1.4.1 OUTPUT PARITY (2026-11-20):** [Native Hopper facing and Chest termination regression](docs/URCE_141_NATIVE_OUTPUT_PARITY_BLOCKER_20261120.md). The original Receiver drained Q4 to the immediately-below Hopper regardless of its later vanilla facing; the newer governed direct-Column-only gate improperly HOLDs existing Hopper→Chest routes. A separate [source-only parity fix](https://github.com/partom24/HartLogistics2/tree/dev/urce-159-141-parity-20261120) is under proof, **not deployed or BDS accepted**. Run full baseline ingress/egress parity and native LAB tests before any 1.5.x release; safe Q4 HOLD is not success when original layouts delivered.
+
 ## ACTIVE CONTINUOUS-DEVELOPMENT DIRECTIVE — owner adopted 2026-11-20
 
 **This is the operating entrypoint for any new agent or resumed conversation, even if the first thing found is a current build, `main.js`, a manifest, a recent commit or a stage handoff.** First read [DEVELOPMENT_START_HERE.md](DEVELOPMENT_START_HERE.md), then the protected [PROJECT_CONTINUITY.md](PROJECT_CONTINUITY.md) and [the canonical evidence index](docs/CANONICAL_EVIDENCE_AND_TOOLING.md), the owner-approved 1.5 product contract, [HL-URCE-OWN-001](docs/URCE_COLUMN_COORDINATOR_OWNERSHIP_CONTRACT_20261120.md), and applicable lessons. **Do not select the next task from the most recent stage heading without reviewing the project.**
