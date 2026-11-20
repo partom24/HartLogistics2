@@ -33,6 +33,15 @@ class Hotpath158LabTests(unittest.TestCase):
         self.assertIn("models/blocks/hartlogistics_transporter.geo.json",versions["resource_pack"])
         self.assertEqual(lab.PREDECESSOR,"8bb696129a668699e0867aa1e6786a8716d1ef3a")
         self.assertEqual(lab.NEW_VERSION,(1,5,8))
+        self.assertEqual(lab.ADDED_FILES,{
+            "behavior_pack/scripts/urce_152_shadow_evidence_bridge.js",
+            "behavior_pack/scripts/urce_column_local_decisions.js",
+            "behavior_pack/scripts/urce_column_offer_bridge.js",
+            "behavior_pack/scripts/urce_source_claim_coverage.js",
+            "behavior_pack/scripts/urce_source_scoped_shadow.js",
+        })
+        self.assertIn("behavior_pack/scripts/urce_152_live_link_guard.js",lab.ALLOWED_CHANGE)
+        self.assertEqual(len(lab.REVIEWED_BLOBS),9)
 
     def source_copy(self):
         tmp=tempfile.TemporaryDirectory()
@@ -48,6 +57,14 @@ class Hotpath158LabTests(unittest.TestCase):
             with self.assertRaises(lab.UnsafeLab):
                 lab.validate_candidate(root,self.original)
             addition.unlink()
+            # An existing read-only module is allowed only at its exact
+            # reviewed Git blob; do not permit source drift or hidden writers.
+            reviewed=root/"addon/behavior_pack/scripts/urce_source_claim_coverage.js"
+            original=reviewed.read_text()
+            reviewed.write_text(original+"\n// changed\n")
+            with self.assertRaises(lab.UnsafeLab):
+                lab.validate_candidate(root,self.original)
+            reviewed.write_text(original)
             gameplay=root/"addon/behavior_pack/scripts/main.js"
             gameplay.write_text(gameplay.read_text()+"\n// unreviewed\n")
             with self.assertRaises(lab.UnsafeLab):
