@@ -29,7 +29,7 @@ import "./urce_150_readonly_runtime.js";
 import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
 import {observeSorterDestination, proveLocalColumnTransit} from "./urce_column_local_decisions.js";
 import {prepareLocalColumnFrame} from "./urce_column_offer_bridge.js";
-import {inspectDirectSorterOutlet, inspectDirectItemHome} from "./urce_159_direct_sorter_home.js";
+import {inspectDirectSorterOutlet, inspectDirectItemHome, inspectReceiverNativeTerminal} from "./urce_159_direct_sorter_home.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
@@ -567,24 +567,39 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
     // A negative memo is never proof of a positive route. The only candidate
     // exception must name THIS Receiver and account for ALL relevant native
     // boundaries, not just the first issue from another source-reachable bank.
-    const soleDirectBoundary=o=>o?.decision==="HOLD" &&
+    const scopedBoundary=o=>o?.decision==="HOLD" &&
         o.reason==="unverified_native_supply_boundary" &&
         o.sourceReachableUnknownCount===1 &&
-        o.observationReason?.startsWith(
-            "unsupported_native_boundary [hartsorter:sorter @") &&
+        o.observationReason?.startsWith("unsupported_native_boundary [") &&
         o.observationReason?.endsWith(" from receiver "+receiver.id+"]");
-    if (!soleDirectBoundary(observed)) return observed;
-    // Even if the ordinary guard reused a 20-tick negative, do a FRESH full
-    // graph observation before considering the narrowly closed native route.
-    // A new unknown branch or a cycle never becomes cargo permission.
+    if(!scopedBoundary(observed))return observed;
+    // Recheck the ENTIRE graph fresh. An unknown unrelated path cannot
+    // silently become permission for a terminal or Sorter outlet.
     if(!forceFresh) {
         observed=liveLinkGuard.check({...context,forceFresh:true});
-        if(!soleDirectBoundary(observed)) return observed;
+        if(!scopedBoundary(observed))return observed;
     }
-    const outlet=directSorterOutlet(receiver);
-    if (outlet.status!=="CLOSED_DIRECT_OUTLET") return observed;
-    return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_SORTER",
-        reason:"closed_receiver_hopper_sorter_storage_outlet",
+    const nativeIssue=observed.observationReason;
+    if(nativeIssue.startsWith("unsupported_native_boundary [hartsorter:sorter @")) {
+        const outlet=directSorterOutlet(receiver);
+        if(outlet.status!=="CLOSED_DIRECT_OUTLET")return observed;
+        return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_SORTER",
+            reason:"closed_receiver_hopper_sorter_storage_outlet",
+            executePermitted:false,persistPermitted:false};
+    }
+    // 1.4.1 native parity: a directed Hopper (including sideways Hopper)
+    // may terminate in a Chest, Trapped Chest, Barrel or Shulker Box.
+    // Verify this exact endpoint and Hopper chain against the graph issue;
+    // no speculative chest absence or global negative claim is inferred.
+    const terminal=directNativeTerminal(receiver);
+    if(terminal.status!=="CLOSED_NATIVE_TERMINAL")return observed;
+    const exactly="unsupported_native_boundary ["+terminal.terminalType+
+        " @ "+receiver.d+" "+terminal.terminalPosition.x+","+
+        terminal.terminalPosition.y+","+terminal.terminalPosition.z+
+        " from receiver "+receiver.id+"]";
+    if(nativeIssue!==exactly)return observed;
+    return {decision:"SAFE_SNAPSHOT",routeKind:"DIRECT_NATIVE_TERMINAL",
+        reason:"closed_receiver_directed_hopper_native_storage_terminal",
         executePermitted:false,persistPermitted:false};
 }
 
@@ -592,6 +607,14 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
 // hint: the pure model re-verifies every actual Sorter block and storage output.
 // Rebuild the ordinary in-memory topology only if registry mutation dirtied it.
 // This never calls destinationFor() (which can register/persist Collectors).
+function directNativeTerminal(receiver) {
+    // Non-mutating, live source-specific observation. Do not let a
+    // previous tick or Q4 page snapshot authorize native Hopper movement.
+    return inspectReceiverNativeTerminal({
+        receiver,readBlock:liveTopologyBlockReader
+    });
+}
+
 function directSorterOutlet(receiver) {
     if (dirty) rebuildTopology();
     return inspectDirectSorterOutlet({
@@ -655,7 +678,7 @@ function directNativeHome(receiver,item,output) {
 function receiverLinkSafety(receiver) {
     if (!receiver?.id) return {decision:"HOLD",reason:"invalid_receiver"};
     let linked=0;
-    let directClosed=false;
+    let directClosed=false,terminalClosed=false;
     for (const col of logistics.collectors) {
         if (col.link !== receiver.id) continue;
         linked++;
@@ -666,10 +689,12 @@ function receiverLinkSafety(receiver) {
                 collectorId:col.id,linked};
         }
         if(result.routeKind==="DIRECT_NATIVE_SORTER")directClosed=true;
+        if(result.routeKind==="DIRECT_NATIVE_TERMINAL")terminalClosed=true;
     }
     return {decision:linked ? "SAFE_SNAPSHOT" : "NO_MANAGED_INPUT",
         reason:linked ? "all_linked_sources_safe" : "no_managed_sources",
-        routeKind:directClosed?"DIRECT_NATIVE_SORTER":undefined,linked};
+        routeKind:directClosed?"DIRECT_NATIVE_SORTER":
+            terminalClosed?"DIRECT_NATIVE_TERMINAL":undefined,linked};
 }
 
 // Human-readable state uses the same read-only check as ingress/drain. No
@@ -2712,9 +2737,16 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     // unchanged queue journal and source debit (the only custody writer).
     // An unlinked historic Receiver is the legacy standalone Q4 path, not
     // a newly governed source. Preserve its original 1.4.2 drain behavior.
-    if (governedLane!=="LEGACY_UNGOVERNED" &&
-        (governedLane!=="DIRECT_NATIVE_SORTER" ||
-         !directNativeHome(receiver,item,output))) return 0;
+    if(governedLane==="DIRECT_NATIVE_TERMINAL") {
+        const terminal=directNativeTerminal(receiver);
+        if(terminal.status!=="CLOSED_NATIVE_TERMINAL" ||
+           terminal.outputBlock?.location?.x!==output.block.location.x ||
+           terminal.outputBlock?.location?.y!==output.block.location.y ||
+           terminal.outputBlock?.location?.z!==output.block.location.z)
+            return 0;
+    } else if(governedLane!=="LEGACY_UNGOVERNED" &&
+             (governedLane!=="DIRECT_NATIVE_SORTER" ||
+              !directNativeHome(receiver,item,output)))return 0;
 
     const qBefore = Number(first.amount) || 0;
     const qAfter = Math.max(0, qBefore - move);
@@ -4126,8 +4158,9 @@ function processReceiverDrain(receiver, globalRemaining) {
             const safety=receiverLinkSafety(receiver);
             if (safety.decision==="NO_MANAGED_INPUT") {
                 governedLane="LEGACY_UNGOVERNED";
-            } else if (safety.decision==="SAFE_SNAPSHOT" &&
-                       safety.routeKind==="DIRECT_NATIVE_SORTER") {
+            } else if(safety.decision==="SAFE_SNAPSHOT" &&
+                      (safety.routeKind==="DIRECT_NATIVE_SORTER" ||
+                       safety.routeKind==="DIRECT_NATIVE_TERMINAL")) {
                 governedLane=safety.routeKind;
             } else {
                 // Managed path without a proved home: preserve Q4 custody.
