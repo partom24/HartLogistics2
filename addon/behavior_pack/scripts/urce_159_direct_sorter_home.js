@@ -203,3 +203,85 @@ export function inspectDirectItemHome({outlet,item,modeOf,matches,
   }
   return fail("no_eligible_direct_native_home");
 }
+
+
+/**
+ * 1.4.1 PARITY: Receiver -> its immediately-below Hopper -> directed vanilla
+ * Hopper chain -> supported native storage (including horizontal output).
+ *
+ * The original Q4 writer credited only the Receiver-output Hopper; vanilla
+ * engine moves the item from there. This probe DOES NOT touch Q4, native
+ * inventory or player state and never reports a custody receipt.
+ *
+ * Unknown/unloaded endpoints, directed Hopper rings, redstone-locked Hoppers,
+ * and an observable extraction Hopper below storage HOLD. Global network
+ * absence or foreign Hopper-minecart absence is NOT claimed.
+ */
+const TERMINAL_STORAGE = new Set([
+    "minecraft:chest","minecraft:trapped_chest","minecraft:barrel",
+    "minecraft:shulker_box"
+]);
+const HOPPER_FACE=new Map([
+    [0,{x:0,y:-1,z:0}], [1,{x:0,y:-1,z:0}],
+    [2,{x:0,y:0,z:-1}], [3,{x:0,y:0,z:1}],
+    [4,{x:-1,y:0,z:0}], [5,{x:1,y:0,z:0}]
+]);
+function isNativeTerminal(type) {
+    return TERMINAL_STORAGE.has(type) ||
+        (typeof type==="string" && type.endsWith("_shulker_box"));
+}
+export function inspectReceiverNativeTerminal({
+    receiver,readBlock,maxHops=128
+}) {
+    if(!valid(receiver)||typeof readBlock!=="function" ||
+       !Number.isSafeInteger(maxHops)||maxHops<1||maxHops>512)
+        return fail("invalid_native_terminal_request");
+    const d=receiver.d,{x,y,z}=receiver;
+    if(observed(readBlock,d,{x,y,z})?.typeId!==RECEIVER)
+        return fail("receiver_unavailable");
+    let pos={x,y:y-1,z};
+    const seen=new Set();
+    let hops=0,firstHopper;
+    for(;hops<maxHops;hops++){
+        const key=d+"|"+pos.x+"|"+pos.y+"|"+pos.z;
+        if(seen.has(key))return fail("native_terminal_hopper_cycle");
+        seen.add(key);
+        const block=observed(readBlock,d,pos);
+        if(!block)return fail("native_terminal_boundary_unloaded");
+        if(block.typeId!==HOPPER){
+            if(hops===0)return fail("receiver_output_hopper_unavailable");
+            if(!isNativeTerminal(block.typeId))
+                return fail("native_terminal_not_supported");
+            const inv=(()=>{
+                try{return block.getComponent?.("minecraft:inventory")?.container;}
+                catch(_){return undefined;}
+            })();
+            if(!inv || inv.isValid!==true)
+                return fail("native_terminal_inventory_unverified");
+            // Native Hoppers can extract from a chest below them, even
+            // when another Hopper feeds the chest from one side.
+            const below=observed(readBlock,d,{
+                x:pos.x,y:pos.y-1,z:pos.z
+            });
+            if(!below)return fail("native_terminal_extraction_unknown");
+            if(below.typeId===HOPPER)
+                return fail("native_terminal_extraction_hopper");
+            return {
+                status:"CLOSED_NATIVE_TERMINAL",receiverId:receiver.id,
+                outputBlock:firstHopper,terminalBlock:block,
+                terminalPosition:{...pos},terminalType:block.typeId,hops,
+                executePermitted:false,persistPermitted:false,
+                mayAuthorizeCargo:false
+            };
+        }
+        if(hops===0)firstHopper=block;
+        const locked=safeState(block,"toggle_bit");
+        if(locked!==false&&locked!==0)
+            return fail("native_terminal_hopper_locked_or_unknown");
+        const direction=HOPPER_FACE.get(safeState(block,"facing_direction"));
+        if(!direction)return fail("native_terminal_facing_unverified");
+        pos={x:pos.x+direction.x,y:pos.y+direction.y,
+            z:pos.z+direction.z};
+    }
+    return fail("native_terminal_hop_budget");
+}
