@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Guarded 1.5.7 -> 1.5.8 hotpath-performance LAB update/rollback.
 
-Predecessor is immutable 1.5.7 pack commit 63f3443b863c1e674c0cb3f2b5026806167b09f9.
+Predecessor is immutable 1.5.7 pack commit 8bb696129a668699e0867aa1e6786a8716d1ef3a.
 Checks exact changed/additional source blobs, same BP/RP UUIDs and matching
 module/dependency versions, and preserves world data and rollback backups.
 No generic same-version replacement, world conversion or production access.
@@ -27,8 +27,8 @@ spec.loader.exec_module(old)
 UnsafeLab=old.UnsafeLab
 LAB=old.LAB
 PACKS=old.PACKS
-NEW_VERSION=(1,5,7)
-OLD_VERSION=(1,5,6)
+NEW_VERSION=(1,5,8)
+OLD_VERSION=(1,5,7)
 PREDECESSOR="8bb696129a668699e0867aa1e6786a8716d1ef3a"
 ALLOWED_CHANGE={
     "behavior_pack/manifest.json",
