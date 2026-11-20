@@ -2704,8 +2704,11 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     // Do not discharge it speculatively into a Hopper to find a home later.
     // Revalidate the exact current ordinary head and native home BEFORE the
     // unchanged queue journal and source debit (the only custody writer).
-    if (governedLane!=="DIRECT_NATIVE_SORTER" ||
-        !directNativeHome(receiver,item,output)) return 0;
+    // An unlinked historic Receiver is the legacy standalone Q4 path, not
+    // a newly governed source. Preserve its original 1.4.2 drain behavior.
+    if (governedLane!=="LEGACY_UNGOVERNED" &&
+        (governedLane!=="DIRECT_NATIVE_SORTER" ||
+         !directNativeHome(receiver,item,output))) return 0;
 
     const qBefore = Number(first.amount) || 0;
     const qAfter = Math.max(0, qBefore - move);
@@ -4115,9 +4118,15 @@ function processReceiverDrain(receiver, globalRemaining) {
         // source route. Preserve the exact original dequeue/journal writer.
         if (!safetyChecked) {
             const safety=receiverLinkSafety(receiver);
-            if (safety.decision !== "SAFE_SNAPSHOT" ||
-                safety.routeKind !== "DIRECT_NATIVE_SORTER") return used;
-            governedLane=safety.routeKind;
+            if (safety.decision==="NO_MANAGED_INPUT") {
+                governedLane="LEGACY_UNGOVERNED";
+            } else if (safety.decision==="SAFE_SNAPSHOT" &&
+                       safety.routeKind==="DIRECT_NATIVE_SORTER") {
+                governedLane=safety.routeKind;
+            } else {
+                // Managed path without a proved home: preserve Q4 custody.
+                return used;
+            }
             safetyChecked = true;
         }
 
