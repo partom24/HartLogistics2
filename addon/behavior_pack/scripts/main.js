@@ -103,6 +103,9 @@ const queueIoStats = {pageWrites: 0, definitionWrites: 0, metaWrites: 0, chars: 
 let collectorRrStart = 0;
 let receiverRrStart = 0;
 const queueRejectSeen = new Set();
+// Scoped to the synchronous logisticsTick callback. Never retain a positive
+// route observation or a Bedrock tick number after this stack unwinds.
+let activeLogisticsPass = undefined;
 
 const HART_REDSTONE_COMPONENT = "hartlogistics:redstone_input";
 const hartRedstoneState = new Map();
@@ -540,7 +543,14 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
         collector:col, receiver,
         collectors:logistics.collectors,receivers:logistics.receivers,
         getBlock:liveTopologyBlockReader,
-        currentTick:system.currentTick,forceFresh
+        // Same native clock value for all checks in this synchronous pass.
+        // Outside logisticsTick (player/UI/pre-save checks) read the clock
+        // directly, so cross-tick/unscheduled safety never depends on a
+        // stale JS counter. Nullish memo also handles legitimate tick zero.
+        currentTick:activeLogisticsPass
+            ? (activeLogisticsPass.nativeTick ??= system.currentTick)
+            : system.currentTick,
+        forceFresh
     });
 }
 
@@ -1200,8 +1210,10 @@ function directionalOutputOffset(block) {
     }
 }
 
-function collectorInputSources(e) {
-    const c = collectorAt(e);
+function collectorInputSources(e, verifiedCollectorBlock=undefined) {
+    // Only a caller that already validated this Collector in the SAME
+    // synchronous stack may supply the live Block. Never cache across ticks.
+    const c = verifiedCollectorBlock ?? collectorAt(e);
     if (!c) return [];
 
     const offsets = [
@@ -1238,14 +1250,14 @@ function collectorInputSources(e) {
             block: source,
             container: inv,
             kind: "hopper",
-            locked: hopperIsRedstoneLocked(source)
+            locked: hopperIsRedstoneLocked(source, true)
         });
     }
     return out;
 }
 
-function receiverOutputHopper(e) {
-    const r = receiverAt(e);
+function receiverOutputHopper(e, verifiedReceiverBlock=undefined) {
+    const r = verifiedReceiverBlock ?? receiverAt(e);
     if (!r) return undefined;
 
     let h;
@@ -1257,7 +1269,7 @@ function receiverOutputHopper(e) {
     if (!h || h.typeId !== "minecraft:hopper") return undefined;
 
     const inv = blockContainer(h);
-    return inv ? {block:h, container:inv, locked:hopperIsRedstoneLocked(h)} : undefined;
+    return inv ? {block:h, container:inv, locked:hopperIsRedstoneLocked(h, true)} : undefined;
 }
 
 function collectorInputCount(e) {
@@ -3894,7 +3906,7 @@ function processCollectorIngress(collector, globalRemaining) {
     const receiver = findReceiverById(collector.link);
     if (!receiver) return 0;
 
-    const sources = collectorInputSources(collector);
+    const sources = collectorInputSources(collector, collectorBlock);
     if (!sources.length) return 0;
 
     let used = 0;
@@ -3965,7 +3977,7 @@ function processCollectorIngress(collector, globalRemaining) {
 
             const receiverBlock = receiverAt(receiver);
             const output = qTotal === 0 && receiverBlock && !blockIsRedstonePowered(receiverBlock)
-                ? receiverOutputHopper(receiver)
+                ? receiverOutputHopper(receiver, receiverBlock)
                 : undefined;
             if (output && !output.locked) {
                 const slotInfo = findAcceptSlot(output.container, stack);
@@ -4014,8 +4026,11 @@ function processReceiverDrain(receiver, globalRemaining) {
     const receiverBlock = receiverAt(receiver);
     if (!receiverBlock || blockIsRedstonePowered(receiverBlock)) return 0;
 
-    const output = receiverOutputHopper(receiver);
-    if (!output || output.locked) return 0;
+    // An empty, previously initialized Q4 queue has no item to discharge.
+    // Load the same authoritative queue used by the original drain writer
+    // BEFORE touching native output Hopper state. Never use receiver.queued
+    // or a persisted-registry hint to infer a zero balance.
+    let output;
 
     let budget = Math.min(RECEIVER_BATCH, globalRemaining);
     let used = 0;
@@ -4030,6 +4045,14 @@ function processReceiverDrain(receiver, globalRemaining) {
         }
 
         if (q.total <= 0) break;
+
+        // Still verify the actual output Hopper (and its power state) before
+        // checking route safety or debiting a single Q4 item. A nonempty
+        // queue takes the exact original guarded path. No across-tick memo.
+        if (!output) {
+            output = receiverOutputHopper(receiver, receiverBlock);
+            if (!output || output.locked) return used;
+        }
 
         // The native Q4 queue owns these items. Unlike an empty idle queue,
         // a nonempty queue must not debit toward a known cycle or unverified
@@ -4060,6 +4083,9 @@ function processReceiverDrain(receiver, globalRemaining) {
 
 function logisticsTick() {
     if (!ready) return;
+    const previousPass = activeLogisticsPass;
+    activeLogisticsPass = {};
+    try {
 
     // Avoid a duplicate native property read on every idle tick.
     // Pending queue journals still use the original recovery/fence sequence.
@@ -4098,6 +4124,11 @@ function logisticsTick() {
             drainBudget -= used;
         }
         receiverRrStart = (receiverRrStart + 1) % receivers.length;
+    }
+    } finally {
+        // Includes early journal HOLD and any thrown observer/native API:
+        // no tick identity leaks into a later event or scheduled pass.
+        activeLogisticsPass = previousPass;
     }
 }
 
