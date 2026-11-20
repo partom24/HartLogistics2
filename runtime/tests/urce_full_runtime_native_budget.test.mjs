@@ -1,13 +1,14 @@
 /**
  * FULL-RUNTIME native API call budget (instrumented Node stubs, never Bedrock timing).
  *
- * Load real ESM main.js and all imported URCE modules into one VM. Do NOT replace
- * any Hart functions: source discovery, Q4, route guard, topology observers,
- * transporter visuals, event subscriptions, and all scheduled jobs stay intact.
- *
- * --experimental-vm-modules is needed for vm.SourceTextModule (Node 20/22).
- * Counters measure native API invocation counts, NOT CPU time, BDS TPS or latency.
+ * After a whole-engine review: native tick lookup is once per synchronous
+ * logistics pass only when needed, verified same-stack device blocks are
+ * reused, and an AUTHORITATIVELY empty Q4 queue never polls its output Hopper.
+ * All supported Bedrock native/persistence/cargo writers remain real source.
  */
+// Load real ESM main.js with no Hart module replacements; all native API stubs
+// count actual calls. Node --experimental-vm-modules is required.
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -219,14 +220,17 @@ test("FULL-NATIVE-01 all registered periodic runtime paths: 1,442 empty sources,
   const {counts}=publish("loaded empty hopper steady state, full runtime",f,ticks);
   assert.equal(n(counts,"System.currentTick"),0,"Genuinely idle runtime must not read expensive native tick clock");
   assert.equal(n(counts,"Container.setItem"),0,"Empty inventory must never mutate");
-  assert.equal(n(counts,"Dimension.getBlock"),(1442+73*8+54*3)*ticks,
-    "Missing or newly added native block observation must be explicitly reviewed");
+  assert.equal(n(counts,"Dimension.getBlock"),(1442+73*7+54)*ticks,
+    "Verified Collector/Receiver reuse and empty-Q4 skip must save 181 reads/tick");
   assert.equal(n(counts,"Container.firstItem"),(1442+73)*ticks,
     "Empty Sorter and directed Collector sources each require one emptiness read");
   assert.equal(n(counts,"Container.getItem"),0);
-  assert.ok(n(counts,"Block.typeId")<=2315*ticks,"Repeated native block identity inspections are budgeted");
-  assert.ok(n(counts,"Block.getComponent.minecraft:inventory")<=1569*ticks);
-  assert.ok(n(counts,"BlockPermutation.getState")<=1642*ticks);
+  assert.equal(n(counts,"Block.typeId"),2007*ticks,
+    "Known Hopper and endpoint identities must not be re-read after same-call proof");
+  assert.equal(n(counts,"Block.getComponent.minecraft:inventory"),1515*ticks,
+    "Zero-balance Q4 must avoid probing Receiver output inventory");
+  assert.equal(n(counts,"BlockPermutation.getState"),1588*ticks,
+    "No native Hopper state lookup for a zero-balance Receiver");
   assert.ok(n(counts,"Block.getRedstonePower")<=127*ticks);
   assert.equal(n(counts,"Dimension.getEntities"),0,"Native-frame idle path should never search legacy displays");
   assert.ok(n(counts,"World.getDimension")<=3,"Dimension handles should stay cached");
@@ -239,16 +243,17 @@ test("FULL-NATIVE-02 stationary, linked cargo includes REAL graph guard, Hopper 
   await f.loadFullRuntime();f.advance(7);f.metrics.reset();
   const ticks=21;f.advance(ticks);
   const {counts}=publish("linked stationary cargo, blocked native boundary",f,ticks);
-  assert.ok(n(counts,"System.currentTick")>=73*ticks,
-    "Real liveLinkCheck native clock cost must be counted, not replaced by a zero-cost fake");
-  assert.ok(n(counts,"Dimension.getBlock")>73*8*ticks,
-    "Real route probe must do native Hopper/Transporter topology observations");
-  assert.ok(n(counts,"Dimension.getBlock")<=900*ticks,
-    "A repeated full topology scan per source is a native API regression");
-  assert.ok(n(counts,"Block.typeId")<=1100*ticks);
+  assert.equal(n(counts,"System.currentTick"),ticks,
+    "A real liveLinkCheck MUST resolve native tick exactly once per synchronous logistics pass");
+  assert.ok(n(counts,"Dimension.getBlock")>500*ticks,
+    "The source-executed route probe must still observe actual Hopper and Transporter blocks");
+  assert.ok(n(counts,"Dimension.getBlock")<=650*ticks,
+    "Reused verified blocks and zero-Q4 outputs must not restore redundant reads");
+  assert.ok(n(counts,"Block.typeId")<=725*ticks,
+    "Eliminate repeated Hopper identities but retain real route graph reads");
   assert.ok(n(counts,"BlockPermutation.getState")<=250*ticks);
-  assert.ok(n(counts,"System.currentTick")<=73*ticks,
-    "Additional native tick-clock reads would reintroduce a known regression");
+  assert.equal(n(counts,"System.currentTick"),21,
+    "A reused native clock must not hide per-tick route freshness or 20-tick HOLD expiry");
   assert.equal(n(counts,"Container.setItem"),0,"HOLD must not debit a source");
   assert.equal(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1"),0,
     "Unknown routes cannot write Q4");
@@ -260,7 +265,8 @@ test("FULL-NATIVE-03 eligible live source exercises real custody writer and rece
   f.metrics.reset(); // exclude the fixture injection from measured native writes
   f.advance(1);
   const {counts}=publish("one loaded eligible Collector -> Q4 -> Receiver",f,1);
-  assert.ok(n(counts,"System.currentTick")>0,"Route guard must be genuinely invoked");
+  assert.equal(n(counts,"System.currentTick"),1,
+    "Ingress and Receiver drain share one real native clock within a logistics pass");
   assert.ok(n(counts,"Dimension.getBlock")>0);
   assert.ok(n(counts,"Container.firstItem")>0);
   assert.ok(n(counts,"Container.setItem")>0,"Test must exercise actual source/destination writers");
