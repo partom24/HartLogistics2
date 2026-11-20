@@ -4,6 +4,8 @@
 
 **Whenever resuming development, even when first handed a current build, a file path, a manifest, a source file, a commit or a recent stage handoff: READ THIS FIRST, then follow the pointers below.** Do not let the newest stage number, commit message, current installed candidate or source file become the sole project brief.
 
+**Blocking 1.4.1 behavioral parity finding (2026-11-20):** Before calling any 1.5.x source/package “playable” or owner-ready, review [native Receiver-output Hopper direction and Chest termination regression](docs/URCE_141_NATIVE_OUTPUT_PARITY_BLOCKER_20261120.md) against the [original ingress/egress matrix](docs/BASELINE_INGRESS_EGRESS_MATRIX.md). A source-only, nondeployable corrective branch exists; **no source CI or safe Q4 HOLD substitutes for BDS proof of previously working layouts**. Preserve all nine baseline input/output categories, not only the narrow new governed Sorter lane.
+
 ## One authoritative reading path
 
 1. **Operating rules:** [AGENTS.md](AGENTS.md) — see **Active continuous-development directive** at the top. It governs how “continue” and “don't stop until a playable build” should be interpreted within actual tool, session and safety limits.
