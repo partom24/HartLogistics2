@@ -98,6 +98,18 @@ export function inspectDirectSorterOutlet({receiver,readBlock,columns,
     catch(_){return fail("sorter_output_unavailable");}
     if(dest?.kind!=="storage"||!dest.block)
       return fail("sorter_output_not_native_storage");
+    // Native Hoppers below a destination chest can extract items AFTER the
+    // Sorter's legitimate credit and feed another bank. Without inspecting
+    // the destination's extraction side, this is not a closed local home.
+    const targetPos=dest.block.location;
+    if(!targetPos||![targetPos.x,targetPos.y,targetPos.z].every(Number.isSafeInteger))
+      return fail("sorter_storage_location_unverified");
+    const underStorage=observed(readBlock,d,{
+      x:targetPos.x,y:targetPos.y-1,z:targetPos.z
+    });
+    if(!underStorage)return fail("storage_extraction_boundary_unknown");
+    if(underStorage.typeId===HOPPER)
+      return fail("storage_hopper_extractor_present");
     owners.push({entry:e,block,destination:dest.block,mode,
       bottomUp:i});
   }
