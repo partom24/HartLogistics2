@@ -129,11 +129,11 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     registry.push({d:DIM,...p,m:"filter",f:{typeId:"minecraft:diamond"},
       ...(legacy?{}:{i:[p.x,p.y,p.z-1,2]})});
   }
-  const cols=[],recs=[],collectorSources=[];
+  const cols=[],recs=[],collectorSources=[],receiverOutputs=[];
   for(let i=0;i<receivers;i++){
     const p={x:80000+i*20,y:70,z:0},id=key(DIM,p),queueKey="q"+(i+1);
     block("hartsorter:receiver",p);
-    block("minecraft:hopper",{...p,y:69},{items:[],facing:0});
+    receiverOutputs.push(block("minecraft:hopper",{...p,y:69},{items:[],facing:0}).container);
     if(blocked)block("minecraft:chest",{...p,y:68},{items:[]});
     recs.push({id,d:DIM,...p,present:true,queueKey,qVersion:4,qGen:0,qShards:0,
       received:0,delivered:0,queued:0});
@@ -196,7 +196,8 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
       for(const item of intervals)if(currentTick%item.period===0)item.fn();
     }
   }
-  return {metrics,loadFullRuntime,advance,collectorSources,properties,warnings,intervals,world,
+  function emit(name,ev){for(const callback of listeners.get(name)??[])callback(ev);}
+  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,properties,warnings,intervals,world,
     get tick(){return currentTick;}};
 }
 function publish(label,fixture,ticks,extra={}) {
@@ -223,6 +224,11 @@ test("FULL-NATIVE-01 all registered periodic runtime paths: 1,442 empty sources,
   assert.equal(n(counts,"Container.firstItem"),(1442+73)*ticks,
     "Empty Sorter and directed Collector sources each require one emptiness read");
   assert.equal(n(counts,"Container.getItem"),0);
+  assert.ok(n(counts,"Block.typeId")<=2315*ticks,"Repeated native block identity inspections are budgeted");
+  assert.ok(n(counts,"Block.getComponent.minecraft:inventory")<=1569*ticks);
+  assert.ok(n(counts,"BlockPermutation.getState")<=1642*ticks);
+  assert.ok(n(counts,"Block.getRedstonePower")<=127*ticks);
+  assert.equal(n(counts,"Dimension.getEntities"),0,"Native-frame idle path should never search legacy displays");
   assert.ok(n(counts,"World.getDimension")<=3,"Dimension handles should stay cached");
   assert.ok(n(counts,"World.getDynamicProperty.hartsorter:journal_v1")<=ticks+12);
   assert.ok(n(counts,"World.getDynamicProperty.hartsorter:queue_journal_v1")<=ticks*2+8);
@@ -237,8 +243,12 @@ test("FULL-NATIVE-02 stationary, linked cargo includes REAL graph guard, Hopper 
     "Real liveLinkCheck native clock cost must be counted, not replaced by a zero-cost fake");
   assert.ok(n(counts,"Dimension.getBlock")>73*8*ticks,
     "Real route probe must do native Hopper/Transporter topology observations");
-  assert.ok(n(counts,"Dimension.getBlock")<4000*ticks,
+  assert.ok(n(counts,"Dimension.getBlock")<=900*ticks,
     "A repeated full topology scan per source is a native API regression");
+  assert.ok(n(counts,"Block.typeId")<=1100*ticks);
+  assert.ok(n(counts,"BlockPermutation.getState")<=250*ticks);
+  assert.ok(n(counts,"System.currentTick")<=73*ticks,
+    "Additional native tick-clock reads would reintroduce a known regression");
   assert.equal(n(counts,"Container.setItem"),0,"HOLD must not debit a source");
   assert.equal(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1"),0,
     "Unknown routes cannot write Q4");
@@ -254,10 +264,14 @@ test("FULL-NATIVE-03 eligible live source exercises real custody writer and rece
   assert.ok(n(counts,"Dimension.getBlock")>0);
   assert.ok(n(counts,"Container.firstItem")>0);
   assert.ok(n(counts,"Container.setItem")>0,"Test must exercise actual source/destination writers");
-  assert.ok(Object.keys(counts).some(k=>k.startsWith("World.setDynamicProperty.hartsorter:q4")),
+  assert.ok(n(counts,"World.setDynamicProperty.Q4")>0,
     "Test must exercise native Q4 persistence");
-  assert.ok(n(counts,"Dimension.getBlock")<300,
+  assert.equal(f.collectorSources[0].inspect()[0],0,"Real ingress debits the physical Hopper");
+  assert.equal(f.receiverOutputs[0].inspect()[0],4,"Real drain credits the physical Receiver output Hopper");
+  assert.ok(n(counts,"Dimension.getBlock")<50,
     "One eligible route must not scan a whole artificial room");
+  assert.ok(n(counts,"Container.getItem")<=16,"Avoid slot rereads during one routed item");
+  assert.ok(n(counts,"World.setDynamicProperty.Q4")<=8,"Keep Q4 writes bounded per transfer");
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
   const f=fixture({sorters:64,collectors:0,receivers:0,legacy:true});
@@ -269,5 +283,33 @@ test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are s
     "5-tick legacy mode reconciliation must actually execute");
   assert.ok(n(counts,"Dimension.getEntities")<=64*2,
     "Entity queries should be local to legacy Sorters, not whole dimensions");
+  assert.equal(n(counts,"Container.setItem"),0);
+});
+
+test("FULL-NATIVE-05 every unrelated vanilla item spawn must have a bounded Collector scan/retry cost",async()=>{
+  const f=fixture({sorters:0,collectors:73,receivers:1});
+  await f.loadFullRuntime();f.advance(7);f.metrics.reset();
+  f.emit("after.entitySpawn",{entity:{typeId:"minecraft:item",isValid:true,
+    dimension:{id:DIM},location:{x:0,y:70,z:0}}});
+  f.advance(5);
+  const {counts}=publish("unrelated item entity spawned outside all 73 Collectors",f,5,
+    {eventCount:1,fixtureNote:"Includes five real source retry attempts and normal intervals"});
+  assert.equal(n(counts,"System.runTimeout"),5,
+    "Original entitySpawn callback plus four retry timers must be measured");
+  assert.ok(n(counts,"Dimension.getBlock")<=5*(73*9+3),
+    "Per-spawn retries must not introduce unbounded native reads");
+  assert.equal(n(counts,"Container.setItem"),0);
+  assert.equal(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1"),0);
+});
+test("FULL-NATIVE-06 placement invalidates guard and schedules local Transporter visuals only",async()=>{
+  const f=fixture({sorters:0,collectors:0,receivers:0});
+  await f.loadFullRuntime();f.advance(7);f.metrics.reset();
+  f.emit("after.playerPlaceBlock",{block:{dimension:f.world.getDimension(DIM),
+    location:{x:9120,y:70,z:10},typeId:"hartsorter:transporter"}});
+  f.metrics.reset();
+  f.advance(2);
+  const {counts}=publish("event-driven pipe arm update after placement",f,2);
+  assert.ok(n(counts,"Dimension.getBlock")>0,"Run actual visual-queue flush");
+  assert.ok(n(counts,"Dimension.getBlock")<=49,"At most seven local positions, six face checks each");
   assert.equal(n(counts,"Container.setItem"),0);
 });
