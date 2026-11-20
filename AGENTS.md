@@ -1,5 +1,7 @@
 # Hart Logistics 2 — contributor operating contract
 
+> **URCE U1-B development (2026-11-20):** [Read-only destination observation and legacy registration parity](docs/URCE_U1B_PURE_DESTINATION_OBSERVATION_20261120.md) records the dev-branch destination-probe split, legacy side-effect checks and open gates. Collector registration, live storage admission and Q4/physical custody writers remain on the old path; **no release or migration acceptance is implied**.
+
 > **URCE U1-A development (2026-11-20):** [Read-only Column-local decision integration and evidence](docs/URCE_U1A_COLUMN_LOCAL_DECISIONS_20261120.md) records the new dev-branch classifier/transit/order module and its source-executed equivalence checks. This is **not** an activated global URCE planner, adaptive poll rate, Q4 migration, or BDS-accepted release. Continue with U1-B side-effect-free destination observation and differential coverage.
 
 > **Owner LAB world policy (2026-11-20):** The LAB world is an **expendable copy/paste snapshot of the owner's 1.4.1 production world** and may be refreshed/recreated for repeatable testing. The **production world is not expendable**; verify LAB target paths, stop LAB BDS and preserve established backups/evidence. Read [the LAB provenance and refresh policy](docs/OWNER_LAB_WORLD_REFRESH_POLICY_20261120.md) before migration rehearsals, LAB resets or release-process planning.
