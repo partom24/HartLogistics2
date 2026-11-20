@@ -272,8 +272,16 @@ export function inspectCandidateSupplyLink({
     // this is not permission for physical item movement.
     if(issue.reason==="receiver_output_not_hopper"&&logicalBanks.has(issue.from))
       continue;
+    const where=issue.reason==="unsupported_native_boundary" &&
+      issue.position && typeof issue.blockType==="string"
+      ? " ["+issue.blockType+" @ "+issue.dimension+" "+
+          issue.position.x+","+issue.position.y+","+issue.position.z+
+          " from receiver "+issue.from+"]"
+      : "";
+    // The complete reason is displayed on the Collector, and forwarded
+    // by the Receiver status. No skipped HOLD and no new cargo permission.
     return answer("HOLD","unverified_native_supply_boundary",{
-      observationReason:issue.reason
+      observationReason:issue.reason+where
     });
   }
   // Source-level graph decision only. The real game's link handler must

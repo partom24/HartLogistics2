@@ -21,7 +21,7 @@ const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.6-dev";
+const VERSION = "1.5.7-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -558,6 +558,7 @@ function receiverLinkSafety(receiver) {
         const result=liveLinkCheck(col,receiver);
         if (result.decision !== "SAFE_SNAPSHOT") {
             return {decision:result.decision,reason:result.reason,
+                observationReason:result.observationReason,
                 collectorId:col.id,linked};
         }
     }

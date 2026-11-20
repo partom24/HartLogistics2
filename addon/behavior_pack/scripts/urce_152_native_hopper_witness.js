@@ -127,7 +127,14 @@ export function observeNativeHopperWitness({
         } else if(block.typeId!=="minecraft:air") {
           // Chests, Sorters, Transporters and other endpoints may have other
           // native input/output semantics. Do NOT infer a pass-through path.
-          unknown.push({from:receiver.id,reason:"unsupported_native_boundary"});
+          unknown.push({
+            from:receiver.id,reason:"unsupported_native_boundary",
+            // Report observed native block and precise terminating Hopper
+            // coordinate. This is diagnostic evidence, NOT route authority.
+            dimension:receiver.d,
+            position:{x:pos.x,y:pos.y,z:pos.z},
+            blockType:block.typeId,receiverId:receiver.id
+          });
         }
         hit=true;break;
       }
