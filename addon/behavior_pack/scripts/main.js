@@ -3,6 +3,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+// Maintainer pickup note (documentation only; no gameplay behavior):
+// This source file / current 1.5.x build is NOT the complete project brief.
+// Before continuing development, read ../../../DEVELOPMENT_START_HERE.md
+// followed by ../../../AGENTS.md, ../../../PROJECT_CONTINUITY.md,
+// the owner product contract and HL-URCE-OWN-001. A stage handoff's
+// "Next: U1-G" is not an authorization to skip product/contract review.
+// Current build, Git HEAD, actual Node/CI evidence and LAB installed
+// version must each be verified independently.
 
 import {
     world,
