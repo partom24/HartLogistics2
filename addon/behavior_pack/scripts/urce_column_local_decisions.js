@@ -28,6 +28,36 @@ export function classifySorterDestinationType(typeId, collectorId) {
 }
 
 /**
+ * U1-B: side-effect-free destination probe. Returns the currently observed
+ * physical kind and block only. No Collector registration, Receiver Q4 load,
+ * inventory component lookup, persistent property or route authorization.
+ *
+ * sorterAt and facingOffset are the existing live read-only helpers injected
+ * by main.js. Any unknown/unloaded destination returns undefined.
+ * No native Block/Container is retained beyond the synchronous caller.
+ */
+export function observeSorterDestination(entry, sorterAt, facingOffset, collectorId) {
+    const sourceSorter = sorterAt(entry);
+    if (!sourceSorter) return undefined;
+    const off = facingOffset(sourceSorter);
+    if (!off) return undefined;
+
+    let dest;
+    try {
+        dest = sourceSorter.dimension.getBlock({
+            x: sourceSorter.location.x + off.x,
+            y: sourceSorter.location.y,
+            z: sourceSorter.location.z + off.z
+        });
+    } catch (_) {
+        return undefined;
+    }
+    if (!dest) return undefined;
+    const kind = classifySorterDestinationType(dest.typeId, collectorId);
+    return kind ? {kind, block: dest} : undefined;
+}
+
+/**
  * Only a proven all-Filter/Bypass nonmatch may avoid destination resolution.
  * Source may hold up to five distinct ItemStacks; no slot may be skipped.
  * Preserve the existing no-Filter Bypass-only transit behavior.
