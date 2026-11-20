@@ -254,7 +254,7 @@ test("FULL-NATIVE-02 stationary, linked cargo includes REAL graph guard, Hopper 
     "Unknown routes cannot write Q4");
 });
 test("FULL-NATIVE-03 eligible live source exercises real custody writer and receiver drain",async()=>{
-  const f=fixture({sorters:0,collectors:1,receivers:1,stationary:true,blocked:false});
+  const f=fixture({sorters:0,collectors:1,receivers:1,stationary:false,blocked:false});
   await f.loadFullRuntime();f.advance(7);f.metrics.reset();
   f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
   f.metrics.reset(); // exclude the fixture injection from measured native writes
