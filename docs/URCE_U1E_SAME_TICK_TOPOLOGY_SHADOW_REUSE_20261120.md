@@ -38,6 +38,20 @@ This stage provides one read-only projection of the observation *already made* b
 
 **Limits:** The normal Node `--experimental-vm-modules --test` suite and GitHub CI were not run from this chat; neither were BDS LAB, real game-world topology/migration or player responsiveness measurements. The source tests and full-native rehost do not replace those acceptance gates.
 
+
+## Added source-mapped multibank differential
+
+Added `runtime/tests/urce_u1e_multibank_graph_parity.test.mjs`. This executes the actual active Collector/Receiver link gate plus the guarded projection for a directed multi-bank chain **without Transporters**:
+
+| Native connected-bank fixture | Active gate | Shadow graph | Extra world reads |
+| --- | --- | --- | ---: |
+| Verified two-link Hopper chain | SAFE_SNAPSHOT | OBSERVED; reaches R2, C2, R3, C3 | 0 |
+| Additional C3→R2 saved link creates a directed cycle | REJECT | CYCLE | 0 |
+| Hopper boundary unloaded along source-reachable route | HOLD | PARTIAL | 0 |
+| Separate disconnected Receiver bank has an unloaded boundary | SAFE_SNAPSHOT for unaffected source | PARTIAL overall; claim coverage UNKNOWN | 0 |
+
+These four cases were run directly using the **actual committed JavaScript sources** inside V8 with instrumented world-reading stubs. They demonstrate the difference between source-specific safety and globally incomplete claim/topology observation. They do **not** establish that the shadow graph can authorize network forwarding or that it knows all reachable Sorter/Auto/Bulk homes. The repeatable Node test file was committed, but the standard Node runner remains unexecuted here.
+
 ## No-go / next development gate
 
 This is **observability plumbing** only, not a universal graph, a verified item home, or a routing cutover. Never treat the snapshot's `OBSERVED` status or `SAFE_SNAPSHOT` link status as complete source claim coverage. Do not use a cached graph for next-tick positive custody authority, infer path absence from unloaded blocks, prune source reachability without complete cycle/unknown proof, or add an unjournaled writer.
