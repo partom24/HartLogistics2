@@ -1,10 +1,12 @@
 /**
  * HartLogistics pre-release native API call-budget trace.
  *
- * Executes real main.js schedulerTick, logisticsTick, processColumn,
- * processCollectorIngress, processReceiverDrain, dimension cache and idle
- * journal gate. Native @minecraft/server APIs are COUNTED STUBS, not BDS.
- * These budgets guard native access counts, never claim native latency/TPS.
+ * Narrow, source-extracted MICRO-GATE ONLY. It deliberately substitutes
+ * collectorAt/receiverAt, source discovery, output resolution and liveLinkCheck,
+ * so its zero System.currentTick count is NOT a full-runtime claim. The separate
+ * urce_full_runtime_native_budget.test.mjs is the mandatory end-to-end gate
+ * that executes every imported Hart runtime module and all scheduled jobs.
+ * Native @minecraft/server APIs are COUNTED STUBS, never BDS latency/TPS.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -162,7 +164,7 @@ test("NATIVE-BUDGET-01 1,442 empty sorters, 73 collectors and 54 receivers stay 
   workload:WORKLOAD,
   counts,
   perTick:Object.fromEntries(Object.entries(counts).map(([k,v])=>[k,Number((v/t).toFixed(2))])),
-  note:"Access counts flag regressions; native latency and real TPS require BDS telemetry"
+  note:"MICRO GATE: route guards/discovery are mocked. Use HART_FULL_RUNTIME_NATIVE_TRACE for installed-runtime counts; never infer native TPS."
  }));
 });
 
@@ -191,7 +193,7 @@ test("NATIVE-BUDGET-03 stationary input exposes route-validation hot path withou
    bedrockMeasured:false,
    workload:{sorters:1442,collectors:73,receivers:54,ticks},
    counts,
-   knownRisk:"1460 Collector route guard attempts in 20 ticks; BDS observer cost is NOT simulated",
+   knownRisk:"1460 STUBBED route guard attempts in 20 ticks; real guard System.currentTick and topology scans are intentionally excluded",
    note:"This is a quantified JS dispatch risk, not a safe native performance certification"
  }));
 });
