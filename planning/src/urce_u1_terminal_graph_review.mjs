@@ -72,6 +72,17 @@ export function reviewNativeDirectedTerminal({
   if(reachable.status!=="OK"||reachable.unknown)
     return answer("HOLD","source_reachability_unverified",{native});
 
+  // The legacy Hopper witness records a repeated positively loaded,
+  // direction-verified Hopper coordinate as a diagnostic unknown rather
+  // than an explicit graph edge. That IS a witnessed native-only loop.
+  // Do not demote a reached known cycle into an ordinary uncertain HOLD.
+  // Disconnected old/unloaded Hopper paths cannot fabricate source reach.
+  const reachedNativeLoop=native.unknown.find(issue=>
+    issue.reason==="native_hopper_cycle"&&reachable.reached.has(issue.from));
+  if(reachedNativeLoop)return answer("REJECT","verified_native_hopper_output_cycle",{
+    native,cycleFrom:reachedNativeLoop.from
+  });
+
   const provenTerminals=[],blockers=[];
   for(const issue of native.unknown) {
     if(!reachable.reached.has(issue.from))continue;
