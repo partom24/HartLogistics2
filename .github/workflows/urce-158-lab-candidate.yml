@@ -1,0 +1,110 @@
+name: URCE 1.5.8 isolated hotpath LAB package (NOT terminal fix)
+on:
+  push:
+    branches:
+      - dev/urce-158-lab-candidate-20261120
+      - dev/urce-150-runtime-20261118
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate shipped runtime scripts
+        run: |
+          for file in addon/behavior_pack/scripts/*.js; do node --check "$file"; done
+      - name: Run protected writer, full runtime, boundary and resource tests
+        run: |
+          node --test planning/tests/urce_u0_writer_fence.test.mjs
+          node --test runtime/tests/urce_native_api_budget_trace.test.mjs
+          node --experimental-vm-modules --test runtime/tests/urce_full_runtime_native_budget.test.mjs
+          node --test planning/tests/urce_u1_terminal_composed_graph.test.mjs runtime/tests/urce_158_solid_terminal_probe.test.mjs runtime/tests/urce_158_item_spawn_spatial_gate.test.mjs runtime/tests/urce_150_resource_integrity.test.mjs
+      - name: Exact 1.5.7 predecessor, 1.5.8 source and rollback regression
+        run: python3 -m unittest discover -s runtime/tests -p test_urce_158_hotpath_updater.py -v
+      - name: Project blueprint and exact native boundary safety regressions
+        run: |
+          python3 scripts/validate_blueprint.py --release-gate
+          node --test planning/tests/urce_u1_native_hopper_witness.test.mjs planning/tests/urce_u1_link_snapshot_gate.test.mjs runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_157_native_boundary_diagnostic.test.mjs
+      - name: Build isolated 1.5.8 optimization-only package
+        run: |
+          python3 tools/build_mcaddon.py --output dist/HartLogistics_158_HOTPATH_ONLY_LAB_UNVERIFIED.mcaddon
+          python3 - <<'PY'
+          import hashlib, io, json, os, pathlib, subprocess, zipfile
+          p=pathlib.Path("dist/HartLogistics_158_HOTPATH_ONLY_LAB_UNVERIFIED.mcaddon")
+          assert p.is_file()
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              packs=[n for n in z.namelist() if n.endswith(".mcpack")]
+              assert len(packs)==2
+              manifests={}
+              for name in packs:
+                  with zipfile.ZipFile(io.BytesIO(z.read(name))) as q:
+                      assert q.testzip() is None
+                      m=json.loads(q.read("manifest.json"))
+                      assert m["header"]["version"]==[1,5,8]
+                      manifests[name]={"uuid":m["header"]["uuid"],"version":m["header"]["version"]}
+                      if "BP" in name:
+                          for required in ("scripts/main.js","scripts/urce_152_live_link_guard.js","blocks/transporter.json","blocks/bulk_storage.json"):
+                              assert required in q.namelist(), required
+          h=hashlib.sha256(p.read_bytes()).hexdigest()
+          manifest={"status":"SOURCE_CI_ONLY_NOT_BDS_ACCEPTED_NOT_RELEASED","source_commit":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),"source_branch":os.environ["GITHUB_REF_NAME"],"sha256":h,"size_bytes":p.stat().st_size,"packs":manifests,"scope":"1.5.8 hotpath optimizations ONLY; original terminal HOLD/REJECT retained; no protected Q4 writer changes","deployment":"Disposable or isolated stopped LAB only. No auto-install. No production use."}
+          p.with_suffix(".build-manifest.json").write_text(json.dumps(manifest,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(manifest,indent=2))
+          PY
+      - name: Ensure byte-identical repeat build
+        run: |
+          python3 tools/build_mcaddon.py --output "$RUNNER_TEMP/repeat.mcaddon"
+          cmp dist/HartLogistics_158_HOTPATH_ONLY_LAB_UNVERIFIED.mcaddon "$RUNNER_TEMP/repeat.mcaddon"
+      - name: Publish candidate only after all gates pass
+        uses: actions/upload-artifact@v4
+        with:
+          name: HL-URCE-158-HOTPATH-ONLY-LAB-UNVERIFIED
+          path: |
+            dist/HartLogistics_158_HOTPATH_ONLY_LAB_UNVERIFIED.mcaddon
+            dist/HartLogistics_158_HOTPATH_ONLY_LAB_UNVERIFIED.build-manifest.json
+          retention-days: 14
+          if-no-files-found: error
+
+  windows-installer-proof:
+    name: Windows source operator and 1.5.7-to-1.5.8 synthetic rollback
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse stable and 1.5.8 versioned PowerShell launchers
+        shell: pwsh
+        run: |
+          foreach ($path in @('distribution/Start-HartLogistics-Lab.ps1', 'distribution/Start-HartLogistics-158Lab.ps1')) {
+            $tokens=$null; $errors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
+            if ($errors.Count -gt 0) { throw ('Invalid PowerShell: '+$path+' '+($errors | Out-String)) }
+          }
+          Write-Output 'Approved stable and versioned operator syntax PASS'
+      - name: Verify refusal without applying or opening any BDS LAB
+        shell: pwsh
+        run: |
+          foreach ($path in @('distribution/Start-HartLogistics-Lab.ps1', 'distribution/Start-HartLogistics-158Lab.ps1')) {
+            $rejected=$false
+            try { & (Resolve-Path $path).Path -Mode Install -ErrorAction Stop | Out-Null }
+            catch {
+              if ($_.Exception.Message -notmatch 'REFUSED') { throw }
+              $rejected=$true
+            }
+            if (-not $rejected) { throw ('Unsafe no-Apply mode unexpectedly accepted: '+$path) }
+          }
+      - name: Exercise synthetic installed 1.5.7 pack and exact 1.5.8 rollback
+        shell: pwsh
+        run: python -m unittest discover -s runtime/tests -p test_urce_158_hotpath_updater.py -v

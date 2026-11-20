@@ -3,7 +3,7 @@ name: URCE 1.5.7 read-only Hopper boundary diagnostics candidate
 on:
   push:
     branches:
-      - dev/urce-150-runtime-20261118
+      # Historical 1.5.7 candidate only. Active branch uses urce-158-lab-candidate.yml.
       - test/urce-full-runtime-native-budget-20261119
   workflow_dispatch:
 

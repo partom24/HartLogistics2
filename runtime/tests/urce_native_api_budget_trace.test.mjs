@@ -46,7 +46,7 @@ function countedIdleFixture({
   hopperPowerChecks:0,worldJournal:0,worldQueueJournal:0,
   collectorChecks:0,collectorInputDiscovery:0,
   receiverChecks:0,receiverOutputDiscovery:0,routeSafetyChecks:0,
-  itemReads:0,itemWrites:0,dynamicWrites:0
+  itemReads:0,itemWrites:0,dynamicWrites:0,queueLoads:0
  };
  const container={
   isValid:true, size:5,
@@ -96,6 +96,9 @@ function countedIdleFixture({
  };
  const vars={
   world,system,ready:true,dirty:false,columns,rrStart:0,
+  // This MICRO test extracts logisticsTick without its lexical module scope.
+  // It substitutes liveLinkCheck; only FULL-NATIVE-02 measures its true clock.
+  activeLogisticsPass:undefined,
   logistics:registry,collectorRrStart:0,receiverRrStart:0,
   GLOBAL_MOVE_BUDGET:256,LOGISTICS_GLOBAL_BUDGET:256,
   COLLECTOR_BATCH:Number(main.match(/const COLLECTOR_BATCH\s*=\s*(\d+);/)[1]),
@@ -116,6 +119,11 @@ function countedIdleFixture({
   },
   receiverAt(){counts.receiverChecks++;return {};},
   receiverOutputHopper(){counts.receiverOutputDiscovery++;return undefined;},
+  // This intentionally STUBBED micro-gate lacks a Q4 queue implementation.
+  // Source now checks Q4 emptiness BEFORE touching the Receiver output;
+  // the independent full-runtime fixture executes the genuine Q4 loader.
+  loadReceiverQueue(){counts.queueLoads++;return {total:0};},
+  log(message){throw Error("Unexpected micro-gate error path: "+message);},
   liveLinkCheck(){
     counts.routeSafetyChecks++;
     if(!stationaryCollectorInputs)throw Error("No cargo: no route scan allowed");
@@ -146,7 +154,8 @@ test("NATIVE-BUDGET-01 1,442 empty sorters, 73 collectors and 54 receivers stay 
   collectorChecks:WORKLOAD.collectors*t,
   collectorInputDiscovery:WORKLOAD.collectors*t,
   receiverChecks:WORKLOAD.receivers*t,
-  receiverOutputDiscovery:WORKLOAD.receivers*t,
+  receiverOutputDiscovery:0,
+  queueLoads:WORKLOAD.receivers*t,
   routeSafetyChecks:0,itemReads:0,itemWrites:0,dynamicWrites:0
  };
  for(const [name,maximum] of Object.entries(limit))
