@@ -189,6 +189,37 @@ def expected_previous(originals,version):
                    if path.startswith(local+"/")}
             for local,_,_,_ in PACKS}
 
+def describe_installed_pack_drift(local,version,actual,expected):
+    """Pure, read-only, bounded file-by-file byte-hash mismatch report.
+
+    Report only *relative pack file names* and SHA256 digests, never
+    inventory, world bytes, file contents, or arbitrary filesystem paths.
+    An altered file list must NEVER become upgrade authorization.
+    """
+    missing=sorted(set(expected)-set(actual))
+    unexpected=sorted(set(actual)-set(expected))
+    changed=sorted(key for key in set(actual)&set(expected)
+                   if actual[key]!=expected[key])
+    lines=[
+        "Installed "+local+" bytes do not match immutable "+str(version),
+        "READ-ONLY PACK DIFFERENCES: expected_files="+str(len(expected))+
+        " installed_files="+str(len(actual))+
+        " missing="+str(len(missing))+
+        " unexpected="+str(len(unexpected))+
+        " modified="+str(len(changed))
+    ]
+    for label,paths in (("MISSING",missing),("UNEXPECTED",unexpected),("MODIFIED",changed)):
+        for path in paths[:20]:
+            line="  "+label+" "+path
+            if path in expected:line+=" expected_sha256="+expected[path]
+            if path in actual:line+=" installed_sha256="+actual[path]
+            lines.append(line)
+        if len(paths)>20:
+            lines.append("  "+label+" ... "+str(len(paths)-20)+" additional paths")
+    lines.append("NO FILES CHANGED. Do not install. Share this read-only report for review.")
+    return "\\n".join(lines)
+
+
 def read_live_plan(repo,root,originals=None):
     if originals is None:originals=prior_hashes_by_version(repo)
     candidate=validate_candidate(repo,originals)
@@ -224,7 +255,7 @@ def read_live_plan(repo,root,originals=None):
         allowed=(candidate[local] if version==NEW_VERSION else
                  expected_previous(originals,version)[local])
         if actual!=allowed:
-            raise UnsafeLab("Installed "+local+" bytes do not match immutable "+str(version))
+            raise UnsafeLab(describe_installed_pack_drift(local,version,actual,allowed))
         registry=world/registry_name
         old.assert_no_link(registry)
         if not registry.is_file():raise UnsafeLab("Missing world pack registration")
