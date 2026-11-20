@@ -172,3 +172,70 @@ test("GO-11 source integration retains exactly one journaled Q4 discharge author
   assert.match(s,/output\.container\.setItem\(tx\.dstSlot, moved\)/);
   assert.match(s,/if\(directClosed\)continue;/);
 });
+
+function extractMainFunction(name,scope){
+  const src=fs.readFileSync(path.join(ROOT,"addon/behavior_pack/scripts/main.js"),"utf8");
+  const start=src.indexOf("function "+name+"(");
+  assert.ok(start>=0,"Required shipping function "+name);
+  const end=src.indexOf("\nfunction ",start+1);
+  return vm.runInNewContext("("+src.slice(start,end<0?src.length:end).trim()+"\n)",scope);
+}
+function linkFixture({first,second,forceFresh=false}){
+  const receiver={id:"minecraft:overworld|0|73|0"};
+  const collector={id:"C",link:receiver.id};
+  const base={decision:"HOLD",reason:"unverified_native_supply_boundary",
+    sourceReachableUnknownCount:1,
+    observationReason:"unsupported_native_boundary [hartsorter:sorter @ minecraft:overworld 0,71,0 from receiver "+receiver.id+"]"};
+  const seen=[],outlets=[];
+  const scope={
+    logistics:{collectors:[collector],receivers:[receiver]},
+    liveTopologyBlockReader:()=>undefined,
+    activeLogisticsPass:undefined,
+    system:{currentTick:9},
+    liveLinkGuard:{check(args){
+      seen.push(args.forceFresh);
+      return seen.length===1?(first??base):(second??base);
+    }},
+    directSorterOutlet(r){
+      outlets.push(r.id);
+      return {status:"CLOSED_DIRECT_OUTLET"};
+    }
+  };
+  const run=extractMainFunction("liveLinkCheck",scope);
+  return {receiver,collector,base,seen,outlets,verdict:run(collector,receiver,forceFresh)};
+}
+test("GO-12 only fresh exactly ONE source-reachable native boundary of THIS Receiver can promote direct lane",()=>{
+  const f=linkFixture({});
+  assert.equal(f.verdict.decision,"SAFE_SNAPSHOT");
+  assert.equal(f.verdict.routeKind,"DIRECT_NATIVE_SORTER");
+  assert.deepEqual(f.seen,[false,true]);
+  assert.equal(f.outlets.length,1);
+  assert.equal(f.verdict.executePermitted,false);
+});
+test("GO-13 an unrelated Receiver native issue cannot authorize this Receiver",()=>{
+  const f=linkFixture({first:{
+    decision:"HOLD",reason:"unverified_native_supply_boundary",
+    sourceReachableUnknownCount:1,
+    observationReason:"unsupported_native_boundary [hartsorter:sorter @ minecraft:overworld 0,71,0 from receiver OTHER]"
+  }});
+  assert.equal(f.verdict.decision,"HOLD");
+  assert.deepEqual(f.seen,[false]);assert.equal(f.outlets.length,0);
+});
+test("GO-14 second source-reachable native unknown cannot be hidden behind a Sorter",()=>{
+  const f=linkFixture({first:{
+    decision:"HOLD",reason:"unverified_native_supply_boundary",
+    sourceReachableUnknownCount:2,
+    observationReason:"unsupported_native_boundary [hartsorter:sorter @ minecraft:overworld 0,71,0 from receiver minecraft:overworld|0|73|0]"
+  }});
+  assert.equal(f.verdict.decision,"HOLD");assert.equal(f.outlets.length,0);
+});
+test("GO-15 a fresh cycle discovered after a prior negative HOLD must preserve REJECT",()=>{
+  const f=linkFixture({second:{decision:"REJECT",reason:"cycle"}});
+  assert.equal(f.verdict.decision,"REJECT");
+  assert.deepEqual(f.seen,[false,true]);assert.equal(f.outlets.length,0);
+});
+test("GO-16 forced user-link validation does one fresh graph scan, never cached positive",()=>{
+  const f=linkFixture({forceFresh:true});
+  assert.equal(f.verdict.decision,"SAFE_SNAPSHOT");
+  assert.deepEqual(f.seen,[true]);assert.equal(f.outlets.length,1);
+});
