@@ -3,6 +3,8 @@
 **Date:** 2026-11-20. **Working branch:** `dev/urce-159-governed-home-20261120`.  
 **Read first:** [development entrypoint](../DEVELOPMENT_START_HERE.md), [continuous development](../AGENTS.md), [historical canonical evidence](CANONICAL_EVIDENCE_AND_TOOLING.md), [HL-URCE-OWN-001](URCE_COLUMN_COORDINATOR_OWNERSHIP_CONTRACT_20261120.md), and the [pinned owner product requirements](https://github.com/partom24/HartLogistics2/blob/6b2a957c6ce84b970d0d3f16206bd6ab0675bfa2/planning/URCE_150_OWNER_PRODUCT_CONTRACT_20261118.md).
 
+**Source validation:** commit [`421e75150c212dc93f4c9a8d112274f7b12aefa0`](https://github.com/partom24/HartLogistics2/commit/421e75150c212dc93f4c9a8d112274f7b12aefa0) completed [Linux and Windows 1.5.9 development workflow](https://github.com/partom24/HartLogistics2/actions/runs/44833471323) successfully, including the more conservative fresh source-reachable sole-unknown proof and dual-predecessor synthetic installs. The module source/strict hashes are frozen at that candidate commit; subsequent documentation-only commits are NOT installed packs. This is not a BDS-native observation or release decision.
+
 **Operational status:** DEVELOPMENT SOURCE; **not installed, not BDS LAB accepted, not full URCE, not production/release ready.** Confirm live branch HEAD, CI, both pack manifests and actual LAB predecessor before using an operator. Previous [1.5.8 source-only candidate](https://github.com/partom24/HartLogistics2/blob/dev/urce-150-runtime-20261118/docs/URCE_158_SOURCE_CANDIDATE_AND_PLAYABLE_DELIVERY_GATES_20261120.md) passed packaging without enabling governed gameplay; do not use it as this milestone's replacement.
 
 ## Source implementation that advances real gameplay
