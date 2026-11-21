@@ -1,0 +1,20 @@
+name: URCE 1.5.13 source-only governed bank Filter witness
+on:
+  push:
+    branches:
+      - dev/urce-1513-governed-bank-filter-20261121
+  workflow_dispatch:
+jobs:
+  bank-witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax
+        run: node --check addon/behavior_pack/scripts/urce_1513_verified_bank_filter.js
+      - name: One and two-bank exact Filter home and negative boundary tests
+        run: node --experimental-vm-modules --test runtime/tests/urce_1513_verified_bank_filter.test.mjs
+      - name: Preserve existing 101 column five-item baseline
+        run: node --experimental-vm-modules --test runtime/tests/urce_101_five_item_stage_gate.test.mjs
