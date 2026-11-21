@@ -15,7 +15,7 @@ jobs:
       - name: Source syntax
         run: node --check addon/behavior_pack/scripts/urce_1513_verified_bank_filter.js
       - name: One and two-bank exact Filter home and negative boundary tests
-        run: node --experimental-vm-modules --test runtime/tests/urce_1513_verified_bank_filter.test.mjs
+        run: node --experimental-vm-modules --test runtime/tests/urce_1513_verified_bank_filter.test.mjs runtime/tests/urce_1513_thirteen_bank_chain.test.mjs
       - name: Preserve existing 101 column five-item baseline
         run: node --experimental-vm-modules --test runtime/tests/urce_101_five_item_stage_gate.test.mjs
       - name: Single-writer Q4 safety and managed link wiring
