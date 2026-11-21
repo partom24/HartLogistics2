@@ -4097,6 +4097,7 @@ function processCollectorIngress(collector, globalRemaining) {
     let budget = Math.min(COLLECTOR_BATCH, globalRemaining);
     let safetyChecked = false;
     let directClosed = false;
+    let bankFilterOnly = false;
 
     for (const source of sources) {
         // A powered vanilla hopper is a hard logistics gate. Script API can
@@ -4111,7 +4112,16 @@ function processCollectorIngress(collector, globalRemaining) {
             if (source.container.firstItem() === undefined) continue;
             if (!safetyChecked) {
                 const link=liveLinkCheck(collector, receiver);
-                if(link.decision !== "SAFE_SNAPSHOT") return used;
+                if(link.decision !== "SAFE_SNAPSHOT") {
+                    // The old link observer treats a valid terminal bank
+                    // without a Collector as ambiguous. It may not justify
+                    // blind Q4 ingress; an actual Filter home must be live
+                    // and reachable for EACH item before source debit.
+                    if(link.decision!=="HOLD" ||
+                       link.reason!=="ambiguous_transporter_component")
+                        return used;
+                    bankFilterOnly=true;
+                }
                 directClosed=link.routeKind==="DIRECT_NATIVE_SORTER";
                 safetyChecked = true;
             }
@@ -4124,6 +4134,9 @@ function processCollectorIngress(collector, globalRemaining) {
         for (let si=0; si<sourceSize && budget>0; si++) {
             let stack = source.container.getItem(si);
             if (!stack) continue;
+            if(bankFilterOnly &&
+               inspectManagedBankFilter(receiver,stack).status!=="FILTER_HOME")
+                continue;
 
             const itemData = serializeQueueItem(stack);
 
@@ -4153,7 +4166,7 @@ function processCollectorIngress(collector, globalRemaining) {
             // No native MR carrier endpoint has yet been proved at this new
             // direct Sorter outlet. Never use ordinary Q4 or the physical
             // direct-only fallback to speculate about its final home.
-            if(directClosed)continue;
+            if(directClosed||bankFilterOnly)continue;
 
             // Non-stackable or metadata we cannot prove round-trips safely:
             // never serialize it. If Receiver is currently loaded AND there is
