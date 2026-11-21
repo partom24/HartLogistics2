@@ -626,3 +626,50 @@ ticks(160);
 assert.equal(richBank.input.getItem(0),undefined);
 assert.equal(richBank.chests[2].slots[0],fallbackBook);
 console.log('PASS: full MR filter destination falls back to Wildcard with the original book');
+
+// Native chest pulls are modelled at one item per eight ticks. Provide a
+// real terminal catch so bypassed items count as failures instead of waiting.
+const injected=bank(15100,72,680,-1,0,100,1);
+banks.push(injected);
+const stone='minecraft:stone_bricks',oak='minecraft:oak_planks';
+for(const [column,type] of [[98,stone],[99,oak]]){
+  const key='hartlab:s_o_'+Object.values(injected.sorters[column].location).join('_');
+  const cfg=JSON.parse(properties.get(key));cfg.f.match.typeId=type;
+  properties.set(key,JSON.stringify(cfg));
+}
+const feed=place('minecraft:chest',15096,73,680).inv;
+const catchChest=place('minecraft:chest',15000,72,680).inv;
+vm.runInContext('labLoadState()',context);drain();
+function drainInjectedLane(cycles){
+  for(let i=0;i<cycles;i++){
+    const slot=feed.slots.findIndex(Boolean);
+    if(slot>=0){
+      const stack=feed.getItem(slot);
+      if(!injected.hoppers[4].inv.addItem(new Stack(stack.typeId,1))){
+        stack.amount--;feed.setItem(slot,stack.amount?stack:undefined);
+      }
+    }
+    ticks(8);
+    const tail=injected.hoppers.at(-1).inv;
+    for(let j=0;j<tail.size;j++){
+      const s=tail.getItem(j);
+      if(s?.typeId===stone)tail.transferItem(j,catchChest);
+    }
+  }
+}
+for(let j=0;j<4;j++)feed.setItem(j,new Stack(stone,64));
+drainInjectedLane(370);
+assert.equal(injected.chests[98].count(stone),256);
+assert.equal(catchChest.count(stone),0);
+assert.equal(evalBank(injected,'b.laneDelivered'),256);
+assert.equal(evalBank(injected,'b.dispatched'),0);
+injected.input.setItem(0,new Stack(oak,64));
+ticks(8);assert.ok(evalBank(injected,'b.active'));
+feed.setItem(0,new Stack(stone,64));
+drainInjectedLane(320);
+assert.equal(injected.chests[98].count(stone),320);
+assert.equal(injected.chests[99].count(oak),64);
+assert.equal(catchChest.count(stone),0);
+assert.equal(evalBank(injected,'b.laneDelivered'),320);
+assert.equal(evalBank(injected,'b.confirmed'),64);
+console.log('PASS: 256 inline stone bricks reach their downstream filter; 64 more alongside a separately accounted oak shipment');

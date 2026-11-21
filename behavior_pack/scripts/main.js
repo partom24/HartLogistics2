@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.8) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.9) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -671,7 +671,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.8 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.9 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -894,7 +894,21 @@ function labBuildIndex(b){
         } else if(candidate.mode==='auto')autos.push(candidate);
         else if(candidate.mode==='wildcard')wildcards.push(candidate);
     }
-    const index={filters,autos,wildcards,total,missing};
+    // Only loaded Hopper taps with exact filters need passive arrival checks.
+    const tapFilters=new Map();
+    if(b.net.method===HOPPER){
+        for(const candidates of filters.values())for(const candidate of candidates){
+            const key=positionKey(candidate.p.tap);
+            if(!tapFilters.has(key))tapFilters.set(key,[]);
+            tapFilters.get(key).push(candidate);
+        }
+    }
+    const passiveTaps=[];
+    for(const [i,p] of b.net.lane.entries()){
+        const candidates=tapFilters.get(positionKey(p));
+        if(candidates)passiveTaps.push({p,direction:b.net.directions[i],candidates});
+    }
+    const index={filters,autos,wildcards,total,missing,passiveTaps};
     if(!missing){b.cache=index;b.cacheRevision=b.generation;}
     return index;
 }
@@ -1613,6 +1627,39 @@ function labTickActive(b){
         }else b.cleanTicks=0;
     }
 }
+// Sample each exact-filter tap once per four ticks. Native Hoppers still
+// carry external items along the lane. Only inspect outputs on a local match.
+function serviceLaneInputs(b,banks){
+    if(startupHold || b.recovery || !b.cache?.passiveTaps.length ||
+        b.cacheRevision!==b.generation || !receiverAccepts(b))return;
+    const taps=b.cache.passiveTaps;
+    for(let i=labTick%4;i<taps.length;i+=4){
+        const {p,direction,candidates}=taps[i];
+        const hopper=labGet(b.cfg.dimension,p);
+        if(hopper?.typeId!==HOPPER || hopper.permutation.getState('toggle_bit') ||
+            hopper.permutation.getState('facing_direction')!==direction)continue;
+        const inv=labBlockInventory(hopper);
+        if(!inv || inv.emptySlotsCount===inv.size)continue;
+        for(let slot=0;slot<inv.size;slot++){
+            const item=inv.getItem(slot);
+            if(!item || !candidates.some(c=>c.filter.match.typeId===item.typeId) || !bulkOrdinary(item))continue;
+            // Other Receivers can share this physical lane. A recovery owns
+            // all its contents; a live shipment owns indistinguishable cargo.
+            if(banks.some(other=>other.active && other.cfg.dimension===b.cfg.dimension &&
+                (other.recovery || other.active.type===item.typeId) &&
+                other.active.lane.some(tap=>positionKey(tap)===positionKey(p))))continue;
+            if(world.getDynamicProperty(mrSlotKey({dimension:b.cfg.dimension,loc:p},slot))!==undefined)continue;
+            for(const c of candidates){
+                if(!matchesFilter(item,c.filter))continue;
+                const output=labAdjacentInventories(c,true).find(out=>labCanFitEntire(out.container,item));
+                if(!output)continue;
+                const moved=labSafeTransfer(inv,slot,output.container,item);
+                b.laneDelivered=(b.laneDelivered||0)+moved;
+                break;
+            }
+        }
+    }
+}
 function labProcessInputs(){
     if(startupHold || !labCollectorKeys.length)return;
     let supplied=false;
@@ -1660,7 +1707,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.8 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.9 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1679,7 +1726,7 @@ function labStats(source){
             if(p && labGet(p.d,p)?.permutation.getState(POWERED))paused.push('Collector '+positionKey(p));
         }
         lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' readable Sorters / '+(net?.spots.length || 0)+' discovered, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
-            ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
+            ', delivered='+b.confirmed+', lane input delivered='+(b.laneDelivered||0)+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
             ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready')+(b.mrHold?' | last MR hold: '+b.mrHold:'')+(paused.length?' | redstone paused: '+paused.join(', '):''));
     }
     if(!receivers.size)lines.push('No linked Receivers found.');
@@ -1760,6 +1807,10 @@ system.run(labLoadState);
 system.runInterval(()=>{
     labTick++;
     for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b)){b.coveredAt=labTick;labTickActive(b);}}catch(err){labMarkHold(b,String(err));}}
+    const banks=Object.values(labBanks);
+    for(const b of banks){
+        try{serviceLaneInputs(b,banks);}catch(err){labMarkHold(b,'Hopper lane input: '+err);}
+    }
     if(labTick%16===0)releaseIdleChunks();
     if(labTick%8===0){
         for(const bank of Object.values(labBanks))if(bank.discoveryChunks)labDiscover(bank);

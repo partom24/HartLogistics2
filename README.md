@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.5.8
+# HartLogistics Fresh LAB 0.5.9
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -77,3 +77,11 @@ Metadata-rich (MR) cargo stays in its original native slot until a reachable fin
 Use `/scriptevent hartlab:mr_status` to inspect readable Collector inputs, including paused inputs, and outstanding reconciliation records. Inventory slot numbers start at zero. Native source chests and input Hoppers remain available for ordinary player withdrawal. A record contains both endpoints and slots. After an interrupted move, inspect both inventories. Move any remaining item out of the recorded source slot by hand, then use `/scriptevent hartlab:mr_clear <record-id>` to release that slot. Clearing a record moves no items. Punch an installed filter out of its native frame before removing its Sorter.
 
 For LAB acceptance use two identically named books with different enchantments, a damaged named tool, two potion variants, and a plain stack. Check both bank types, the remote Collector relay, and a mixed source under load. Pause the downstream Receiver, restart, then resume and compare actual source and final chest items including enchantment levels, damage, lore and potion variant. Fill the matched chest and check source retention and ordinary progress. Hard-stop durability across native inventory and world-property saves still requires a controlled BDS test.
+
+## Fresh LAB 0.5.9 inline Hopper inputs
+
+Ordinary items inserted into a discovered Hopper lane can be collected when they reach a tap with a matching FILTER and an output that can fit the stack. Loaded filtered taps are checked in four staggered groups, one group per tick. The native Hopper chain carries items between taps. Status reports these transfers under "lane input delivered". Collector shipment counters track their own traffic.
+
+This path skips powered Hoppers, paused Receivers, recovery traffic and items of the same type as an active shipment on the shared lane. Local AUTO, WILDCARD, Bulk overflow and metadata-rich intake from inside the lane are outside this build's passive filter handling.
+
+LAB baseline on 0.5.8: with the Collector idle, all 256 chest-fed stone bricks bypassed the downstream filter and reached the catch chest. Repeat with room for four stacks in filtered storage. Compare the idle, busy and post-drain Server Timings captures in the same world.
