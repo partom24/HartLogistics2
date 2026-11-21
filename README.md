@@ -2,6 +2,12 @@
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
+## Near-term roadmap
+
+**Planned — legacy Q4 drain on the Fresh engine.** Consolidate verified upstream in-transit cargo at the entry Receiver of each network's final storage array. After consolidation, lock routing, notify each player once, and validate the migration before resuming normal Fresh delivery. The first milestone is a read-only legacy census followed by a restart-safe transfer from one synthetic Q4 source to one terminal Receiver in a copied LAB. The current 0.5.11 build is the routing reference.
+
+[Drain sequence and acceptance criteria](docs/MIGRATION_141_TO_FRESH_057_20261121.md#near-term-q4-drain-milestone) · [Engine comparison and profiling evidence](docs/ENGINE_TICK_COMPARISON_20261121.md)
+
 ## Install and inspect
 
 Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Select a Collector and interact with its Receiver. The Receiver immediately reports its discovered transport blocks and Sorters. Saved links register at startup. Placing or breaking blocks in a discovered area automatically refreshes the affected bank. Use `/scriptevent hartlab:status` to inspect both banks. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.

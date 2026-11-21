@@ -5,6 +5,17 @@
 **Migration destination (owner correction):** For each detected connected HartLogistics storage network, identify the **entry Receiver of its last storage array** and consolidate **all upstream HL-owned in-transit inventory** into that single Receiver. That Receiver must expand its virtual storage as needed. Temporary ticking areas around relevant actual Collector and Receiver locations are approved.
 **Supersedes:** `docs/Q4_TO_URCE_MIGRATION_STRATEGY_20261121.md` (rejected target). This file supersedes earlier revisions proposing item-by-item selection of the 'most appropriate' Receiver or opportunistic direct chest delivery during the migration.
 
+## Near-term Q4 drain milestone
+
+**Planned, November 21, 2026.** This strategy originated on 0.5.7. Use the current Fresh branch for development and 0.5.11 as the performance reference. The approved terminal-Receiver destination and migration sequence below still apply.
+
+1. Prove access under the original pack identity in a copied world. Census legacy queues, sidecars, journals and owned native cargo without mutation. Resolve the terminal Receiver from placed blocks and saved links. Hold ambiguous networks for the existing owner-selection procedure.
+2. Exercise one synthetic legacy Q4 source and one expandable terminal Receiver. Reuse the original custody and recovery semantics where applicable. A virtual-to-virtual transfer needs its own demonstrated idempotent receipt. Checkpoint, interrupt, restart and reconcile each side of the transfer. Verify exact quantities and identity with a single spendable owner.
+3. Extend to multiple upstream sources and networks. Use bounded work and temporary chunk coverage where needed. Keep a blocked source quiet between retries, and keep terminal outbound sorting paused through consolidation. Reconcile all in-transit goods, engage the persisted routing lock at the completion barrier, issue the one-time player notice and validate before releasing Fresh delivery.
+4. Compare Fresh alone and Fresh with the adapter on the same copied layout and traffic. Measure idle, productive, blocked and post-drain conditions. Record script P95/P99, total server tick time, items delivered per second, and reconciled balances. Require idle and blocked costs within the repeat-run Fresh range and explain any throughput loss. Start with synthetic custody before considering the protected 16,388-item Receiver.
+
+[Performance evidence and salvage rationale](ENGINE_TICK_COMPARISON_20261121.md)
+
 ## 1. Ground truth
 
 - **1.4.1:** Receivers have up to 250,000 items in Q4 virtual queues, with potential Q2/Q3 sidecars and interrupted journals. Original Collectors did *not* have matching 250K virtual accounts. Original saved sorter settings, item-frame filters and Collector→Receiver links are in `hartsorter:*` world dynamic properties. Physical native inventories can also hold in-flight items.
