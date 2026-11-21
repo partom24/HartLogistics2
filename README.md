@@ -1,5 +1,7 @@
 # Hart Logistics 2 — Minecraft Bedrock add-on
 
+**Canonical source discovery:** [DEVELOPMENT_START_HERE.md](DEVELOPMENT_START_HERE.md) · [docs/CANONICAL_EVIDENCE_AND_TOOLING.md](docs/CANONICAL_EVIDENCE_AND_TOOLING.md) · [AGENTS.md](AGENTS.md). This entrypoint supersedes stage notes, while protected owner Q4 remains untouched.
+
 **Critical real BDS protected-Q4 incident (16,388 held; 4.7x unpowered script-time spike):** [decoded diagnostic phase measurements, CPU profile hot stacks, no-home drain gate, exact 1.5.12 source-only mitigation and unapproved multi-bank custody](docs/URCE_1512_16388_Q4_PERFORMANCE_INCIDENT_20261120.md). **Do not unpause/retest the protected Receiver, install an older 1.5.12 commit, or mistake `verified snapshot` for a proven cargo home.** Source CI is not real TPS acceptance.
 
 
