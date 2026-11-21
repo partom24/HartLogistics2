@@ -25,7 +25,7 @@ jobs:
       - name: Execute actual direct native Sorter source/proof model
         run: node --experimental-vm-modules --test runtime/tests/urce_159_direct_sorter_home.test.mjs
       - name: Source-executed one/two-bank Filter home and negative path checks
-        run: node --experimental-vm-modules --test runtime/tests/urce_1513_verified_bank_filter.test.mjs
+        run: node --experimental-vm-modules --test runtime/tests/urce_1513_verified_bank_filter.test.mjs runtime/tests/urce_1513_thirteen_bank_chain.test.mjs
       - name: Repeat immutable 101 column 5 item delivery comparison
         run: node --experimental-vm-modules --test runtime/tests/urce_101_five_item_stage_gate.test.mjs
       - name: Execute U1 graph/claim, custody protocol and verified native paths
