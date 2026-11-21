@@ -255,6 +255,122 @@ test("GO-22 a lateral output pointing into unverified or actively extracted stor
   }
 });
 
+
+test("GO-26 every lateral Hopper face accepts a positively known inert vanilla end-stop",async()=>{
+  const stops=[
+    "minecraft:stone_bricks","minecraft:cobblestone",
+    "minecraft:deepslate_bricks","minecraft:obsidian",
+    "minecraft:oak_planks","minecraft:white_concrete",
+    "minecraft:granite","minecraft:bricks",
+    "minecraft:prismarine","minecraft:quartz_block"
+  ];
+  const mod=await load();
+  for(const typeId of stops)assert.equal(mod.isKnownInertNativeStop(typeId),true,typeId);
+  for(const typeId of [
+    "minecraft:composter","minecraft:dropper","minecraft:chest",
+    "minecraft:air","example:stone_bricks","minecraft:hopper",
+    "minecraft:jukebox","minecraft:white_concrete_powder"
+  ])assert.equal(mod.isKnownInertNativeStop(typeId),false,typeId);
+  for(const direction of [2,3,4,5]){
+    for(const terminalType of stops){
+      const {outlet,home}=await evaluation({
+        direction,nativeTerminal:true,terminalType,terminalInert:true
+      });
+      assert.equal(outlet.status,"CLOSED_DIRECT_OUTLET",
+        terminalType+" dir "+direction+" "+outlet.reason);
+      assert.equal(outlet.nativeTerminal.typeId,terminalType);
+      assert.equal(outlet.directToClaimedHome,true);
+      assert.equal(home.status,"HOME_OBSERVED",terminalType);
+      assert.equal(home.tier,"filter");
+    }
+  }
+});
+
+test("GO-27 no native inventory component alone NEVER proves inert terminal safety",async()=>{
+  for(const terminalType of [
+    "minecraft:composter","minecraft:jukebox","minecraft:dispenser",
+    "minecraft:hopper","example:stone_bricks","minecraft:air",
+    "minecraft:water","minecraft:chest"
+  ]){
+    const {outlet,home}=await evaluation({
+      direction:2,nativeTerminal:true,terminalType,terminalInert:true
+    });
+    assert.equal(outlet.status,"HOLD",terminalType);
+    assert.equal(home.status,"HOLD");
+  }
+  for(const extra of [
+    {terminalInert:false},
+    {terminalInert:true,terminalAir:true},
+    {terminalInert:true,terminalLiquid:true},
+    {terminalInert:true,terminalExtractor:true}
+  ]){
+    const {outlet,home}=await evaluation({
+      direction:2,nativeTerminal:true,terminalType:"minecraft:stone_bricks",
+      ...extra
+    });
+    assert.equal(outlet.status,"HOLD",JSON.stringify(extra));
+    assert.equal(home.status,"HOLD");
+  }
+});
+
+test("GO-28 a stone-brick boundary must match exact local coordinates and only one unknown",()=>{
+  const receiver={id:"minecraft:overworld|0|73|0",
+    d:"minecraft:overworld",x:0,y:73,z:0};
+  const collector={id:"C",link:receiver.id};
+  const textAt=pos=>"unsupported_native_boundary [minecraft:stone_bricks @ minecraft:overworld "+
+    pos+" from receiver "+receiver.id+"]";
+  for(const [position,unknownCount,hasColumn,expected] of [
+    ["0,72,-1",1,true,"SAFE_SNAPSHOT"],
+    ["1,72,-1",1,true,"HOLD"],
+    ["0,72,-1",2,true,"HOLD"],
+    ["0,72,-1",1,false,"HOLD"]
+  ]){
+    const reads=[];
+    const run=extractMainFunction("liveLinkCheck",{
+      logistics:{collectors:[collector],receivers:[receiver]},
+      activeLogisticsPass:undefined,system:{currentTick:31},
+      liveTopologyBlockReader:()=>undefined,dirty:false,
+      columns:hasColumn?[{d:receiver.d,source:{x:0,y:72,z:0}}]:[],
+      isKnownInertNativeStop:(id)=>id==="minecraft:stone_bricks",
+      liveLinkGuard:{check(args){
+        reads.push(args.forceFresh);
+        return {decision:"HOLD",
+          reason:"unverified_native_supply_boundary",
+          sourceReachableUnknownCount:unknownCount,
+          observationReason:textAt(position)};
+      }},
+      directSorterOutlet(){return {
+        status:"CLOSED_DIRECT_OUTLET",
+        nativeTerminal:{typeId:"minecraft:stone_bricks",location:{x:0,y:72,z:-1}}
+      };}
+    });
+    assert.equal(run(collector,receiver).decision,expected,
+      JSON.stringify({position,unknownCount,hasColumn}));
+    assert.deepEqual(reads,hasColumn&&unknownCount===1?[false,true]:[false]);
+  }
+});
+
+test("GO-29 unrelated stone-brick terminal causes no costly second native graph scan",()=>{
+  const receiver={id:"minecraft:overworld|0|73|0",
+    d:"minecraft:overworld",x:0,y:73,z:0};
+  const collector={id:"C",link:receiver.id};
+  let scans=0;
+  const run=extractMainFunction("liveLinkCheck",{
+    logistics:{collectors:[collector],receivers:[receiver]},
+    activeLogisticsPass:undefined,system:{currentTick:31},
+    liveTopologyBlockReader:()=>undefined,dirty:false,columns:[],
+    isKnownInertNativeStop:(id)=>id==="minecraft:stone_bricks",
+    liveLinkGuard:{check(){scans++;return {
+      decision:"HOLD",reason:"unverified_native_supply_boundary",
+      sourceReachableUnknownCount:1,
+      observationReason:"unsupported_native_boundary [minecraft:stone_bricks @ minecraft:overworld 0,72,-1 from receiver "+receiver.id+"]"
+    };}},
+    directSorterOutlet(){throw Error("No local column - no outlet verification");}
+  });
+  assert.equal(run(collector,receiver).decision,"HOLD");
+  assert.equal(scans,1);
+});
+
 test("GO-10 no ItemStack or Block can be retained in a durable custody plan",async()=>{
   const {outlet,home}=await evaluation();
   assert.equal(outlet.persistPermitted,false);
