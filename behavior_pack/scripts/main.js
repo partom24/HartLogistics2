@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.12) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.13) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -9,6 +9,7 @@
 import { world, system, ItemStack, BlockPermutation, EquipmentSlot,
          EnchantmentTypes, Potions } from '@minecraft/server';
 
+import { q4LabStep, q4Census } from './q4Lab.js';
 import { discover, HOPPER, PIPE, isTransport, neighbors, step, positionKey } from './topology.js';
 
 const SORTER_ID = 'hartsorter:sorter';
@@ -671,7 +672,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.12 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.13 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -1771,7 +1772,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.12 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.13 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1801,6 +1802,18 @@ function labRoutingEvent(ev){
     const source=ev.sourceEntity, command=ev.id.slice(8);
     system.run(()=>{
         try {
+            if(['q4_census','q4_seed','q4_prepare','q4_commit','q4_status'].includes(command)){
+                let message;
+                if(command==='q4_census')message=q4Census(world,(ev.message||'').trim());
+                else{
+                    const target=source?.getBlockFromViewDirection()?.block;
+                    if(target?.typeId!==RECEIVER_ID)throw Error('Look directly at the terminal test Receiver.');
+                    const key=keyFor('r',target.dimension.id,target.location);
+                    if(!labCollectorKeys.some(c=>labLinkedReceiver(c)===key))throw Error('Select a linked Receiver.');
+                    message=q4LabStep(world,key,command.slice(3));
+                }
+                log(message);source?.sendMessage('[Hart LAB] '+message);return;
+            }
             if(command==='mr_status' || command==='mr_clear'){
                 const emit=message=>{log(message);source?.sendMessage(message);};
                 const fences=world.getDynamicPropertyIds().filter(id=>id.startsWith('hartlab:mr_'));

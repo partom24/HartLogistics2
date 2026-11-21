@@ -60,7 +60,8 @@ function makeBlock(typeId,p){
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
 const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
 const context=vm.createContext({world,system,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
-vm.runInContext(src.replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
+const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
+vm.runInContext(src.replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
 function event(id){for(const cb of system.afterEvents.scriptEventReceive.handlers){cb({id,sourceEntity:{sendMessage(){}}});}}
 function drain(){for(let t=0;t<10&&queued.length;t++){
     const q=queued.splice(0);for(const x of q){if(x.t<=0)x.fn();else queued.push({fn:x.fn,t:x.t-1});}
@@ -744,3 +745,15 @@ assert.equal(evalBank(unattended,'b.dispatched'),0);
 ticks(96);assert.equal(areaIds.size,0);
 dim.getBlock=readBlock;manager.createTickingArea=createArea;manager.removeTickingArea=removeArea;
 console.log('PASS: inline feed wakes unloaded Hopper route, drains after player departure and releases its areas');
+
+const receiverLocation=unattended.rk.split('_').slice(-3).map(Number);
+const testReceiver=dim.getBlock({x:receiverLocation[0],y:receiverLocation[1],z:receiverLocation[2]});
+const responses=[];
+for(const action of ['seed','prepare','commit','commit','status']){
+    const sourceEntity={getBlockFromViewDirection:()=>({block:testReceiver}),sendMessage:m=>responses.push(m)};
+    for(const cb of system.afterEvents.scriptEventReceive.handlers)cb({id:'hartlab:q4_'+action,sourceEntity});
+    drain();
+}
+assert.equal(responses.length,5);
+assert.match(responses[4],/phase=committed source=0 receiver=250016 capacity=250016 total=250016/);
+console.log('PASS: synthetic Q4 transfer through a selected linked Receiver and script events');
