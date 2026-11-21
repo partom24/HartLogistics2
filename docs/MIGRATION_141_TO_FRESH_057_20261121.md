@@ -67,6 +67,40 @@ Fresh 0.5.7 already has `routeChunks`, `coverRoute`, `coverChunks`, `releaseIdle
 
 Show migration progress: terminal Receiver, upstream sources total/processed, original pending amount, safely credited at terminal, unresolved native cargo, total reconstructed identities, terminal account allocation/high-water, ticking chunks in use, journal exceptions and reasons for HOLD.
 
+## 6A. Post-consolidation routing lock and one-time player notification
+
+**Owner requirement (2026-11-21):** **After all eligible HL-owned in-transit items in each connected network have been transferred to its final array's entry Receiver**, engage a **persisted global HartLogistics routing lock** for the duration of the actual **1.4.1 → Fresh LAB 0.5.7 system migration**. All users must receive a **one-time migration notice** explaining why routing is locked. Normal routing resumes only when the migration is validated and explicitly released by its controlled state machine. This is a planned capability; current 0.5.7 does not implement it.
+
+**Sequence and durable state:**
+
+```text
+PRECHECK / CONSOLIDATING
+    -> VERIFIED_CONSOLIDATED [all network inventories accounted]
+    -> ROUTING_LOCKED       [atomically fence new dispatch/admission]
+    -> MIGRATING            [migrate links, registries, storage engine/state]
+    -> VALIDATING           [readback, parity, reconciliation, recovery checks]
+    -> ACTIVE_0_5_7         [release lock only after all gates pass]
+                          or -> LOCKED_HOLD [failure, uncertainty, restart]
+```
+
+1. **Completion barrier:** Do not declare consolidation complete merely because source virtual balances appear zero. Require every identified connected storage network to have its correct entry Receiver, each upstream ledger fully credited, no outstanding unresolved physical native items or journals counted as transferred, all source receipts reconciled, total-by-identity matching, and an explicit final census. A network with unknown/missing source or unmatched in-flight goods remains pending/HOLD; do not falsely declare all transferred.
+2. **Lock without a race:** The final convergence checkpoint and lock transition must fence every HL routing writer together. There can be no unlocked scheduling tick between the final inventory snapshot and the lock. If normal intake is allowed while consolidating, the final transition must revalidate all new arrivals and retry the barrier if cargo appeared; do not silently omit new inbound stock.
+3. **Global lock scope:** While locked, prevent **HL script-controlled** Collector admissions, Receiver dispatches, relay forwarding, bulk withdrawals/refills, scheduled routing, new transport sessions, and all scripting commands/interaction paths that would resume cargo movement. Preserve read-only status, inspection, safe recovery diagnostics and the ability to see what is held. Ordinary vanilla Hoppers are native and cannot be assumed frozen by a script flag; explicitly drain/reconcile pre-existing physical transfers and test the actual lock boundary before changing ownership. Do not place hardcoded redstone or break blocks to enforce it.
+4. **Persistent fail-closed state:** Store migration epoch, lock reason, phase, graph/account checksums, time/version of last good checkpoint and incomplete writer/journal markers in durable 0.5.7-compatible world state. Startup must inspect the persisted state **before any routing scheduler is registered or allowed to admit items**. On crash/restart or validation error, stay LOCKED_HOLD; never auto-unlock merely because the code finished loading.
+5. **Single authority:** Old Q4 writer and new 0.5.7 engine must never run simultaneously. The global lock is the inter-engine handoff fence, not a substitute for the per-account idempotent debit/credit receipts or the manifest UUID access gate. No production upgrade on the live world without owner approval, backup and separate validation.
+6. **Unlock gate:** After schema/config migration, verify **every network** and terminal Receiver balance, migrated filter/link settings, native MR preservation, persistent journals, chunk cleanup and restart recovery. Only then switch to active 0.5.7 and release the global routing lock. If any network fails, remain locked, show the specific blocker and provide an owner-controlled remediation/retry path; never silently resume partial routing.
+
+**One-time notification, including offline players:**
+
+- On the first **ROUTING_LOCKED** transition, notify all currently online players through a normal Minecraft player-visible message (chat/title, with accessible wording) that **HartLogistics routing is temporarily paused for a storage-system migration, stored items remain accounted for, and normal routing will resume after verification**. Do not imply a time estimate.
+- Track a **durable per-player delivery marker keyed to the unique migration epoch**, independent of player session or name where the available supported player identity permits. Never rely on an ephemeral entity/session ID as long-term proof. Set the marker **only after** the notification has actually been issued.
+- A player who was offline receives the same one-time information **on their next join** if the lock is still active. A player joining only after successful completion receives a **one-time completed-migration notice** instead, not a false “currently locked” message. This guarantees eventual notice for players who connect; there is no claim that disconnected players can be messaged without another service.
+- Subsequent joins and repeated server ticks must **not** repeat the notice for the same migration epoch. A genuinely new migration epoch may legitimately notify the same player once again.
+- Example locked message: **“HartLogistics: Storage migration in progress. Item routing is temporarily locked while the system is upgraded and verified. Your stored items are being preserved. Routing will resume once migration checks pass.”**
+- Read-only `hartlab:status` (or migration-specific status) should continue showing a persistent **Routing Locked — Migration** reason while the transient chat notice is shown only once. No gameplay routing operation should misleadingly report success when lock prevents it.
+
+**Acceptance:** A→B→C network finishes consolidation then locks **before any new writer**, multiple independent networks trigger one global lock only after all finish; attempts to admit/dispatch/relay while locked are rejected; status remains available; reload/server crash preserves locked state; validation failure stays locked; full success unlocks; simultaneous online players each receive exactly one message, offline-on-next-join players receive one, later joining players get the appropriately worded completion notice, repeated joins/ticks do not spam, and a new epoch can notify again.
+
 ## 7. Implementation phases (not yet accepted)
 
 | Stage | Engineering objective | Acceptance gate |
@@ -75,9 +109,11 @@ Show migration progress: terminal Receiver, upstream sources total/processed, or
 | P1 — Census | Pure read-only Q2/Q3/Q4, registry and journal parser | Original quantities and identities reconcile; corrupt/missing states explicit |
 | P2 — Graph | Import filters, frames, links and discover connected storage networks | Correct unique final-array entry Receiver; cycles/branches require explicit binding |
 | P3 — Custody | Expandable terminal Receiver, optional temporary Collector/Receiver buffers, native in-flight recovery and fenced debits/credits | No double-spend or loss across failure injection and restart |
-| P4 — Consolidate | Temporarily cover source/terminal chunks and drain **all upstream HL transit custody** into terminal account | All eligible upstream balances zero, terminal exactly credited, unresolved items reported individually |
-| P5 — Resume | Release migration-only chunks and enable terminal bank's normal 0.5.7 sorting | Chests fill under ordinary native Hopper/Transporter policy; no-Bulk operation works |
-| P6 — Production gate | Full source plus BDS proof on cloned 1.4.1 player world with profiler/diagnostics | Owner explicitly approves version-pinned production change after verified backup |
+| P4 — Consolidate | Temporarily cover source/terminal chunks and drain **all upstream HL transit custody** into terminal account | All eligible upstream balances zero, terminal exactly credited, no unresolved cargo falsely considered transferred |
+| P5 — Routing lock + player notice | Atomically lock **all HL routing** after verified consolidation; issue a durable one-time notification per player/epoch, including later joiners | No item movement/new admission during lock; lock survives restart; all online/returning players receive one non-spamming notice |
+| P6 — Migrate + validate | With routing globally locked, switch 1.4.1 state/configuration to the upgrade-compatible 0.5.7 engine; reconcile all migrated accounts and recoverability | Every network and item identity passes readback, native inventory, configuration and restart tests; otherwise stay locked |
+| P7 — Unlock + resume | Release migration coverage, clear lock only after all acceptance checks, enable final bank's normal 0.5.7 sorting | Chests fill through normal native Hopper/Transporter routing; no-Bulk support; lock never clears on failure |
+| P8 — Production gate | Full source plus BDS proof on cloned 1.4.1 player world with profiler/diagnostics | Owner explicitly approves version-pinned production change after verified backup |
 
 ### Critical BDS tests
 
@@ -87,6 +123,7 @@ Show migration progress: terminal Receiver, upstream sources total/processed, or
 - Two-part debit/credit crash, unreadable Q4 page, unresolved 1.4.1 journal, 0.5.7 account allocation exhaustion; each scenario preserves one clear owner and auditable HOLD.
 - Metadata-rich legacy Q4 and native collector/relay inventories are either preserved exactly or reported as safe HOLD; no fabrication from plain item identifiers.
 - No preexisting Bulk; original world blocks/frames/filters and modes remain; normal last bank's sorting only starts once account convergence passes.
+- Verified terminal consolidation → durable routing lock with no race; blocked Collector/Receiver/relay/Bulk operations; lock surviving BDS restart and failed validation; exactly-once per-player notice across online, offline, returning and post-completion joins; failed lock must never route.
 - Compare equal-duration BDS idle and active `.mcstats`, `.cpuprofile`, VS Debugger findings and user-facing tick responsiveness. Never claim mock-only tests equal live migration acceptance.
 
 ## 8. Safety and immediate next task
@@ -95,4 +132,4 @@ Do not modify a production world, automatically migrate on pack load, silently o
 
 **Next source-only engineering work:** (1) prove pack UUID/read access under an upgrade-compatible 0.5.7 build; (2) build a side-effect-free 1.4.1 census; and **(3) build a topology graph detector that reports exactly one final-array entry Receiver per connected storage network or an explicit ambiguity**. No item may move until these checks and the durable custody transfer tests pass.
 
-**Definition of done:** After upgrade, every identified connected storage network has **one terminal Receiver at the start of its last storage array** owning all eligible former upstream HL transit balances (or explicitly documented unresolved safe HOLD items). Its virtual capacity was expanded and verified as needed; upstream accounts are drained; normal 0.5.7 routing then resumes from that final array. No lost/duplicated cargo, no fixed locations, no required Bulk, no URCE, no Q5.
+**Definition of done:** After complete verified consolidation, each connected storage network has **one terminal Receiver at the start of its last storage array** owning all eligible former upstream HL transit balances and appropriate expandable capacity. Then a **persistent global routing lock and one-time player notifications** precede engine migration and final validation. Only a fully reconciled, successful 0.5.7 deployment unlocks and resumes normal routing. Any unresolved source/HOLD item must prevent false completion. No lost/duplicated cargo, no fixed locations, no required Bulk, no URCE, no Q5.
