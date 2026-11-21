@@ -6,7 +6,7 @@ const topology=fs.readFileSync(path.join(path.dirname(root),'topology.js'),'utf8
 const src=fs.readFileSync(root,'utf8').replace(/import\s*\{[^}]*\}\s*from\s*'@minecraft\/server';/s,'');
 const queued=[],intervals=[],handlers={};
 const makeEvents=()=>({subscribe(fn){(this.handlers||(this.handlers=[])).push(fn);}});
-const system={run(fn){queued.push({fn,t:0});},runTimeout(fn,t=0){queued.push({fn,t});},
+const system={beforeEvents:{startup:makeEvents()},run(fn){queued.push({fn,t:0});},runTimeout(fn,t=0){queued.push({fn,t});},
     runInterval(fn,interval){intervals.push({fn,interval});},afterEvents:{scriptEventReceive:makeEvents()}};
 class Stack {
   constructor(typeId,amount=1,props={}){this.typeId=typeId;this.amount=amount;this.maxAmount=props.maxAmount||64;this.nameTag=props.nameTag||'';this.props={...props};}
@@ -45,6 +45,7 @@ const posKey=p=>`${p.x},${p.y},${p.z}`;
 function getBlock(p){const k=posKey(p);if(!blocks.has(k))blocks.set(k,makeBlock('minecraft:air',p));return blocks.get(k);}
 function makeBlock(typeId,p){
   const b={typeId,location:{...p},dimension:dim,states:{'minecraft:cardinal_direction':'south','hartlogistics:mode':'wildcard'},inv:undefined};
+  if(['hartsorter:collector','hartsorter:receiver'].includes(typeId))b.states['hartlogistics:powered']=false;
   if(typeId==='minecraft:hopper')b.inv=new Container(5);
   if(typeId==='minecraft:chest')b.inv=new Container(27);
   if(typeId==='minecraft:barrel')b.inv=new Container(27);
@@ -434,3 +435,89 @@ vm.runInContext("routeChunks.set('refill-test',{id:'refill-test',ready:true,last
 assert.equal(vm.runInContext("labTick+=32;releaseIdleChunks();routeChunks.has('refill-test')",context),true);
 assert.equal(vm.runInContext("labTick+=16;releaseIdleChunks();routeChunks.has('refill-test')",context),false);
 console.log('PASS: ready area survives the next refill poll and expires after inactivity');
+
+// Drive the registered native update callback through a complete powered/unpowered cycle.
+let flow;
+system.beforeEvents.startup.handlers[0]({blockComponentRegistry:{registerCustomComponent(id,component){flow=component;}}});
+function power(block,level){flow.onRedstoneUpdate({block,powerLevel:level});}
+const pausedBank=bank(9050,70,150,-1,0,3,1);
+for(const h of pausedBank.hoppers)h.setType('hartlogistics:transporter');
+const rc=getBlock({x:9051,y:70,z:150}),cc=getBlock({x:9054,y:70,z:150});
+place('hartlogistics:bulk_storage',9050,70,149);
+const stockKey='hartlab:bulk_o_9050_70_149';
+const wanted='minecraft:cobblestone';
+const filterKey='hartlab:s_o_9050_69_150';
+const filter=JSON.parse(properties.get(filterKey));filter.f.match.typeId=wanted;
+properties.set(filterKey,JSON.stringify(filter));
+properties.set(stockKey,stored(12));
+vm.runInContext('labLoadState()',context);drain();
+power(rc,1);pausedBank.input.setItem(0,new Stack(wanted,8));ticks(96);
+assert.equal(pausedBank.input.count(wanted),8);
+assert.equal(JSON.parse(properties.get(stockKey)).items[wanted],12);
+assert.equal(pausedBank.chests[0].count(wanted),0);
+power(cc,15);power(rc,0);ticks(96);
+assert.equal(pausedBank.input.count(wanted),8);
+assert.equal(pausedBank.chests[0].count(wanted),12);
+power(cc,0);ticks(96);
+assert.equal(pausedBank.input.count(wanted),0);
+assert.equal(pausedBank.chests[0].count(wanted),20);
+console.log('PASS: powered Receiver pauses intake and refill; Collector independently pauses intake and resumes');
+
+// Two direct relay layouts, each with a separate destination bank.
+const helpers=new Map();
+world.getEntity=id=>helpers.get(id);
+dim.getEntities=({type,location})=>[...helpers.values()].filter(e=>
+    e.typeId===type && posKey(e.location)===posKey(location));
+dim.spawnEntity=(typeId,location)=>{
+    const inv=new Container(5),id='helper-'+helpers.size;
+    const e={id,typeId,location,getComponent:n=>n==='minecraft:inventory'?{container:inv}:undefined,
+        remove:()=>helpers.delete(id)};
+    helpers.set(id,e);return e;
+};
+for(const directPipe of [true,false]){
+    const x=directPipe?10010:10110,z=450;
+    const upstream=bank(x,70,z,-1,0,2,1);
+    if(directPipe)for(const h of upstream.hoppers)h.setType(pipeId);
+    else banks.push(upstream);
+    const downstream=bank(x+300,70,z,-1,0,2,1);
+    for(const h of downstream.hoppers)h.setType(pipeId);
+    const relay=place('hartsorter:collector',x-1,directPipe?70:69,z+1);
+    properties.set('hartlab:c_o_'+Object.values(relay.location).join('_'),JSON.stringify({receiver:downstream.rk}));
+    const kind=directPipe?'test:item_0_1':'test:item_1_1';
+    if(directPipe){
+        // No Sorters on this remote pipe segment.
+        for(const sorter of upstream.sorters)sorter.setType('minecraft:air');
+    }
+    vm.runInContext('labLoadState()',context);drain();
+    power(relay,8);
+    upstream.input.setItem(0,new Stack(kind,1,{nameTag:'Original cargo'}));
+    ticks(120);assert.equal(upstream.input.count(kind),1);
+    power(relay,0);
+    const receiver=getBlock({x:x+301,y:70,z});
+    power(receiver,9);ticks(160);
+    assert.equal(upstream.input.count(kind),0);
+    const buffer=evalBank(upstream,'collectorBuffer(labGet(b.cfg.dimension,'+JSON.stringify(relay.location)+')).getComponent("minecraft:inventory").container');
+    assert.equal(buffer.count(kind),1);
+    vm.runInContext('labLoadState()',context);drain();
+    power(receiver,0);ticks(160);
+    assert.equal(buffer.count(kind),0);
+    assert.equal(downstream.chests[directPipe?0:1].getItem(0).nameTag,'Original cargo');
+    console.log('PASS: direct '+(directPipe?'Transporter':'Hopper-fed Sorter')+' to Collector, powered relay and saved native handoff');
+}
+
+const twin=bank(10400,70,461,-1,0,14,1);
+banks.push(twin);
+const twinFilter='hartlab:s_o_10387_69_461';
+const tc=JSON.parse(properties.get(twinFilter));tc.f.match.typeId=plank;properties.set(twinFilter,JSON.stringify(tc));
+vm.runInContext('labLoadState()',context);drain();
+for(let i=0;i<3;i++)twin.input.setItem(i,new Stack(plank,64));
+ticks(48);
+assert.equal(evalBank(twin,'b.active.sent'),128);
+assert.equal(twin.input.count(plank),64);
+const twinReceiver=getBlock({x:10401,y:70,z:461});
+power(twinReceiver,15);ticks(1400);
+assert.equal(twin.chests.at(-1).count(plank),128);
+assert.equal(twin.input.count(plank),64);
+power(twinReceiver,0);ticks(800);
+assert.equal(twin.chests.at(-1).count(plank),192);
+console.log('PASS: two stacks in flight, active lane drains under power, remaining input resumes');

@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.5) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.6) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -610,6 +610,15 @@ world.afterEvents.playerPlaceBlock.subscribe(ev=>{
 });
 world.beforeEvents.playerBreakBlock.subscribe(ev=>{
     const b=ev.block;
+    if(b?.typeId===COLLECTOR_ID){
+        try{
+            const entity=collectorBuffer(b);
+            if(!entity)return;
+            const inv=labBlockInventory(entity);
+            if(inv && inv.emptySlotsCount===inv.size)return;
+        }catch(_){}
+        ev.cancel=true;ev.player?.sendMessage('[Collector] Drain the handoff buffer before removal.');return;
+    }
     if(b?.typeId===BULK_ID){
         try{const a=bulkRead(b.dimension.id,b.location);if(!a.total && !a.state.pending)return;}catch(_){}
         ev.cancel=true;ev.player?.sendMessage('[Bulk] Empty this member before removal.');return;
@@ -663,7 +672,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.5 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.6 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -785,9 +794,64 @@ function labDiscover(b) {
 }
 // Each offset pairs an adjacent position with the output face pointing back to the Collector.
 const collectorFaces = [[0,1,0,0],[0,0,-1,3],[0,0,1,2],[-1,0,0,5],[1,0,0,4],[0,-1,0,null]];
+const POWERED = 'hartlogistics:powered';
+system.beforeEvents.startup.subscribe(({blockComponentRegistry}) => {
+    blockComponentRegistry.registerCustomComponent('hartlogistics:flow_control', {
+        onBreak({block,brokenBlockPermutation}){
+            if(brokenBlockPermutation.type.id!==COLLECTOR_ID)return;
+            const buffer=collectorBuffer(block),inv=labBlockInventory(buffer);
+            if(buffer && inv && inv.emptySlotsCount===inv.size){
+                buffer.remove();
+                world.setDynamicProperty(keyFor('buffer',block.dimension.id,block.location),undefined);
+            }
+        },
+        onRedstoneUpdate({block, powerLevel}) {
+            const powered = powerLevel > 0;
+            if (block.permutation.getState(POWERED) !== powered)
+                block.setPermutation(block.permutation.withState(POWERED, powered));
+        }
+    });
+});
+function receiverAccepts(b) {
+    const block = labGet(b.cfg.dimension,b.cfg.receiver);
+    return block?.typeId === RECEIVER_ID && block.permutation.getState(POWERED) === false;
+}
+// A direct handoff keeps the original ItemStack in a saved native inventory.
+const BUFFER_ENTITY='hartlogistics:collector_buffer';
+function collectorBuffer(block,create=false){
+    const p=block.location, dimension=block.dimension;
+    const key=keyFor('buffer',dimension.id,p);
+    const id=world.getDynamicProperty(key);
+    if(id===undefined && !create)return undefined;
+    const center={x:p.x+0.5,y:p.y+0.5,z:p.z+0.5};
+    let entity=id===undefined?undefined:world.getEntity(id);
+    if(!entity){
+        const matches=dimension.getEntities({type:BUFFER_ENTITY,location:center,maxDistance:0.3});
+        if(matches.length>1 || (id!==undefined && !matches.length))
+            throw Error('Collector handoff inventory unavailable at '+positionKey(p));
+        entity=matches[0];
+        if(!entity && create)entity=dimension.spawnEntity(BUFFER_ENTITY,center);
+        if(entity)world.setDynamicProperty(key,entity.id);
+    }
+    return entity;
+}
+function collectorOutput(block,bankKey){
+    if(block?.typeId!==COLLECTOR_ID || block.permutation.getState(POWERED)!==false)return;
+    const link=labLinkedReceiver(keyFor('c',block.dimension.id,block.location));
+    if(link && link!==bankKey)return labBlockInventory(collectorBuffer(block,true));
+}
+function pipeExit(b,item){
+    for(const {position,tap} of b.net.collectorExits){
+        const dest=collectorOutput(labGet(b.cfg.dimension,position),b.cfg.name);
+        if(labCanFitEntire(dest,item))
+            return {pipeExit:true,p:{...position,d:b.cfg.dimension,tap},destination:position,destinationType:COLLECTOR_ID};
+    }
+}
 function labCollectorSources(key){
     const p=labKeyParse(key);
-    if(p?.kind!=='c' || labGet(p.d,p)?.typeId!==COLLECTOR_ID)return [];
+    if(p?.kind!=='c')return [];
+    const collector=labGet(p.d,p);
+    if(collector?.typeId!==COLLECTOR_ID || collector.permutation.getState(POWERED)!==false)return [];
     const feeders=[];
     let direct,hasFeeder=false;
     for(const [dx,dy,dz,toward] of collectorFaces){
@@ -806,7 +870,10 @@ function labCollectorSources(key){
             if(container)direct={loc,dimension:p.d,container};
         }
     }
-    return hasFeeder ? feeders : direct ? [direct] : [];
+    const inputs=hasFeeder ? feeders : direct ? [direct] : [];
+    const buffer=labBlockInventory(collectorBuffer(collector));
+    if(buffer && buffer.emptySlotsCount!==buffer.size)inputs.push({loc:p,dimension:p.d,container:buffer});
+    return inputs;
 }
 function labBuildIndex(b){
     if(b.cache && b.cacheRevision===b.generation)return b.cache;
@@ -818,7 +885,7 @@ function labBuildIndex(b){
         if(block?.typeId!==SORTER_ID){missing++;continue;}
         const e=entryForBlock(block) || {m:block.permutation.getState(SORTER_MODE_STATE)};
         if(e.m==='filter' && !e.f){total++;continue;}
-        const candidate={p,lane:b.net.taps,filter:e.f,mode:sorterMode(e)};
+        const candidate={p,bankKey:b.cfg.name,lane:b.net.taps,filter:e.f,mode:sorterMode(e)};
         total++;
         if(candidate.mode==='filter'){
             if(!e.f?.match?.typeId)continue;
@@ -849,12 +916,18 @@ function labAdjacentInventories(candidate,strict=false){
         // compatible vanilla/custom inventory blocks are valid destinations.
         const neighbor=labGet(candidate.p.d,p);
         if(strict && !neighbor)throw Error('Output neighbor unavailable');
-        const inv=labBlockInventory(neighbor);
+        const inv=neighbor?.typeId===COLLECTOR_ID ? collectorOutput(neighbor,candidate.bankKey) : labBlockInventory(neighbor);
         if(inv && !candidate.lane.has(k))found.push({position:p,container:inv});
     }
     return found;
 }
 function labDestinationContainer(candidate){
+    if(candidate.destinationType===COLLECTOR_ID){
+        const block=labGet(candidate.p.d,candidate.destination);
+        // An admitted physical Hopper shipment may finish into the buffer while paused.
+        if(block?.typeId===COLLECTOR_ID)return labBlockInventory(collectorBuffer(block));
+        return undefined;
+    }
     if(candidate.destination)return labGet(candidate.p.d,candidate.destination)?.typeId===candidate.destinationType
         ? labContainer(candidate.p.d,candidate.destination) : undefined;
     return labAdjacentInventories(candidate)[0]?.container;
@@ -903,6 +976,7 @@ function labSelectTarget(b,item){
             if(labCanFitEntire(container,item))return {...c,destination:position,destinationType:labGet(c.p.d,position)?.typeId};
         }
     }
+    if(!candidates.some(c=>c.mode!=='wildcard'))return pipeExit(b,item);
     return undefined;
 }
 function labLineEmpty(b){
@@ -959,6 +1033,46 @@ function labPersistActive(b){
         world.setDynamicProperty(LAB_ROUTE_STATE,JSON.stringify(state));
     }catch(err){log(`ROUTING STATE SAVE FAILED ${b.cfg.name}: ${err}`);throw err;}
 }
+// Reserve room for both shipments at the original destination. Other items,
+// routes and recovery still use a single physical shipment.
+function extendHopperShipment(b,key){
+    const a=b.active;
+    if(b.coveredAt!==labTick || !a || a.extended || a.collector!==key || a.revision!==b.generation ||
+        !bulkOrdinary(a.reference) || !receiverAccepts(b))return false;
+    const dest=labDestinationContainer(a.target);
+    const inlet=labContainer(b.cfg.dimension,a.lane[0]);
+    if(!dest || !inlet)return false;
+    for(const source of labCollectorSources(key)){
+        if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
+        for(let slot=0;slot<source.container.size;slot++){
+            const item=source.container.getItem(slot);
+            if(!item || !a.reference.isStackableWith(item) || !labCanFitEntire(inlet,item))continue;
+            // ItemStack.amount cannot exceed its native stack limit.
+            let room=0;
+            for(let j=0;j<dest.size;j++){
+                const stack=dest.getItem(j);
+                if(!stack)room+=item.maxAmount;
+                else if(stack.isStackableWith(item))room+=item.maxAmount-stack.amount;
+                if(room>=a.sent-a.moved+item.amount)break;
+            }
+            if(room<a.sent-a.moved+item.amount)return false;
+            if(a.target.destinationType===COLLECTOR_ID &&
+                labGet(a.target.p.d,a.target.destination)?.permutation.getState(POWERED)!==false)return false;
+            a.extended=true;
+            a.sent+=item.amount;
+            try{
+                labPersistActive(b);
+                const moved=labSafeTransfer(source.container,slot,inlet,item);
+                a.sent+=moved-item.amount;
+                a.extended=moved>0;
+                b.dispatched+=moved;
+                labPersistActive(b);
+                return moved>0;
+            }catch(err){labStartRecovery(b,'additional Hopper dispatch: '+err);return false;}
+        }
+    }
+    return false;
+}
 function labMarkHold(b,reason){
     b.blocked=reason;b.failed++;
     if(labTick-b.lastWarning>200){log(`HOLD ${b.cfg.name}: ${reason}`);b.lastWarning=labTick;}
@@ -984,7 +1098,7 @@ function labFinish(b){
 }
 function labPipeDispatch(b,source,slot,item,target){
     const d=b.cfg.dimension;
-    if(labGet(d,b.cfg.receiver)?.typeId!==RECEIVER_ID || labGet(d,target.p)?.typeId!==SORTER_ID)return false;
+    if(labGet(d,b.cfg.receiver)?.typeId!==RECEIVER_ID || labGet(d,target.p)?.typeId!==(target.pipeExit?COLLECTOR_ID:SORTER_ID))return false;
     // Recheck the selected physical path at transfer time, including chunk availability.
     for(let p=target.p.tap;p;p=b.net.parents.get(positionKey(p))){
         if(labGet(d,p)?.typeId!==PIPE){
@@ -1120,6 +1234,10 @@ function bulkCollect(b,key,source,slot,item){
     const resident=members.some(a=>a.state.items[item.typeId] && !a.state.provisional[item.typeId]);
     const claimed=!!eligible.length || resident;
     let route=bulkTarget(claimed?eligible:index.wildcards,item);
+    if(!route && !claimed){
+        const exit=pipeExit(b,item);
+        if(exit)return labTryDispatch(b,key,source,slot,item,exit);
+    }
     const member=members.find(a=>a.total<BULK_LIMIT);
     if(!route && !claimed && b.net.terminal){
         // A native Hopper lane's terminal inventory is a catch, not a Collector account.
@@ -1170,7 +1288,7 @@ function bulkRefill(b){
         const {state}=bulkRead(d,p);
         return state.pending || Object.keys(state.items).length;
     });
-    if(!hasStock || !coverRoute(b))return false;
+    if(!hasStock || !coverRoute(b) || !receiverAccepts(b))return false;
     for(const a of bulkMembers(b)){
         const types=Object.keys(a.state.items);
         for(let i=0;i<types.length;i++){
@@ -1225,6 +1343,7 @@ function coverRoute(b, source) {
         b.coverageNet = net;
         b.coverageChunks = chunks;
     }
+    if (!source) return coverChunks(b,b.coverageChunks);
     const chunks = new Map(b.coverageChunks);
     if (source) {
         const p = source.loc, x=Math.floor(p.x/16), z=Math.floor(p.z/16);
@@ -1234,10 +1353,18 @@ function coverRoute(b, source) {
 }
 function coverChunks(b,chunks) {
     let ready = true;
-    const manager = world.tickingAreaManager;
-    if (!manager) { labMarkHold(b,'Script ticking areas unavailable'); return false; }
     let additional = 0;
     for (const key of chunks.keys()) if (!routeChunks.has(key)) additional++;
+    if(!additional){
+        for(const key of chunks.keys()){
+            const entry=routeChunks.get(key);
+            entry.last=labTick;
+            if(!entry.ready)ready=false;
+        }
+        return ready;
+    }
+    const manager=world.tickingAreaManager;
+    if(!manager){labMarkHold(b,'Script ticking areas unavailable');return false;}
     if (additional + routeChunks.size > manager.maxChunkCount) {
         labMarkHold(b,'Waiting for ticking chunk capacity'); return false;
     }
@@ -1280,7 +1407,7 @@ function labTryCollector(b,collectorKey){
             const index=(offset+i)%sources.length;
             const source=sources[index],inv=source.container,size=inv.size;
             if(inv.emptySlotsCount===size)continue;
-            if(!labDiscover(b) || !coverRoute(b,source))return false;
+            if(!labDiscover(b) || !coverRoute(b,source) || !receiverAccepts(b))return false;
             const sorterIndex=labBuildIndex(b);
             if(sorterIndex.missing){
                 labMarkHold(b,'Waiting for '+sorterIndex.missing+' indexed Sorters to become readable');
@@ -1370,7 +1497,12 @@ function labProcessInputs(){
         const key=keys[(n+labRR)%keys.length];
         const receiver=labLinkedReceiver(key);
         const bank=receiver?labBankForReceiver(receiver):undefined;
-        if(!bank||bank.active||bank.recovery)continue;
+        if(!bank||bank.recovery)continue;
+        if(bank.active){
+            try{if(extendHopperShipment(bank,key)){supplied=true;break;}}
+            catch(err){labMarkHold(bank,'Hopper admission: '+err);}
+            continue;
+        }
         if(labTryCollector(bank,key)){supplied=true;break;}
     }
     if(!supplied && labTick%32===0){
@@ -1403,7 +1535,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.5 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.6 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1414,9 +1546,16 @@ function labStats(source){
         const b=labBankForReceiver(key);
         if(!b)continue;
         const net=labDiscover(b), i=net && labBuildIndex(b);
+        const paused=[];
+        if(labGet(b.cfg.dimension,b.cfg.receiver)?.permutation.getState(POWERED))paused.push('Receiver');
+        for(const k of labCollectorKeys){
+            if(labLinkedReceiver(k)!==key)continue;
+            const p=labKeyParse(k);
+            if(p && labGet(p.d,p)?.permutation.getState(POWERED))paused.push('Collector '+positionKey(p));
+        }
         lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' readable Sorters / '+(net?.spots.length || 0)+' discovered, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
             ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
-            ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready'));
+            ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready')+(paused.length?' | redstone paused: '+paused.join(', '):''));
     }
     if(!receivers.size)lines.push('No linked Receivers found.');
     for(const line of lines){log(line);source?.sendMessage('[Hart LAB] '+line);}
@@ -1467,7 +1606,7 @@ system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
 system.run(labLoadState);
 system.runInterval(()=>{
     labTick++;
-    for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b))labTickActive(b);}catch(err){labMarkHold(b,String(err));}}
+    for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b)){b.coveredAt=labTick;labTickActive(b);}}catch(err){labMarkHold(b,String(err));}}
     if(labTick%16===0)releaseIdleChunks();
     if(labTick%8===0){
         for(const bank of Object.values(labBanks))if(bank.discoveryChunks)labDiscover(bank);

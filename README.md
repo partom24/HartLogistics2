@@ -35,6 +35,18 @@ When intake has no productive dispatch on a refill opportunity, stored cargo can
 
 To test both methods, fill a filtered output, offer 64 ordinary blocks, and inspect the member for 64 stored. Free exactly 32 matching spaces. Verify the chest gains 32 and Bulk shows 32. Repeat with the second transport method.
 
+## Fresh LAB 0.5.6 flow controls and direct relay
+
+Power a Collector to pause new intake there. Power a Receiver to pause new intake from every linked Collector and pause its Bulk refills. Removing power resumes admissions. Already dispatched items drain to their selected destination. Other banks continue operating. Status lists powered controls.
+
+At a remote Receiver, a face-connected Transporter can end against a linked return Collector. A Sorter can also output directly into an adjacent linked Collector. An unseeded wildcard or an appropriate filter works for the Sorter relay. A bare pipe exit handles items left without a matching Sorter route. Link the return Collector to the next Receiver. A Collector linked to the same Receiver is ineligible as its own output.
+
+Direct handoffs use a five-slot persistent native entity inventory inside the Collector. The next bank pulls original stacks from it. A downstream Receiver can pause while accepted items wait there. Drain the buffer before breaking the Collector. A world edit that forcibly removes an occupied Collector leaves its buffer at that address for recovery by replacing and linking the block.
+
+Physical Hopper lanes may admit one additional compatible ordinary stack from the same Collector for the same destination, up to two admissions per shipment. Both quantities must fit. A power signal stops further admissions while the active shipment drains. Temporary chunk coverage reuses the cached set while the shipment runs.
+
+Offline routing tests cover both direct connections, named items, power and resume, Bulk refill, and overlapping Hopper delivery. Live BDS validation remains pending for this version.
+
 ## Collector input
 
 A Hopper pointing into the Collector supplies its contents for routing. Its presence reserves the input even while empty or redstone-locked. Multiple incoming Hoppers take turns. With no incoming Hopper, the existing direct adjacent-container input is available.

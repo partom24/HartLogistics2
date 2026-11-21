@@ -5,6 +5,12 @@
       "identifier": "hartsorter:collector",
       "menu_category": {
         "category": "items"
+      },
+      "states": {
+        "hartlogistics:powered": [
+          false,
+          true
+        ]
       }
     },
     "components": {
@@ -43,7 +49,8 @@
       "minecraft:redstone_consumer": {
         "min_power": 0,
         "propagates_power": false
-      }
+      },
+      "hartlogistics:flow_control": {}
     }
   }
 }
