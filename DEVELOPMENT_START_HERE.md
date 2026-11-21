@@ -1,5 +1,8 @@
 # HartLogistics2 — development pickup and delivery entrypoint
 
+**Critical real BDS protected-Q4 incident (16,388 held; 4.7x unpowered script-time spike):** [decoded diagnostic phase measurements, CPU profile hot stacks, no-home drain gate, exact 1.5.12 source-only mitigation and unapproved multi-bank custody](docs/URCE_1512_16388_Q4_PERFORMANCE_INCIDENT_20261120.md). **Do not unpause/retest the protected Receiver, install an older 1.5.12 commit, or mistake `verified snapshot` for a proven cargo home.** Source CI is not real TPS acceptance.
+
+
 **New 1.5.12 stone-brick native Hopper stop regression / source candidate:** [actual owner BDS `minecraft:stone_bricks @ 469,72,-498` Link HELD, all-direction inert native end proof, original Q4 writer, full source tests and exact 1.5.11 LAB preflight](docs/URCE_1512_INERT_NATIVE_STOP_HANDOFF_20261120.md). The 1.5.11 chest-end route already passed player testing; this **new inert-block variant remains source-tested only**, and the installed copied LAB remains unchanged. No production release or full network acceptance is implied.
 
 
