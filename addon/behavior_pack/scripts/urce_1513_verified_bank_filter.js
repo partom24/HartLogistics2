@@ -246,7 +246,9 @@ export function inspectVerifiedBankFilterHome({
       // A second disconnected component would leave source ownership
       // ambiguous and must HOLD rather than being silently ignored.
 
-      const queue=[seeds[0]],visitedP=new Set([key(r.d,seeds[0])]);
+      const origin=key(r.d,seeds[0]);
+      const queue=[seeds[0]],visitedP=new Set([origin]);
+      const parent=new Map([[origin,null]]);
       const columnsFound=new Set(),exits=new Map();
       for(let q=0;q<queue.length;q++){
         if(++pipeVisits>maxPipes)throw Error("transporter_pipe_limit");
@@ -259,7 +261,13 @@ export function inspectVerifiedBankFilterHome({
           const k=key(r.d,at);
           if(adj.typeId===PIPE){
             pipeNeighbors++;
-            if(!visitedP.has(k)){visitedP.add(k);queue.push(at);}
+            if(!visitedP.has(k)){
+              visitedP.add(k);queue.push(at);parent.set(k,key(r.d,p));
+            }else if(parent.get(key(r.d,p))!==k) {
+              // Even a visual pipe loop without a branching junction can
+              // remove the unambiguous bank direction required by URCE.
+              throw Error("transporter_pipe_cycle");
+            }
           }else if(adj.typeId===HOPPER){
             const column=columnBySource.get(k);
             const sourceOutput=k===key(r.d,{x:r.x,y:r.y-1,z:r.z});
