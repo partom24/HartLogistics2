@@ -141,7 +141,10 @@ test("MBF-04b physically broken bank run provides NO affirmative Filter route",(
 test("MBF-05 positive path requires current saved link and loaded exact endpoints",()=>{
   const e=env();
   e.config.collectors[0].link=undefined;
-  assert.equal(inspectVerifiedBankFilterHome(e.config).status,"HOLD");
+  const noHop=inspectVerifiedBankFilterHome(e.config);
+  assert.equal(noHop.status,"NO_FILTER_HOME",
+    "A now-unlinked physical Collector terminates the bank; no path to remote Filter");
+  assert.equal(noHop.mayAuthorizeCargo,false);
   const e2=env();
   e2.config.read=(d,p)=>p.x===10&&p.y===5&&p.z===0
     ?undefined:e2.blocks.get(key(p))??fake("minecraft:air",p);
