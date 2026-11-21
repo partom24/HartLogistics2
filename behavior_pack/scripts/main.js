@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.3.0) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.3.1) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -644,7 +644,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.3.0 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
+system.run(()=>log('0.3.1 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -701,20 +701,30 @@ function labDiscover(b) {
     } catch(err) {b.net=null;b.blocked=String(err);b.retry=labTick+100;}
     return b.net;
 }
-function labSourceForCollector(key){
+// Each offset pairs an adjacent position with the output face pointing back to the Collector.
+const collectorFaces = [[0,1,0,0],[0,0,-1,3],[0,0,1,2],[-1,0,0,5],[1,0,0,4],[0,-1,0,null]];
+function labCollectorSources(key){
     const p=labKeyParse(key);
-    if(!p||p.kind!=='c')return undefined;
-    const block=getBlock(p.d,p.x,p.y,p.z);
-    if(block?.typeId!==COLLECTOR_ID)return undefined;
-    // Keep the 1.4.1 player-facing pattern: native inventory adjacent to Collector.
-    const offsets=[{x:0,y:1,z:0},{x:0,y:0,z:-1},{x:0,y:0,z:1},
-        {x:-1,y:0,z:0},{x:1,y:0,z:0},{x:0,y:-1,z:0}];
-    for(const o of offsets){
-        const loc={x:p.x+o.x,y:p.y+o.y,z:p.z+o.z};
-        const inv=labContainer(p.d,loc);
-        if(inv)return {container:inv,loc,dimension:p.d};
+    if(p?.kind!=='c' || labGet(p.d,p)?.typeId!==COLLECTOR_ID)return [];
+    const feeders=[];
+    let direct,hasFeeder=false;
+    for(const [dx,dy,dz,toward] of collectorFaces){
+        const loc={x:p.x+dx,y:p.y+dy,z:p.z+dz};
+        const block=labGet(p.d,loc);
+        if(!block)return []; // A missing neighbor could be the configured physical feed.
+        if(block.typeId===HOPPER){
+            if(block.permutation.getState('facing_direction')!==toward)continue;
+            hasFeeder=true;
+            if(!block.permutation.getState('toggle_bit')){
+                const container=labBlockInventory(block);
+                if(container)feeders.push({loc,dimension:p.d,container});
+            }
+        }else if(!direct && !hasFeeder){
+            const container=labBlockInventory(block);
+            if(container)direct={loc,dimension:p.d,container};
+        }
     }
-    return undefined;
+    return hasFeeder ? feeders : direct ? [direct] : [];
 }
 function labBuildIndex(b){
     if(b.cache && b.cacheRevision===b.generation)return b.cache;
@@ -907,19 +917,24 @@ function labTryDispatch(b,key,source,slot,item,target){
     return true;
 }
 function labTryCollector(b,collectorKey){
-    const source=labSourceForCollector(collectorKey);
-    if(!source)return false;
-    const inv=source.container;
     try{
-        for(let slot=0;slot<inv.size;slot++){
-            const item=inv.getItem(slot);
-            if(!item)continue;
+        const sources=labCollectorSources(collectorKey);
+        const offset=b.sourceCursor?.get(collectorKey) || 0;
+        for(let i=0;i<sources.length;i++){
+            const index=(offset+i)%sources.length;
+            const source=sources[index],inv=source.container,size=inv.size;
+            if(inv.emptySlotsCount===size)continue;
             if(!labDiscover(b))return false;
-            if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))return false;
-            const target=labSelectTarget(b,item);
-            if(!target)continue;
-            if(labTryDispatch(b,collectorKey,source,slot,item,target))return true;
-            return !!b.active;
+            if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
+            for(let slot=0;slot<size;slot++){
+                const item=inv.getItem(slot);
+                if(!item)continue;
+                const target=labSelectTarget(b,item);
+                if(!target)continue;
+                if(!labTryDispatch(b,collectorKey,source,slot,item,target))return !!b.active;
+                (b.sourceCursor ??= new Map()).set(collectorKey,index+1);
+                return true;
+            }
         }
     }catch(err){labMarkHold(b,`collector input: ${err}`);}
     return false;
@@ -998,7 +1013,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.3.0 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.3.1 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){

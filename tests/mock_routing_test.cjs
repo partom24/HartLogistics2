@@ -172,3 +172,34 @@ drop.states.facing_direction=2;
 event('hartlab:refresh');drain();
 assert.equal(evalBank(a,'b.net.lane.length'),12);
 console.log('PASS: extension around a corner and down');
+// The chest above the Collector and the side feeder share a double-chest supply in LAB.
+// Model the split just after the native pull. Only the feeder may be admitted.
+const collector=[...blocks.values()].find(block=>block.typeId==='hartsorter:collector' &&
+  block.location.z===b.hoppers[0].location.z-4);
+const cp=collector.location;
+const intake=place('minecraft:hopper',cp.x-1,cp.y,cp.z);
+intake.states.facing_direction=5;
+const brick='test:item_2_2';
+const initial=b.chests.at(-1).count(brick);
+b.input.setItem(0,new Stack(brick,63));
+intake.inv.setItem(0,new Stack(brick,1));
+intake.states.toggle_bit=true;
+ticks(32);
+assert.equal(b.input.count(brick),63);
+assert.equal(intake.inv.count(brick),1);
+intake.states.toggle_bit=false;
+ticks(96);
+assert.equal(intake.inv.count(brick),0);
+assert.equal(b.input.count(brick),63);
+assert.equal(b.chests.at(-1).count(brick),initial+1);
+// Model subsequent pulls by the native feeder while the receiver is busy.
+for(let i=0;i<63;i++){
+  const sourceStack=b.input.getItem(0);sourceStack.amount--;
+  b.input.setItem(0,sourceStack.amount?sourceStack:undefined);
+  intake.inv.addItem(new Stack(brick));ticks(8);
+}
+ticks(256);
+assert.equal(b.input.count(brick),0);
+assert.equal(intake.inv.count(brick),0);
+assert.equal(b.chests.at(-1).count(brick),initial+64);
+console.log('PASS: locked and empty feeder reserve intake, source 63 + feeder 1 delivered through feeder');
