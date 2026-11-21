@@ -732,7 +732,10 @@ function receiverLinkSafety(receiver) {
 // cargo scanning, automatic relink, queue deletion or journal action.
 function linkSafetyLabel(result) {
     if (!result) return "UNKNOWN";
-    if (result.decision === "SAFE_SNAPSHOT") return "verified snapshot";
+    if (result.decision === "SAFE_SNAPSHOT")
+        return result.linked>0 && result.routeKind!=="DIRECT_NATIVE_SORTER"
+            ? "verified link topology; no governed item home (QUEUE HOLD)"
+            : "verified snapshot";
     if (result.decision === "NO_MANAGED_INPUT") return "no managed source";
     return (result.decision === "REJECT" ? "CYCLE BLOCKED" : "ROUTE HOLD") +
         " (" + (result.reason || "unverified") +
@@ -4177,10 +4180,29 @@ function processReceiverDrain(receiver, globalRemaining) {
             if (!output || output.locked) return used;
         }
 
-        // The native Q4 queue owns these items. Unlike an empty idle queue,
-        // a nonempty queue must not debit toward a known cycle or unverified
-        // source route. Preserve the exact original dequeue/journal writer.
+        // A link-cycle SAFE_SNAPSHOT does NOT prove an item has a home.
+        // The only IMPLEMENTED governed Q4 writer is the CLOSED local
+        // Receiver/Hopper/Sorter/native-storage lane. On managed receivers
+        // with no such current positive outlet, HOLD without doing the
+        // entire source-wide Hopper/Transporter graph observation on every
+        // scheduler tick. This is strictly a NEGATIVE gate: it cannot debit
+        // Q4, assert absence of a remote claim, or confer route authority.
+        // Re-observe it every attempt so player construction can recover
+        // without sticky memoization; legacy unlinked Q4 remains untouched.
         if (!safetyChecked) {
+            const managed=logistics.collectors.some(c=>c.link===receiver.id);
+            if(managed) {
+                if(dirty)rebuildTopology();
+                const local=columns.some(col=>col?.d===receiver.d &&
+                    col.source?.x===receiver.x &&
+                    col.source?.y===receiver.y-1 &&
+                    col.source?.z===receiver.z);
+                if(!local)return used;
+                if(directSorterOutlet(receiver).status!=="CLOSED_DIRECT_OUTLET")
+                    return used;
+            }
+            // Only after the cheap positive home topology preflight may
+            // the original source-wide cycle/foreign-path safety run.
             const safety=receiverLinkSafety(receiver);
             if (safety.decision==="NO_MANAGED_INPUT") {
                 governedLane="LEGACY_UNGOVERNED";
