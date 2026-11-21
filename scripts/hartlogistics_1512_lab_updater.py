@@ -41,7 +41,7 @@ ALLOWED_CHANGED={
 REVIEWED_BLOBS={
     "behavior_pack/manifest.json":"4e81e5460cad44c1841cc2c49f08cdf68dddcdbe",
     "resource_pack/manifest.json":"2dae66a96b50198759a1043078a886fd3f65c5ea",
-    "behavior_pack/scripts/main.js":"6359c1b39bf658107280e92fc788b1803cf8697f",
+    "behavior_pack/scripts/main.js":"60265eceab2eec611514e932233031a54b7419c8",
     "behavior_pack/scripts/urce_159_direct_sorter_home.js":"a2d81d035b4bcb478e99779b7b1bebe44666f51b"
 }
 
