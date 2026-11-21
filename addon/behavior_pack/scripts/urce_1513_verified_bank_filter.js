@@ -175,20 +175,7 @@ export function inspectVerifiedBankFilterHome({
     return block;
   }
   const nextReceivers=[{r:receiver,hops:0}],visitedR=new Set();
-  // Even on a directly credited Filter endpoint, an already saved input
-  // source that is missing or changed cannot silently become a known
-  // contributor. Queue origin is not indexed by Collector, so every linked
-  // incoming source must remain physically identifiable.
-  try {
-    for(const c of collectors){
-      if(c.link!==receiver.id)continue;
-      const block=native(c.d,c);
-      if(block.typeId!==COLLECTOR)
-        return hold("incoming_collector_unavailable");
-      if(powered(block))return hold("incoming_collector_powered");
-    }
-  }catch(_){return hold("incoming_collector_unverified");}
-  const candidates=[];let unknown;
+  const candidates=[];
   try {
     for(let idx=0;idx<nextReceivers.length;idx++){
       if(nextReceivers.length>maxBanks)throw Error("bank_hop_limit");
@@ -200,6 +187,17 @@ export function inspectVerifiedBankFilterHome({
         throw Error("bank_receiver_missing");
       if(powered(receiverBlock))
         throw Error("bank_receiver_powered");
+      // Q4 has no persisted per-Collector provenance. Reverify ALL
+      // incoming Collector identities for EACH reached Receiver, not only
+      // the originating Receiver. An unseen missing/changed contributor
+      // cannot silently vanish from the graph proof.
+      for(const incoming of collectors){
+        if(incoming.link!==r.id)continue;
+        const live=native(incoming.d,incoming);
+        if(live.typeId!==COLLECTOR)
+          throw Error("incoming_collector_unavailable");
+        if(powered(live))throw Error("incoming_collector_powered");
+      }
       const out=native(r.d,{x:r.x,y:r.y-1,z:r.z});
       if(out.typeId!==HOPPER)throw Error("bank_receiver_output_not_hopper");
       let facing;
@@ -286,6 +284,10 @@ export function inspectVerifiedBankFilterHome({
             exits.set(c.id,c);
           }else if(adj.typeId===RECEIVER){
             if(k!==key(r.d,r))throw Error("multiple_receivers_one_visual_bank");
+          }else if(adj.typeId.startsWith("hartsorter:")){
+            // No unregistered Sorter/Bulk/managed block touching this
+            // logical bank can be silently treated as harmless stone.
+            throw Error("unregistered_managed_bank_boundary");
           }
         }
         if(pipeNeighbors>2)throw Error("ambiguous_branched_pipe_run");
