@@ -50,7 +50,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
                   blocked=false,legacy=false,direct=false,directSideChest=false,
                   directedTerminalChest=false,directedTerminalInert=false,
                   managedBacklog=0,remoteBank=false,remoteFilterId="minecraft:cobblestone",
-                  remoteCycle=false,remoteUnknownHopper=false}={}) {
+                  remoteCycle=false,remoteUnknownHopper=false,remoteNoTerminal=false}={}) {
   const metrics=counters();
   const blocks=new Map(), properties=new Map(), timers=[], intervals=[], listeners=new Map();
   let currentTick=0;
@@ -192,10 +192,12 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     block("hartsorter:transporter",{x:80021,y:70,z:0});
     for(let x=80021;x<=80023;x++)
       block("hartsorter:transporter",{x,y:69,z:0});
-    const terminal={x:80024,y:69,z:0};
-    block("hartsorter:collector",terminal);
-    cols.push({id:key(DIM,terminal),d:DIM,...terminal,present:true,
-      link:remoteCycle?recs[0].id:null,accepted:0});
+    if(!remoteNoTerminal){
+      const terminal={x:80024,y:69,z:0};
+      block("hartsorter:collector",terminal);
+      cols.push({id:key(DIM,terminal),d:DIM,...terminal,present:true,
+        link:remoteCycle?recs[0].id:null,accepted:0});
+    }
     if(remoteUnknownHopper)block("minecraft:hopper",
       {x:80022,y:69,z:1},{items:[]});
     block("minecraft:hopper",{x:80023,y:69,z:-1},{items:[]});
@@ -472,6 +474,19 @@ test("FULL-NATIVE-12 actual shipped two-bank Q4 -> saved Collector link -> live 
     "The original Q4 enqueue/dequeue journal is the sole owner");
   assert.equal(n(counts,"World.setDynamicProperty.hartsorter:journal_v1"),0,
     "No fake physical Sorter custody writer");
+});
+test("FULL-NATIVE-14 valid second bank without terminal Collector still credits its Filter chest",async()=>{
+  const f=fixture({sorters:0,collectors:1,receivers:2,remoteBank:true,remoteNoTerminal:true});
+  await f.loadFullRuntime();f.advance(7);
+  f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+  f.metrics.reset();f.advance(1);
+  const {counts}=publish("terminal Collector optional: source-specific closed two-bank Filter proof rescues old ambiguous visual HOLD",f,1);
+  assert.equal(f.remoteChests[0].inspect()[0],4);
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q1")).q,0);
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q2")).q,0);
+  assert.equal(f.receiverOutputs[0].inspect()[0],0);
+  assert.ok(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1")>=4);
+  assert.equal(n(counts,"World.setDynamicProperty.hartsorter:journal_v1"),0);
 });
 test("FULL-NATIVE-13 unknown remote claim and a physical bank cycle cannot debit Q4",async()=>{
   for(const opts of [
