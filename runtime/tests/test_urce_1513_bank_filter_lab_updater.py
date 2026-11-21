@@ -160,7 +160,7 @@ class GovernedBank1513UpgradeTests(unittest.TestCase):
         stable=(ROOT/"distribution/Start-HartLogistics-Lab.ps1").read_text()
         versioned=(ROOT/"distribution/Start-HartLogistics-1513Lab.ps1").read_text()
         self.assertIn("'1.5.13' = 'Start-HartLogistics-1513Lab.ps1'",stable)
-        self.assertIn("dev/urce-1513-inert-native-terminus-20261120",stable)
+        self.assertIn("dev/urce-1513-governed-bank-filter-20261121",stable)
         for needle in ("--confirm-lab-only","--check-lab","--apply",
                        "hartlogistics_1513_lab_updater.py","-ExpectedCommit",
                        "Invoke-HartLogisticsNativeGit"):
