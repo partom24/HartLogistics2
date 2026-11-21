@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.1) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.2) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -663,7 +663,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.1 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.2 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -746,18 +746,41 @@ function labBankForReceiver(key){
 }
 function labDiscover(b) {
     if (b.revision===b.generation && (b.net || labTick<b.retry)) return b.net;
+    if (b.revision !== b.generation) b.discoveryChunks = undefined;
     b.revision=b.generation;
     b.cache=null;
     const {dimension,receiver,name}=b.cfg;
-    b.discoveries++;
-    b.watched=new Set([positionKey(receiver)]);
+    let waiting = false;
     try {
-        if(labGet(dimension,receiver)?.typeId!==RECEIVER_ID) throw Error('Receiver missing or unloaded');
+        if (b.discoveryChunks && !coverChunks(b,b.discoveryChunks)) {
+            b.retry=labTick+8;
+            return null;
+        }
+        b.discoveries++;
+        b.watched=new Set([positionKey(receiver)]);
+        function read(p) {
+            b.watched.add(positionKey(p));
+            b.reads++;
+            const block=labGet(dimension,p);
+            if (block) return block;
+            const x=Math.floor(p.x/16), z=Math.floor(p.z/16);
+            const key=dimension+'_'+x+'_'+z;
+            const chunks=b.discoveryChunks ??= new Map();
+            if (chunks.has(key)) throw Error('Block unreadable in ticking chunk at '+positionKey(p));
+            chunks.set(key,{dimension,x:x*16,y:p.y,z:z*16});
+            waiting=true;
+            throw Error('Loading discovery chunk at '+positionKey(p));
+        }
+        if(read(receiver).typeId!==RECEIVER_ID) throw Error('Receiver missing');
         const reg=JSON.parse(world.getDynamicProperty(name) || '{}');
-        b.net=discover(receiver,reg,p=>{b.watched.add(positionKey(p));b.reads++;return labGet(dimension,p);},SORTER_ID);
+        b.net=discover(receiver,reg,read,SORTER_ID);
+        b.discoveryChunks=undefined;
         if(b.net.method===PIPE)for(const p of b.net.lane)refreshPipe(labGet(dimension,p));
         b.blocked='';
-    } catch(err) {b.net=null;b.blocked=String(err);b.retry=labTick+100;}
+    } catch(err) {
+        b.net=null;b.blocked=String(err);b.retry=labTick+(waiting?8:100);
+        if (!waiting) b.discoveryChunks=undefined;
+    }
     return b.net;
 }
 // Each offset pairs an adjacent position with the output face pointing back to the Collector.
@@ -1199,6 +1222,9 @@ function coverRoute(b, source) {
         const p = source.loc, x=Math.floor(p.x/16), z=Math.floor(p.z/16);
         chunks.set(source.dimension+'_'+x+'_'+z,{dimension:source.dimension,x:x*16,y:p.y,z:z*16});
     }
+    return coverChunks(b,chunks);
+}
+function coverChunks(b,chunks) {
     let ready = true;
     const manager = world.tickingAreaManager;
     if (!manager) { labMarkHold(b,'Script ticking areas unavailable'); return false; }
@@ -1363,7 +1389,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.1 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.2 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1429,6 +1455,9 @@ system.runInterval(()=>{
     labTick++;
     for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b))labTickActive(b);}catch(err){labMarkHold(b,String(err));}}
     if(labTick%16===0)releaseIdleChunks();
-    if(labTick%8===0)labProcessInputs();
+    if(labTick%8===0){
+        for(const bank of Object.values(labBanks))if(bank.discoveryChunks)labDiscover(bank);
+        labProcessInputs();
+    }
 },1);
 

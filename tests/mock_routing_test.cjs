@@ -158,7 +158,7 @@ assert.equal(evalBank(a,'labBuildIndex(b).total'),41);
 const read=dim.getBlock;
 dim.getBlock=p=>posKey(p)===posKey(last.location)?undefined:read(p);
 event('hartlab:refresh');drain();
-assert.match(evalBank(a,'b.blocked'),/Unavailable/);
+assert.match(evalBank(a,'b.blocked'),/Loading discovery chunk/);
 dim.getBlock=read;
 event('hartlab:refresh');drain();
 assert.equal(evalBank(a,'b.net.lane.length'),10);
@@ -400,3 +400,26 @@ caps.input.setItem(0,new Stack(ordinary,64));ticks(64);
 assert.equal(caps.input.count(ordinary),64);
 assert.equal(JSON.parse(properties.get(lastBulk)).items[ordinary],10);
 console.log('PASS: multiple Bulk members, verified exhaustion, disconnected path and restart journal phases');
+
+// Cold discovery crosses three consecutive chunk boundaries without player movement.
+const coldBank=bank(4804,50,203,-1,0,52,1);
+const unloaded=new Set([299,298,297]);
+const originalRead=dim.getBlock;
+dim.getBlock=function(p){
+    if(p.z===203 && unloaded.has(Math.floor(p.x/16)))return undefined;
+    return originalRead.call(this,p);
+};
+const awakened=[];
+world.tickingAreaManager.createTickingArea=(id,options)=>({then(resolve){
+    const x=Math.floor(options.from.x/16);
+    if(unloaded.delete(x))awakened.push(x);
+    resolve();
+}});
+context.coldReceiver=coldBank.rk;
+vm.runInContext('labDiscover(labBankForReceiver(coldReceiver))',context);
+ticks(120);
+assert.deepEqual(awakened,[299,298,297]);
+assert.equal(evalBank(coldBank,'b.net.lane.length'),52);
+assert.equal(evalBank(coldBank,'b.dispatched'),0);
+dim.getBlock=originalRead;
+console.log('PASS: discovery automatically loads three successive unavailable chunks');
