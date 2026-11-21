@@ -67,10 +67,15 @@ export function discover(receiver, registration, read, sorterId) {
         if(block(p).typeId===PIPE)throw Error('Hopper output enters a Transporter. Use a dedicated lane for each method.');
         terminal=p;
     }
-    const bulk=new Map(), collectorExits=new Map();
+    const bulk=new Map(), collectorExits=new Map(), hopperFeeds=[];
     for(const [tapIndex,p] of lane.entries()){
         for (const side of neighbors) {
             const start = step(p,side);
+            if(method===HOPPER && side===up && !visited.has(positionKey(start))){
+                const above=block(start);
+                if(above.getComponent('minecraft:inventory')?.container)
+                    hopperFeeds.push({position:start,tap:p});
+            }
             if(method===PIPE && block(start).typeId==='hartsorter:collector' && !collectorExits.has(positionKey(start)))
                 collectorExits.set(positionKey(start),{position:start,tap:p});
             if(block(start).typeId==='hartlogistics:bulk_storage' && !bulk.has(positionKey(start)))
@@ -98,5 +103,5 @@ export function discover(receiver, registration, read, sorterId) {
     const ordered=[...spots.values()].filter(s=>!s.ambiguous);
     ordered.sort((a,b)=>tapOrder.get(positionKey(a.tap))-tapOrder.get(positionKey(b.tap))
         || a.x-b.x || a.z-b.z || a.y-b.y);
-    return {collectorExits:[...collectorExits.values()],bulk:[...bulk.values()],method, parents, lane, directions, terminal, taps:visited, spots:ordered};
+    return {hopperFeeds,collectorExits:[...collectorExits.values()],bulk:[...bulk.values()],method, parents, lane, directions, terminal, taps:visited, spots:ordered};
 }

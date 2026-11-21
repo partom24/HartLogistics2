@@ -21,6 +21,7 @@ class Stack {
 }
 class Container {
   constructor(size){this.size=size;this.slots=Array(size).fill(undefined);}
+  get emptySlotsCount(){return this.slots.filter(item=>!item).length;}
   getItem(i){return this.slots[i]?.clone();}
   setItem(i,v){this.slots[i]=v?.clone();}
   addItem(s){
@@ -698,3 +699,48 @@ assert.ok(bookTap.getItem(0));
 assert.equal(bookTap.count(bookId),1);
 assert.equal(evalBank(bookLane,'b.laneDelivered'),4);
 console.log('PASS: inline Protection filter moves four original books and leaves Mending in the hopper');
+
+// Only the feed chunk initially ticks. After the player leaves, every
+// simulated native pull and forward below requires a live temporary area.
+const unattended=bank(20000,80,800,-1,0,48,1);
+const feedIndex=21,feedPos=unattended.hoppers[feedIndex].location;
+const inlineFeed=place('minecraft:chest',feedPos.x,feedPos.y+1,feedPos.z).inv;
+vm.runInContext('labLoadState()',context);drain();ticks(96);
+const manager=world.tickingAreaManager;
+const areaIds=new Map(), chunk=p=>Math.floor(p.x/16)+','+Math.floor(p.z/16);
+let playerChunk=chunk(feedPos);
+const canTick=p=>chunk(p)===playerChunk || [...areaIds.values()].includes(chunk(p));
+const createArea=manager.createTickingArea,removeArea=manager.removeTickingArea;
+manager.createTickingArea=(id,opts)=>{
+    if(opts.from.x>=19936 && opts.from.x<=20016 && [784,800].includes(opts.from.z))areaIds.set(id,chunk(opts.from));
+    return createArea(id,opts);
+};
+manager.removeTickingArea=id=>{areaIds.delete(id);removeArea.call(manager,id);};
+const readBlock=dim.getBlock;
+dim.getBlock=p=>p.x>=19950 && p.x<=20005 && p.z>=799 && p.z<=801 && !canTick(p)
+    ? undefined : readBlock.call(dim,p);
+const cargoType=fixtureItem(47,1);
+ticks(64);
+assert.equal(areaIds.size,0);
+inlineFeed.setItem(0,new Stack(cargoType,32));
+ticks(4);
+assert.ok(areaIds.size>0,'occupied inline feed must wake a remote receiver and destination');
+playerChunk=undefined;
+for(let cycle=0;cycle<64;cycle++){
+    ticks(8);
+    for(let j=unattended.hoppers.length-2;j>=feedIndex;j--){
+        const from=unattended.hoppers[j],to=unattended.hoppers[j+1];
+        if(canTick(from.location)&&canTick(to.location)&&from.inv.getItem(0))
+            from.inv.transferItem(0,to.inv);
+    }
+    if(canTick(feedPos)&&inlineFeed.getItem(0)){
+        const remaining=inlineFeed.getItem(0).amount-1;
+        unattended.hoppers[feedIndex].inv.addItem(new Stack(cargoType,1));
+        inlineFeed.setItem(0,remaining?new Stack(cargoType,remaining):undefined);
+    }
+}
+assert.equal(unattended.chests.at(-1).count(cargoType),32);
+assert.equal(evalBank(unattended,'b.dispatched'),0);
+ticks(96);assert.equal(areaIds.size,0);
+dim.getBlock=readBlock;manager.createTickingArea=createArea;manager.removeTickingArea=removeArea;
+console.log('PASS: inline feed wakes unloaded Hopper route, drains after player departure and releases its areas');

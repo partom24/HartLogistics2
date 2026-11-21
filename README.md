@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.5.11
+# HartLogistics Fresh LAB 0.5.12
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -93,3 +93,7 @@ Deferred chunk discovery now completes the Sorter index on an idle bank. Status 
 ### 0.5.11 inline enchanted books
 
 An inline Hopper can deliver an enchanted book to an adjacent native inventory at a matching Sorter. The filter compares enchantment types and the native slot move preserves the original book. Collector overflow rules are unchanged.
+
+### 0.5.12 temporary ticking areas for inline Hopper input
+
+A registered Hopper lane checks for stock in inventories directly above its Hoppers, at its inlet, and at a rotating lane position. These checks use loaded chunks. Once stock is detected, the bank requests its discovered route through the shared temporary ticking-area manager. While inline coverage is active, it checks the lane and feed inventories every 16 ticks. After they drain, the areas expire through the existing shared idle cleanup. Status shows `inline coverage=true` while coverage is requested. Collector dispatch counters still count only Collector shipments.
