@@ -203,3 +203,25 @@ assert.equal(b.input.count(brick),0);
 assert.equal(intake.inv.count(brick),0);
 assert.equal(b.chests.at(-1).count(brick),initial+64);
 console.log('PASS: locked and empty feeder reserve intake, source 63 + feeder 1 delivered through feeder');
+
+// Each chest has one empty slot. Seven stacks must fill column one,
+// then the lowest three chests of column two. Fixture arrays run top to bottom.
+const overflow=bank(-182,43,217,0,1,2,4);
+banks.push(overflow);
+const plank='minecraft:oak_planks';
+for(const sorter of overflow.sorters){
+  const key='hartlab:s_o_'+Object.values(sorter.location).join('_');
+  const config=JSON.parse(properties.get(key));
+  config.f.match.typeId=plank;
+  properties.set(key,JSON.stringify(config));
+}
+for(const chest of overflow.chests){
+  for(let i=1;i<chest.size;i++)chest.setItem(i,new Stack('minecraft:dirt',64));
+}
+for(let slot=0;slot<7;slot++)overflow.input.setItem(slot,new Stack(plank,64));
+vm.runInContext('labLoadState()',context);
+ticks(3000);
+assert.deepEqual(overflow.chests.map(c=>c.count(plank)),[64,64,64,64,0,64,64,64]);
+assert.equal(overflow.input.count(plank),0);
+assert.equal(evalBank(overflow,'b.confirmed'),448);
+console.log('PASS: seven-stack overflow fills second column bottom up');

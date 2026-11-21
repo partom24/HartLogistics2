@@ -63,5 +63,11 @@ export function discover(receiver, registration, read, sorterId) {
             }
         }
     }
-    return {lane, directions, terminal, taps:visited, spots:[...spots.values()].filter(s=>!s.ambiguous)};
+    // Follow lane order, keep each physical column together, then order Sorters
+    // from its lowest eligible Sorter to its highest. Do this once per discovery.
+    const tapOrder=new Map(lane.map((tap,i)=>[positionKey(tap),i]));
+    const ordered=[...spots.values()].filter(s=>!s.ambiguous);
+    ordered.sort((a,b)=>tapOrder.get(positionKey(a.tap))-tapOrder.get(positionKey(b.tap))
+        || a.x-b.x || a.z-b.z || a.y-b.y);
+    return {lane, directions, terminal, taps:visited, spots:ordered};
 }

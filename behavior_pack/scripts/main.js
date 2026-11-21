@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.3.1) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.3.2) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -644,7 +644,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.3.1 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
+system.run(()=>log('0.3.2 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -914,6 +914,8 @@ function labTryDispatch(b,key,source,slot,item,target){
     if(moved===0){b.active=null;labPersistActive(b);return false;}
     active.sent=moved;b.dispatched+=moved;b.blocked='';
     try{labPersistActive(b);}catch(err){b.recovery=true;labMarkHold(b,`persist after dispatch: ${err}`);}
+    // A destination on the inlet is already reached. Service it before native movement.
+    if(!b.recovery && positionKey(target.p.tap)===positionKey(b.net.lane[0]))labTickActive(b);
     return true;
 }
 function labTryCollector(b,collectorKey){
@@ -1013,7 +1015,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.3.1 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.3.2 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){

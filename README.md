@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.3.1
+# HartLogistics Fresh LAB 0.3.2
 
 This LAB build discovers native Hopper lanes from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -14,6 +14,8 @@ Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](G
 - For an offset column, select the Receiver as above, look at its lane Hopper and run `/scriptevent hartlab:select_tap`, then look at a Sorter in the column and run `/scriptevent hartlab:bind_column`. Repeat for additional columns. Registering a new inlet replaces the previous inlet. Column bindings only apply while the anchor is a Sorter and the tap is reachable.
 - Directed loops, unknown outputs, unavailable blocks and competing downward Hopper pulls suspend discovery. Player block edits in the discovered area invalidate that Receiver's index. Use `/scriptevent hartlab:refresh` after command, piston or external edits.
 - FILTER and seeded AUTO destinations precede WILDCARD. BYPASS is excluded. A full specific destination holds the item at source. Facing-side storage has priority among compatible adjacent inventories. The lane itself is excluded from destination selection.
+
+Within each destination priority group, columns follow the discovered Hopper lane. Each column fills from the lowest eligible Sorter upward. A shipment must fit in its selected inventory.
 
 ## Collector input
 

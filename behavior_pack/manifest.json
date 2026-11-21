@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartLogistics Fresh LAB BP",
-    "description": "Fresh LAB 0.3.1: 1.4.1 assets and controls; addressed physical Hopper routing",
+    "description": "Fresh LAB 0.3.2: 1.4.1 assets and controls; addressed physical Hopper routing",
     "uuid": "f450bff5-6b68-42e5-a07d-616f87c01918",
     "version": [
       0,
       3,
-      1
+      2
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         0,
         3,
-        1
+        2
       ]
     },
     {
@@ -32,7 +32,7 @@
       "version": [
         0,
         3,
-        1
+        2
       ],
       "entry": "scripts/main.js"
     }
@@ -47,7 +47,7 @@
       "version": [
         0,
         3,
-        1
+        2
       ]
     }
   ],
