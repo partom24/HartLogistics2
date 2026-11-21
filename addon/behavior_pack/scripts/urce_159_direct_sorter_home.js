@@ -73,7 +73,7 @@ const NATIVE_INERT_TERMINI=new Set([
   "minecraft:netherite_block","minecraft:copper_block",
   "minecraft:amethyst_block","minecraft:planks"
 ]);
-const NATIVE_COLOR_BLOCK=/^minecraft:(?:white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_(?:concrete|concrete_powder|terracotta|glazed_terracotta|wool|stained_glass)$/;
+const NATIVE_COLOR_BLOCK=/^minecraft:(?:white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_(?:concrete|terracotta|glazed_terracotta|wool|stained_glass)$/;
 const NATIVE_WOOD_PLANK=/^minecraft:(?:oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped|pale_oak)_planks$/;
 export function isKnownInertNativeStop(typeId) {
   return typeof typeId==="string"&&(
