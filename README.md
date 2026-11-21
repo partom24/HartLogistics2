@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.5.10
+# HartLogistics Fresh LAB 0.5.11
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -89,3 +89,7 @@ LAB baseline on 0.5.8: with the Collector idle, all 256 chest-fed stone bricks b
 ### 0.5.10 cold registration fix
 
 Deferred chunk discovery now completes the Sorter index on an idle bank. Status shows the number of passive filter taps and cumulative readable tap checks. These counters distinguish a registered lane from one actively checking its Hoppers.
+
+### 0.5.11 inline enchanted books
+
+An inline Hopper can deliver an enchanted book to an adjacent native inventory at a matching Sorter. The filter compares enchantment types and the native slot move preserves the original book. Collector overflow rules are unchanged.

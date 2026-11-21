@@ -679,3 +679,22 @@ assert.equal(catchChest.count(stone),0);
 assert.equal(evalBank(injected,'b.laneDelivered'),320);
 assert.equal(evalBank(injected,'b.confirmed'),64);
 console.log('PASS: 256 inline stone bricks reach their downstream filter; 64 more alongside a separately accounted oak shipment');
+
+const bookLane=bank(16100,72,680,-1,0,2,1);
+const protectKey='hartlab:s_o_'+Object.values(bookLane.sorters[1].location).join('_');
+const protectConfig=JSON.parse(properties.get(protectKey));
+protectConfig.f.match={typeId:bookId,enchIds:['minecraft:protection']};
+properties.set(protectKey,JSON.stringify(protectConfig));
+vm.runInContext('labLoadState()',context);drain();ticks(40);
+const bookTap=bookLane.hoppers[1].inv;
+const bookOutput=bookLane.chests[1];
+bookTap.setItem(0,originals[0]); // Mending shares Protection's base item ID.
+for(let i=1;i<=4;i++)bookTap.setItem(i,originals[1]);
+const waiting=bookTap.slots.slice(1,5);
+ticks(4);
+assert.deepEqual(bookOutput.slots.slice(0,4),waiting);
+waiting.forEach((item,i)=>assert.equal(bookOutput.slots[i],item));
+assert.ok(bookTap.getItem(0));
+assert.equal(bookTap.count(bookId),1);
+assert.equal(evalBank(bookLane,'b.laneDelivered'),4);
+console.log('PASS: inline Protection filter moves four original books and leaves Mending in the hopper');

@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.10) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.11) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -671,7 +671,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.10 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.11 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -1487,6 +1487,24 @@ function* mrOutputs(bank,item){
 function mrSlotKey(source,slot){
     return keyFor('mr',source.dimension,source.loc)+'_'+slot;
 }
+function mrMoveToInventory(source,slot,item,out,d){
+    const dest=out.container;
+    for(let targetSlot=0;targetSlot<dest.size;targetSlot++){
+        if(dest.getItem(targetSlot))continue;
+        // No yield to Bedrock between reading this source slot, resolving
+        // its filter and moving it. Never copy/recreate a disputed stack.
+        const fence=mrSlotKey(source,slot);
+        world.setDynamicProperty(fence,JSON.stringify({source:source.loc,dimension:source.dimension,
+            slot,target:out.position,targetDimension:d,targetSlot,item:item.typeId,amount:item.amount}));
+        source.container.moveItem(slot,targetSlot,dest);
+        const received=dest.getItem(targetSlot);
+        if(source.container.getItem(slot) || received?.typeId!==item.typeId || received.amount!==item.amount)
+            throw Error('MR receipt uncertain at '+d+' '+positionKey(out.position)+' slot '+targetSlot);
+        world.setDynamicProperty(fence,undefined);
+        return true;
+    }
+    return false;
+}
 function mrDeliver(bank,source,slot,item){
     const visited=new Set();
     const path=[];
@@ -1518,19 +1536,7 @@ function mrDeliver(bank,source,slot,item){
             const a=labGet(d,origin)?.typeId,z=labGet(d,endpoint)?.typeId;
             if(a===z && (a==='minecraft:chest' || a==='minecraft:trapped_chest'))continue;
         }
-        const dest=out.container;
-        for(let targetSlot=0;targetSlot<dest.size;targetSlot++){
-            if(dest.getItem(targetSlot))continue;
-            // No yield to Bedrock between reading this source slot, resolving
-            // its filter and moving it. Never copy/recreate a disputed stack.
-            const fence=mrSlotKey(source,slot);
-            world.setDynamicProperty(fence,JSON.stringify({source:source.loc,dimension:source.dimension,
-                slot,target:out.position,targetDimension:d,targetSlot,item:item.typeId,amount:item.amount}));
-            source.container.moveItem(slot,targetSlot,dest);
-            const received=dest.getItem(targetSlot);
-            if(source.container.getItem(slot) || received?.typeId!==item.typeId || received.amount!==item.amount)
-                throw Error('MR receipt uncertain at '+d+' '+positionKey(out.position)+' slot '+targetSlot);
-            world.setDynamicProperty(fence,undefined);
+        if(mrMoveToInventory(source,slot,item,out,d)){
             for(const hop of path){
                 hop.bank.dispatched+=item.amount;hop.bank.confirmed+=item.amount;
                 hop.bank.lastDestination=out.position;hop.bank.blocked='';
@@ -1654,7 +1660,9 @@ function serviceLaneInputs(b,banks){
         if(!inv || inv.emptySlotsCount===inv.size)continue;
         for(let slot=0;slot<inv.size;slot++){
             const item=inv.getItem(slot);
-            if(!item || !candidates.some(c=>c.filter.match.typeId===item.typeId) || !bulkOrdinary(item))continue;
+            if(!item || !candidates.some(c=>c.filter.match.typeId===item.typeId))continue;
+            const book=item.typeId==="minecraft:enchanted_book";
+            if(!book && !bulkOrdinary(item))continue;
             // Other Receivers can share this physical lane. A recovery owns
             // all its contents; a live shipment owns indistinguishable cargo.
             if(banks.some(other=>other.active && other.cfg.dimension===b.cfg.dimension &&
@@ -1662,7 +1670,16 @@ function serviceLaneInputs(b,banks){
                 other.active.lane.some(tap=>positionKey(tap)===positionKey(p))))continue;
             if(world.getDynamicProperty(mrSlotKey({dimension:b.cfg.dimension,loc:p},slot))!==undefined)continue;
             for(const c of candidates){
+                if(book && !c.filter.match.enchIds?.length)continue;
                 if(!matchesFilter(item,c.filter))continue;
+                if(book){
+                    const source={dimension:b.cfg.dimension,loc:p,container:inv};
+                    const moved=labAdjacentInventories(c,true,true).some(out=>
+                        !out.relay && mrMoveToInventory(source,slot,item,out,b.cfg.dimension));
+                    if(!moved)continue;
+                    b.laneDelivered=(b.laneDelivered||0)+item.amount;
+                    break;
+                }
                 const output=labAdjacentInventories(c,true).find(out=>labCanFitEntire(out.container,item));
                 if(!output)continue;
                 const moved=labSafeTransfer(inv,slot,output.container,item);
@@ -1719,7 +1736,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.10 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.11 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
