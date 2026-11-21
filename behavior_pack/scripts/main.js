@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.0) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.1) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -663,7 +663,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.0 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.1 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -1144,6 +1144,7 @@ function bulkRefill(b){
         const types=Object.keys(a.state.items);
         for(let i=0;i<types.length;i++){
             const id=types[(i+(b.bulkCursor||0))%types.length];
+            if(!coverRoute(b))return false;
             const item=new ItemStack(id,1);
             item.amount=Math.min(item.maxAmount,a.state.items[id]);
             const index=labBuildIndex(b);
@@ -1169,6 +1170,73 @@ function bulkRefill(b){
     }
 }
 
+// Temporary areas belong to this pack. Share overlapping chunks between banks.
+const routeChunks = new Map();
+function coverRoute(b, source) {
+    const net = b.active || b.net;
+    if (!net) return false;
+    if (b.coverageNet !== net) {
+        const chunks = new Map();
+        const add = (dimension, p, margin = 0) => {
+            if (!p) return;
+            for (let x = Math.floor((p.x-margin)/16); x <= Math.floor((p.x+margin)/16); x++)
+                for (let z = Math.floor((p.z-margin)/16); z <= Math.floor((p.z+margin)/16); z++)
+                    chunks.set(dimension+'_'+x+'_'+z, {dimension,x:x*16,y:p.y,z:z*16});
+        };
+        const d = b.cfg.dimension;
+        for (const p of net.lane) add(d,p);
+        for (const p of net.spots || []) add(d,p,1);
+        for (const p of net.bulk || []) add(d,p,1);
+        add(d,b.cfg.receiver);
+        add(d,net.terminal);
+        add(d,net.target?.p,1);
+        add(d,net.target?.destination);
+        b.coverageNet = net;
+        b.coverageChunks = chunks;
+    }
+    const chunks = new Map(b.coverageChunks);
+    if (source) {
+        const p = source.loc, x=Math.floor(p.x/16), z=Math.floor(p.z/16);
+        chunks.set(source.dimension+'_'+x+'_'+z,{dimension:source.dimension,x:x*16,y:p.y,z:z*16});
+    }
+    let ready = true;
+    const manager = world.tickingAreaManager;
+    if (!manager) { labMarkHold(b,'Script ticking areas unavailable'); return false; }
+    let additional = 0;
+    for (const key of chunks.keys()) if (!routeChunks.has(key)) additional++;
+    if (additional + routeChunks.size > manager.maxChunkCount) {
+        labMarkHold(b,'Waiting for ticking chunk capacity'); return false;
+    }
+    for (const [key,p] of chunks) {
+        let entry = routeChunks.get(key);
+        if (!entry) {
+            const point = {x:p.x,y:p.y,z:p.z};
+            const options = {dimension:world.getDimension(p.dimension),from:point,to:point};
+            if (!manager.hasCapacity(options)) { labMarkHold(b,'Waiting for ticking chunk capacity'); return false; }
+            const id = 'hart_route_'+key.replace(/:/g,'_');
+            entry = {id,ready:false,last:labTick};
+            routeChunks.set(key,entry);
+            try {
+                manager.createTickingArea(id,options).then(() => {entry.ready=true;},err => {
+                    routeChunks.delete(key); labMarkHold(b,String(err));
+                });
+            } catch(err) {routeChunks.delete(key); throw err;}
+        }
+        entry.last = labTick;
+        if (!entry.ready) ready=false;
+    }
+    return ready;
+}
+function releaseIdleChunks() {
+    for (const [key,entry] of routeChunks) {
+        if (entry.ready && labTick-entry.last >= 32) {
+            try {
+                world.tickingAreaManager.removeTickingArea(entry.id);
+                routeChunks.delete(key);
+            } catch(err) { log('Ticking area release: '+err); }
+        }
+    }
+}
 function labTryCollector(b,collectorKey){
     try{
         const sources=labCollectorSources(collectorKey);
@@ -1177,7 +1245,7 @@ function labTryCollector(b,collectorKey){
             const index=(offset+i)%sources.length;
             const source=sources[index],inv=source.container,size=inv.size;
             if(inv.emptySlotsCount===size)continue;
-            if(!labDiscover(b))return false;
+            if(!labDiscover(b) || !coverRoute(b,source))return false;
             if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
             for(let slot=0;slot<size;slot++){
                 const item=inv.getItem(slot);
@@ -1295,11 +1363,11 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.0 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.1 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
-    const lines=[];
+    const lines=['Temporary routing chunks: '+routeChunks.size+' / '+(world.tickingAreaManager?.maxChunkCount ?? 'unavailable')];
     if(startupHold)lines.push(startupHold);
     const receivers=new Set(labCollectorKeys.map(labLinkedReceiver).filter(Boolean));
     for(const key of receivers){
@@ -1359,7 +1427,8 @@ system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
 system.run(labLoadState);
 system.runInterval(()=>{
     labTick++;
-    for(const b of Object.values(labBanks))if(b.active)labTickActive(b);
+    for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b))labTickActive(b);}catch(err){labMarkHold(b,String(err));}}
+    if(labTick%16===0)releaseIdleChunks();
     if(labTick%8===0)labProcessInputs();
 },1);
 

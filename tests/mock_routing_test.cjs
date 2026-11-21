@@ -54,7 +54,7 @@ function makeBlock(typeId,p){
   b.setPermutation=(per)=>{b.permutation=per;};return b;
 }
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
-const world={getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
+const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
 const context=vm.createContext({world,system,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
 vm.runInContext(src.replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
 function event(id){for(const cb of system.afterEvents.scriptEventReceive.handlers){cb({id,sourceEntity:{sendMessage(){}}});}}
@@ -119,6 +119,17 @@ function ticks(n){
     drain();
   }
 }
+world.tickingAreaManager.maxChunkCount=0;
+ticks(16);
+assert.equal(a.input.getItem(0).amount,12);
+world.tickingAreaManager.maxChunkCount=1000;
+const pendingLoads=[];
+world.tickingAreaManager.createTickingArea=()=>({then(resolve){pendingLoads.push(resolve);}});
+ticks(16);
+assert.ok(pendingLoads.length);
+assert.equal(a.input.getItem(0).amount,12);
+for(const resolve of pendingLoads)resolve();
+world.tickingAreaManager.createTickingArea=()=>({then(resolve){resolve();}});
 ticks(300);
 assert.equal(a.chests.at(-1).count('test:item_9_4'),12);
 assert.equal(b.chests.at(-1).getItem(0).nameTag,'Unbroken');
