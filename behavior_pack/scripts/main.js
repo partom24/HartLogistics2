@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.6) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.7) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -638,7 +638,7 @@ world.beforeEvents.playerBreakBlock.subscribe(ev=>{
     const d=b.dimension.id,p=b.location,player=ev.player;
     system.run(()=>{
         const support=getBlock(d,p.x,p.y,p.z),live=support&&entryForBlock(support);
-        if(support?.typeId!==SORTER_ID || !entryHasFrameImplant(live))return;
+        if(support?.typeId!==SORTER_ID || !entryHasFrameImplant(live) || live.f || live.nativeQuarantine)return;
         eraseOwnedFrame(live);
         try{
             if(player?.getGameMode?.()==='Creative')support.setType('minecraft:air');
@@ -646,7 +646,6 @@ world.beforeEvents.playerBreakBlock.subscribe(ev=>{
         }catch(err){log(`Controlled break failed: ${err}`);return;}
         refreshPipeNeighbors(d,p);
         clearEntry(live);
-        if(live.f && live.fc===1)giveOrDrop(player,rebuildItem(live.f));
     });
 });
 world.afterEvents.entityHitBlock.subscribe(ev=>{
@@ -672,7 +671,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.6 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.7 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -827,7 +826,7 @@ function collectorBuffer(block,create=false){
     let entity=id===undefined?undefined:world.getEntity(id);
     if(!entity){
         const matches=dimension.getEntities({type:BUFFER_ENTITY,location:center,maxDistance:0.3});
-        if(matches.length>1 || (id!==undefined && !matches.length))
+        if(matches.length>1 || (id!==undefined && matches[0]?.id!==id))
             throw Error('Collector handoff inventory unavailable at '+positionKey(p));
         entity=matches[0];
         if(!entity && create)entity=dimension.spawnEntity(BUFFER_ENTITY,center);
@@ -847,11 +846,11 @@ function pipeExit(b,item){
             return {pipeExit:true,p:{...position,d:b.cfg.dimension,tap},destination:position,destinationType:COLLECTOR_ID};
     }
 }
-function labCollectorSources(key){
+function labCollectorSources(key,inspect=false){
     const p=labKeyParse(key);
     if(p?.kind!=='c')return [];
     const collector=labGet(p.d,p);
-    if(collector?.typeId!==COLLECTOR_ID || collector.permutation.getState(POWERED)!==false)return [];
+    if(collector?.typeId!==COLLECTOR_ID || (!inspect && collector.permutation.getState(POWERED)!==false))return [];
     const feeders=[];
     let direct,hasFeeder=false;
     for(const [dx,dy,dz,toward] of collectorFaces){
@@ -861,7 +860,7 @@ function labCollectorSources(key){
         if(block.typeId===HOPPER){
             if(block.permutation.getState('facing_direction')!==toward)continue;
             hasFeeder=true;
-            if(!block.permutation.getState('toggle_bit')){
+            if(inspect || !block.permutation.getState('toggle_bit')){
                 const container=labBlockInventory(block);
                 if(container)feeders.push({loc,dimension:p.d,container});
             }
@@ -899,7 +898,7 @@ function labBuildIndex(b){
     if(!missing){b.cache=index;b.cacheRevision=b.generation;}
     return index;
 }
-function labAdjacentInventories(candidate,strict=false){
+function labAdjacentInventories(candidate,strict=false,nativeOnly=false){
     const block=labGet(candidate.p.d,candidate.p);
     if(block?.typeId!==SORTER_ID){if(strict)throw Error('Sorter unavailable');return [];}
     const facing=facingOffset(block);
@@ -916,6 +915,7 @@ function labAdjacentInventories(candidate,strict=false){
         // compatible vanilla/custom inventory blocks are valid destinations.
         const neighbor=labGet(candidate.p.d,p);
         if(strict && !neighbor)throw Error('Output neighbor unavailable');
+        if(nativeOnly && neighbor?.typeId===COLLECTOR_ID){found.push({position:p,relay:true});continue;}
         const inv=neighbor?.typeId===COLLECTOR_ID ? collectorOutput(neighbor,candidate.bankKey) : labBlockInventory(neighbor);
         if(inv && !candidate.lane.has(k))found.push({position:p,container:inv});
     }
@@ -1015,14 +1015,7 @@ function labSafeTransfer(source,slot,dest,expected){
 }
 function labLiveReferenceMatches(inFlight,found){
     if(!inFlight||!found||inFlight.typeId!==found.typeId)return false;
-    // Identical hopper-bound stacks, regardless of stackability, retain the
-    // same original metadata; no item-stack reconstruction is ever performed.
-    try {if(inFlight.isStackable || inFlight.isStackableWith(inFlight))return inFlight.isStackableWith(found);}catch(_){}
-    // When native stacking comparison is unavailable for specialized items,
-    // the dedicated conveyor's one-shipment invariant provides identity.
-    // All normal deposits are native container-to-container moves; metadata
-    // is never serialized or reconstructed.
-    return inFlight.nameTag===found.nameTag;
+    try{return inFlight.isStackableWith(found);}catch(_){return false;}
 }
 function labPersistActive(b){
     try{const v=world.getDynamicProperty(LAB_ROUTE_STATE);
@@ -1046,7 +1039,7 @@ function extendHopperShipment(b,key){
         if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
         for(let slot=0;slot<source.container.size;slot++){
             const item=source.container.getItem(slot);
-            if(!item || !a.reference.isStackableWith(item) || !labCanFitEntire(inlet,item))continue;
+            if(!item || !bulkOrdinary(item) || world.getDynamicProperty(mrSlotKey(source,slot))!==undefined || !a.reference.isStackableWith(item) || !labCanFitEntire(inlet,item))continue;
             // ItemStack.amount cannot exceed its native stack limit.
             let room=0;
             for(let j=0;j<dest.size;j++){
@@ -1169,9 +1162,13 @@ function bulkMembers(b){
         return {...a,p};
     });
 }
+// Some vanilla families carry payloads whose identity is not a Bulk item ID.
+const nativePayload=/^minecraft:(?:.*shulker_box|.*bundle|filled_map|written_book|writable_book|enchanted_book|potion|splash_potion|lingering_potion|tipped_arrow|firework_rocket|firework_star|goat_horn|suspicious_stew|lodestone_compass|ominous_bottle|.*banner|bee_nest|beehive)$/;
 function bulkOrdinary(item){
-    try{return item.typeId.startsWith('minecraft:') && item.maxAmount>1 &&
-        !item.nameTag && !item.getDynamicPropertyIds().length &&
+    try{return item.typeId.startsWith('minecraft:') && !nativePayload.test(item.typeId) && item.maxAmount>1 && item.isStackable===true &&
+        !item.nameTag && !item.keepOnDeath && (!item.lockMode || item.lockMode==='none') &&
+        !item.getLore().length && !item.getCanPlaceOn().length && !item.getCanDestroy().length &&
+        !item.getDynamicPropertyIds().length &&
         item.isStackableWith(new ItemStack(item.typeId,1));}catch(_){return false;}
 }
 function bulkRoom(inv,item){
@@ -1294,6 +1291,7 @@ function bulkRefill(b){
         for(let i=0;i<types.length;i++){
             const id=types[(i+(b.bulkCursor||0))%types.length];
             const item=new ItemStack(id,1);
+            if(!bulkOrdinary(item)){labMarkHold(b,'Unverified legacy Bulk balance: '+id);continue;}
             item.amount=Math.min(item.maxAmount,a.state.items[id]);
             const index=labBuildIndex(b);
             if(index.missing)return false;
@@ -1336,6 +1334,7 @@ function coverRoute(b, source) {
         for (const p of net.lane) add(d,p);
         for (const p of net.spots || []) add(d,p,1);
         for (const p of net.bulk || []) add(d,p,1);
+        for (const exit of net.collectorExits || []) add(d,exit.position);
         add(d,b.cfg.receiver);
         add(d,net.terminal);
         add(d,net.target?.p,1);
@@ -1399,39 +1398,167 @@ function releaseIdleChunks() {
         }
     }
 }
+// MR follows the discovered physical graph, but stays in the original native
+// slot until a final inventory has an empty slot. No intermediate item journal.
+function mrPathReady(bank,tap){
+    const net=bank.net,d=bank.cfg.dimension;
+    if(net.method===PIPE){
+        for(let p=tap;p;p=net.parents.get(positionKey(p))){
+            if(labGet(d,p)?.typeId!==PIPE)return false;
+        }
+        return true;
+    }
+    for(const [i,p] of net.lane.entries()){
+        const block=labGet(d,p);
+        if(block?.typeId!==HOPPER || block.permutation.getState('toggle_bit') ||
+            block.permutation.getState('facing_direction')!==net.directions[i])return false;
+        if(positionKey(p)===positionKey(tap))return true;
+    }
+    return false;
+}
+function mrSeedMatches(inv,item){
+    for(let i=0;i<inv.size;i++){
+        const seed=inv.getItem(i);
+        if(seed?.typeId!==item.typeId)continue;
+        if(POTION_ITEM_IDS.has(item.typeId)){
+            const potion=potionIdentity(seed);
+            if(!potion)throw Error('Unreadable AUTO potion seed');
+            if(!matchesFilter(item,{match:{typeId:item.typeId,potion}}))continue;
+        }else if(item.typeId==='minecraft:enchanted_book'){
+            const ench=seed.getComponent('minecraft:enchantable')?.getEnchantments();
+            if(!ench?.length)throw Error('Unreadable AUTO book seed');
+            if(!matchesFilter(item,{match:{typeId:item.typeId,enchIds:ench.map(e=>e.type.id)}}))continue;
+        }
+        return true;
+    }
+    return false;
+}
+function* mrOutputs(bank,item){
+    const index=labBuildIndex(bank);
+    if(index.missing)throw Error('MR Sorter index incomplete');
+    const sameType=index.filters.get(item.typeId)||[];
+    if(sameType.length || index.autos.length){
+        if(POTION_ITEM_IDS.has(item.typeId) && !potionIdentity(item))throw Error('Unreadable MR potion identity');
+        if(item.typeId==='minecraft:enchanted_book' && !item.getComponent('minecraft:enchantable')?.getEnchantments()?.length)
+            throw Error('Unreadable MR book enchantments');
+    }
+    const filters=sameType.filter(c=>matchesFilter(item,c.filter));
+    let claimed=filters.length>0;
+    for(const list of [filters,index.autos,index.wildcards]){
+        if(list===index.wildcards && claimed)break;
+        for(const c of list){
+            const outputs=labAdjacentInventories(c,true,true);
+            for(const out of outputs){
+                if(c.mode==='auto'){
+                    if(!out.container || !mrSeedMatches(out.container,item))continue;
+                    claimed=true;
+                }
+                if(mrPathReady(bank,c.p.tap))yield out;
+            }
+        }
+    }
+    if(!claimed)for(const exit of bank.net.collectorExits){
+        if(mrPathReady(bank,exit.tap))yield {position:exit.position,relay:true};
+    }
+}
+function mrSlotKey(source,slot){
+    return keyFor('mr',source.dimension,source.loc)+'_'+slot;
+}
+function mrDeliver(bank,source,slot,item){
+    const visited=new Set();
+    const path=[];
+    function enter(next){
+        if(!next || visited.has(next.cfg.name) || next.active || next.recovery)return;
+        visited.add(next.cfg.name);
+        if(labDiscover(next) && coverRoute(next,source) && receiverAccepts(next)){
+            path.push({bank:next,outputs:mrOutputs(next,item)});
+        }
+    }
+    enter(bank);
+    while(path.length){
+        const step=path[path.length-1],result=step.outputs.next();
+        if(result.done){path.pop();continue;}
+        const out=result.value,d=step.bank.cfg.dimension;
+        if(out.relay){
+            const block=labGet(d,out.position);
+            if(block?.typeId===COLLECTOR_ID && block.permutation.getState(POWERED)===false){
+                const link=labLinkedReceiver(keyFor('c',d,out.position));
+                if(link)enter(labBankForReceiver(link));
+            }
+            continue;
+        }
+        if(d===source.dimension && positionKey(source.loc)===positionKey(out.position))continue;
+        // Both halves of a double chest can expose the same native inventory.
+        const origin=source.loc,endpoint=out.position;
+        if(source.dimension===d && origin.y===endpoint.y &&
+            Math.abs(origin.x-endpoint.x)+Math.abs(origin.z-endpoint.z)===1){
+            const a=labGet(d,origin)?.typeId,z=labGet(d,endpoint)?.typeId;
+            if(a===z && (a==='minecraft:chest' || a==='minecraft:trapped_chest'))continue;
+        }
+        const dest=out.container;
+        for(let targetSlot=0;targetSlot<dest.size;targetSlot++){
+            if(dest.getItem(targetSlot))continue;
+            // No yield to Bedrock between reading this source slot, resolving
+            // its filter and moving it. Never copy/recreate a disputed stack.
+            const fence=mrSlotKey(source,slot);
+            world.setDynamicProperty(fence,JSON.stringify({source:source.loc,dimension:source.dimension,
+                slot,target:out.position,targetDimension:d,targetSlot,item:item.typeId,amount:item.amount}));
+            source.container.moveItem(slot,targetSlot,dest);
+            const received=dest.getItem(targetSlot);
+            if(source.container.getItem(slot) || received?.typeId!==item.typeId || received.amount!==item.amount)
+                throw Error('MR receipt uncertain at '+d+' '+positionKey(out.position)+' slot '+targetSlot);
+            world.setDynamicProperty(fence,undefined);
+            for(const hop of path){
+                hop.bank.dispatched+=item.amount;hop.bank.confirmed+=item.amount;
+                hop.bank.lastDestination=out.position;hop.bank.blocked='';
+            }
+            return true;
+        }
+    }
+    return false;
+}
 function labTryCollector(b,collectorKey){
     try{
         const sources=labCollectorSources(collectorKey);
         const offset=b.sourceCursor?.get(collectorKey) || 0;
-        for(let i=0;i<sources.length;i++){
-            const index=(offset+i)%sources.length;
-            const source=sources[index],inv=source.container,size=inv.size;
-            if(inv.emptySlotsCount===size)continue;
-            if(!labDiscover(b) || !coverRoute(b,source) || !receiverAccepts(b))return false;
-            const sorterIndex=labBuildIndex(b);
-            if(sorterIndex.missing){
-                labMarkHold(b,'Waiting for '+sorterIndex.missing+' indexed Sorters to become readable');
-                return false;
-            }
-            if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
-            for(let slot=0;slot<size;slot++){
-                const item=inv.getItem(slot);
-                if(!item)continue;
-                if(b.net.bulk.length && bulkOrdinary(item)){
-                    if(bulkCollect(b,collectorKey,source,slot,item)){
-                        (b.sourceCursor ??= new Map()).set(collectorKey,index+1);return true;
+        // Two MR admissions earn the next successful ordinary admission.
+        // A blocked or empty class immediately lends its turn to the other.
+        const credit=b.mrCredit?.get(collectorKey) || 0;
+        for(const rich of [credit<2,credit>=2]){
+            for(let i=0;i<sources.length;i++){
+                const index=(offset+i)%sources.length,source=sources[index],inv=source.container;
+                if(inv.emptySlotsCount===inv.size)continue;
+                if(!labDiscover(b) || !coverRoute(b,source) || !receiverAccepts(b))return false;
+                if(labBuildIndex(b).missing){labMarkHold(b,'Waiting for indexed Sorters');return false;}
+                if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
+                const sourceKey=source.dimension+' '+positionKey(source.loc);
+                const start=b.slotCursor?.get(sourceKey) || 0;
+                for(let j=0;j<inv.size;j++){
+                    const slot=(start+j)%inv.size,item=inv.getItem(slot);
+                    if(!item)continue;
+                    const isRich=!bulkOrdinary(item);
+                    if(isRich!==rich)continue;
+                    if(world.getDynamicProperty(mrSlotKey(source,slot))!==undefined)continue;
+                    let moved=false;
+                    if(rich){
+                        b.mrHold=item.typeId+' '+(item.nameTag||'')+' x'+item.amount+' at '+sourceKey+' slot '+slot;
+                        try{moved=mrDeliver(b,source,slot,item);}
+                        catch(err){labMarkHold(b,'MR held: '+err);}
+                        if(moved)b.mrHold=undefined;
+                    }else if(b.net.bulk.length)moved=bulkCollect(b,collectorKey,source,slot,item);
+                    else{
+                        const target=labSelectTarget(b,item);
+                        if(target)moved=labTryDispatch(b,collectorKey,source,slot,item,target);
                     }
-                    if(b.active)return true;
-                    continue;
+                    if(!moved){if(b.active)return true;continue;}
+                    (b.sourceCursor ??= new Map()).set(collectorKey,index+1);
+                    (b.slotCursor ??= new Map()).set(sourceKey,slot+1);
+                    (b.mrCredit ??= new Map()).set(collectorKey,rich?Math.min(2,credit+1):0);
+                    return true;
                 }
-                const target=labSelectTarget(b,item);
-                if(!target)continue;
-                if(!labTryDispatch(b,collectorKey,source,slot,item,target))return !!b.active;
-                (b.sourceCursor ??= new Map()).set(collectorKey,index+1);
-                return true;
             }
         }
-    }catch(err){labMarkHold(b,`collector input: ${err}`);}
+    }catch(err){labMarkHold(b,'collector input: '+err);}
     return false;
 }
 function labTickActive(b){
@@ -1535,7 +1662,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.6 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.7 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1555,7 +1682,7 @@ function labStats(source){
         }
         lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' readable Sorters / '+(net?.spots.length || 0)+' discovered, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
             ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
-            ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready')+(paused.length?' | redstone paused: '+paused.join(', '):''));
+            ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready')+(b.mrHold?' | last MR hold: '+b.mrHold:'')+(paused.length?' | redstone paused: '+paused.join(', '):''));
     }
     if(!receivers.size)lines.push('No linked Receivers found.');
     for(const line of lines){log(line);source?.sendMessage('[Hart LAB] '+line);}
@@ -1565,6 +1692,34 @@ function labRoutingEvent(ev){
     const source=ev.sourceEntity, command=ev.id.slice(8);
     system.run(()=>{
         try {
+            if(command==='mr_status' || command==='mr_clear'){
+                const emit=message=>{log(message);source?.sendMessage(message);};
+                const fences=world.getDynamicPropertyIds().filter(id=>id.startsWith('hartlab:mr_'));
+                if(command==='mr_status'){
+                    for(const id of fences)emit(id+' '+world.getDynamicProperty(id));
+                    for(const key of labCollectorKeys){
+                        for(const input of labCollectorSources(key,true)){
+                            for(let i=0;i<input.container.size;i++){
+                                const item=input.container.getItem(i);
+                                if(!item || bulkOrdinary(item))continue;
+                                emit(key+' '+input.dimension+' '+positionKey(input.loc)+' slot '+i+' '+
+                                    item.typeId+' x'+item.amount+' '+(item.nameTag||'')+' '+
+                                    JSON.stringify({ench:enchantments(item),lore:item.getLore(),
+                                        damage:item.getComponent('minecraft:durability')?.damage,
+                                        potion:potionIdentity(item),properties:item.getDynamicPropertyIds()}));
+                            }
+                        }
+                    }
+                    emit('MR reconciliation records: '+fences.length);return;
+                }
+                const id=ev.message.trim();
+                if(!fences.includes(id))throw Error('Supply the exact MR reconciliation record from mr_status.');
+                const record=JSON.parse(world.getDynamicProperty(id));
+                const block=labGet(record.dimension,record.source);
+                const inv=block?.typeId===COLLECTOR_ID?labBlockInventory(collectorBuffer(block)):labBlockInventory(block);
+                if(!inv || inv.getItem(record.slot))throw Error('Inspect both endpoints and empty the recorded source slot first.');
+                world.setDynamicProperty(id,undefined);emit('Cleared '+id);return;
+            }
             if(['setup_io','refresh','activate_layout','status'].includes(command)){
                 if(command==='refresh' || command==='activate_layout')invalidateRouting();
                 labStats(source);return;

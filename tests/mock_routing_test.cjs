@@ -10,6 +10,7 @@ const system={beforeEvents:{startup:makeEvents()},run(fn){queued.push({fn,t:0});
     runInterval(fn,interval){intervals.push({fn,interval});},afterEvents:{scriptEventReceive:makeEvents()}};
 class Stack {
   constructor(typeId,amount=1,props={}){this.typeId=typeId;this.amount=amount;this.maxAmount=props.maxAmount||64;this.nameTag=props.nameTag||'';this.props={...props};}
+  get isStackable(){return this.maxAmount>1 && !Object.keys(this.props).length;}
   clone(){return new Stack(this.typeId,this.amount,this.props);}
   isStackableWith(other){return this.maxAmount>1&&other.maxAmount>1&&this.typeId===other.typeId&&this.nameTag===other.nameTag&&JSON.stringify(this.props)===JSON.stringify(other.props);}
   getComponent(){return undefined;}
@@ -32,6 +33,7 @@ class Container {
     }
     return n?new Stack(s.typeId,n,s.props):undefined;
   }
+  moveItem(i,j,to){assert.equal(to.getItem(j),undefined);to.slots[j]=this.slots[i];this.slots[i]=undefined;}
   transferItem(i,to){
     const before=this.getItem(i);if(!before)return undefined;
     const rem=to.addItem(before);this.setItem(i,rem);
@@ -63,6 +65,11 @@ function drain(){for(let t=0;t<10&&queued.length;t++){
     const q=queued.splice(0);for(const x of q){if(x.t<=0)x.fn();else queued.push({fn:x.fn,t:x.t-1});}
 }}
 // Two independently translated and rotated installations.
+function fixtureItem(column,row){
+    const colors='white orange magenta light_blue yellow lime pink gray light_gray cyan purple blue brown green red black'.split(' ');
+    const materials=['wool','concrete','terracotta','stained_glass','carpet','concrete_powder','glazed_terracotta'];
+    return 'minecraft:'+colors[column%16]+'_'+materials[Math.floor(column/16)+row-1];
+}
 function bank(x,y,z,dx,dz,length,height) {
   const receiver=place('hartsorter:receiver',x-dx,y,z-dz);
   const collector=place('hartsorter:collector',x-4*dx,y,z-4*dz);
@@ -81,7 +88,7 @@ function bank(x,y,z,dx,dz,length,height) {
       sorters.push(sorter);
       const chest=place('minecraft:chest',X+dz,y-j,Z-dx);
       chests.push(chest.inv);
-      const id='test:item_'+i+'_'+j;
+      const id=fixtureItem(i,j);
       properties.set(key('s',sorter),JSON.stringify({d:dim.id,...sorter.location,m:'filter',f:{match:{typeId:id,enchIds:[]}}}));
     }
   }
@@ -106,8 +113,8 @@ for(const b of banks){
   console.log('Discovery:',b.hoppers.length,'Hoppers,',b.sorters.length,'Sorters,',evalBank(b,'b.reads'),'block reads');
 }
 const [a,b]=banks;
-a.input.setItem(0,new Stack('test:item_9_4',12));
-b.input.setItem(0,new Stack('test:item_2_2',1,{maxAmount:1,nameTag:'Unbroken'}));
+a.input.setItem(0,new Stack(fixtureItem(9,4),12));
+b.input.setItem(0,new Stack(fixtureItem(2,2),1,{maxAmount:1,nameTag:'Unbroken'}));
 function ticks(n){
   for(let t=1;t<=n;t++){
     for(const i of intervals)i.fn();
@@ -132,12 +139,12 @@ assert.equal(a.input.getItem(0).amount,12);
 for(const resolve of pendingLoads)resolve();
 world.tickingAreaManager.createTickingArea=()=>({then(resolve){resolve();}});
 ticks(300);
-assert.equal(a.chests.at(-1).count('test:item_9_4'),12);
+assert.equal(a.chests.at(-1).count(fixtureItem(9,4)),12);
 assert.equal(b.chests.at(-1).getItem(0).nameTag,'Unbroken');
 assert.equal(evalBank(a,'b.discoveries'),1);
 const chest=a.chests.at(-1);
 for(let i=0;i<chest.size;i++)chest.setItem(i,new Stack('minecraft:dirt',64));
-a.input.setItem(0,new Stack('test:item_9_4',3));ticks(40);
+a.input.setItem(0,new Stack(fixtureItem(9,4),3));ticks(40);
 assert.equal(a.input.getItem(0).amount,3);
 const last=a.hoppers.at(-1);
 last.states.facing_direction=5;event('hartlab:refresh');drain();
@@ -166,14 +173,14 @@ assert.equal(evalBank(a,'b.net.lane.length'),10);
 // Restart with an item physically in the inlet. Recovery must never replay dispatch.
 chest.slots.fill(undefined);ticks(8);
 assert.ok(properties.get('hartlab:transport_020').includes(a.rk));
-const before=a.hoppers.reduce((sum,h)=>sum+h.inv.count('test:item_9_4'),0);
+const before=a.hoppers.reduce((sum,h)=>sum+h.inv.count(fixtureItem(9,4)),0);
 assert.equal(before,3);
 vm.runInContext('labLoadState()',context);
 assert.equal(evalBank(a,'b.recovery'),true);
 ticks(180);
-assert.equal(chest.count('test:item_9_4'),0);
-assert.equal(last.inv.count('test:item_9_4'),3);
-assert.equal(a.input.count('test:item_9_4'),0);
+assert.equal(chest.count(fixtureItem(9,4)),0);
+assert.equal(last.inv.count(fixtureItem(9,4)),3);
+assert.equal(a.input.count(fixtureItem(9,4)),0);
 console.log('PASS: competing pull, registered column, unavailable chunk, restart without replay');
 // Rebuild one output around a corner; inspect a newly added vertical output.
 last.states.facing_direction=2;
@@ -191,7 +198,7 @@ const collector=[...blocks.values()].find(block=>block.typeId==='hartsorter:coll
 const cp=collector.location;
 const intake=place('minecraft:hopper',cp.x-1,cp.y,cp.z);
 intake.states.facing_direction=5;
-const brick='test:item_2_2';
+const brick=fixtureItem(2,2);
 const initial=b.chests.at(-1).count(brick);
 b.input.setItem(0,new Stack(brick,63));
 intake.inv.setItem(0,new Stack(brick,1));
@@ -242,9 +249,9 @@ console.log('PASS: seven-stack overflow fills second column bottom up');
 const rb=bank(817,41,-224,0,1,2,1);
 banks.push(rb);
 vm.runInContext('labLoadState()',context);
-rb.input.setItem(0,new Stack('test:item_1_1',64));
-for(let i=0;i<20 && !rb.chests[1].count('test:item_1_1');i++)ticks(8);
-const deposited=rb.chests[1].count('test:item_1_1');
+rb.input.setItem(0,new Stack(fixtureItem(1,1),64));
+for(let i=0;i<20 && !rb.chests[1].count(fixtureItem(1,1));i++)ticks(8);
+const deposited=rb.chests[1].count(fixtureItem(1,1));
 assert.ok(deposited>0 && deposited<64);
 evalBank(rb,'++b.generation');
 ticks(8);
@@ -257,7 +264,7 @@ ticks(128);
 assert.equal(evalBank(rb,'b.recovery'),false);
 assert.equal(evalBank(rb,'b.dispatched'),64);
 assert.equal(evalBank(rb,'b.confirmed'),deposited);
-assert.equal(evalBank(rb,'b.catches'),output.count('test:item_1_1'));
+assert.equal(evalBank(rb,'b.catches'),output.count(fixtureItem(1,1)));
 assert.equal(evalBank(rb,'b.confirmed+b.catches'),64);
 console.log('PASS: interrupted stack reconciled with the physical destination and lane output');
 
@@ -268,16 +275,16 @@ for(const h of pipeBank.hoppers)h.setType(pipeId);
 const wildcard=pipeBank.sorters[0];
 properties.delete('hartlab:s_o_'+Object.values(wildcard.location).join('_'));
 vm.runInContext('labLoadState()',context);
-const cargo='test:item_9_4';
+const cargo=fixtureItem(9,4);
 pipeBank.input.setItem(0,new Stack(cargo,64,{nameTag:'Far end'}));
-rb.input.setItem(0,new Stack('test:item_0_1',5));
+rb.input.setItem(0,new Stack(fixtureItem(0,1),5));
 ticks(160);
 assert.equal(evalBank(pipeBank,'b.net.lane.length'),10);
 assert.equal(evalBank(pipeBank,'b.cache.total'),40);
 assert.equal(pipeBank.chests.at(-1).getItem(0).nameTag,'Far end');
 assert.equal(pipeBank.chests.at(-1).count(cargo),64);
 assert.equal(pipeBank.chests[0].count(cargo),0);
-assert.equal(rb.chests[0].count('test:item_0_1'),5);
+assert.equal(rb.chests[0].count(fixtureItem(0,1)),5);
 const destination=pipeBank.chests.at(-1);
 for(let i=0;i<destination.size;i++)destination.setItem(i,new Stack('minecraft:dirt',64));
 pipeBank.input.setItem(0,new Stack(cargo,32));
@@ -322,11 +329,11 @@ ticks(80);
 assert.equal(evalBank(adjacentH,'b.discoveries'),hd);
 assert.equal(evalBank(adjacentT,'b.discoveries'),td);
 banks.push(adjacentH);
-adjacentH.input.setItem(0,new Stack('test:item_9_4',5,{nameTag:'Hopper bank'}));
-adjacentT.input.setItem(0,new Stack('test:item_9_4',7,{nameTag:'Transporter bank'}));
+adjacentH.input.setItem(0,new Stack(fixtureItem(9,4),5,{nameTag:'Hopper bank'}));
+adjacentT.input.setItem(0,new Stack(fixtureItem(9,4),7,{nameTag:'Transporter bank'}));
 ticks(200);
-assert.equal(adjacentH.chests.at(-1).count('test:item_9_4'),5);
-assert.equal(adjacentT.chests.at(-1).count('test:item_9_4'),7);
+assert.equal(adjacentH.chests.at(-1).count(fixtureItem(9,4)),5);
+assert.equal(adjacentT.chests.at(-1).count(fixtureItem(9,4)),7);
 console.log('PASS: adjacent empty banks register on linking and construction, stay cached at idle, and deliver independently');
 
 // Physical bank ingress, counted ordinary overflow, and a partial remote refill.
@@ -483,7 +490,7 @@ for(const directPipe of [true,false]){
     for(const h of downstream.hoppers)h.setType(pipeId);
     const relay=place('hartsorter:collector',x-1,directPipe?70:69,z+1);
     properties.set('hartlab:c_o_'+Object.values(relay.location).join('_'),JSON.stringify({receiver:downstream.rk}));
-    const kind=directPipe?'test:item_0_1':'test:item_1_1';
+    const kind=directPipe?fixtureItem(0,1):fixtureItem(1,1);
     if(directPipe){
         // No Sorters on this remote pipe segment.
         for(const sorter of upstream.sorters)sorter.setType('minecraft:air');
@@ -495,14 +502,17 @@ for(const directPipe of [true,false]){
     power(relay,0);
     const receiver=getBlock({x:x+301,y:70,z});
     power(receiver,9);ticks(160);
-    assert.equal(upstream.input.count(kind),0);
-    const buffer=evalBank(upstream,'collectorBuffer(labGet(b.cfg.dimension,'+JSON.stringify(relay.location)+')).getComponent("minecraft:inventory").container');
-    assert.equal(buffer.count(kind),1);
+    assert.equal(upstream.input.count(kind),1);
     vm.runInContext('labLoadState()',context);drain();
     power(receiver,0);ticks(160);
-    assert.equal(buffer.count(kind),0);
+    assert.equal(upstream.input.count(kind),0);
     assert.equal(downstream.chests[directPipe?0:1].getItem(0).nameTag,'Original cargo');
-    console.log('PASS: direct '+(directPipe?'Transporter':'Hopper-fed Sorter')+' to Collector, powered relay and saved native handoff');
+    power(receiver,15);
+    upstream.input.setItem(0,new Stack(kind,4));ticks(180);
+    const relayInv=evalBank(upstream,'collectorBuffer(labGet(b.cfg.dimension,'+JSON.stringify(relay.location)+')).getComponent("minecraft:inventory").container');
+    assert.equal(relayInv.count(kind),4);
+    power(receiver,0);ticks(180);assert.equal(relayInv.count(kind),0);
+    console.log('PASS: direct '+(directPipe?'Transporter':'Hopper-fed Sorter')+' to Collector, MR held at origin across pause and reload');
 }
 
 const twin=bank(10400,70,461,-1,0,14,1);
@@ -521,3 +531,78 @@ assert.equal(twin.input.count(plank),64);
 power(twinReceiver,0);ticks(800);
 assert.equal(twin.chests.at(-1).count(plank),192);
 console.log('PASS: two stacks in flight, active lane drains under power, remaining input resumes');
+
+// Two distinct native book objects share a name. Assert native object identity
+// at receipt so a reconstruction from visible fields would fail this test.
+const richBank=bank(12000,64,-808,-1,0,3,1);
+for(const block of richBank.hoppers)block.setType(pipeId);
+const bookId='minecraft:enchanted_book';
+const potionId='minecraft:splash_potion';
+for(const [i,match] of [[0,{typeId:bookId,enchIds:['minecraft:mending']}],
+                        [1,{typeId:bookId,enchIds:['minecraft:protection']}],
+                        [2,{typeId:potionId,potion:{effect:'night_vision',delivery:'splash'}}]]){
+    const p=richBank.sorters[i].location,k='hartlab:s_o_'+Object.values(p).join('_');
+    const entry=JSON.parse(properties.get(k));entry.f.match=match;properties.set(k,JSON.stringify(entry));
+}
+const originalComponent=Stack.prototype.getComponent;
+Stack.prototype.getComponent=function(id){
+    if(this.props.enchantment && id==='minecraft:enchantable')
+        return {getEnchantments:()=>[{type:{id:this.props.enchantment},level:3}]};
+    if(this.props.effect && id==='minecraft:potion')
+        return {potionEffectType:{id:this.props.effect},potionDeliveryType:{id:'splash'}};
+    return originalComponent.call(this,id);
+};
+vm.runInContext('labLoadState()',context);drain();
+for(const [slot,tag] of [[0,'minecraft:mending'],[1,'minecraft:protection']]){
+    richBank.input.setItem(slot,new Stack(bookId,1,{nameTag:'Archive',maxAmount:1,enchantment:tag,opaque:{value:slot}}));
+}
+richBank.input.setItem(2,new Stack(potionId,1,{maxAmount:1,effect:'night_vision'}));
+const originals=richBank.input.slots.slice(0,3);ticks(160);
+originals.forEach((original,i)=>assert.equal(richBank.chests[i].slots[0],original));
+console.log('PASS: named books with different enchantments and splash potion arrive as the original native objects');
+
+// Simulate an engine interruption immediately after the native move, before a
+// receipt. New cargo at the original address must stay held across reload.
+richBank.input.setItem(0,originals[0]);
+const separate=richBank.input.slots[0],move=richBank.input.moveItem;
+richBank.input.moveItem=function(...args){move.apply(this,args);throw Error('interrupted after move');};
+ticks(40);richBank.input.moveItem=move;
+assert.equal(richBank.chests[0].slots[1],separate);
+assert.equal(richBank.input.slots[0],undefined);
+const record=[...properties.keys()].find(k=>k.startsWith('hartlab:mr_'));
+assert.ok(record);
+richBank.input.setItem(0,originals[1]);vm.runInContext('labLoadState()',context);ticks(80);
+assert.equal(richBank.input.count(bookId),1);
+assert.equal(richBank.chests[1].count(bookId),1);
+const clearFence=()=>{for(const cb of system.afterEvents.scriptEventReceive.handlers)cb({id:'hartlab:mr_clear',message:record});drain();};
+clearFence();assert.ok(properties.has(record));
+richBank.input.setItem(0,undefined);clearFence();assert.equal(properties.has(record),false);
+console.log('PASS: post-move interruption retains native cargo, fences the source after reload and requires explicit reconciliation');
+
+const mixed=bank(13000,70,61,-1,0,1,1);
+mixed.hoppers[0].setType(pipeId);
+properties.delete('hartlab:s_o_'+Object.values(mixed.sorters[0].location).join('_'));
+vm.runInContext('labLoadState()',context);drain();
+const collectorKey='hartlab:c_o_13004_70_61';
+const serve=()=>evalBank(mixed,'labTryCollector(b,"'+collectorKey+'")');
+ticks(64);
+mixed.input.setItem(0,new Stack('minecraft:cobblestone',32));
+for(let i=1;i<5;i++)mixed.input.setItem(i,new Stack('addon:opaque',1,{opaque:i}));
+for(let i=0;i<3;i++)assert.ok(serve());
+assert.equal(mixed.chests[0].count('addon:opaque'),2);
+assert.equal(mixed.chests[0].count('minecraft:cobblestone'),32);
+console.log('PASS: mixed Collector admits two MR stacks then ordinary cargo under continuous MR demand');
+
+// Cycle back to the same remote Collector with no final chest.
+const cycle=bank(14500,70,450,-1,0,2,1);
+for(const h of cycle.hoppers)h.setType(pipeId);
+for(const sorter of cycle.sorters)sorter.setType('minecraft:air');
+const returnRelay=place('hartsorter:collector',14499,70,451);
+properties.set('hartlab:c_o_14499_70_451',JSON.stringify({receiver:cycle.rk}));
+vm.runInContext('labLoadState()',context);
+cycle.input.setItem(0,new Stack('addon:sealed_crate',1,{opaque:{contents:['secret']}}));
+const crate=cycle.input.slots[0];ticks(160);
+assert.equal(cycle.input.slots[0],crate);
+assert.equal(evalBank(cycle,'b.confirmed'),0);
+assert.equal(properties.has('hartlab:buffer_o_14499_70_451'),false);
+console.log('PASS: cyclic MR relay retains original stack at the input without a carrier or a false receipt');
