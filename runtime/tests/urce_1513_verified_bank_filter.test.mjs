@@ -121,7 +121,7 @@ test("MBF-03 absent item claim or full chest is NOT an AUTO/Wildcard or Bulk gra
 
 test("MBF-04 cycle, native unknown, missing pipe and stray Hopper fail CLOSED",()=>{
   for(const opts of [
-    {cycle:true},{unloaded:true},{broken:true},
+    {cycle:true},{unloaded:true},
     {branch:true},{unknownSideHopper:true},
     {wrongColumn:true},{locked:true},{powered:true}
   ]){
@@ -129,6 +129,13 @@ test("MBF-04 cycle, native unknown, missing pipe and stray Hopper fail CLOSED",(
     assert.equal(r.status,"HOLD",JSON.stringify({opts,r}));
     assert.equal(r.mayAuthorizeCargo,false);
   }
+});
+
+test("MBF-04b physically broken bank run provides NO affirmative Filter route",()=>{
+  const r=inspectVerifiedBankFilterHome(env({broken:true}).config);
+  assert.equal(r.status,"NO_FILTER_HOME");
+  assert.equal(r.executePermitted,false);
+  assert.equal(r.mayAuthorizeCargo,false);
 });
 
 test("MBF-05 positive path requires current saved link and loaded exact endpoints",()=>{
