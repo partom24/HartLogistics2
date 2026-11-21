@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.2) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.3) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -663,7 +663,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.2 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.3 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -828,8 +828,9 @@ function labBuildIndex(b){
         } else if(candidate.mode==='auto')autos.push(candidate);
         else if(candidate.mode==='wildcard')wildcards.push(candidate);
     }
-    b.cache={filters,autos,wildcards,total,missing};b.cacheRevision=b.generation;
-    return b.cache;
+    const index={filters,autos,wildcards,total,missing};
+    if(!missing){b.cache=index;b.cacheRevision=b.generation;}
+    return index;
 }
 function labAdjacentInventories(candidate,strict=false){
     const block=labGet(candidate.p.d,candidate.p);
@@ -974,6 +975,7 @@ function labFinish(b){
     const c=b.active;
     const undelivered=Math.max(0,c.sent-c.moved);
     b.confirmed+=c.moved;
+    if(c.moved)b.lastDestination=c.target.destination;
     if(undelivered)b.catches+=undelivered;
     b.active=null;
     b.blocked='';b.cleanTicks=0;
@@ -993,7 +995,7 @@ function labPipeDispatch(b,source,slot,item,target){
     if(!dest || (source.dimension===d && positionKey(source.loc)===positionKey(target.destination)))return false;
     const moved=labSafeTransfer(source.container,slot,dest,item);
     b.dispatched+=moved;b.confirmed+=moved;
-    if(moved)b.blocked='';
+    if(moved){b.blocked='';b.lastDestination=target.destination;}
     return moved>0;
 }
 function labTryDispatch(b,key,source,slot,item,target,start=0){
@@ -1171,6 +1173,7 @@ function bulkRefill(b){
             const item=new ItemStack(id,1);
             item.amount=Math.min(item.maxAmount,a.state.items[id]);
             const index=labBuildIndex(b);
+            if(index.missing)return false;
             const matches=(index.filters.get(id)||[]).filter(c=>matchesFilter(item,c.filter));
             const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(x=>labHasMatchingSeed(x.container,item)));
             const candidates=matches.length || autos.length?matches.concat(autos):index.wildcards;
@@ -1272,6 +1275,11 @@ function labTryCollector(b,collectorKey){
             const source=sources[index],inv=source.container,size=inv.size;
             if(inv.emptySlotsCount===size)continue;
             if(!labDiscover(b) || !coverRoute(b,source))return false;
+            const sorterIndex=labBuildIndex(b);
+            if(sorterIndex.missing){
+                labMarkHold(b,'Waiting for '+sorterIndex.missing+' indexed Sorters to become readable');
+                return false;
+            }
             if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
             for(let slot=0;slot<size;slot++){
                 const item=inv.getItem(slot);
@@ -1389,7 +1397,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.2 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.3 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1400,9 +1408,9 @@ function labStats(source){
         const b=labBankForReceiver(key);
         if(!b)continue;
         const net=labDiscover(b), i=net && labBuildIndex(b);
-        lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' Sorters, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
+        lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' readable Sorters / '+(net?.spots.length || 0)+' discovered, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
             ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
-            ', discovery block reads='+b.reads+' | '+(b.blocked || 'ready'));
+            ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready'));
     }
     if(!receivers.size)lines.push('No linked Receivers found.');
     for(const line of lines){log(line);source?.sendMessage('[Hart LAB] '+line);}
