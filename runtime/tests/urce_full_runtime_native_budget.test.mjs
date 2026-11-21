@@ -489,8 +489,8 @@ test("FULL-NATIVE-13 unknown remote claim and a physical bank cycle cannot debit
     assert.equal(f.receiverOutputs[1].inspect()[0],0);
     const q=JSON.parse(f.properties.get("hartsorter:q4m_q1")).q;
     assert.ok(q===0||q===4,"Source may only retain Q4 or pre-ingress HOLD");
-    assert.equal(4-q, f.collectorSources[0].inspect()[0]===4 ? 0:4,
-      "Source+Q4 conservation under route rejection");
+    assert.equal(q+(f.collectorSources[0].inspect()[0]??0),4,
+      "Source physical Hopper plus Receiver Q4 must preserve exactly four items");
   }
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
