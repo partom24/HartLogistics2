@@ -225,3 +225,26 @@ assert.deepEqual(overflow.chests.map(c=>c.count(plank)),[64,64,64,64,0,64,64,64]
 assert.equal(overflow.input.count(plank),0);
 assert.equal(evalBank(overflow,'b.confirmed'),448);
 console.log('PASS: seven-stack overflow fills second column bottom up');
+
+// Interrupt after one verified arrival; model native drainage to the lane output.
+const rb=bank(817,41,-224,0,1,2,1);
+banks.push(rb);
+vm.runInContext('labLoadState()',context);
+rb.input.setItem(0,new Stack('test:item_1_1',64));
+for(let i=0;i<20 && !rb.chests[1].count('test:item_1_1');i++)ticks(8);
+const deposited=rb.chests[1].count('test:item_1_1');
+assert.ok(deposited>0 && deposited<64);
+evalBank(rb,'++b.generation');
+ticks(8);
+assert.equal(evalBank(rb,'b.recovery'),true);
+const output=new Container(27);
+for(const h of rb.hoppers)for(let slot=0;slot<h.inv.size;slot++){
+  if(h.inv.getItem(slot))h.inv.transferItem(slot,output);
+}
+ticks(128);
+assert.equal(evalBank(rb,'b.recovery'),false);
+assert.equal(evalBank(rb,'b.dispatched'),64);
+assert.equal(evalBank(rb,'b.confirmed'),deposited);
+assert.equal(evalBank(rb,'b.catches'),output.count('test:item_1_1'));
+assert.equal(evalBank(rb,'b.confirmed+b.catches'),64);
+console.log('PASS: interrupted stack reconciled with the physical destination and lane output');

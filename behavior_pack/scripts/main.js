@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.3.2) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.3.3) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -644,7 +644,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.3.2 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
+system.run(()=>log('0.3.3 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -878,6 +878,13 @@ function labMarkHold(b,reason){
     b.blocked=reason;b.failed++;
     if(labTick-b.lastWarning>200){log(`HOLD ${b.cfg.name}: ${reason}`);b.lastWarning=labTick;}
 }
+function labStartRecovery(b,reason){
+    b.recovery=true;
+    b.blocked=reason;
+    b.cleanTicks=0;
+    const a=b.active;
+    log(`Recovery ${b.cfg.name} started: ${reason}; item=${a.type}, recorded=${a.moved}/${a.sent}, target=${positionKey(a.target.p)}`);
+}
 function labFinish(b){
     if(!b.active)return;
     const c=b.active;
@@ -910,10 +917,10 @@ function labTryDispatch(b,key,source,slot,item,target){
     try{labPersistActive(b);}catch(_){b.active=null;return false;}
     let moved=0;
     try{moved=labSafeTransfer(source.container,slot,first,item);}
-    catch(err){labMarkHold(b,`dispatch: ${err}`);b.recovery=true;return false;}
+    catch(err){labStartRecovery(b,`dispatch: ${err}`);return false;}
     if(moved===0){b.active=null;labPersistActive(b);return false;}
-    active.sent=moved;b.dispatched+=moved;b.blocked='';
-    try{labPersistActive(b);}catch(err){b.recovery=true;labMarkHold(b,`persist after dispatch: ${err}`);}
+    active.counted=true;active.sent=moved;b.dispatched+=moved;b.blocked='';
+    try{labPersistActive(b);}catch(err){labStartRecovery(b,`persist after dispatch: ${err}`);}
     // A destination on the inlet is already reached. Service it before native movement.
     if(!b.recovery && positionKey(target.p.tap)===positionKey(b.net.lane[0]))labTickActive(b);
     return true;
@@ -951,30 +958,40 @@ function labTickActive(b){
         if(labTick%16!==0)return;
         if(labLineEmpty(b)){
             b.cleanTicks++;
-            if(b.cleanTicks>=5){b.active=null;b.recovery=false;b.blocked='';
-                labPersistActive(b);log(`Recovery ${c.name} complete: inspect the lane output.`);}
+            if(b.cleanTicks>=5){
+                if(a.counted)labFinish(b);
+                else{
+                    // A restart header or a failed dispatch is an intent, not a verified session transfer.
+                    b.active=null;b.blocked='';b.cleanTicks=0;labPersistActive(b);
+                }
+                b.recovery=false;
+                log(`Recovery ${c.name} complete: ${a.type}; ${a.counted ? 'session shipment reconciled' : 'unverified dispatch intent; excluded from session totals'}. Inspect lane output.`);
+            }
         }else b.cleanTicks=0;
         return;
     }
-    if(a.revision!==b.generation || labGet(c.dimension,a.target.p)?.typeId!==SORTER_ID){
-        b.recovery=true;b.blocked='Installation changed during shipment. Inspect the physical lane.';return;
+    if(a.revision!==b.generation){
+        labStartRecovery(b,'Routing configuration invalidated during shipment');return;
+    }
+    if(labGet(c.dimension,a.target.p)?.typeId!==SORTER_ID){
+        labStartRecovery(b,'Addressed Sorter missing or unavailable');return;
     }
     const tap=labGet(c.dimension,a.target.p.tap);
     const hopper=tap?.typeId===HOPPER && labBlockInventory(tap);
     const destination=labDestinationContainer(a.target);
-    if(!hopper||!destination){b.recovery=true;labMarkHold(b,'Destination unavailable. Inspect the lane.');return;}
+    if(!hopper||!destination){labStartRecovery(b,'Addressed Hopper or destination unavailable');return;}
     try{
         // Only the already-addressed destination Hopper is inspected.
         for(let i=0;i<hopper.size;i++){
             const item=hopper.getItem(i);
             if(!item||!labLiveReferenceMatches(a.reference,item))continue;
-            if(item.amount>a.sent-a.moved){b.recovery=true;b.blocked='Unexpected quantity at tap. Inspect lane.';return;}
+            if(item.amount>a.sent-a.moved){labStartRecovery(b,'Unexpected quantity at tap');return;}
             if(!labCanFitEntire(destination,item)){b.blocked='Addressed storage full during transit. Inspect lane output.';continue;}
             const moved=labSafeTransfer(hopper,i,destination,item);
             a.moved+=moved;
             if(moved)a.lastMovement=labTick;
         }
-    }catch(err){b.recovery=true;labMarkHold(b,`arrival: ${err}`);return;}
+    }catch(err){labStartRecovery(b,`arrival: ${err}`);return;}
     if(a.moved>=a.sent){labFinish(b);return;}
     // Check the entire line only after no destination activity, so routine
     // movement does not scan all intermediate Hoppers every tick.
@@ -1015,7 +1032,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.3.2 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.3.3 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1027,7 +1044,7 @@ function labStats(source){
         if(!b)continue;
         const net=labDiscover(b), i=net && labBuildIndex(b);
         lines.push(key+' | '+(net?.lane.length || 0)+' Hoppers, '+(i?.total || 0)+' Sorters, dispatched='+b.dispatched+
-            ', delivered='+b.confirmed+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
+            ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
             ', discovery block reads='+b.reads+' | '+(b.blocked || 'ready'));
     }
     if(!receivers.size)lines.push('No linked Receivers found.');

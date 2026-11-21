@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.3.2
+# HartLogistics Fresh LAB 0.3.3
 
 This LAB build discovers native Hopper lanes from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -24,6 +24,8 @@ A Hopper pointing into the Collector supplies its contents for routing. Its pres
 ## Shipment identity and recovery
 
 The experiment still serializes shipments on overlapping lanes. Native Hoppers move the items. Script inspects the addressed tap for delivery and checks empty lanes before dispatch or during stalled-shipment recovery. Keep test lanes dedicated to addressed traffic. Manual inserts, Hopper minecarts and external feeders can introduce indistinguishable items. Native transfer rates, route length and stalls affect throughput.
+
+Status reports session totals. When a live shipment closes in recovery, recorded destination transfers count as delivered and the remainder counts as unconfirmed. A restart intent has no verified session dispatch quantity.
 
 New shipment records identify the Receiver and actual lane. Restart recovery waits for the original lane to empty. Inspect its physical output and clear items from a dead end as needed. An unresolved 0.2.0 shipment record suspends new dispatch because its fixture bank name cannot safely identify the current lane.
 
