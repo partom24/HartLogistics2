@@ -18,3 +18,15 @@ jobs:
         run: node --experimental-vm-modules --test runtime/tests/urce_1513_verified_bank_filter.test.mjs
       - name: Preserve existing 101 column five-item baseline
         run: node --experimental-vm-modules --test runtime/tests/urce_101_five_item_stage_gate.test.mjs
+      - name: Single-writer Q4 safety and managed link wiring
+        run: |
+          node --test planning/tests/urce_u0_writer_fence.test.mjs
+          node --test runtime/tests/urce_152_live_wiring.test.mjs
+          node --test runtime/tests/urce_155_journal_idle.test.mjs
+          node --test planning/tests/urce_u1_owner_loop.test.mjs planning/tests/urce_u1_owner_bank_chain.test.mjs
+      - name: All shipped JS runtime and native-call budget
+        run: node --experimental-vm-modules --test runtime/tests/urce_full_runtime_native_budget.test.mjs
+      - name: U1 graph and previous 1.5.9-1.5.12 closed native route regressions
+        run: |
+          node --test runtime/tests/urce_152_link_guard.test.mjs runtime/tests/urce_157_native_boundary_diagnostic.test.mjs
+          node --experimental-vm-modules --test runtime/tests/urce_159_direct_sorter_home.test.mjs
