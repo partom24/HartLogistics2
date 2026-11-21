@@ -160,6 +160,23 @@ test("MBF-06 bounded graph and incomplete call contracts cannot confer a home",(
     receiver:{...f.root,x:999}}).status,"HOLD");
 });
 
+test("MBF-08 downstream Receiver's other registered incoming Collector must be reverified",()=>{
+  const f=env();
+  f.config.collectors.push({id:"Other",d:D,x:100,y:4,z:0,link:"R2"});
+  assert.equal(inspectVerifiedBankFilterHome(f.config).status,"HOLD");
+  const f2=env();
+  const extra={id:"Other",d:D,x:100,y:4,z:0,link:"R2"};
+  f2.config.collectors.push(extra);
+  const block=fake("hartsorter:collector",extra);
+  f2.blocks.set(key(extra),block);
+  const ok=inspectVerifiedBankFilterHome(f2.config);
+  assert.equal(ok.status,"FILTER_HOME",JSON.stringify(ok));
+  const f3=env();
+  f3.blocks.set(key({x:12,y:4,z:1}),fake("hartsorter:bulk_storage",
+    {x:12,y:4,z:1}));
+  assert.equal(inspectVerifiedBankFilterHome(f3.config).status,"HOLD",
+    "A connected but unregistered Bulk cannot silently become proof of no alternative authority");
+});
 test("MBF-07 direct column proof detects Hopper occupancy, missing Sorter, extractor",()=>{
   const f=env({two:false});
   const c=f.col;
