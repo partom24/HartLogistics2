@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.5.0
+# HartLogistics Fresh LAB 0.5.8
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -13,7 +13,7 @@ Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](G
 - If the Receiver has zero or several adjacent transport blocks, look at the Receiver and run `/scriptevent hartlab:select_receiver`. Look at the real inlet and run `/scriptevent hartlab:bind_inlet`. Registration stores the selected block in the Receiver's dimension.
 - For an offset column, select the Receiver as above, look at its lane Hopper or Transporter and run `/scriptevent hartlab:select_tap`, then look at a Sorter in the column and run `/scriptevent hartlab:bind_column`. Repeat for additional columns. Registering a new inlet replaces the previous inlet. Column bindings only apply while the anchor is a Sorter and the tap is reachable.
 - Directed loops, unknown outputs, unavailable blocks and competing downward Hopper pulls suspend discovery. Player block edits in the discovered area invalidate that Receiver's index. Use `/scriptevent hartlab:refresh` after command, piston or external edits.
-- FILTER and seeded AUTO destinations precede WILDCARD. BYPASS is excluded. A full specific destination holds the item at source. Facing-side storage has priority among compatible adjacent inventories. The lane itself is excluded from destination selection.
+- FILTER and seeded AUTO destinations precede WILDCARD. BYPASS is excluded. When matching chests are full, claimed ordinary cargo uses verified Bulk capacity, then an available WILDCARD. Metadata-rich cargo goes directly to an available WILDCARD. If every eligible output is full, cargo waits at its source. Facing-side storage has priority among compatible adjacent inventories. The lane itself is excluded from destination selection.
 
 Within each destination priority group, columns follow the discovered lane order. Each column fills from the lowest eligible Sorter upward. A shipment must fit in its selected inventory.
 
@@ -64,7 +64,7 @@ New shipment records identify the Receiver and actual lane. Restart recovery wai
 Run `node tests/mock_routing_test.cjs` for translated and rotated banks, directed paths, delivery, metadata, full inventory handling, explicit bindings, unavailable chunks and restart recovery. For BDS 1.26.60.6:
 
 1. Capture setup and status with the installed banks loaded. Check the ten-Hopper installation for forty discovered Sorters. Record other Receivers separately.
-2. Set a distant FILTER and feed one named item, then an ordinary stack. Count the source, lane, output and destination before and after. Repeat with seeded AUTO, WILDCARD and BYPASS. Fill a matching inventory and check that its input waits.
+2. Set a distant FILTER and feed one named item, then an ordinary stack. Count the source, lane, output and destination before and after. Repeat with seeded AUTO, WILDCARD and BYPASS. Fill a matching inventory and check the eligible overflow destination. Fill all eligible outputs and verify the input holds.
 3. Run both banks together, then interrupt one shipment with a restart. Inspect native inventories and total item quantities before adding more traffic.
 4. Capture equal-duration idle and busy Script Profiler traces, server tick timings, item counts and status counters. Production throughput and BDS timing remain unmeasured.
 
@@ -72,7 +72,7 @@ The offline suite also exercises a 10-Transporter, 40-Sorter bank alongside an a
 
 ## Fresh LAB 0.5.7 metadata-rich cargo
 
-Metadata-rich (MR) cargo stays in its original native slot until a reachable final inventory has an empty slot. Filter claims precede live-seeded Auto, then unclaimed cargo can use Wildcard. An output Collector can extend the search into its linked Receiver's bank. A visited Receiver closes a cycle. Redstone pause, a full matching chest, or an unavailable route can leave the item at its source. Ordinary Bulk balances are reserved for plain stacks. An MR shipment on either lane uses a single native slot-to-slot move after verifying its path. It does not ride through the individual Hoppers. Local source slots rotate and a Collector gives ordinary input a turn after two successful MR admissions.
+Metadata-rich (MR) cargo stays in its original native slot until a reachable final inventory has an empty slot. Filter claims precede live-seeded Auto, then cargo can use Wildcard if no matching output accepts it. An output Collector can extend the search into its linked Receiver's bank. A visited Receiver closes a cycle. Redstone pause, no available eligible storage, or an unavailable route can leave the item at its source. Ordinary Bulk balances are reserved for plain stacks. An MR shipment on either lane uses a single native slot-to-slot move after verifying its path. It does not ride through the individual Hoppers. Local source slots rotate and a Collector gives ordinary input a turn after two successful MR admissions.
 
 Use `/scriptevent hartlab:mr_status` to inspect readable Collector inputs, including paused inputs, and outstanding reconciliation records. Inventory slot numbers start at zero. Native source chests and input Hoppers remain available for ordinary player withdrawal. A record contains both endpoints and slots. After an interrupted move, inspect both inventories. Move any remaining item out of the recorded source slot by hand, then use `/scriptevent hartlab:mr_clear <record-id>` to release that slot. Clearing a record moves no items. Punch an installed filter out of its native frame before removing its Sorter.
 

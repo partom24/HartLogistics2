@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartLogistics Fresh LAB RP",
-    "description": "Fresh LAB 0.5.7: Hopper, Transporter and Bulk Storage",
+    "description": "Fresh LAB 0.5.8: Hopper, Transporter and Bulk Storage",
     "uuid": "39f2d6c6-9b79-4754-a2e2-fd27c1ec1d63",
     "version": [
       0,
       5,
-      7
+      8
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         0,
         5,
-        7
+        8
       ]
     }
   ],

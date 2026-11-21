@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.7) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.8) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -671,7 +671,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.7 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.8 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -916,7 +916,7 @@ function labAdjacentInventories(candidate,strict=false,nativeOnly=false){
         const neighbor=labGet(candidate.p.d,p);
         if(strict && !neighbor)throw Error('Output neighbor unavailable');
         if(nativeOnly && neighbor?.typeId===COLLECTOR_ID){found.push({position:p,relay:true});continue;}
-        const inv=neighbor?.typeId===COLLECTOR_ID ? collectorOutput(neighbor,candidate.bankKey) : labBlockInventory(neighbor);
+        const inv=neighbor?.typeId===COLLECTOR_ID ? collectorOutput(neighbor,candidate.bankKey) : strict ? neighbor.getComponent('minecraft:inventory')?.container : labBlockInventory(neighbor);
         if(inv && !candidate.lane.has(k))found.push({position:p,container:inv});
     }
     return found;
@@ -933,13 +933,13 @@ function labDestinationContainer(candidate){
     return labAdjacentInventories(candidate)[0]?.container;
 }
 function labHasMatchingSeed(inv,item){
-    try{for(let slot=0;slot<inv.size;slot++){
+    for(let slot=0;slot<inv.size;slot++){
         const stored=inv.getItem(slot);
         if(!stored||stored.typeId!==item.typeId)continue;
         // AUTO membership follows legacy type/enchanted-book/potion policy.
         const probe=serializeFilterItem(stored);
         if(probe && matchesFilter(item,probe))return true;
-    }}catch(_){}
+    }
     return false;
 }
 function labCanFitEntire(inv,item){
@@ -955,29 +955,29 @@ function labCanFitEntire(inv,item){
     }catch(_){return false;}
     return false;
 }
-function labEligible(b,item){
-    const index=labBuildIndex(b);
-    const primary=[];
-    for(const c of index.filters.get(item.typeId)||[]){
-        if(c.filter && matchesFilter(item,c.filter))primary.push(c);
-    }
-    for(const c of index.autos){
-        if(labAdjacentInventories(c).some(({container})=>labHasMatchingSeed(container,item)))primary.push(c);
-    }
-    // Filter and AUTO rules take precedence over WILDCARD. If they exist but
-    // are full, keep the item at source instead of silently misrouting.
-    return primary.length?primary:index.wildcards;
+function labMatchingOutputs(index,item){
+    const filters=(index.filters.get(item.typeId)||[]).filter(c=>matchesFilter(item,c.filter));
+    const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(({container})=>labHasMatchingSeed(container,item)));
+    return filters.concat(autos);
 }
 function labSelectTarget(b,item){
-    const candidates=labEligible(b,item);
-    for(const c of candidates){
-        for(const {position,container} of labAdjacentInventories(c)){
-            if(c.mode==='auto' && !labHasMatchingSeed(container,item))continue;
-            if(labCanFitEntire(container,item))return {...c,destination:position,destinationType:labGet(c.p.d,position)?.typeId};
+    const index=labBuildIndex(b);
+    const matches=labMatchingOutputs(index,item);
+    for(const group of [matches,index.wildcards]){
+        let partial=false;
+        for(const c of group){
+            for(const {position,container} of labAdjacentInventories(c,true)){
+                if(c.mode==='auto' && !labHasMatchingSeed(container,item))continue;
+                if(!outputPathReady(b,c.p.tap))throw Error('Output path unavailable');
+                const room=bulkRoom(container,item);
+                if(room===item.amount)return {...c,destination:position,destinationType:labGet(c.p.d,position).typeId};
+                if(room>0)partial=true;
+            }
         }
+        // Whole-stack admission must not bypass a partly available matching chest.
+        if(partial)return undefined;
     }
-    if(!candidates.some(c=>c.mode!=='wildcard'))return pipeExit(b,item);
-    return undefined;
+    if(!matches.length)return pipeExit(b,item);
 }
 function labLineEmpty(b){
     const lane=b.active?.lane || b.net.lane;
@@ -1180,13 +1180,14 @@ function bulkRoom(inv,item){
     }
     return Math.min(room,item.amount);
 }
-function bulkTarget(candidates,item,allowed=()=>true){
+function bulkTarget(bank,candidates,item,allowed=()=>true){
     for(const c of candidates){
         if(!allowed(c))continue;
         if(labGet(c.p.d,c.p)?.typeId!==SORTER_ID)throw Error('Sorter unavailable');
         const inventories=labAdjacentInventories(c,true);
         for(const {container,position} of inventories){
             if(c.mode==='auto' && !labHasMatchingSeed(container,item))continue;
+            if(!outputPathReady(bank,c.p.tap))throw Error('Output path unavailable');
             const amount=bulkRoom(container,item);
             if(amount)return {amount,target:{...c,destination:position,destinationType:labGet(c.p.d,position).typeId}};
         }
@@ -1225,12 +1226,10 @@ function verifyBulkPath(b,member){
 }
 function bulkCollect(b,key,source,slot,item){
     const members=bulkMembers(b), index=labBuildIndex(b);
-    const matches=(index.filters.get(item.typeId)||[]).filter(c=>matchesFilter(item,c.filter));
-    const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(x=>labHasMatchingSeed(x.container,item)));
-    const eligible=matches.concat(autos);
+    const eligible=labMatchingOutputs(index,item);
     const resident=members.some(a=>a.state.items[item.typeId] && !a.state.provisional[item.typeId]);
     const claimed=!!eligible.length || resident;
-    let route=bulkTarget(claimed?eligible:index.wildcards,item);
+    let route=bulkTarget(b,claimed?eligible:index.wildcards,item);
     if(!route && !claimed){
         const exit=pipeExit(b,item);
         if(exit)return labTryDispatch(b,key,source,slot,item,exit);
@@ -1242,7 +1241,7 @@ function bulkCollect(b,key,source,slot,item){
     }
     if(!route && claimed && !member){
         for(const a of members)verifyBulkPath(b,a);
-        route=bulkTarget(index.wildcards,item);
+        route=bulkTarget(b,index.wildcards,item);
     }
     if(route){
         if(route.amount===item.amount)return labTryDispatch(b,key,source,slot,item,route.target);
@@ -1295,12 +1294,11 @@ function bulkRefill(b){
             item.amount=Math.min(item.maxAmount,a.state.items[id]);
             const index=labBuildIndex(b);
             if(index.missing)return false;
-            const matches=(index.filters.get(id)||[]).filter(c=>matchesFilter(item,c.filter));
-            const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(x=>labHasMatchingSeed(x.container,item)));
-            const candidates=matches.length || autos.length?matches.concat(autos):index.wildcards;
+            const matches=labMatchingOutputs(index,item);
+            const candidates=matches.length?matches:index.wildcards;
             const provisional=a.state.provisional[id];
             const start=b.net.method===HOPPER?a.p.tapIndex:0;
-            const route=bulkTarget(candidates,item,c=>(provisional || c.mode!=='wildcard') &&
+            const route=bulkTarget(b,candidates,item,c=>(provisional || c.mode!=='wildcard') &&
                 (start===0 || b.net.lane.slice(start).some(p=>positionKey(p)===positionKey(c.p.tap))));
             if(!route)continue;
             verifyBulkPath(b,a);
@@ -1400,7 +1398,7 @@ function releaseIdleChunks() {
 }
 // MR follows the discovered physical graph, but stays in the original native
 // slot until a final inventory has an empty slot. No intermediate item journal.
-function mrPathReady(bank,tap){
+function outputPathReady(bank,tap){
     const net=bank.net,d=bank.cfg.dimension;
     if(net.method===PIPE){
         for(let p=tap;p;p=net.parents.get(positionKey(p))){
@@ -1445,7 +1443,6 @@ function* mrOutputs(bank,item){
     const filters=sameType.filter(c=>matchesFilter(item,c.filter));
     let claimed=filters.length>0;
     for(const list of [filters,index.autos,index.wildcards]){
-        if(list===index.wildcards && claimed)break;
         for(const c of list){
             const outputs=labAdjacentInventories(c,true,true);
             for(const out of outputs){
@@ -1453,12 +1450,13 @@ function* mrOutputs(bank,item){
                     if(!out.container || !mrSeedMatches(out.container,item))continue;
                     claimed=true;
                 }
-                if(mrPathReady(bank,c.p.tap))yield out;
+                if(!outputPathReady(bank,c.p.tap))throw Error('MR output path unavailable');
+                yield out;
             }
         }
     }
     if(!claimed)for(const exit of bank.net.collectorExits){
-        if(mrPathReady(bank,exit.tap))yield {position:exit.position,relay:true};
+        if(outputPathReady(bank,exit.tap))yield {position:exit.position,relay:true};
     }
 }
 function mrSlotKey(source,slot){
@@ -1662,7 +1660,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.7 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.8 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
