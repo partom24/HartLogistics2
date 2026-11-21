@@ -24,8 +24,8 @@ param(
     [switch]$Apply,
     [string]$ExpectedCommit = '',
     [string]$BackupTag = '',
-    [ValidateSet('1.5.1','1.5.2','1.5.3','1.5.4','1.5.5','1.5.6','1.5.7','1.5.8','1.5.9','1.5.10','1.5.11')]
-    [string]$CandidateVersion = '1.5.11'
+    [ValidateSet('1.5.1','1.5.2','1.5.3','1.5.4','1.5.5','1.5.6','1.5.7','1.5.8','1.5.9','1.5.10','1.5.11','1.5.12')]
+    [string]$CandidateVersion = '1.5.12'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -71,8 +71,11 @@ $approvedLaunchers = @{
     '1.5.9' = 'Start-HartLogistics-159Lab.ps1'
     '1.5.10' = 'Start-HartLogistics-1510Lab.ps1'
     '1.5.11' = 'Start-HartLogistics-1511Lab.ps1'
+    '1.5.12' = 'Start-HartLogistics-1512Lab.ps1'
 }
-$approvedBranch = if ($CandidateVersion -eq '1.5.11') {
+$approvedBranch = if ($CandidateVersion -eq '1.5.12') {
+    'dev/urce-1512-inert-native-terminus-20261120'
+} elseif ($CandidateVersion -eq '1.5.11') {
     'dev/urce-1511-native-terminal-20261120'
 } elseif ($CandidateVersion -eq '1.5.10') {
     'dev/urce-1510-directional-columns-20261120'
