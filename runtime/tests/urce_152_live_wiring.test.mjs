@@ -114,13 +114,17 @@ test("WIRE-07 ejected-item Collector route refuses before reading/removing entit
 
 test("WIRE-08 Receiver Q4 drain HOLDs a queued item before debit on known loop",()=>{
   let probes=0,writer=0;
-  const receiver={id:"receiver-1",queued:19},queue={total:19};
+  const receiver={id:"receiver-1",d:"minecraft:overworld",
+    x:0,y:73,z:0,queued:19},queue={total:19};
   const ctx={
     receiverAt:()=>({typeId:"hartsorter:receiver"}),
     blockIsRedstonePowered:()=>false,
     receiverOutputHopper:()=>({locked:false,container:{isValid:true}}),
     RECEIVER_BATCH:32,
     loadReceiverQueue:()=>queue,
+    logistics:{collectors:[{id:"c1",link:receiver.id}]},dirty:false,
+    columns:[{d:receiver.d,source:{x:0,y:72,z:0}}],
+    directSorterOutlet:()=>({status:"CLOSED_DIRECT_OUTLET"}),
     receiverLinkSafety:()=>{probes++;return {decision:"REJECT",reason:"cycle"};},
     dequeueToReceiver:()=>{writer++;throw Error("must not debit an unsafe Q4 queue");},
     log:()=>{},recoverQueueJournal:()=>{throw Error("journal must not change")}
@@ -140,11 +144,16 @@ test("WIRE-09 Receiver Q4 drain HOLDS uncertain paths without rewriting a queue"
     receiverOutputHopper:()=>({locked:false}),
     RECEIVER_BATCH:16,
     loadReceiverQueue:()=>({total:7}),
+    logistics:{collectors:[{id:"c1",link:"R"}]},dirty:false,
+    columns:[{d:"minecraft:overworld",source:{x:0,y:72,z:0}}],
+    directSorterOutlet:()=>({status:"CLOSED_DIRECT_OUTLET"}),
     receiverLinkSafety:()=>({decision:"HOLD",reason:"unloaded_route"}),
     dequeueToReceiver:()=>{debits++;return 1;},
     log:()=>{},recoverQueueJournal:()=>{}
   };
-  assert.equal(original("processReceiverDrain",ctx)({id:"R"},16),0);
+  assert.equal(original("processReceiverDrain",ctx)({
+    id:"R",d:"minecraft:overworld",x:0,y:73,z:0
+  },16),0);
   assert.equal(debits,0);
 });
 
@@ -156,6 +165,7 @@ test("WIRE-10 Receiver with no managed Collector keeps native 1.4.2 drain",()=>{
     receiverOutputHopper:()=>({locked:false}),
     RECEIVER_BATCH:8,
     loadReceiverQueue:()=>({total:queueTotal}),
+    logistics:{collectors:[]},
     receiverLinkSafety:()=>{safetyChecks++;return {decision:"NO_MANAGED_INPUT"};},
     dequeueToReceiver:(_receiver,_output,budget)=>{
       const n=Math.min(queueTotal,budget);queueTotal-=n;debits+=n;return n;
