@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.5.9
+# HartLogistics Fresh LAB 0.5.10
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -85,3 +85,7 @@ Ordinary items inserted into a discovered Hopper lane can be collected when they
 This path skips powered Hoppers, paused Receivers, recovery traffic and items of the same type as an active shipment on the shared lane. Local AUTO, WILDCARD, Bulk overflow and metadata-rich intake from inside the lane are outside this build's passive filter handling.
 
 LAB baseline on 0.5.8: with the Collector idle, all 256 chest-fed stone bricks bypassed the downstream filter and reached the catch chest. Repeat with room for four stacks in filtered storage. Compare the idle, busy and post-drain Server Timings captures in the same world.
+
+### 0.5.10 cold registration fix
+
+Deferred chunk discovery now completes the Sorter index on an idle bank. Status shows the number of passive filter taps and cumulative readable tap checks. These counters distinguish a registered lane from one actively checking its Hoppers.

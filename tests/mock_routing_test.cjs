@@ -442,6 +442,12 @@ ticks(120);
 assert.deepEqual(awakened,[299,298,297]);
 assert.equal(evalBank(coldBank,'b.net.lane.length'),52);
 assert.equal(evalBank(coldBank,'b.dispatched'),0);
+// No Collector input, refresh or status call may be needed to arm the taps.
+assert.equal(evalBank(coldBank,'b.cache?.passiveTaps.length'),52);
+coldBank.hoppers[51].inv.setItem(0,new Stack(fixtureItem(51,1),8));
+ticks(8);
+assert.equal(coldBank.chests[51].count(fixtureItem(51,1)),8);
+assert.equal(evalBank(coldBank,'b.laneDelivered'),8);
 dim.getBlock=originalRead;
 console.log('PASS: discovery automatically loads three successive unavailable chunks');
 

@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.9) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.10) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -671,7 +671,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.9 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.10 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -703,8 +703,19 @@ function queueRegistration(bank){
     system.run(()=>{
         bank.registrationQueued=false;
         if(!labCollectorKeys.some(key=>labLinkedReceiver(key)===bank.cfg.name))return;
-        if(labDiscover(bank))labBuildIndex(bank);
+        finishRegistration(bank);
     });
+}
+// Cold discovery can span several ticks. Complete the same registration
+// steps after the last chunk loads as on a warm, immediately readable lane.
+function finishRegistration(bank){
+    const net=labDiscover(bank);
+    bank.registrationPending=true;
+    if(!net)return;
+    if(bank.indexNeedsCoverage && !coverRoute(bank))return;
+    const index=labBuildIndex(bank);
+    bank.indexNeedsCoverage=index.missing>0;
+    bank.registrationPending=bank.indexNeedsCoverage;
 }
 // State order corresponds to the six neighbor offsets exported by topology.js.
 const armNames=['up','down','north','south','west','east'];
@@ -1638,6 +1649,7 @@ function serviceLaneInputs(b,banks){
         const hopper=labGet(b.cfg.dimension,p);
         if(hopper?.typeId!==HOPPER || hopper.permutation.getState('toggle_bit') ||
             hopper.permutation.getState('facing_direction')!==direction)continue;
+        b.laneTapReads=(b.laneTapReads||0)+1;
         const inv=labBlockInventory(hopper);
         if(!inv || inv.emptySlotsCount===inv.size)continue;
         for(let slot=0;slot<inv.size;slot++){
@@ -1707,7 +1719,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.9 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.10 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1726,7 +1738,7 @@ function labStats(source){
             if(p && labGet(p.d,p)?.permutation.getState(POWERED))paused.push('Collector '+positionKey(p));
         }
         lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' readable Sorters / '+(net?.spots.length || 0)+' discovered, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
-            ', delivered='+b.confirmed+', lane input delivered='+(b.laneDelivered||0)+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
+            ', delivered='+b.confirmed+', passive taps='+(i?.passiveTaps.length||0)+', lane tap reads='+(b.laneTapReads||0)+', lane input delivered='+(b.laneDelivered||0)+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
             ', discovery block reads='+b.reads+(b.lastDestination?' | last delivery chest='+positionKey(b.lastDestination):'')+' | '+(b.blocked || 'ready')+(b.mrHold?' | last MR hold: '+b.mrHold:'')+(paused.length?' | redstone paused: '+paused.join(', '):''));
     }
     if(!receivers.size)lines.push('No linked Receivers found.');
@@ -1813,7 +1825,11 @@ system.runInterval(()=>{
     }
     if(labTick%16===0)releaseIdleChunks();
     if(labTick%8===0){
-        for(const bank of Object.values(labBanks))if(bank.discoveryChunks)labDiscover(bank);
+        for(const bank of Object.values(labBanks)){
+            if(bank.discoveryChunks || (bank.registrationPending && (bank.net || labTick>=bank.retry))){
+                try{finishRegistration(bank);}catch(err){labMarkHold(bank,'Registration: '+err);}
+            }
+        }
         labProcessInputs();
     }
 },1);
