@@ -1,5 +1,8 @@
 # HartLogistics2 — development pickup and delivery entrypoint
 
+**1.5.13 integrated source milestone (not installed):** [bounded original-Q4-to-remote-Filter transfer through one/two native visual Transporter banks and managed Collector→Receiver links, with 16,388-Q4 no-home containment, synthetic source tests and exact installed-1.5.11 LAB guard](docs/URCE_1513_GOVERNED_BANK_FILTER_RUNTIME_HANDOFF_20261121.md). Do not unpause the protected Q4 Receiver; neither source CI nor a verified link-only snapshot proves the entire multi-bank product.
+
+
 **Critical real BDS protected-Q4 incident (16,388 held; 4.7x unpowered script-time spike):** [decoded diagnostic phase measurements, CPU profile hot stacks, no-home drain gate, exact 1.5.12 source-only mitigation and unapproved multi-bank custody](docs/URCE_1512_16388_Q4_PERFORMANCE_INCIDENT_20261120.md). **Do not unpause/retest the protected Receiver, install an older 1.5.12 commit, or mistake `verified snapshot` for a proven cargo home.** Source CI is not real TPS acceptance.
 
 
