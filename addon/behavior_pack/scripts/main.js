@@ -730,6 +730,7 @@ function inspectManagedBankFilter(receiver,item) {
             observeSorterDestination(entry,()=>block,facingOffset,COLLECTOR_ID),
         inventory:block=>block.getComponent("minecraft:inventory")?.container,
         admit:findAcceptSlot,
+        knownInert:isKnownInertNativeStop,
         // Fixed native-read ceiling; fail closed if a larger/ambiguous bank
         // cannot be witnessed within one bounded synchronous attempt.
         maxPipes:256,maxReads:1400,maxBanks:16
@@ -4303,7 +4304,17 @@ function processReceiverDrain(receiver, globalRemaining) {
             const safety=receiverLinkSafety(receiver);
             if (safety.decision==="NO_MANAGED_INPUT") {
                 governedLane="LEGACY_UNGOVERNED";
-            } else if (safety.decision==="SAFE_SNAPSHOT" &&
+            } else if ((safety.decision==="SAFE_SNAPSHOT" ||
+                         // The old 1.5.2 visual graph assumes each bank has a
+                         // downstream Collector. A terminal bank WITHOUT one
+                         // is valid by owner contract; it is not a cargo
+                         // error when the independently CLOSED, bounded
+                         // source-specific Filter proof witnesses its full
+                         // Transporter run, all links, Hopper outputs, and
+                         // exact native destination within this same stack.
+                         (positiveBankProof?.status==="FILTER_HOME" &&
+                          safety.decision==="HOLD" &&
+                          safety.reason==="ambiguous_transporter_component")) &&
                        (safety.routeKind==="DIRECT_NATIVE_SORTER" ||
                         positiveBankProof?.status==="FILTER_HOME")) {
                 governedLane=positiveBankProof?.status==="FILTER_HOME"
