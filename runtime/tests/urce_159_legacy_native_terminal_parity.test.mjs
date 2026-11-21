@@ -79,6 +79,7 @@ for(const [label,opts,reason] of [
  ["unloaded",{unloaded:true},"native_terminal_boundary_unloaded"],
  ["extractor",{extractor:true},"native_terminal_extraction_hopper"],
  ["foreign",{type:"minecraft:furnace"},"native_terminal_not_supported"],
+ ["cobbled-deepslate safety stopper",{type:"minecraft:cobbled_deepslate"},"native_terminal_not_supported"],
  ["invalid container",{valid:false},"native_terminal_inventory_unverified"]
 ]){
  test("PARITY SAFE "+label,async()=>{
