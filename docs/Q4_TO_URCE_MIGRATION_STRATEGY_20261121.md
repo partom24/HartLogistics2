@@ -1,3 +1,5 @@
+> **SUPERSEDED — DO NOT IMPLEMENT (2026-11-21).** This document incorrectly targeted URCE. The owner has explicitly selected **HartLogistics Fresh LAB 0.5.7** as the deployment target for upgrading **1.4.1**. The authoritative replacement is [1.4.1 → Fresh LAB 0.5.7 migration plan](MIGRATION_141_TO_FRESH_057_20261121.md), which incorporates approved dynamic Collector/Receiver storage expansion and the pack-header UUID migration blocker. The old text below is retained only as rejected planning history.
+
 # HartLogistics Fresh LAB — Q4 to Unified Custody Migration Strategy (DRAFT)
 
 **Date:** 2026-11-21  
