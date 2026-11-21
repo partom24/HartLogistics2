@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.3.3) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.4.0) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -9,7 +9,7 @@
 import { world, system, ItemStack, BlockPermutation, EquipmentSlot,
          EnchantmentTypes, Potions } from '@minecraft/server';
 
-import { discover, HOPPER, positionKey } from './topology.js';
+import { discover, HOPPER, PIPE, isTransport, neighbors, step, positionKey } from './topology.js';
 
 const SORTER_ID = 'hartsorter:sorter';
 const COLLECTOR_ID = 'hartsorter:collector';
@@ -502,7 +502,7 @@ function selectCollector(player,block){
     const raw=world.getDynamicProperty(id);
     let info;try{info=typeof raw==='string'?JSON.parse(raw):{};}catch(_){info={};}
     player.sendMessage(`§b[Collector] Selected. ${info?.receiver?'Linked to '+info.receiver+'. ':'Not linked. '}Interact with a Receiver to link.`);
-    player.sendMessage('§7[Fresh LAB] Linked Collectors with input inventories now use addressed Hopper delivery.');
+    player.sendMessage('§7[Fresh LAB] Linked Collectors with input inventories use the linked Receiver transport lane.');
 }
 function useReceiver(player,block){
     const id=keyFor('r',block.dimension.id,block.location);
@@ -516,7 +516,7 @@ function useReceiver(player,block){
         selectedCollector.delete(player.id);
         player.sendMessage(`§a[Hart Logistics] Collector linked to Receiver at ${block.location.x}, ${block.location.y}, ${block.location.z}.`);
     }else player.sendMessage('§7[Receiver] Select a Collector first, then click this Receiver to link.');
-    player.sendMessage('§7[Fresh LAB] Native Hopper transport is enabled on configured LAB lanes.');
+    player.sendMessage('§7[Fresh LAB] The Receiver discovers its connected Hopper or Transporter lane.');
 }
 
 // Keep 1.4.1's item-use suppression: pearls, charges, etc. must not activate
@@ -583,6 +583,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
 });
 world.afterEvents.playerPlaceBlock.subscribe(ev=>{
     invalidateRouting(ev.block.dimension.id,ev.block.location);
+    refreshPipeNeighbors(ev.block.dimension.id,ev.block.location);
     const b=ev.block,p=b.location,d=b.dimension.id;
     if(b.typeId===SORTER_ID){
         const e=entryForBlock(b,true);
@@ -618,6 +619,7 @@ world.beforeEvents.playerBreakBlock.subscribe(ev=>{
             if(player?.getGameMode?.()==='Creative')support.setType('minecraft:air');
             else support.dimension.runCommand(`setblock ${p.x} ${p.y} ${p.z} air destroy`);
         }catch(err){log(`Controlled break failed: ${err}`);return;}
+        refreshPipeNeighbors(d,p);
         clearEntry(live);
         if(live.f && live.fc===1)giveOrDrop(player,rebuildItem(live.f));
     });
@@ -636,6 +638,7 @@ world.afterEvents.entityHitBlock.subscribe(ev=>{
 });
 world.afterEvents.playerBreakBlock.subscribe(ev=>{
     invalidateRouting(ev.dimension.id,ev.block.location);
+    refreshPipeNeighbors(ev.dimension.id,ev.block.location);
     let typeId='';try{typeId=ev.brokenBlockPermutation.type.id;}catch(_){try{typeId=ev.brokenBlockPermutation.typeId;}catch(_){}}
     if(typeId!==SORTER_ID)return;
     const e={d:ev.dimension.id,...ev.block.location};
@@ -644,7 +647,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.3.3 ready — original 1.4.1 assets; addressed physical Hopper routing enabled.'));
+system.run(()=>log('0.4.0 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -662,6 +665,29 @@ function invalidateRouting(d,p){
 }
 function routingCollectorAdded(key){
     if(!labCollectorKeys.includes(key))labCollectorKeys.push(key);
+}
+// State order corresponds to the six neighbor offsets exported by topology.js.
+const armNames=['up','down','north','south','west','east'];
+function refreshPipe(block){
+    if(block?.typeId!==PIPE)return;
+    const d=block.dimension.id,p=block.location;
+    let permutation=block.permutation,changed=false;
+    for(const [i,offset] of neighbors.entries()){
+        const other=labGet(d,step(p,offset));
+        if(!other)continue;
+        const id=other.typeId;
+        const connected=id===PIPE || id===SORTER_ID || id===RECEIVER_ID || id===COLLECTOR_ID || !!labBlockInventory(other);
+        const state='hartlogistics:connect_'+armNames[i];
+        if(permutation.getState(state)!==connected){
+            permutation=permutation.withState(state,connected);
+            changed=true;
+        }
+    }
+    if(changed)block.setPermutation(permutation);
+}
+function refreshPipeNeighbors(d,p){
+    refreshPipe(labGet(d,p));
+    for(const offset of neighbors)refreshPipe(labGet(d,step(p,offset)));
 }
 function labGet(d,p){return getBlock(d,p.x,p.y,p.z);}
 function labBlockInventory(block){
@@ -697,6 +723,7 @@ function labDiscover(b) {
         if(labGet(dimension,receiver)?.typeId!==RECEIVER_ID) throw Error('Receiver missing or unloaded');
         const reg=JSON.parse(world.getDynamicProperty(name) || '{}');
         b.net=discover(receiver,reg,p=>{b.watched.add(positionKey(p));b.reads++;return labGet(dimension,p);},SORTER_ID);
+        if(b.net.method===PIPE)for(const p of b.net.lane)refreshPipe(labGet(dimension,p));
         b.blocked='';
     } catch(err) {b.net=null;b.blocked=String(err);b.retry=labTick+100;}
     return b.net;
@@ -896,8 +923,25 @@ function labFinish(b){
     labPersistActive(b);
     if(undelivered)log(`${b.cfg.name}: ${c.moved}/${c.sent} deposited; ${undelivered} unconfirmed. Inspect the lane and its output.`);
 }
+function labPipeDispatch(b,source,slot,item,target){
+    const d=b.cfg.dimension;
+    if(labGet(d,b.cfg.receiver)?.typeId!==RECEIVER_ID || labGet(d,target.p)?.typeId!==SORTER_ID)return false;
+    // Recheck the selected physical path at transfer time, including chunk availability.
+    for(let p=target.p.tap;p;p=b.net.parents.get(positionKey(p))){
+        if(labGet(d,p)?.typeId!==PIPE){
+            b.generation=++labRevision;b.blocked='Transporter path changed or unavailable';return false;
+        }
+    }
+    const dest=labDestinationContainer(target);
+    if(!dest || (source.dimension===d && positionKey(source.loc)===positionKey(target.destination)))return false;
+    const moved=labSafeTransfer(source.container,slot,dest,item);
+    b.dispatched+=moved;b.confirmed+=moved;
+    if(moved)b.blocked='';
+    return moved>0;
+}
 function labTryDispatch(b,key,source,slot,item,target){
     const cfg=b.cfg;
+    if(b.net.method===PIPE)return labPipeDispatch(b,source,slot,item,target);
     if(!labLineEmpty(b)){b.blocked='hopper line contains existing items; waiting for it to drain';return false;}
     const first=labContainer(cfg.dimension,b.net.lane[0]);
     if(!first||!labCanFitEntire(first,item)){
@@ -1032,7 +1076,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.3.3 addressed Hopper routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.4.0 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1043,7 +1087,7 @@ function labStats(source){
         const b=labBankForReceiver(key);
         if(!b)continue;
         const net=labDiscover(b), i=net && labBuildIndex(b);
-        lines.push(key+' | '+(net?.lane.length || 0)+' Hoppers, '+(i?.total || 0)+' Sorters, dispatched='+b.dispatched+
+        lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' Sorters, dispatched='+b.dispatched+
             ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
             ', discovery block reads='+b.reads+' | '+(b.blocked || 'ready'));
     }
@@ -1077,10 +1121,10 @@ function labRoutingEvent(ev){
                 }else if(command==='unbind_column'){
                     if(reg.columns)delete reg.columns[positionKey(block.location)];
                 }else if(command==='bind_inlet'){
-                    if(block.typeId!==HOPPER)throw Error('Look at the inlet Hopper.');
+                    if(!isTransport(block.typeId))throw Error('Look at the inlet Hopper or Transporter.');
                     reg.inlet=block.location;
                 }else if(command==='select_tap'){
-                    if(block.typeId!==HOPPER || !labDiscover(b)?.taps.has(positionKey(block.location)))throw Error('Select a Hopper on the discovered lane.');
+                    if(!isTransport(block.typeId) || !labDiscover(b)?.taps.has(positionKey(block.location)))throw Error('Select a block on the discovered transport lane.');
                     selected.tap=positionKey(block.location);
                 }else{
                     if(block.typeId!==SORTER_ID || !selected.tap || !labDiscover(b)?.taps.has(selected.tap))throw Error('Select a lane tap, then look at a Sorter in its column.');

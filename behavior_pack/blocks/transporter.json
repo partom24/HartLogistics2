@@ -1,0 +1,91 @@
+{
+  "format_version": "1.26.30",
+  "minecraft:block": {
+    "description": {
+      "identifier": "hartlogistics:transporter",
+      "menu_category": {
+        "category": "construction"
+      },
+      "states": {
+        "hartlogistics:connect_north": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_south": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_east": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_west": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_up": [
+          false,
+          true
+        ],
+        "hartlogistics:connect_down": [
+          false,
+          true
+        ]
+      }
+    },
+    "components": {
+      "minecraft:display_name": "Hart Transporter",
+      "minecraft:geometry": {
+        "identifier": "geometry.hartlogistics.transporter",
+        "bone_visibility": {
+          "north": "q.block_state('hartlogistics:connect_north')",
+          "south": "q.block_state('hartlogistics:connect_south')",
+          "east": "q.block_state('hartlogistics:connect_east')",
+          "west": "q.block_state('hartlogistics:connect_west')",
+          "up": "q.block_state('hartlogistics:connect_up')",
+          "down": "q.block_state('hartlogistics:connect_down')"
+        }
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "hartlogistics_transporter",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:item_visual": {
+        "geometry": "geometry.hartlogistics.transporter_item",
+        "material_instances": {
+          "*": {
+            "texture": "hartlogistics_transporter",
+            "render_method": "opaque"
+          }
+        }
+      },
+      "minecraft:collision_box": false,
+      "minecraft:selection_box": {
+        "origin": [
+          -8,
+          0,
+          -8
+        ],
+        "size": [
+          16,
+          16,
+          16
+        ]
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 1.5
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 6
+      },
+      "minecraft:movable": {
+        "movement_type": "immovable",
+        "sticky": "none"
+      },
+      "minecraft:loot": "loot_tables/blocks/transporter.json",
+      "minecraft:map_color": "#5C7A8F"
+    }
+  }
+}

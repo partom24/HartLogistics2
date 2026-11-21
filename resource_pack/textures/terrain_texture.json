@@ -132,6 +132,9 @@
     },
     "hartsorter_rim_zx_bypass": {
       "textures": "textures/blocks/hartsorter_rim_zx_bypass"
+    },
+    "hartlogistics_transporter": {
+      "textures": "textures/blocks/hartlogistics_transporter"
     }
   }
 }
