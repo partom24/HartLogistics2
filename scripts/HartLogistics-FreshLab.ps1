@@ -79,7 +79,9 @@ function Check-SourcePacks {
     $r = Read-Pack $script:srcRP $rpId
     $script:packVersion = @([int]$b.header.version[0], [int]$b.header.version[1], [int]$b.header.version[2])
     Assert-That (($packVersion -join '.') -eq ($r.header.version -join '.')) 'BP/RP versions disagree.'
-    $rpDep = @($b.dependencies | Where-Object { $_.uuid -eq $rpId })
+    # Both Bedrock script modules (module_name) and pack refs (uuid) appear here.
+    # StrictMode forbids reading a missing uuid, so filter by property existence first.
+    $rpDep = @($b.dependencies | Where-Object { $_.PSObject.Properties.Name -contains 'uuid' -and $_.uuid -eq $rpId })
     Assert-That ($rpDep.Count -eq 1) 'BP must depend on the matching Fresh LAB RP.'
     Assert-That (($rpDep[0].version -join '.') -eq ($packVersion -join '.')) 'BP/RP dependency versions disagree.'
     Assert-That (Test-Path -LiteralPath (Join-Path $script:srcBP 'scripts\main.js') -PathType Leaf) 'Missing routing source.'
