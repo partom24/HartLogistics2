@@ -1,120 +1,98 @@
-# Migration plan: HartLogistics 1.4.1 → Fresh LAB 0.5.7
+# HartLogistics migration: 1.4.1 → Fresh LAB 0.5.7
 
-**State:** DRAFT / PLANNING ONLY — 2026-11-21  
-**Target runtime:** The actual `fresh-lab` **0.5.7** engine. **NOT URCE or Q5.**  
-**Origin:** Existing 1.4.1 player world, native inventories, Sorter filters/settings, Collector/Receiver links and per-Receiver Q2/Q3/Q4 stored queues.  
-**Scope:** Document the upgrade, prerequisite implementation, and acceptance gates; no world or pack has been changed by this document.  
-**Supersedes:** `docs/Q4_TO_URCE_MIGRATION_STRATEGY_20261121.md` (incorrect target architecture).  
-**Owner direction:** If an existing Receiver's Q4 balance or new intake requires more custody during draining, Collector/Receiver **virtual capacity may grow dynamically** as needed. Do not make Bulk Storage a prerequisite.
+**Status:** Owner-guided strategy; PLAN ONLY (2026-11-21). No runtime code, LAB world or production world changed by this document.
+**Target:** The actual Fresh LAB **0.5.7** engine. **Not URCE and not Q5.**
+**Migration destination (owner correction):** For each detected connected HartLogistics storage network, identify the **entry Receiver of its last storage array** and consolidate **all upstream HL-owned in-transit inventory** into that single Receiver. That Receiver must expand its virtual storage as needed. Temporary ticking areas around relevant actual Collector and Receiver locations are approved.
+**Supersedes:** `docs/Q4_TO_URCE_MIGRATION_STRATEGY_20261121.md` (rejected target). This file supersedes earlier revisions proposing item-by-item selection of the 'most appropriate' Receiver or opportunistic direct chest delivery during the migration.
 
-## 1. Actual baseline / target
+## 1. Ground truth
 
-### Legacy 1.4.1
-- **No Bulk Storage blocks or Bulk inventories exist to import.**
-- The original **Receiver** has a **250,000-item Q4** virtual queue, with older Q2/Q3 formats and queue journal requiring compatibility. The original Collector does **not** have an equivalent 250,000-item virtual account.
-- Original saved Sorter registry / filters, frame settings, links and Receiver identities are persisted in `hartsorter:*` dynamic properties; items may also be in actual Hopper/chest/native slots.
-- The original 1.4.1 source in `main/addon/behavior_pack/scripts/main.js` contains reading/migrating Q2/Q3/Q4 and queues, but `loadReceiverQueue()` **is not read-only**: it can repair/migrate/delete old properties. A migration census must use a separate read-only parser.
+- **1.4.1:** Receivers have up to 250,000 items in Q4 virtual queues, with potential Q2/Q3 sidecars and interrupted journals. Original Collectors did *not* have matching 250K virtual accounts. Original saved sorter settings, item-frame filters and Collector→Receiver links are in `hartsorter:*` world dynamic properties. Physical native inventories can also hold in-flight items.
+- **1.4.1 has NO Bulk Storage.** There is no legacy Bulk ledger, block or requirement to migrate. Never create Bulk merely to perform a migration.
+- **Fresh LAB 0.5.7:** Has placed-geometry Hopper and Transporter lanes, actual Collector/Receiver links, relay Collector five-slot native buffers, native metadata-rich (MR) transfers, and optional **new** 200K/member Bulk Storage. It currently does **not** have a Q4 importer, expandable 250K+ logical per-Collector/per-Receiver accounts, or a cross-network virtual consolidation adapter. All of these migration capabilities must be implemented and proven before deployment.
+- The old `loadReceiverQueue()` function is **mutating**, including Q2/Q3 conversion/repair. It is not a safe read-only census function. The source-only/mock LAB tests do not prove live BDS migration safety.
 
-### Fresh LAB 0.5.7 (source inspection at `fresh-lab` commit `4b4649af6d9d74c853d6ee05a261af7e99f4a926`)
-- Actual routing uses discovered Hopper lanes or connected Transporter networks, native endpoint destinations, bank relays and native MR moves. Its five-slot Collector relay buffer is a native entity inventory, **not** a 250,000-item virtual account.
-- Fresh 0.5.7 has **200,000 ordinary-item Bulk** members if newly placed, but **no old-world Bulk exists** and ordinary Bulk is optional.
-- Fresh 0.5.7 does **not** implement a legacy Q4 importer or general expandable per-Collector/per-Receiver virtual custody/drain adapter today. Those are **prerequisites**, not accepted features.
-- Current mock/source tests are not evidence that the exact 0.5.7 code is installed or BDS migration-accepted. Hard-stop/dual-save-domain reliability remains open.
+## 2. Pack identity is the first compatibility gate
 
-## 2. Immediate hard blocker — installed pack identity / property namespace
-
-Actual repository manifests differ:
-
-| Manifest | Original 1.4.1 header UUID | Fresh LAB 0.5.7 header UUID |
+| World pack | 1.4.1 header UUID | Fresh 0.5.7 header UUID |
 | --- | --- | --- |
 | Behavior Pack | `4854d263-05dd-4f79-a21c-7ba969295c2d` | `f450bff5-6b68-42e5-a07d-616f87c01918` |
 | Resource Pack | `91316442-0f26-4fbb-88f3-2e39ea843a1a` | `39f2d6c6-9b79-4754-a2e2-fd27c1ec1d63` |
 
-World dynamic properties are scoped by the **Behavior Pack header UUID**. Therefore an unchanged Fresh 0.5.7 pack is **not** automatically authorized to read `hartsorter:*` properties written under the original 1.4.1 UUID. Same block identifiers do **not** solve dynamic-property namespace isolation. This is a release-stopping migration concern, not an ordinary missing function.
+Saved world dynamic properties are scoped by Behavior Pack header UUID. The unchanged 0.5.7 pack cannot be assumed to read old `hartsorter:*` Q4 records. Preferred solution: a **migration-compatible build of the 0.5.7 runtime** that retains the original 1.4.1 Behavior Pack identity under a valid upgraded manifest version and validated RP activation. Confirm on a stopped, cloned 1.4.1 world, including correct custom block identifiers and a **single routing engine**. Alternative bridge only with equivalent BDS-proof source ownership; never let old and new full schedulers run concurrently, or edit production LevelDB as a shortcut. Retain rollback from a pristine world backup.
 
-**Preferred strategy:** Make a **migration-compatible deployment derivative of the 0.5.7 engine** under the original 1.4.1 Behavior Pack header UUID, with a manifest version **higher than 1.4.1** and exact validated world BP/RP registrations. Preserve and test original Resource Pack identity as well when it is required for world activation and player assets. **0.5.7 is the engine/code target** even if the Bedrock manifest must use a distinct upgrade-compatible version. Do not simply relabel an existing 0.5.7 manifest without migration-specific proof. No other add-on may share that header UUID.
+## 3. Detect the final storage array and its entry Receiver
 
-Alternative only after source/BDS proof: run a one-time controlled bridge under the original namespace and transfer a verified manifest to the new namespace through a proven secure channel. Do **not** start both full old/new routing schedulers simultaneously, assume cross-pack dynamic-property access, or patch the production world's LevelDB as a shortcut. Choose one strategy before implementing importer.
+**Terminology:** A *storage array* is one registered receiver-led bank with its actual Hopper/Transporter lane, Sorters and output endpoints. Its *entry Receiver* is the Receiver that accepts material into that bank. A *storage network* is the collection of arrays connected by actual supported Collector→Receiver links and downstream sorter/lane-to-Collector relays. Coordinates are identifiers read from real blocks, never hardcoded layout assumptions.
 
-**P0 PASS:** On a copied 1.4.1 LAB world with BDS stopped for install, verified versioned candidate loads old saved properties *without writing to them*, original custom blocks remain valid, exactly one engine is active, and pack activation/rollback match guard checks. No assumption of success from merely matching code-level `hartsorter:*` strings.
+1. Read/import 1.4.1 saved link records and discover existing 0.5.7 physical relay relationships. Build a **directed bank graph** with Receivers as bank-entry vertices and verified downstream Collector/Receiver relays as edges. Partition it into connected storage networks. Do not mistake physically neighboring but unlinked systems for one network.
+2. For each connected network, identify the **last downstream storage array** by graph reachability. In a simple `A → B → C`, **C's entry Receiver** is the target for **all** verified in-transit custody held by A, B and C. In a directed acyclic network, an unambiguous downstream terminal is a **unique reachable sink Receiver**, not the final Sorter, last Hopper, final chest, or an intermediate relay Collector.
+3. **Cycles and multiple final branches:** A closed loop has no natural last array. Multiple sinks have no unique last. HOLD automatic consolidation for that component and support a **persisted owner-selected terminal Receiver**. Verify the selected Receiver is reachable from every contributing upstream bank via the supported directed graph (or explicitly split/disambiguate a component). Do not invent edges, infer a terminal from coordinates, or silently move inventories between independent networks.
+4. Source configuration and graph topology can change; record a generation/fingerprint and revalidate it before committing each source transfer. If the target disappears or graph becomes ambiguous, retain current authoritative custody and HOLD.
+5. Make the selected terminal visible in status: network ID, Receiver dimension/real coordinate, detected or manually bound, graph-generation hash, contributing upstream sources, and any HOLD reason. Selection must not depend on the player standing in a particular chunk.
 
-## 3. Conservation and routing requirements
+## 4. What must drain into the terminal
 
-1. **No missing, duplicated or flattened items**: count separately by type and metadata-relevant identity, and reconcile original Q4, native items, new virtual custody and final chests. Unknown/unfinished journal means HOLD.
-2. **No required Bulk**: migration must work with **zero Bulk blocks** and never summon/create Bulk as an upgrade side effect. Later player-placed Bulk may be used under 0.5.7's proven normal routing policy.
-3. **Do not physically empty Q4 merely to convert formats.** Prefer a staged, read-through old Q4 ledger or a verified non-spendable copy into a new account. Native Hoppers should run only for a legitimate routed delivery.
-4. **No FIFO requirement**: original Q4 sequence/page identifiers remain essential audit/recovery facts, not ordering requirements for the new scheduler.
-5. **Use actual placed block identities and graph**, not hardcoded positions or demonstration rigs. Upgrade already-built Hopper, Sorter, Collector and Receiver topology. A dead-end or unknown path is HOLD, not a false receipt or forced rewire.
-6. **One spendable owner per item**. Original Q4 and new virtual balances must never both authorize spending the same cargo. Route plans, reservations or journal intents are not receipts.
-7. **Normal home policy governs draining**: valid Filter and live-seeded Auto destinations first for claimed cargo, applicable Wildcard/optional other authorized outputs under 0.5.7 rules; check live partial-stack capacity, redstone and path. No destination means hold at the current authoritative owner. Bulk cannot be presumed available.
-8. **Preserve metadata**: Q4 can hold serialized item definitions, but not every native ItemStack attribute is necessarily reconstructible. Verify each Q4 item class; if it cannot be materialized with identity fidelity, quarantine and expose an inspect/retrieve path rather than flattening or discarding it. Fresh 0.5.7's existing native MR transfer handles actual native stacks, not automatically old serialized Q4 definitions.
-9. **No destructive downgrade after cutover**. Keeping original Q4 bytes for audit does not make an old 1.4.1 scheduler safe to reinstall after 0.5.7 spending has begun. Rollback requires an explicit balance reversal/export/reconciliation, or restoring the untouched pre-upgrade world snapshot.
+**Yes:** All verifiably HL-owned *in-transit* inventory from upstream original Receiver Q4/Q3/Q2 queues, held migrated Receiver/Collector virtual balances, and separately reconciled items in HL-controlled physical Hopper/native relay/Collector slots that belong to that network and have not yet been delivered.
 
-## 4. Dynamic Collector / Receiver capacity during migration
+**No:** Ordinary items already delivered into their correct storage chests, items in players' inventories, unrelated containers, or new Bulk Storage that never existed in 1.4.1. Do not empty final storage chests to populate the terminal.
 
-The owner explicitly authorizes **dynamic expansion** to accommodate migration draining. Implement it as durable **logical custody capacity** rather than an unlimited Minecraft container or an unbounded single JSON property.
+- First produce a **read-only census**: original sorter registry, settings, link records, per-Receiver queue pages and item definitions, hashes and item quantities, original journal states, and observed native in-flight contents. Missing/unloaded/corrupt states count as UNKNOWN, never zero.
+- Preserve ItemStack identity and exact metadata. Fresh 0.5.7's native MR move does not automatically prove old Q4 serialized MR restoration. Unsupported identities remain individually HELD with a recovery path; do not flatten named/damaged/enchanted items.
+- **No FIFO requirement.** Legacy Q4 ordering/page numbers remain evidence for integrity and recovery, not the new processing order.
+- A migration-owned transfer is a **custody change, not necessarily a physical Hopper movement**. For verified virtual Q4 balances, use durable idempotent source debit→target credit/reconciliation with one spendable owner, without re-inserting everything into the physical Hopper network. This adapter is new code; it does not exist in current 0.5.7.
+- A native item in a real Hopper/Collector buffer cannot be virtually credited without an observed and recovery-safe withdrawal or established checkpoint. Do not fabricate an item from a physical scan or count an inventory item alongside a virtual credit. Let in-flight cargo complete to a safe checkpoint or apply a proven native custody transfer and journal before credit.
+- Keep the terminal Receiver's **outbound sorting paused during consolidation** so the test can verify that all eligible upstream transport custody actually arrived. Then enable normal Fresh 0.5.7 delivery from the terminal bank to its original Filter/Auto and appropriate other destinations. Items may remain in its virtual account under ordinary backpressure.
 
-- Every legacy Receiver starts with enough recognized capacity for its **entire verified outstanding Q4 amount**, even if close to 250,000. Every Collector starts with the capacity needed for its verified own deposits / legitimate incoming relays; do **not** invent legacy Collector balances that were never stored in 1.4.1.
-- When a verified intake/relay cannot be serviced immediately, **grow the owning Collector or Receiver account before admitting it**. The new authorized capacity must cover old owned amount + the intended newly accepted quantity + already outstanding reservations. If expansion or persisted accounting fails, stop intake/backpressure **without removing cargo from its source**.
-- Use bounded sharded dynamic properties and durable generation/epoch metadata, checksum/total validation, per-account high-water marks and source/destination receipts. One Bedrock string property is limited, and increasing a numeric capacity field does not increase Bedrock's persistence limits. Expansion must prove actual readable/writable shard capacity and safe recovery.
-- Choose a minimum-reserved capacity from verified present and committed quantities, **not** a global fixed 250k ceiling. A Collector may have no virtual cargo. A Receiver with 240k preserved and another accepted 30k may safely own 270k only after a proved 30k custody credit; never claim those extra 30k from a counter alone.
-- As destinations drain, retain the accounting needed for crash recovery. Reclaim unused shards or lower a logical allocation only when nothing references them, after proof. Capacity may remain at high-water mark if that is simpler. Whether unlimited-by-policy expansion remains a general 0.5.7 feature after migration is a separate product decision; migration must never depend on automatic shrinking.
-- **No double-capacity credit**: a legacy Q4 amount and its staged copy constitute **one** account's items. Show `legacy backed`, `staged unspendable`, and `new authoritative` separately from actual quantity.
+## 5. Dynamically expand the terminal Receiver
 
-## 4A. Owner-approved temporary ticking areas / migration network coverage
+**Primary target:** the beginning Receiver of the final storage array, **not** every upstream Receiver. Temporarily expandable Collectors or intermediate Receivers remain allowed as safety buffers only, and must ultimately be included in the terminal drain.
 
-**Owner approval, 2026-11-21:** The migration may create **temporary ticking areas around relevant real Collectors and Receivers**, and any additional endpoints/chunks genuinely needed to verify or execute a legal route, so Q4 cargo can drain to the **most appropriate reachable Receiver** and ultimately its eligible home even when the player is far away. This approval is for bounded, automatically managed migration coverage; it does not authorize permanent forced chunk loading, a global scan of all blocks every tick, or unbounded region activation.
+- Calculate a provisional terminal capacity from its own verified current custody **plus all verified upstream outstanding transport balances** and already committed or reserved incoming credits. Example: A owns 200K, B 240K, C already 180K → C must safely hold **620K**. This is a custody/accounting total, not a requirement to fill physical chests.
+- Storage expansion must be **durably persisted**, not just a raised numeric cap: bounded sharded dynamic properties, generation/checkpoint records, checksums, idempotent receipts and readback verification. Bedrock has real persistence limits; stop/halt when a new page cannot be proven written. Do not assume truly limitless memory.
+- Prepare target allocation before a source debit can commit. Any uncertainty about intermediate write order, crash or native/world save boundary results in **HOLD and reconciliation**, never a retry that can duplicate items.
+- When temporarily expanded Collector/Receiver accounts receive new legitimate intake during migration, account for it separately and drain it into the same terminal. Fence or throttle new intake as necessary to achieve a finite, auditable consolidation pass. Never admit more cargo simply because a counter was incremented.
+- The terminal may retain its high-water allocation after draining to chests. Never shrink below its actual held balance or referenced recovery records.
 
-**Reuse real Fresh LAB 0.5.7 infrastructure:** `behavior_pack/scripts/main.js` has `routeChunks`, `coverRoute`, `coverChunks`, and `releaseIdleChunks`. Its current `world.tickingAreaManager` path resolves real discovered chunk addresses, shares overlapping reservations, checks `maxChunkCount` and `hasCapacity()`, awaits creation readiness and releases idle ready chunks (nominally after 48 engine ticks). Migrate by extending this existing coverage manager with scoped migration leases/owners, not creating a second independent ticking-area namespace or racing two managers. The current manager covers active banks, not yet complete cross-bank migration itineraries.
+## 6. Temporary ticking areas: load what is required to converge
 
-**Routing/coverage protocol:**
-1. **Queue a migration job** for an existing Collector or Receiver that owns verified legacy-backed balance or newly admitted pending cargo. Determine the actual block identities, source account, source dimension, held item identity/amount and journal state.
-2. **Discover legitimate destinations** using the actual saved links, directed bank graph and each reachable Receiver's live downstream Filter/Auto and applicable Wildcard/storage claims. **"Most appropriate Receiver" means a Receiver with a proven source-to-Receiver route and a verified useful downstream destination or permitted bounded custody**, not simply the closest block or the highest reported free capacity. Prefer direct final delivery where supported; avoid extra Collector→Receiver hops merely to reorganize balances. If no Receiver is positively eligible, keep the item at its present authoritative owner.
-3. **Reserve the minimum route coverage** for the source Collector/Receiver, selected reachable destination Receiver, relevant intermediate relay Collectors/Receivers, actual lane/Sorter taps and destination containers needed for a correct transfer. Coordinates are discovered, not hardcoded. Share covered chunks across active jobs and normal 0.5.7 routes via reference-counted or lease-scoped ownership; do not release a chunk while another active job uses it.
-4. **Respect global capacity and performance:** limit concurrent jobs by `world.tickingAreaManager` availability, BDS responsiveness and migration/normal traffic budgets. When `hasCapacity` is false, leave the job PENDING and release/rotate old leases; **do not force all banks or every Collector/Receiver to be loaded simultaneously**. Never assume requesting creation means the chunks are already ready; wait for positive readiness and re-read blocks.
-5. **Revalidate before commit:** once loaded, check route direction, block identity, filters, live Auto seeds, redstone/power, source account/current item, recipient's independently proved room or final destination, and journal/writer admission. Temporary ticking areas solve chunk availability, **not save atomicity, native Hopper interference or Q4 double spending**. A destination Receiver may accept held cargo only under a verified single-owner persisted account handoff.
-6. **Make actual productive movement** through 0.5.7's protected physical/virtual custody adapters. Never inject cargo into an arbitrary unloaded Hopper or queue a remote Receiver from a route forecast alone. On interruption or ambiguous receipt, HOLD and retain lease only as long as needed for bounded reconciliation; release it when safe to suspend.
-7. **Release promptly:** on job completion, pause, bounded timeout or an ineligible path, remove the migration lease, preserve custody state and hand the shared chunks back to normal routing if it still needs them. After restart, reconcile migration jobs and discovered ticking-area registrations before requesting fresh coverage; do not create leaked/permanent areas or automatically replay an uncertain transfer.
+**Owner-approved:** Create **temporary** ticking areas around each participating actual Collector/Receiver as needed to inspect legacy properties, confirm their physical state and safely transfer custody toward the network's **single designated terminal**. This does **not** authorize permanent chunk-loading of every bank.
 
-**Operational visibility:** migration status should display `jobs pending/running/held`, `coverage chunks requested/ready/in use`, `capacity limit`, `current source/receiver route`, `route decision`, `per-account remaining`, `last successful commit` and `HOLD reason`. Coverage and bookkeeping must remain bounded for many banks; owner BDS telemetry decides suitable concurrency, not a fixed invented jobs-per-tick count.
+Fresh 0.5.7 already has `routeChunks`, `coverRoute`, `coverChunks`, `releaseIdleChunks`, and `world.tickingAreaManager` capacity/ready checks. Reuse or extend that shared coverage manager with migration leases; do not create another competing manager.
 
-**Acceptance cases:** remote unloaded Collector→Receiver and Receiver→next-bank route; two parallel bank jobs sharing a boundary chunk; capacity exhausted; rejected cyclic/unknown connection; Receiver powered; full matching chest; source/destination unloaded during selection and reloaded at commit; stop/restart with leases; safe release on completion/error; no cargo moved or lost on failed coverage; no leaked ticking areas and no gameplay responsiveness regression. Include owner-built arbitrary translated/rotated layouts. This is **planned** and not evidence that current 0.5.7 supports cross-bank Q4 migration yet.
+1. Discover actual source and terminal blocks from saved identity + inspected graph. Request source and terminal chunks, plus any intermediate banks/natively occupied route segments **only if needed for discovery, physical reconciliation or native movement**. A ledger-only virtual transfer does not require each Hopper to tick.
+2. Wait for ready, revalidate block identity, dimension, graph generation, source journal and target's durable capacity, then commit the one-owner transfer. The target is **never chosen by nearest coordinates, free chest or individual item filter** during this consolidation phase.
+3. Enforce manager `hasCapacity()` and `maxChunkCount` and observed BDS tick performance. Queue/rotate sources if coverage is exhausted; do not require all network nodes loaded simultaneously. Leases share overlapping chunks with ordinary routing and cannot evict chunks still used by another task.
+4. On completion, pause, invalid route, failure, or restart, reconcile and release any stale migration leases. Never leave permanently leaked ticking areas. Preserve HOLD status and its original source custodian when coverage fails.
 
-## 5. Proposed execution phases
+Show migration progress: terminal Receiver, upstream sources total/processed, original pending amount, safely credited at terminal, unresolved native cargo, total reconstructed identities, terminal account allocation/high-water, ticking chunks in use, journal exceptions and reasons for HOLD.
 
-### P0 — Pack identity / copied-world compatibility gate
-Verify old vs new UUIDs, on-disk registrations, new version and block identifier survival. Create a future upgrade-compatible 0.5.7 build only after source/offline tests. Ensure old routing script is never running alongside the new routing engine. LAB only; production is protected.
+## 7. Implementation phases (not yet accepted)
 
-### P1 — Read-only 1.4.1 census
-Parse original registry, logistics, original Collector/Receiver link identities, each Receiver's Q2/Q3/Q4 shards/pages/definitions and all `hartsorter:journal_v1` / `hartsorter:queue_journal_v1` pending entries. Produce per-Receiver item-type and distinct metadata identities, totals and raw content hashes; inventory native Hopper/chest sources separately on loaded blocks. Treat unloaded/missing/corrupt as UNKNOWN/PENDING, never zero. Census must not trigger legacy repair writes.
+| Stage | Engineering objective | Acceptance gate |
+| --- | --- | --- |
+| P0 — Identity | Upgrade-compatible **0.5.7** manifest/build with access to old data | Read old properties in a cloned 1.4.1 world with one active engine and no data mutation |
+| P1 — Census | Pure read-only Q2/Q3/Q4, registry and journal parser | Original quantities and identities reconcile; corrupt/missing states explicit |
+| P2 — Graph | Import filters, frames, links and discover connected storage networks | Correct unique final-array entry Receiver; cycles/branches require explicit binding |
+| P3 — Custody | Expandable terminal Receiver, optional temporary Collector/Receiver buffers, native in-flight recovery and fenced debits/credits | No double-spend or loss across failure injection and restart |
+| P4 — Consolidate | Temporarily cover source/terminal chunks and drain **all upstream HL transit custody** into terminal account | All eligible upstream balances zero, terminal exactly credited, unresolved items reported individually |
+| P5 — Resume | Release migration-only chunks and enable terminal bank's normal 0.5.7 sorting | Chests fill under ordinary native Hopper/Transporter policy; no-Bulk operation works |
+| P6 — Production gate | Full source plus BDS proof on cloned 1.4.1 player world with profiler/diagnostics | Owner explicitly approves version-pinned production change after verified backup |
 
-### P2 — Config/physical topology reconciliation
-Map existing settings and linked block identities into 0.5.7's `hartlab:s_*`, `hartlab:c_*`, `hartlab:r_*` schema on exact current block positions and dimensions, with idempotent checksums and no defaults replacing existing Filter/Auto/Wildcard/Bypass. Discover native placed Hopper/output paths and any new Transporters without coordinates assumed. Compare original vs new observed behavior before enabling cargo writers.
+### Critical BDS tests
 
-### P3 — Add real expandable Collector/Receiver custody and Q4 drain adapter
-Implement the durable per-block virtual accounts and a **single** writer/reader for legacy-backed balances. Prepare one account's migrated quantities as **unspendable** or use an exact read-through Q4 compatibility store. Verify types, amounts, per-entry distinction and original journal outcomes. Commit a single accountable authority switch with a safe stopped/restart readback checkpoint before the new engine spends; original state stays archived and fenced. Implement 0.5.7 egress:
-- Receiver/Collector logical cargo → verified native final destination on Transporter route where existing endpoint transfer model is safe;
-- or Receiver/Collector logical cargo → actual native Hopper ingress with journal/proven receipt on Hopper routes, then vanilla Hopper transfer under normal mechanics.
-Do not claim the current 0.5.7 physical source-only adapter already performs virtual Q4 egress. No blind Hopper flood; HOLD on full, powered, unavailable, missing claim or ambiguous journal. The Q4 buffer is not a Bulk replacement or required Collector-to-Receiver round trip.
+- A→B→C with many Q4 Receiver balances: **C entry Receiver** receives the entire correct aggregate without physically streaming all virtual items through Hoppers; its virtual storage expands past 250K.
+- Independent networks get their own C; branched graph with unique terminal accepted; cycles and multiple sinks HOLD until explicit reachable binding.
+- Loaded and unloaded sources; remote terminal; covered overlapping chunks; capacity exhausted; timer cleanup; stop/restart with no duplicate ticking areas or items.
+- Two-part debit/credit crash, unreadable Q4 page, unresolved 1.4.1 journal, 0.5.7 account allocation exhaustion; each scenario preserves one clear owner and auditable HOLD.
+- Metadata-rich legacy Q4 and native collector/relay inventories are either preserved exactly or reported as safe HOLD; no fabrication from plain item identifiers.
+- No preexisting Bulk; original world blocks/frames/filters and modes remain; normal last bank's sorting only starts once account convergence passes.
+- Compare equal-duration BDS idle and active `.mcstats`, `.cpuprofile`, VS Debugger findings and user-facing tick responsiveness. Never claim mock-only tests equal live migration acceptance.
 
-### P4 — Controlled draining and observation
-After independently proven cutover, gradually resume per-bank 0.5.7 dispatch. **Use shared temporary ticking-area leases around each selected real Collector/Receiver and verified route endpoints**, rotating jobs under the available chunk budget; no player needs to stand near the destination. Favor actual final storage, avoid needless interbank movement, and honor naturally limited Hopper throughput. Expand Collector/Receiver capacity **only for genuinely admitted additional custody**. Keep normal native physical movement, Bulk optional and independent. Expose per-block `legacy remaining`, `new held`, `in flight`, `delivered`, `capacity/high-water`, `HOLD reason`, and `unresolved journals`; do not double-count.
+## 8. Safety and immediate next task
 
-### P5 — Acceptance and owner-authorized production cutover
-Pass source tests, failpoint/restart tests, and owner-approved copied-world BDS checks for:
-- 0 Bulk Storage; existing Sorter filters, frames, Auto seeds and saved links;
-- empty, part-full and near-250k Q4 Receivers; many item kinds; growth beyond 250k; no fixed locations;
-- actual Hopper and Transporter lanes, multiple linked banks, redstone/power, partial/full destinations, chunk unload, arbitrary player layout;
-- temporary chunk loading of remote Collector/Receiver pairs, route-sharing, capacity exhaustion, lease expiration/cleanup, restarts, no leaked ticking areas and acceptable busy-world performance;
-- mixed native MR and legacy serialized Q4 item classes; strict matching identity and no hidden flattening;
-- interrupted source debit/destination credit/virtual credit, restart/corrupt page/recovery HOLD, re-run migration idempotence;
-- full inventory/source/holding/output conservation, actual BDS diagnostic and Script Profiler timings and ordinary player responsiveness;
-- original 1.4.1 ingress/egress parity and real copied-world block/pack activation; no permanent HOLD on routes that previously worked.
+Do not modify a production world, automatically migrate on pack load, silently overwrite old Q4 properties, reinstall a 1.4.1 writer after new 0.5.7 credits have been spent, or claim undo is safe without restoring a **pristine pre-migration world backup**. Game-world backups and gated install are a separate explicit owner-approved action.
 
-Actual production is separate and requires an explicitly approved verified backup, exact pinned upgrade candidate, stopped-server preflight, owner authorization and an independent recovery/cutover plan.
+**Next source-only engineering work:** (1) prove pack UUID/read access under an upgrade-compatible 0.5.7 build; (2) build a side-effect-free 1.4.1 census; and **(3) build a topology graph detector that reports exactly one final-array entry Receiver per connected storage network or an explicit ambiguity**. No item may move until these checks and the durable custody transfer tests pass.
 
-## 6. Immediate implementation recommendation
-
-**First implement P0 identity compatibility verification and P1 read-only census together, with pure offline fixtures.** They determine whether the old world's actual Q4 state can be read under the target 0.5.7 engine and what bounded storage representation is required. Then implement P2 config import and P3 expandable custody. Do not introduce a second standalone engine, URCE layers, Q5, hardcoded coordinates, obligatory Bulk blocks or tests that move production items merely to inspect legacy state.
-
-**Definition of done for this plan:** A 1.4.1 world can load the 0.5.7 engine (compatible upgrade build), keep every block/filter/link/item, let existing Q4-owned contents drain into legitimate destinations as routes permit, and safely retain any leftovers in expandable Collector/Receiver accounts when full/unavailable. Every remaining item has one discoverable owner, and no unverified transfer duplicates or destroys cargo.
+**Definition of done:** After upgrade, every identified connected storage network has **one terminal Receiver at the start of its last storage array** owning all eligible former upstream HL transit balances (or explicitly documented unresolved safe HOLD items). Its virtual capacity was expanded and verified as needed; upstream accounts are drained; normal 0.5.7 routing then resumes from that final array. No lost/duplicated cargo, no fixed locations, no required Bulk, no URCE, no Q5.
