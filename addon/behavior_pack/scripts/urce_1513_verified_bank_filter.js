@@ -42,7 +42,8 @@ export function inspectBankFilterColumn({column,item,read,modeOf,matches,
   if(!column||!valid({...column,y:column.source?.y})||
      !Array.isArray(column.sorters)||!column.sorters.length||
      column.sorters.length>maxColumnHeight||!item||
-     !["function"].every(()=>true))return hold("invalid_bank_column");
+     [read,modeOf,matches,powered,destination,inventory,admit]
+       .some(f=>typeof f!=="function"))return hold("invalid_bank_column");
   const d=column.d,p=column.source,run=column.sorters;
   let source;
   try{source=read(d,p);}
@@ -179,10 +180,18 @@ export function inspectVerifiedBankFilterHome({
       const {r,hops}=nextReceivers[idx];
       if(visitedR.has(r.id))throw Error("managed_bank_cycle");
       visitedR.add(r.id);
-      if(native(r.d,r).typeId!==RECEIVER)
+      const receiverBlock=native(r.d,r);
+      if(receiverBlock.typeId!==RECEIVER)
         throw Error("bank_receiver_missing");
+      if(powered(receiverBlock))
+        throw Error("bank_receiver_powered");
       const out=native(r.d,{x:r.x,y:r.y-1,z:r.z});
       if(out.typeId!==HOPPER)throw Error("bank_receiver_output_not_hopper");
+      try{
+        const locked=out.permutation?.getState("toggle_bit");
+        if(locked!==false&&locked!==0)
+          throw Error("bank_receiver_hopper_locked");
+      }catch(_){throw Error("bank_receiver_hopper_locked_or_unknown");}
       // A bank enters its visual graph through the Receiver or its own
       // output Hopper. Hopper direction and emptiness are verified again
       // in the original Q4 writer; the logical bank does not use Hopper
@@ -197,7 +206,10 @@ export function inspectVerifiedBankFilterHome({
         }
       }
       if(!seeds.length)throw Error("bank_receiver_no_transporter");
-      if(seeds.length!==1)throw Error("bank_multiple_visual_entrances");
+      // Multiple physically touching entry faces are legal if they all
+      // belong to this ONE actually observed connected visual component.
+      // A second disconnected component would leave source ownership
+      // ambiguous and must HOLD rather than being silently ignored.
 
       const queue=[seeds[0]],visitedP=new Set([key(r.d,seeds[0])]);
       const columnsFound=new Set(),exits=new Map();
@@ -231,6 +243,8 @@ export function inspectVerifiedBankFilterHome({
         }
         if(pipeNeighbors>2)throw Error("ambiguous_branched_pipe_run");
       }
+      if([...seedKeys].some(k=>!visitedP.has(k)))
+        throw Error("bank_multiple_disconnected_entrances");
       if(exits.size>1)throw Error("ambiguous_multi_exit_bank");
       for(const column of columnsFound){
         const found=inspectBankFilterColumn({
@@ -252,6 +266,7 @@ export function inspectVerifiedBankFilterHome({
         if(!next||native(c.d,c).typeId!==COLLECTOR ||
            native(next.d,next).typeId!==RECEIVER)
           throw Error("collector_receiver_link_unverified");
+        if(powered(native(c.d,c)))throw Error("bank_collector_powered");
         if(next.d!==c.d)throw Error("cross_dimension_bank_link");
         if(visitedR.has(next.id))throw Error("managed_bank_cycle");
         nextReceivers.push({r:next,hops:hops+1});
