@@ -21,3 +21,7 @@ The supplied production snapshot reconciled offline to 310563 items across 11 no
 ### Full census on a legacy LAB copy
 
 With the copied server stopped, update both census scripts from the same Git revision using the layout above. Start the copy and issue `scriptevent hartlab:q4_census_all` in the console. The probe checks up to eight rows per scheduled slice. It reports each queue and a COMPLETE line with queue, nonempty and item totals. HOLD identifies an incomplete scan. Journal and Q2/Q3 property counts are reported separately from Q4 cargo. An interrupted scan can be started again from the beginning.
+
+### Locate the nonempty queues on the copied world
+
+The full census on the 24-queue copy reconciled to 125539 items: q2 69884, q14 53939, q6 1016 and q22 700. Run `scriptevent hartlab:q4_sources` in the legacy probe to join each nonempty queue to its saved Receiver, count its registered present inbound Collectors, and inspect the Receiver and output Hopper when readable. Absent, ambiguous and unreadable sources retain their quantities in the report. The command performs no cargo writes or chunk loads. It establishes the source end of the route. A downstream network trace is still required to choose a terminal.
