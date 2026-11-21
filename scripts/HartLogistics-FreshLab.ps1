@@ -27,8 +27,18 @@ function Assert-That([bool]$condition, [string]$message) {
     if (-not $condition) { throw $message }
 }
 function Run-Git([string[]]$argList) {
-    $result = & git -C $source @argList 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    # Windows PowerShell 5.1 treats redirected native stderr as a terminating
+    # NativeCommandError under Stop, even when git exits successfully.
+    # Capture git's diagnostic output without masking a nonzero exit code.
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $result = & git -C $source @argList 2>&1
+        $gitExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($gitExitCode -ne 0) {
         throw ('Git command failed: git ' + ($argList -join ' ') + "`n" + ($result -join "`n"))
     }
     return @($result)
