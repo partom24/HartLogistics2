@@ -29,12 +29,12 @@ import "./urce_150_readonly_runtime.js";
 import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
 import {observeSorterDestination, proveLocalColumnTransit} from "./urce_column_local_decisions.js";
 import {prepareLocalColumnFrame} from "./urce_column_offer_bridge.js";
-import {inspectDirectSorterOutlet, inspectDirectItemHome} from "./urce_159_direct_sorter_home.js";
+import {inspectDirectSorterOutlet, inspectDirectItemHome, isKnownInertNativeStop} from "./urce_159_direct_sorter_home.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.11-dev";
+const VERSION = "1.5.12-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -576,17 +576,19 @@ function liveLinkCheck(col, receiver, forceFresh=false) {
         if(o.observationReason.startsWith(
             "unsupported_native_boundary [hartsorter:sorter @"))
             return true;
-        if(!o.observationReason.startsWith(
-            "unsupported_native_boundary [minecraft:chest @") &&
-           !o.observationReason.startsWith(
-            "unsupported_native_boundary [minecraft:trapped_chest @") &&
-           !o.observationReason.startsWith(
-            "unsupported_native_boundary [minecraft:barrel @"))
-            return false;
-        // A terminal chest anywhere in a 1,442-Sorter world is NOT a
-        // candidate. The Collector's Receiver must own a locally registered
-        // Sorter column immediately BELOW its output Hopper. This zero-
-        // native-read gate runs BEFORE a forceFresh global supply scan.
+        const prefix="unsupported_native_boundary [";
+        if(!o.observationReason.startsWith(prefix))return false;
+        const split=o.observationReason.indexOf(" @ ",prefix.length);
+        if(split<0)return false;
+        const nativeType=o.observationReason.slice(prefix.length,split);
+        if(!["minecraft:chest","minecraft:trapped_chest",
+             "minecraft:barrel"].includes(nativeType) &&
+           !isKnownInertNativeStop(nativeType))return false;
+        // A chest or inert building material anywhere in a 1,442-Sorter
+        // world is NOT a route candidate by itself. Only a Receiver with
+        // its own locally registered vertical Sorter column can qualify.
+        // This gate avoids expensive forceFresh global native observations
+        // for disconnected/native-only receivers.
         if(dirty)rebuildTopology();
         return columns.some(col=>col?.d===receiver.d &&
             col.source?.x===receiver.x &&
