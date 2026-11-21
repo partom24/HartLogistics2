@@ -128,7 +128,8 @@ export function inspectBankFilterColumn({column,item,read,modeOf,matches,
 export function inspectVerifiedBankFilterHome({
   receiver,item,collectors,receivers,columns,read,modeOf,matches,
   powered,destination,inventory,admit,
-  maxPipes=768,maxReads=7000,maxBanks=16,maxColumnHeight=64
+  maxPipes=768,maxReads=7000,maxBanks=16,maxColumnHeight=64,
+  knownInert=()=>false
 }) {
   const hold=reason=>result("HOLD",reason);
   if(!valid(receiver)||!item||item.maxAmount<=1||
@@ -136,6 +137,7 @@ export function inspectVerifiedBankFilterHome({
      !Array.isArray(columns)||typeof read!=="function"||
      [modeOf,matches,powered,destination,inventory,admit]
        .some(f=>typeof f!=="function")||
+     typeof knownInert!=="function"||
      !Number.isInteger(maxPipes)||maxPipes<1||
      !Number.isInteger(maxReads)||maxReads<1||
      !Number.isInteger(maxBanks)||maxBanks<1)return hold("invalid_bank_request");
@@ -173,6 +175,19 @@ export function inspectVerifiedBankFilterHome({
     return block;
   }
   const nextReceivers=[{r:receiver,hops:0}],visitedR=new Set();
+  // Even on a directly credited Filter endpoint, an already saved input
+  // source that is missing or changed cannot silently become a known
+  // contributor. Queue origin is not indexed by Collector, so every linked
+  // incoming source must remain physically identifiable.
+  try {
+    for(const c of collectors){
+      if(c.link!==receiver.id)continue;
+      const block=native(c.d,c);
+      if(block.typeId!==COLLECTOR)
+        return hold("incoming_collector_unavailable");
+      if(powered(block))return hold("incoming_collector_powered");
+    }
+  }catch(_){return hold("incoming_collector_unverified");}
   const candidates=[];let unknown;
   try {
     for(let idx=0;idx<nextReceivers.length;idx++){
@@ -187,11 +202,31 @@ export function inspectVerifiedBankFilterHome({
         throw Error("bank_receiver_powered");
       const out=native(r.d,{x:r.x,y:r.y-1,z:r.z});
       if(out.typeId!==HOPPER)throw Error("bank_receiver_output_not_hopper");
-      try{
+      let facing;
+      try {
         const locked=out.permutation?.getState("toggle_bit");
         if(locked!==false&&locked!==0)
           throw Error("bank_receiver_hopper_locked");
+        facing=out.permutation?.getState("facing_direction");
       }catch(_){throw Error("bank_receiver_hopper_locked_or_unknown");}
+      const dir=({0:{x:0,y:-1,z:0},1:{x:0,y:-1,z:0},
+        2:{x:0,y:0,z:-1},3:{x:0,y:0,z:1},
+        4:{x:-1,y:0,z:0},5:{x:1,y:0,z:0}})[facing];
+      if(!dir)throw Error("bank_receiver_hopper_facing_unknown");
+      const nativeStop=native(r.d,move({x:r.x,y:r.y-1,z:r.z},dir));
+      if(!["minecraft:air","minecraft:chest","minecraft:trapped_chest",
+           "minecraft:barrel",PIPE,SORTER].includes(nativeStop.typeId) &&
+         !knownInert(nativeStop.typeId))
+        throw Error("bank_receiver_native_output_not_closed");
+      // Native inventories are not this route's selected destination.
+      // They may receive from vanilla, but Q4 credits the proven remote
+      // storage DIRECTLY; no native Hopper staging or speculative forwarding.
+      if(["minecraft:chest","minecraft:trapped_chest",
+          "minecraft:barrel"].includes(nativeStop.typeId)){
+        const pos=nativeStop.location;
+        if(!pos||native(r.d,{x:pos.x,y:pos.y-1,z:pos.z}).typeId===HOPPER)
+          throw Error("bank_receiver_native_terminal_extractor");
+      }
       // A bank enters its visual graph through the Receiver or its own
       // output Hopper. Hopper direction and emptiness are verified again
       // in the original Q4 writer; the logical bank does not use Hopper
