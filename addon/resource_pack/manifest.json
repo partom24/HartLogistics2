@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartMods - Hart Logistics RP",
-    "description": "Hart Logistics 1.5.12 DEV — inert native Hopper stopper plus governed local Sorter home; exact Q4 custody",
+    "description": "Hart Logistics 1.5.13 DEV — bounded governed Transporter-bank Filter routing with original Q4 custody",
     "uuid": "91316442-0f26-4fbb-88f3-2e39ea843a1a",
     "version": [
       1,
       5,
-      12
+      13
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         1,
         5,
-        12
+        13
       ]
     }
   ],

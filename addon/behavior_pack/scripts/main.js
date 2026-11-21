@@ -30,11 +30,12 @@ import {createLiveLinkGuard} from "./urce_152_live_link_guard.js";
 import {observeSorterDestination, proveLocalColumnTransit} from "./urce_column_local_decisions.js";
 import {prepareLocalColumnFrame} from "./urce_column_offer_bridge.js";
 import {inspectDirectSorterOutlet, inspectDirectItemHome, isKnownInertNativeStop} from "./urce_159_direct_sorter_home.js";
+import {inspectVerifiedBankFilterHome} from "./urce_1513_verified_bank_filter.js";
 const liveLinkGuard=createLiveLinkGuard();
 world.afterEvents.playerPlaceBlock.subscribe(()=>liveLinkGuard.invalidate());
 world.afterEvents.playerBreakBlock.subscribe(()=>liveLinkGuard.invalidate());
 
-const VERSION = "1.5.12-dev";
+const VERSION = "1.5.13-dev";
 // Per-player acknowledgement is intentionally separate from pack version: patch updates
 // do not repeat the native-frame upgrade announcement.
 const NATIVE_FRAME_NOTICE_KEY = "hartlogistics:native_frame_notice_v1";
@@ -119,6 +120,14 @@ const queueRejectSeen = new Set();
 // Scoped to the synchronous logisticsTick callback. Never retain a positive
 // route observation or a Bedrock tick number after this stack unwinds.
 let activeLogisticsPass = undefined;
+
+// Negative-only held-network probe throttle. A large Receiver whose Q4 has no
+// verifiable downstream Filter must NOT replay a 1,400-Sorter Hopper/Transporter
+// graph walk on every active tick. This map NEVER grants positive authority,
+// survives neither reload nor changed Q4 head, and cannot debit cargo.
+const BANK_NEGATIVE_PROBE_TICKS = 20;
+const bankNegativeProbe = new Map();
+
 
 const HART_REDSTONE_COMPONENT = "hartlogistics:redstone_input";
 const hartRedstoneState = new Map();
@@ -701,6 +710,31 @@ function directNativeHome(receiver,item,output) {
         return {...offer,output:target,directClaimed:true};
     }
     return {...offer,output};
+}
+
+// Narrow but genuine governed *remote Filter* home: a fresh native path from
+// this Receiver through one or more visual Transporter banks and explicit
+// Collector->Receiver links, ending at a live admitting Filter chest. The
+// visual pipe itself NEVER owns or physically transports an item. Exactly the
+// original Q4 journal/writer credits the selected storage endpoint. Unknown
+// Auto/Wildcard/Bulk absence, MR and any incomplete branch remain HOLD.
+function inspectManagedBankFilter(receiver,item) {
+    if(dirty)rebuildTopology();
+    return inspectVerifiedBankFilterHome({
+        receiver,item,collectors:logistics.collectors,
+        receivers:logistics.receivers,columns,
+        read:liveTopologyBlockReader,
+        modeOf:sorterMode,matches:matchesFilter,
+        powered:blockIsRedstonePowered,
+        destination:(entry,block)=>
+            observeSorterDestination(entry,()=>block,facingOffset,COLLECTOR_ID),
+        inventory:block=>block.getComponent("minecraft:inventory")?.container,
+        admit:findAcceptSlot,
+        knownInert:isKnownInertNativeStop,
+        // Fixed native-read ceiling; fail closed if a larger/ambiguous bank
+        // cannot be witnessed within one bounded synchronous attempt.
+        maxPipes:256,maxReads:1400,maxBanks:16
+    });
 }
 
 // Receiver queues do not carry an authoritative per-item originating-Collector
@@ -2746,7 +2780,7 @@ function enqueueFromSource(receiver, collector, source, srcSlot, move, itemData)
     return actualMove;
 }
 
-function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
+function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined, bankProof=undefined) {
     const q = loadReceiverQueue(receiver);
     if (q.total <= 0) return 0;
 
@@ -2766,7 +2800,40 @@ function dequeueToReceiver(receiver, output, maxMove, governedLane=undefined) {
     // Sorter-owned chest directly. All custody, journal and recovery remain
     // in this one writer, with no additional transfer scheduler.
     // The existing output parameter retains the ORIGINAL Q4 custody writer.
-    if (governedLane!=="LEGACY_UNGOVERNED") {
+    if (governedLane==="VERIFIED_BANK_FILTER") {
+        // The remote candidate was observed earlier in this exact
+        // synchronous processReceiverDrain call; no positive cross-tick
+        // route cache or separately scheduled handoff exists. Verify its
+        // source Q4 head identity and final native Filter endpoint again
+        // before the original Q4 journal begins.
+        const proof=bankProof;
+        if(proof?.status!=="FILTER_HOME" || !proof.chosen ||
+           proof.expectedEntryId!==first.id)return 0;
+        let destination;
+        try {
+            if(output.container.firstItem()!==undefined)return 0;
+            const entry=proof.chosen.entry;
+            if(sorterMode(entry)!=="filter" ||
+               !entry.f || !matchesFilter(item,entry.f))return 0;
+            const actual=sorterAt(entry);
+            if(!actual || blockIsRedstonePowered(actual))return 0;
+            const observed=observeSorterDestination(
+                entry,()=>actual,facingOffset,COLLECTOR_ID);
+            const at=proof.chosen.block.location;
+            if(observed?.kind!=="storage" ||
+               observed.block.dimension.id!==receiver.d ||
+               observed.block.location.x!==at.x ||
+               observed.block.location.y!==at.y ||
+               observed.block.location.z!==at.z)return 0;
+            const below=getBlock(receiver.d,at.x,at.y-1,at.z);
+            if(!below||below.typeId==="minecraft:hopper")return 0;
+            const container=observed.block.getComponent(
+                "minecraft:inventory")?.container;
+            if(!container?.isValid)return 0;
+            destination={block:observed.block,container};
+        }catch(_){return 0;}
+        output=destination;
+    } else if (governedLane!=="LEGACY_UNGOVERNED") {
         if(governedLane!=="DIRECT_NATIVE_SORTER")return 0;
         const home=directNativeHome(receiver,item,output);
         if(!home)return 0;
@@ -4030,6 +4097,7 @@ function processCollectorIngress(collector, globalRemaining) {
     let budget = Math.min(COLLECTOR_BATCH, globalRemaining);
     let safetyChecked = false;
     let directClosed = false;
+    let bankFilterOnly = false;
 
     for (const source of sources) {
         // A powered vanilla hopper is a hard logistics gate. Script API can
@@ -4044,7 +4112,16 @@ function processCollectorIngress(collector, globalRemaining) {
             if (source.container.firstItem() === undefined) continue;
             if (!safetyChecked) {
                 const link=liveLinkCheck(collector, receiver);
-                if(link.decision !== "SAFE_SNAPSHOT") return used;
+                if(link.decision !== "SAFE_SNAPSHOT") {
+                    // The old link observer treats a valid terminal bank
+                    // without a Collector as ambiguous. It may not justify
+                    // blind Q4 ingress; an actual Filter home must be live
+                    // and reachable for EACH item before source debit.
+                    if(link.decision!=="HOLD" ||
+                       link.reason!=="ambiguous_transporter_component")
+                        return used;
+                    bankFilterOnly=true;
+                }
                 directClosed=link.routeKind==="DIRECT_NATIVE_SORTER";
                 safetyChecked = true;
             }
@@ -4057,6 +4134,9 @@ function processCollectorIngress(collector, globalRemaining) {
         for (let si=0; si<sourceSize && budget>0; si++) {
             let stack = source.container.getItem(si);
             if (!stack) continue;
+            if(bankFilterOnly &&
+               inspectManagedBankFilter(receiver,stack).status!=="FILTER_HOME")
+                continue;
 
             const itemData = serializeQueueItem(stack);
 
@@ -4086,7 +4166,7 @@ function processCollectorIngress(collector, globalRemaining) {
             // No native MR carrier endpoint has yet been proved at this new
             // direct Sorter outlet. Never use ordinary Q4 or the physical
             // direct-only fallback to speculate about its final home.
-            if(directClosed)continue;
+            if(directClosed||bankFilterOnly)continue;
 
             // Non-stackable or metadata we cannot prove round-trips safely:
             // never serialize it. If Receiver is currently loaded AND there is
@@ -4161,6 +4241,7 @@ function processReceiverDrain(receiver, globalRemaining) {
     let used = 0;
     let safetyChecked = false;
     let governedLane;
+    let positiveBankProof;
 
     while (budget > 0) {
         let q;
@@ -4180,15 +4261,12 @@ function processReceiverDrain(receiver, globalRemaining) {
             if (!output || output.locked) return used;
         }
 
-        // A link-cycle SAFE_SNAPSHOT does NOT prove an item has a home.
-        // The only IMPLEMENTED governed Q4 writer is the CLOSED local
-        // Receiver/Hopper/Sorter/native-storage lane. On managed receivers
-        // with no such current positive outlet, HOLD without doing the
-        // entire source-wide Hopper/Transporter graph observation on every
-        // scheduler tick. This is strictly a NEGATIVE gate: it cannot debit
-        // Q4, assert absence of a remote claim, or confer route authority.
-        // Re-observe it every attempt so player construction can recover
-        // without sticky memoization; legacy unlinked Q4 remains untouched.
+        // "SAFE_SNAPSHOT" proves link-cycle safety, NOT a cargo home.
+        // Check a strictly closed local column first. If none exists,
+        // remotely routing a positively claimed ordinary item is supported
+        // ONLY by a fresh bounded Transporter->Collector->Receiver->Filter
+        // witness. A negative result is never an item transfer and gets a
+        // short read-only retry throttle; no cross-tick positive route.
         if (!safetyChecked) {
             const managed=logistics.collectors.some(c=>c.link===receiver.id);
             if(managed) {
@@ -4197,18 +4275,63 @@ function processReceiverDrain(receiver, globalRemaining) {
                     col.source?.x===receiver.x &&
                     col.source?.y===receiver.y-1 &&
                     col.source?.z===receiver.z);
-                if(!local)return used;
-                if(directSorterOutlet(receiver).status!=="CLOSED_DIRECT_OUTLET")
-                    return used;
+                const localOutlet=local?directSorterOutlet(receiver):undefined;
+                if(localOutlet?.status!=="CLOSED_DIRECT_OUTLET"){
+                    let head,headItem;
+                    try {
+                        head=queueHeadEntry(receiver,q);
+                        headItem=head?rebuildQueueItem(head.data,1):undefined;
+                    } catch(_) {return used;}
+                    if(!headItem||headItem.maxAmount<=1)return used;
+                    const memoKey=q.meta.head+":"+q.meta.total+":"+head.id;
+                    const memo=bankNegativeProbe.get(receiver.id);
+                    if(memo?.key===memoKey &&
+                       sorterSchedulerPass-memo.pass>=0 &&
+                       sorterSchedulerPass-memo.pass<BANK_NEGATIVE_PROBE_TICKS)
+                        return used;
+                    // No possible registered Filter -> no need to traverse
+                    // the real native network on this held item.
+                    const potential=registry.some(e=>e.d===receiver.d &&
+                        e.f && sorterMode(e)==="filter" &&
+                        matchesFilter(headItem,e.f));
+                    if(!potential) {
+                        bankNegativeProbe.set(receiver.id,{
+                            key:memoKey,pass:sorterSchedulerPass
+                        });
+                        return used;
+                    }
+                    positiveBankProof=inspectManagedBankFilter(receiver,headItem);
+                    if(positiveBankProof.status!=="FILTER_HOME"){
+                        bankNegativeProbe.set(receiver.id,{
+                            key:memoKey,pass:sorterSchedulerPass
+                        });
+                        return used;
+                    }
+                    positiveBankProof.expectedEntryId=head.id;
+                    bankNegativeProbe.delete(receiver.id);
+                }
             }
-            // Only after the cheap positive home topology preflight may
-            // the original source-wide cycle/foreign-path safety run.
+            // Preserve original source-wide cycle/foreign-path safety for
+            // EVERY actual new receipt. A proven bank Filter home does not
+            // turn an unknown or cyclic source graph into cargo authority.
             const safety=receiverLinkSafety(receiver);
             if (safety.decision==="NO_MANAGED_INPUT") {
                 governedLane="LEGACY_UNGOVERNED";
-            } else if (safety.decision==="SAFE_SNAPSHOT" &&
-                       safety.routeKind==="DIRECT_NATIVE_SORTER") {
-                governedLane=safety.routeKind;
+            } else if ((safety.decision==="SAFE_SNAPSHOT" ||
+                         // The old 1.5.2 visual graph assumes each bank has a
+                         // downstream Collector. A terminal bank WITHOUT one
+                         // is valid by owner contract; it is not a cargo
+                         // error when the independently CLOSED, bounded
+                         // source-specific Filter proof witnesses its full
+                         // Transporter run, all links, Hopper outputs, and
+                         // exact native destination within this same stack.
+                         (positiveBankProof?.status==="FILTER_HOME" &&
+                          safety.decision==="HOLD" &&
+                          safety.reason==="ambiguous_transporter_component")) &&
+                       (safety.routeKind==="DIRECT_NATIVE_SORTER" ||
+                        positiveBankProof?.status==="FILTER_HOME")) {
+                governedLane=positiveBankProof?.status==="FILTER_HOME"
+                    ? "VERIFIED_BANK_FILTER" : "DIRECT_NATIVE_SORTER";
             } else {
                 // Managed path without a proved home: preserve Q4 custody.
                 return used;
@@ -4218,7 +4341,8 @@ function processReceiverDrain(receiver, globalRemaining) {
 
         let moved = 0;
         try {
-            moved = dequeueToReceiver(receiver, output, budget, governedLane);
+            moved = dequeueToReceiver(receiver, output, budget,
+                governedLane,positiveBankProof);
         } catch (err) {
             log(`Receiver queue drain failed for ${receiver.id}: ${err}`);
             recoverQueueJournal();
@@ -4228,6 +4352,9 @@ function processReceiverDrain(receiver, globalRemaining) {
         if (moved <= 0) break;
         used += moved;
         budget -= moved;
+        // A remote proof only covers the current Q4 head and one committed
+        // transfer. Never reuse it for another entry or another graph pass.
+        if(governedLane==="VERIFIED_BANK_FILTER")break;
     }
 
     return used;
