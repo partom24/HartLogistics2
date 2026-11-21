@@ -234,8 +234,12 @@ export function inspectVerifiedBankFilterHome({
           }else if(adj.typeId===COLLECTOR){
             const c=cByPos.get(k);
             if(!c)throw Error("unregistered_collector_bank_boundary");
-            if(!c.link||!rById.has(c.link))
-              throw Error("collector_without_verified_receiver");
+            if(c.link && !rById.has(c.link))
+              throw Error("collector_link_target_not_registered");
+            // An unlinked terminal Collector is a physical, loaded endpoint,
+            // not a mandatory next-hop Receiver or license to fabricate Bulk.
+            // The owner explicitly permits banks without a terminal Collector
+            // and terminal Collectors without outgoing links.
             exits.set(c.id,c);
           }else if(adj.typeId===RECEIVER){
             if(k!==key(r.d,r))throw Error("multiple_receivers_one_visual_bank");
@@ -262,6 +266,7 @@ export function inspectVerifiedBankFilterHome({
         }
       }
       for(const c of exits.values()){
+        if(!c.link)continue;
         const next=rById.get(c.link);
         if(!next||native(c.d,c).typeId!==COLLECTOR ||
            native(next.d,next).typeId!==RECEIVER)
