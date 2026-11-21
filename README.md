@@ -1,10 +1,10 @@
-# HartLogistics Fresh LAB 0.4.0
+# HartLogistics Fresh LAB 0.4.1
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
 ## Install and inspect
 
-Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Start the LAB server and run `/scriptevent hartlab:setup_io`. Each linked Receiver reports its discovered transport block and Sorter counts. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.
+Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Select a Collector and interact with its Receiver. The Receiver immediately reports its discovered transport blocks and Sorters. Saved links register at startup. Placing or breaking blocks in a discovered area automatically refreshes the affected bank. Use `/scriptevent hartlab:status` to inspect both banks. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.
 
 ## How a Receiver finds its destinations
 

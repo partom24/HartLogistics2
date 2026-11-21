@@ -282,3 +282,37 @@ assert.equal(destination.count(cargo),32);
 assert.equal(evalBank(pipeBank,'b.confirmed'),96);
 assert.equal(pipeBank.input.count(cargo),0);
 console.log('PASS: simultaneous Hopper and Transporter banks, 10 pipes/40 Sorters, filter priority, named stack, full chest, interrupted path and reconnection');
+
+// Parallel rows with one block of clearance between their footprints. Use the
+// player link interaction with empty inputs and inspect the cache directly.
+const adjacentH=bank(2200,80,1024,-1,0,10,4);
+const adjacentT=bank(2200,80,1027,-1,0,10,4);
+const player={id:'builder',sendMessage(){}};
+function linkRig(z){
+  const collector=getBlock({x:2204,y:80,z}),receiver=getBlock({x:2201,y:80,z});
+  Object.assign(context,{builder:player,collectorBlock:collector,receiverBlock:receiver});
+  properties.delete('hartlab:c_o_2204_80_'+z);
+  vm.runInContext('selectCollector(builder,collectorBlock);useReceiver(builder,receiverBlock)',context);
+}
+for(const h of adjacentT.hoppers)h.setType('hartlogistics:transporter');
+adjacentT.hoppers[0].setType('minecraft:air');
+linkRig(1024);linkRig(1027);drain();
+assert.equal(evalBank(adjacentH,'b.cache.total'),40);
+assert.equal(evalBank(adjacentT,'b.net'),null);
+const inlet=adjacentT.hoppers[0];
+inlet.setType('hartlogistics:transporter');
+for(const fn of world.afterEvents.playerPlaceBlock.handlers)fn({block:inlet,player});
+drain();
+assert.equal(evalBank(adjacentT,'b.cache.total'),40);
+assert.equal(evalBank(adjacentT,'b.net.lane.length'),10);
+const hd=evalBank(adjacentH,'b.discoveries'),td=evalBank(adjacentT,'b.discoveries');
+ticks(80);
+assert.equal(evalBank(adjacentH,'b.discoveries'),hd);
+assert.equal(evalBank(adjacentT,'b.discoveries'),td);
+banks.push(adjacentH);
+adjacentH.input.setItem(0,new Stack('test:item_9_4',5,{nameTag:'Hopper bank'}));
+adjacentT.input.setItem(0,new Stack('test:item_9_4',7,{nameTag:'Transporter bank'}));
+ticks(200);
+assert.equal(adjacentH.chests.at(-1).count('test:item_9_4'),5);
+assert.equal(adjacentT.chests.at(-1).count('test:item_9_4'),7);
+console.log('PASS: adjacent empty banks register on linking and construction, stay cached at idle, and deliver independently');

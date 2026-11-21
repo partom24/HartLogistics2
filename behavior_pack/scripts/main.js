@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.4.0) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.4.1) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -510,11 +510,16 @@ function useReceiver(player,block){
     if(selection){
         let info={};try{const raw=world.getDynamicProperty(selection);if(typeof raw==='string')info=JSON.parse(raw);}catch(_){}
         info.receiver=id;
-        routingCollectorAdded(selection);
         try{world.setDynamicProperty(selection,JSON.stringify(info));}
         catch(err){log(`Link save failed: ${err}`);player.sendMessage('§c[Collector] Link not saved.');return;}
+        routingCollectorAdded(selection);
         selectedCollector.delete(player.id);
         player.sendMessage(`§a[Hart Logistics] Collector linked to Receiver at ${block.location.x}, ${block.location.y}, ${block.location.z}.`);
+        const bank=labBankForReceiver(id);
+        const net=labDiscover(bank);
+        player.sendMessage(net
+            ? `§a[Receiver] Registered ${net.lane.length} ${net.method===PIPE?'Transporters':'Hoppers'} and ${labBuildIndex(bank).total} Sorters.`
+            : '§e[Receiver] '+bank.blocked);
     }else player.sendMessage('§7[Receiver] Select a Collector first, then click this Receiver to link.');
     player.sendMessage('§7[Fresh LAB] The Receiver discovers its connected Hopper or Transporter lane.');
 }
@@ -647,7 +652,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.4.0 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.4.1 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -661,10 +666,26 @@ function invalidateRouting(d,p){
     for(const b of Object.values(labBanks)){
         if(d && (b.cfg.dimension!==d || !b.watched?.has(positionKey(p))))continue;
         b.generation=++labRevision;
+        queueRegistration(b);
     }
 }
 function routingCollectorAdded(key){
     if(!labCollectorKeys.includes(key))labCollectorKeys.push(key);
+    const receiver=labLinkedReceiver(key);
+    if(receiver){
+        const bank=labBankForReceiver(receiver);
+        if(bank)queueRegistration(bank);
+    }
+}
+// Coalesce build edits and reuse the same discovery cache for status and dispatch.
+function queueRegistration(bank){
+    if(bank.registrationQueued)return;
+    bank.registrationQueued=true;
+    system.run(()=>{
+        bank.registrationQueued=false;
+        if(!labCollectorKeys.some(key=>labLinkedReceiver(key)===bank.cfg.name))return;
+        if(labDiscover(bank))labBuildIndex(bank);
+    });
 }
 // State order corresponds to the six neighbor offsets exported by topology.js.
 const armNames=['up','down','north','south','west','east'];
@@ -1076,7 +1097,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.4.0 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.4.1 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1100,7 +1121,7 @@ function labRoutingEvent(ev){
     system.run(()=>{
         try {
             if(['setup_io','refresh','activate_layout','status'].includes(command)){
-                if(command!=='status')invalidateRouting();
+                if(command==='refresh' || command==='activate_layout')invalidateRouting();
                 labStats(source);return;
             }
             if(!['select_receiver','bind_inlet','select_tap','bind_column','unbind_inlet','unbind_column'].includes(command))return;
@@ -1130,7 +1151,7 @@ function labRoutingEvent(ev){
                     if(block.typeId!==SORTER_ID || !selected.tap || !labDiscover(b)?.taps.has(selected.tap))throw Error('Select a lane tap, then look at a Sorter in its column.');
                     (reg.columns ??= {})[positionKey(block.location)]={tap:selected.tap,anchor:block.location};
                 }
-                if(command!=='select_tap'){world.setDynamicProperty(selected.key,JSON.stringify(reg));b.generation=++labRevision;}
+                if(command!=='select_tap'){world.setDynamicProperty(selected.key,JSON.stringify(reg));b.generation=++labRevision;queueRegistration(b);}
             }
             source.sendMessage('[Hart LAB] '+command+' '+positionKey(block.location));
         }catch(err){log(String(err));source?.sendMessage('[Hart LAB] '+err);}
