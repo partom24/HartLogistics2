@@ -48,7 +48,8 @@ class Stack {
 }
 function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
                   blocked=false,legacy=false,direct=false,directSideChest=false,
-                  directedTerminalChest=false,directedTerminalInert=false}={}) {
+                  directedTerminalChest=false,directedTerminalInert=false,
+                  managedBacklog=0}={}) {
   const metrics=counters();
   const blocks=new Map(), properties=new Map(), timers=[], intervals=[], listeners=new Map();
   let currentTick=0;
@@ -167,7 +168,11 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     }
     recs.push({id,d:DIM,...p,present:true,queueKey,qVersion:4,qGen:0,qShards:0,
       received:0,delivered:0,queued:0});
-    properties.set("hartsorter:q4m_"+queueKey,JSON.stringify({v:4,h:0,t:0,n:1,q:0,r:0,d:0}));
+    properties.set("hartsorter:q4m_"+queueKey,JSON.stringify(
+      managedBacklog&&i===0
+        ?{v:4,h:1,t:1,n:2,q:managedBacklog,r:52951,d:52951-managedBacklog}
+        :{v:4,h:0,t:0,n:1,q:0,r:0,d:0}
+    ));
   }
   for(let i=0;i<collectors;i++){
     const p={x:50000+i*20,y:70,z:0},id=key(DIM,p);
@@ -395,6 +400,24 @@ test("FULL-NATIVE-10 actual ship runtime routes four Filter items past a Hopper 
     "Original Q4 enqueue/dequeue journal is used");
   assert.equal(n(counts,"World.setDynamicProperty.hartsorter:journal_v1"),0,
     "No fictitious physical Sorter transfer when direct home is credited");
+});
+test("FULL-NATIVE-11 protected 16388 Q4 with two links stays intact; no full graph rechecks without a home",async()=>{
+  const f=fixture({sorters:1442,collectors:2,receivers:1,blocked:true,managedBacklog:16388});
+  const key="hartsorter:q4m_q1";
+  const untouched=f.properties.get(key);
+  await f.loadFullRuntime();
+  assert.equal(f.properties.get(key),untouched,"Startup must not rewrite the protected queue");
+  f.advance(7);f.metrics.reset();
+  const ticks=40;f.advance(ticks);
+  const {counts,perTick}=publish("16388 Q4 held, no direct home, bounded native checks",f,ticks);
+  assert.equal(f.properties.get(key),untouched,"No Q4 debit or metadata mutation");
+  assert.equal(f.receiverOutputs[0].inspect()[0],0,"No speculative Hopper output");
+  assert.equal(n(counts,"Container.setItem"),0,"No custody writer may execute");
+  assert.equal(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1"),0);
+  assert.ok(perTick["Dimension.getBlock"]<1500,
+    "No source-wide Hopper/Transporter scan on every tick: "+perTick["Dimension.getBlock"]);
+  assert.ok(perTick["Block.typeId"]<2000,
+    "No expensive unmanaged bank graph walk each tick: "+perTick["Block.typeId"]);
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
   const f=fixture({sorters:64,collectors:0,receivers:0,legacy:true});
