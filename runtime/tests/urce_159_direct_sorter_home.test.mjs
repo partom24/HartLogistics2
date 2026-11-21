@@ -38,6 +38,7 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   sideDx=1,sideDz=0,sideFacing=0,parallelColumns=0,
   direction=0,locked=false,missing=false,duplicate=false,
   nativeTerminal=false,terminalExtractor=false,terminalType="minecraft:chest",
+  terminalInert=false,terminalAir=false,terminalLiquid=false,
   hiddenSorter=false,belowChestHopper=false,mode2="bypass",autoSeed=false}={}){
   const dim="minecraft:overworld",m=new Map();
   const key=(X,Y,Z)=>`${X}|${Y}|${Z}`;
@@ -47,8 +48,16 @@ function rig({x=0,y=73,z=0,mode="filter",filter="minecraft:cobblestone",
   const items=full?[{typeId:filter,amount:64,maxAmount:64}]:[];
   const inv1=inventory(items);
   if(nativeTerminal) {
-    set(mk(terminalType,x,y-1,z-1,{inv:inventory()}));
-    set(mk(terminalExtractor?"minecraft:hopper":"minecraft:stone",x,y-2,z-1));
+    const dirs={2:{x:0,z:-1},3:{x:0,z:1},4:{x:-1,z:0},5:{x:1,z:0}};
+    const off=dirs[direction]??{x:0,z:-1};
+    const stop=mk(terminalType,x+off.x,y-1,z+off.z,{
+      inv:terminalInert?undefined:inventory()
+    });
+    stop.isAir=terminalAir;
+    stop.isLiquid=terminalLiquid;
+    set(stop);
+    set(mk(terminalExtractor?"minecraft:hopper":"minecraft:stone",
+      x+off.x,y-2,z+off.z));
   }
   const sorter1=mk("hartsorter:sorter",x,y-2,z);
   const sorter2=mk("hartsorter:sorter",x,y-3,z);
@@ -284,6 +293,7 @@ function linkFixture({first,second,forceFresh=false}){
     logistics:{collectors:[collector],receivers:[receiver]},
     liveTopologyBlockReader:()=>undefined,
     activeLogisticsPass:undefined,
+    isKnownInertNativeStop:()=>false,
     system:{currentTick:9},
     liveLinkGuard:{check(args){
       seen.push(args.forceFresh);
@@ -346,6 +356,7 @@ test("GO-23 native chest boundary must match THIS Receiver's exact directed Hopp
     logistics:{collectors:[collector],receivers:[receiver]},
     liveTopologyBlockReader:()=>undefined,
     activeLogisticsPass:undefined,system:{currentTick:7},
+    isKnownInertNativeStop:()=>false,
     dirty:false,columns:[{d:"minecraft:overworld",source:{x:0,y:72,z:0}}],
     liveLinkGuard:{check(){return issue;}},
     directSorterOutlet(){return {status:"CLOSED_DIRECT_OUTLET",
@@ -365,6 +376,7 @@ test("GO-24 a nearby unconnected chest, mismatched terminal coordinates, or seco
       logistics:{collectors:[collector],receivers:[receiver]},
       liveTopologyBlockReader:()=>undefined,activeLogisticsPass:undefined,
       system:{currentTick:7},
+      isKnownInertNativeStop:()=>false,
       dirty:false,columns:[{d:"minecraft:overworld",source:{x:0,y:72,z:0}}],
       liveLinkGuard:{check(){return {decision:"HOLD",reason:"unverified_native_supply_boundary",
         sourceReachableUnknownCount:count,observationReason:reason};}},
@@ -382,6 +394,7 @@ test("GO-25 unrelated terminal chests without a registered local column do NOT t
   const run=extractMainFunction("liveLinkCheck",{
     logistics:{collectors:[collector],receivers:[receiver]},
     activeLogisticsPass:undefined,system:{currentTick:17},
+    isKnownInertNativeStop:()=>false,
     liveTopologyBlockReader:()=>undefined,dirty:false,columns:[],
     liveLinkGuard:{check(){observed++;return {decision:"HOLD",
       reason:"unverified_native_supply_boundary",
