@@ -34,7 +34,7 @@ function readRaw(world,key){
 
 // Read only committed rows. Quantity totals and the *full* definition are
 // checked independently of the compact row reference. No legacy repair calls.
-function readQueue(world,prefix,key){
+function* scanQueue(world,prefix,key,batched){
     const meta=JSON.parse(readRaw(world,prefix+'q4m_'+key));
     requireState(meta?.v===4 && ['h','t','n','q','r','d'].every(k=>
         Number.isSafeInteger(meta[k]) && meta[k]>=0) && meta.n>meta.t &&
@@ -47,14 +47,15 @@ function readQueue(world,prefix,key){
     requireState(meta.h>0 && meta.t>=meta.h && meta.t-meta.h+1<=meta.q,'Invalid Q4 range');
     // This synchronous LAB reader handles only small queues. Larger queues
     // need a budgeted census before any production migration.
-    requireState(meta.t-meta.h<256,'HOLD: queue exceeds the LAB census window');
+    requireState(batched || meta.t-meta.h<256,'HOLD: queue exceeds the LAB census window');
     let total=0;
     for(let seq=meta.h;seq<=meta.t;){
         const page=Math.floor((seq-1)/64),start=(seq-1)%64;
         const [offset,rows]=JSON.parse(readRaw(world,prefix+'q4p_'+key+'_'+page));
         const count=Math.min(64-start,meta.t-seq+1);
         requireState(offset===start && Array.isArray(rows) && rows.length===count,'Invalid committed page '+page);
-        for(const row of rows){
+        for(const [index,row] of rows.entries()){
+            if(batched && index%8===0)yield;
             requireState(Array.isArray(row) && row.length===2,'Invalid Q4 row');
             const [id,qty]=row;
             requireState(typeof id==='string' && /^[a-z0-9]+(?:_[0-9]+)?$/.test(id) &&
@@ -72,6 +73,35 @@ function readQueue(world,prefix,key){
     }
     requireState(total===meta.q,'Q4 rows differ from committed total');
     return {total,entries};
+}
+
+function readQueue(world,prefix,key){
+    return scanQueue(world,prefix,key,false).next().value;
+}
+
+// Used by the standalone census entry point on a copy with legacy routing paused.
+export function* scanLegacyQueues(world,report){
+    const prefix='hartsorter:';
+    const ids=world.getDynamicPropertyIds();
+    const keys=ids.filter(id=>id.startsWith(prefix+'q4m_')).sort();
+    requireState(keys.length>0,'No visible Q4 queue metadata');
+    const journals=ids.filter(id=>id===prefix+'queue_journal_v1' || id===prefix+'journal_v1').length;
+    const sidecars=ids.filter(id=>/^hartsorter:q[23]/.test(id)).length;
+    let committed=0,nonempty=0;
+    report('START queues='+keys.length);
+    for(const id of keys){
+        yield;
+        const key=id.slice((prefix+'q4m_').length);
+        try{
+            const queue=yield* scanQueue(world,prefix,key,true);
+            committed+=queue.total;
+            requireState(Number.isSafeInteger(committed),'Unsafe aggregate');
+            if(queue.total)nonempty++;
+            report(key+' committed='+queue.total+' definitions='+queue.entries.size);
+        }catch(error){throw Error(key+' '+error.message);}
+    }
+    report('COMPLETE queues='+keys.length+' nonempty='+nonempty+' committed='+committed+
+        ' journal properties='+journals+' Q2/Q3 properties='+sidecars);
 }
 
 export function q4Census(world,queueKey){
