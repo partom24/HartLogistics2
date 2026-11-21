@@ -2,3 +2,4 @@ tile.hartsorter:sorter.name=Hart Sorter
 tile.hartsorter:collector.name=Hart Collector
 tile.hartsorter:receiver.name=Hart Receiver
 tile.hartlogistics:transporter.name=Hart Transporter
+tile.hartlogistics:bulk_storage.name=Hart Bulk Storage

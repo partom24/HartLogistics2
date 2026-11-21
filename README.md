@@ -1,4 +1,4 @@
-# HartLogistics Fresh LAB 0.4.1
+# HartLogistics Fresh LAB 0.5.0
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
@@ -22,6 +22,18 @@ Within each destination priority group, columns follow the discovered lane order
 Keep the existing Hopper bank connected. For a second bank, link a separate Collector to its Receiver. Use `/give @s hartlogistics:transporter 10` and place a connected pipe above each Sorter column, with the first pipe touching the Receiver. A Receiver uses one inlet and one transport method per lane. Positions and orientations come from the placed blocks.
 
 Transporter discovery walks face-connected pipes in breadth-first order and supports branches, turns and loops. Pipes have no inventory. The Collector selects a destination with the shared Sorter rules, verifies the pipe path to the tap, and moves the source stack directly into the destination inventory using a native container transfer. A full matching destination holds the stack at the source. Pipe arms update on player edits and bank discovery. After rebuilding a lane with commands, run `/scriptevent hartlab:refresh`.
+
+## Bulk Storage in LAB 0.5.0
+
+Give yourself a block with `/give @s hartlogistics:bulk_storage 1`. Place it touching a lane block. For the first Hopper test use the side of the inlet so every downstream column is reachable on refill. Registration follows the constructed lane. Multiple discovered members contribute 200,000 ordinary items each. Interact with a member to inspect stored counts; network status includes the number of members.
+
+Verified ordinary vanilla stacks can use counted storage. The Collector currently supplies real inventory slots. When a claim cannot accept the remainder, admission journals that native withdrawal, records a Receiver-owned credit, then commits the virtual debit and Bulk credit together in the member's record. Overflow skips physical transport. Admission rate from native input is still subject to the existing intake cycle. Named and metadata-bearing stacks stay on the native route. An unresolved native boundary stops Bulk handling for that network for inspection. A confirmed Receiver credit can finish on subsequent access without replaying the withdrawal. Ordinary player removal is prevented while contents or an intent remain.
+
+Filtered and live-seeded AUTO destinations take priority. A partly available chest receives the quantity it can accept. When all verified members are full a matching remainder can use wildcard. Unclaimed ordinary items can use wildcard first. This build covers a single discovered delivery lane and its directly attached members; terminal Collector storage and general multi-bank reconciliation are future integration work.
+
+When intake has no productive dispatch on a refill opportunity, stored cargo can refill an eligible chest. Hopper refill enters the lane at the member tap and travels downstream; Transporter refill checks the connected pipe route. Chest delivery counters and Bulk stored balances are separate. Use a dedicated loaded LAB lane and avoid command-editing populated members. Bulk lookup, throughput, art, and save/crash behavior require BDS validation.
+
+To test both methods, fill a filtered output, offer 64 ordinary blocks, and inspect the member for 64 stored. Free exactly 32 matching spaces. Verify the chest gains 32 and Bulk shows 32. Repeat with the second transport method.
 
 ## Collector input
 

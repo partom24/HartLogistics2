@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.4.1) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.0) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -533,6 +533,13 @@ world.afterEvents.playerInteractWithBlock.subscribe(nativeFrameMirror);
 world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
     if(!ev.isFirstEvent)return;
     const id=ev.block.typeId;
+    if(id==='hartlogistics:bulk_storage'){
+        if(ev.player.isSneaking)return;
+        ev.cancel=true;
+        const a=bulkRead(ev.block.dimension.id,ev.block.location);
+        ev.player.sendMessage('[Bulk] '+a.total+' / '+BULK_LIMIT+' stored'+(a.state.pending?' | pending '+JSON.stringify(a.state.pending):'')+' | '+Object.entries(a.state.items).map(([id,n])=>id+' '+n).join(', '));
+        return;
+    }
     if(id==='minecraft:frame'){
         const e=frameOwner(ev.block);
         if(!e)return;
@@ -603,6 +610,10 @@ world.afterEvents.playerPlaceBlock.subscribe(ev=>{
 });
 world.beforeEvents.playerBreakBlock.subscribe(ev=>{
     const b=ev.block;
+    if(b?.typeId===BULK_ID){
+        try{const a=bulkRead(b.dimension.id,b.location);if(!a.total && !a.state.pending)return;}catch(_){}
+        ev.cancel=true;ev.player?.sendMessage('[Bulk] Empty this member before removal.');return;
+    }
     if(b?.typeId==='minecraft:frame' && frameOwner(b)){
         ev.cancel=true;
         ev.player?.sendMessage('§e[Sorter] Punch the frame item out; frame belongs to Sorter.');
@@ -652,7 +663,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.4.1 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.0 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -697,7 +708,7 @@ function refreshPipe(block){
         const other=labGet(d,step(p,offset));
         if(!other)continue;
         const id=other.typeId;
-        const connected=id===PIPE || id===SORTER_ID || id===RECEIVER_ID || id===COLLECTOR_ID || !!labBlockInventory(other);
+        const connected=id===PIPE || id===BULK_ID || id===SORTER_ID || id===RECEIVER_ID || id===COLLECTOR_ID || !!labBlockInventory(other);
         const state='hartlogistics:connect_'+armNames[i];
         if(permutation.getState(state)!==connected){
             permutation=permutation.withState(state,connected);
@@ -797,9 +808,9 @@ function labBuildIndex(b){
     b.cache={filters,autos,wildcards,total,missing};b.cacheRevision=b.generation;
     return b.cache;
 }
-function labAdjacentInventories(candidate){
+function labAdjacentInventories(candidate,strict=false){
     const block=labGet(candidate.p.d,candidate.p);
-    if(block?.typeId!==SORTER_ID)return [];
+    if(block?.typeId!==SORTER_ID){if(strict)throw Error('Sorter unavailable');return [];}
     const facing=facingOffset(block);
     if(!facing)return [];
     const all=[facing,{x:1,y:0,z:0},{x:-1,y:0,z:0},{x:0,y:0,z:1},
@@ -812,7 +823,9 @@ function labAdjacentInventories(candidate){
         unique.add(k);
         // The native Item Frame is not an inventory. All other adjacent
         // compatible vanilla/custom inventory blocks are valid destinations.
-        const inv=labContainer(candidate.p.d,p);
+        const neighbor=labGet(candidate.p.d,p);
+        if(strict && !neighbor)throw Error('Output neighbor unavailable');
+        const inv=labBlockInventory(neighbor);
         if(inv && !candidate.lane.has(k))found.push({position:p,container:inv});
     }
     return found;
@@ -960,11 +973,11 @@ function labPipeDispatch(b,source,slot,item,target){
     if(moved)b.blocked='';
     return moved>0;
 }
-function labTryDispatch(b,key,source,slot,item,target){
+function labTryDispatch(b,key,source,slot,item,target,start=0){
     const cfg=b.cfg;
     if(b.net.method===PIPE)return labPipeDispatch(b,source,slot,item,target);
     if(!labLineEmpty(b)){b.blocked='hopper line contains existing items; waiting for it to drain';return false;}
-    const first=labContainer(cfg.dimension,b.net.lane[0]);
+    const first=labContainer(cfg.dimension,b.net.lane[start]);
     if(!first||!labCanFitEntire(first,item)){
         b.blocked='first hopper unavailable/full';return false;
     }
@@ -987,9 +1000,175 @@ function labTryDispatch(b,key,source,slot,item,target){
     active.counted=true;active.sent=moved;b.dispatched+=moved;b.blocked='';
     try{labPersistActive(b);}catch(err){labStartRecovery(b,`persist after dispatch: ${err}`);}
     // A destination on the inlet is already reached. Service it before native movement.
-    if(!b.recovery && positionKey(target.p.tap)===positionKey(b.net.lane[0]))labTickActive(b);
+    if(!b.recovery && positionKey(target.p.tap)===positionKey(b.net.lane[start]))labTickActive(b);
     return true;
 }
+// One persistent account per physical member, shared by all banks reaching it.
+// pending fences a native/virtual boundary; never replay an ambiguous native edit.
+const BULK_ID='hartlogistics:bulk_storage';
+const BULK_LIMIT=200000;
+function bulkRead(d,p){
+    const key=keyFor('bulk',d,p);
+    const raw=world.getDynamicProperty(key);
+    const state=raw===undefined?{items:{},provisional:{}}:JSON.parse(raw);
+    const total=Object.values(state.items).reduce((a,n)=>{
+        if(!Number.isSafeInteger(n)||n<0)throw Error('Invalid Bulk balance');
+        return a+n;
+    },0);
+    if(total>BULK_LIMIT)throw Error('Invalid Bulk capacity');
+    return {key,state,total};
+}
+function bulkSave(a){
+    world.setDynamicProperty(a.key,JSON.stringify(a.state));
+}
+function bulkMembers(b){
+    return b.net.bulk.map(p=>{
+        if(labGet(b.cfg.dimension,p)?.typeId!==BULK_ID)throw Error('Bulk unavailable');
+        const a=bulkRead(b.cfg.dimension,p);
+        if(a.state.pending?.kind==='receiver credit'){bulkCredit(a);return {...bulkRead(b.cfg.dimension,p),p};}
+        if(a.state.pending)throw Error('Bulk transfer requires inspection: '+a.key);
+        return {...a,p};
+    });
+}
+function bulkOrdinary(item){
+    try{return item.typeId.startsWith('minecraft:') && item.maxAmount>1 &&
+        !item.nameTag && !item.getDynamicPropertyIds().length &&
+        item.isStackableWith(new ItemStack(item.typeId,1));}catch(_){return false;}
+}
+function bulkRoom(inv,item){
+    let room=0;
+    for(let i=0;i<inv.size && room<item.amount;i++){
+        const s=inv.getItem(i);
+        if(!s)room+=item.maxAmount;
+        else if(s.isStackableWith(item))room+=s.maxAmount-s.amount;
+    }
+    return Math.min(room,item.amount);
+}
+function bulkTarget(candidates,item,allowed=()=>true){
+    for(const c of candidates){
+        if(!allowed(c))continue;
+        if(labGet(c.p.d,c.p)?.typeId!==SORTER_ID)throw Error('Sorter unavailable');
+        const inventories=labAdjacentInventories(c,true);
+        for(const {container,position} of inventories){
+            if(c.mode==='auto' && !labHasMatchingSeed(container,item))continue;
+            const amount=bulkRoom(container,item);
+            if(amount)return {amount,target:{...c,destination:position,destinationType:labGet(c.p.d,position).typeId}};
+        }
+    }
+}
+// A proven ordinary partial stack may be materialized at the physical boundary.
+// Journal before any edit. An exception leaves the account fenced.
+function bulkVirtualSource(a,b,item,onDebit,loc){
+    let current=item;
+    return {dimension:b.cfg.dimension,loc,container:{
+        getItem(){return current?.clone();},
+        transferItem(slot,dest){
+            a.state.pending={kind:'physical release',receiver:b.cfg.name,item:item.typeId,amount:item.amount};
+            bulkSave(a);
+            const rem=dest.addItem(item);
+            if(rem)throw Error('Partial Bulk release; inspect journal');
+            onDebit();delete a.state.pending;bulkSave(a);current=undefined;
+        }
+    }};
+}
+function verifyBulkPath(b,member){
+    const d=b.cfg.dimension,net=b.net;
+    if(labGet(d,b.cfg.receiver)?.typeId!==RECEIVER_ID)throw Error('Receiver unavailable');
+    const tap=net.lane[member.p.tapIndex];
+    if(net.method===HOPPER){
+        for(let i=0;i<=member.p.tapIndex;i++){
+            const h=labGet(d,net.lane[i]);
+            if(h?.typeId!==HOPPER || h.permutation.getState('facing_direction')!==net.directions[i])
+                throw Error('Bulk Hopper path changed or unavailable');
+        }
+    }else{
+        for(let p=tap;p;p=net.parents.get(positionKey(p))){
+            if(labGet(d,p)?.typeId!==PIPE)throw Error('Bulk Transporter path changed or unavailable');
+        }
+    }
+}
+function bulkCollect(b,key,source,slot,item){
+    const members=bulkMembers(b), index=labBuildIndex(b);
+    const matches=(index.filters.get(item.typeId)||[]).filter(c=>matchesFilter(item,c.filter));
+    const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(x=>labHasMatchingSeed(x.container,item)));
+    const eligible=matches.concat(autos);
+    const resident=members.some(a=>a.state.items[item.typeId] && !a.state.provisional[item.typeId]);
+    const claimed=!!eligible.length || resident;
+    let route=bulkTarget(claimed?eligible:index.wildcards,item);
+    const member=members.find(a=>a.total<BULK_LIMIT);
+    if(!route && !claimed && b.net.terminal){
+        // A native Hopper lane's terminal inventory is a catch, not a Collector account.
+        if(labGet(b.cfg.dimension,b.net.terminal)?.typeId===COLLECTOR_ID)return false;
+    }
+    if(!route && claimed && !member){
+        for(const a of members)verifyBulkPath(b,a);
+        route=bulkTarget(index.wildcards,item);
+    }
+    if(route){
+        if(route.amount===item.amount)return labTryDispatch(b,key,source,slot,item,route.target);
+        const part=item.clone();part.amount=route.amount;
+        const staged=bulkVirtualSource(members[0],b,part,()=>{
+            const remainder=item.clone();remainder.amount=item.amount-part.amount;
+            source.container.setItem(slot,remainder);
+        },source.loc);
+        return labTryDispatch(b,key,staged,slot,part,route.target);
+    }
+    if(!member)return false;
+    verifyBulkPath(b,member);
+    const amount=Math.min(item.amount,BULK_LIMIT-member.total);
+    const id=item.typeId, state=member.state;
+    state.pending={kind:'native intake',receiver:b.cfg.name,source:source.loc,slot,item:id,amount};
+    bulkSave(member);
+    const left=item.amount-amount;
+    const remainder=left?item.clone():undefined;
+    if(remainder)remainder.amount=left;
+    source.container.setItem(slot,remainder);
+    // Durable Receiver-owned intake. The following single write transfers its
+    // entire virtual balance to Bulk. Restart can finish this phase exactly once.
+    state.pending.kind='receiver credit';
+    state.pending.provisional=!claimed;
+    bulkSave(member);
+    bulkCredit(member);
+    return true;
+}
+function bulkCredit(a){
+    const t=a.state.pending;
+    a.state.items[t.item]=(a.state.items[t.item]||0)+t.amount;
+    if(t.provisional)a.state.provisional[t.item]=true;
+    else delete a.state.provisional[t.item];
+    delete a.state.pending;bulkSave(a);
+}
+function bulkRefill(b){
+    if(!b.net?.bulk.length || b.generation!==b.revision)return;
+    for(const a of bulkMembers(b)){
+        const types=Object.keys(a.state.items);
+        for(let i=0;i<types.length;i++){
+            const id=types[(i+(b.bulkCursor||0))%types.length];
+            const item=new ItemStack(id,1);
+            item.amount=Math.min(item.maxAmount,a.state.items[id]);
+            const index=labBuildIndex(b);
+            const matches=(index.filters.get(id)||[]).filter(c=>matchesFilter(item,c.filter));
+            const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(x=>labHasMatchingSeed(x.container,item)));
+            const candidates=matches.length || autos.length?matches.concat(autos):index.wildcards;
+            const provisional=a.state.provisional[id];
+            const start=b.net.method===HOPPER?a.p.tapIndex:0;
+            const route=bulkTarget(candidates,item,c=>(provisional || c.mode!=='wildcard') &&
+                (start===0 || b.net.lane.slice(start).some(p=>positionKey(p)===positionKey(c.p.tap))));
+            if(!route)continue;
+            verifyBulkPath(b,a);
+            item.amount=route.amount;
+            const source=bulkVirtualSource(a,b,item,()=>{
+                a.state.items[id]-=item.amount;
+                if(!a.state.items[id]){delete a.state.items[id];delete a.state.provisional[id];}
+            },a.p);
+            if(labTryDispatch(b,a.key,source,0,item,route.target,start)){
+                b.bulkCursor=((b.bulkCursor||0)+i+1)%types.length;
+                return true;
+            }
+        }
+    }
+}
+
 function labTryCollector(b,collectorKey){
     try{
         const sources=labCollectorSources(collectorKey);
@@ -1003,6 +1182,13 @@ function labTryCollector(b,collectorKey){
             for(let slot=0;slot<size;slot++){
                 const item=inv.getItem(slot);
                 if(!item)continue;
+                if(b.net.bulk.length && bulkOrdinary(item)){
+                    if(bulkCollect(b,collectorKey,source,slot,item)){
+                        (b.sourceCursor ??= new Map()).set(collectorKey,index+1);return true;
+                    }
+                    if(b.active)return true;
+                    continue;
+                }
                 const target=labSelectTarget(b,item);
                 if(!target)continue;
                 if(!labTryDispatch(b,collectorKey,source,slot,item,target))return !!b.active;
@@ -1069,6 +1255,7 @@ function labTickActive(b){
 }
 function labProcessInputs(){
     if(startupHold || !labCollectorKeys.length)return;
+    let supplied=false;
     // Each linked Collector is considered once per input cycle, round-robin.
     const keys=labCollectorKeys;
     for(let n=0;n<keys.length;n++){
@@ -1076,7 +1263,18 @@ function labProcessInputs(){
         const receiver=labLinkedReceiver(key);
         const bank=receiver?labBankForReceiver(receiver):undefined;
         if(!bank||bank.active||bank.recovery)continue;
-        if(labTryCollector(bank,key))break;
+        if(labTryCollector(bank,key)){supplied=true;break;}
+    }
+    if(!supplied && labTick%32===0){
+        const seen=new Set();
+        for(const key of keys){
+            const receiver=labLinkedReceiver(key);
+            if(seen.has(receiver))continue;
+            seen.add(receiver);
+            const bank=labBanks[receiver];
+            if(!bank || bank.active || bank.recovery)continue;
+            try{if(bulkRefill(bank))break;}catch(err){labMarkHold(bank,String(err));}
+        }
     }
     labRR=(labRR+1)%keys.length;
 }
@@ -1097,7 +1295,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.4.1 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.0 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){
@@ -1108,7 +1306,7 @@ function labStats(source){
         const b=labBankForReceiver(key);
         if(!b)continue;
         const net=labDiscover(b), i=net && labBuildIndex(b);
-        lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' Sorters, dispatched='+b.dispatched+
+        lines.push(key+' | '+(net?.lane.length || 0)+(net?.method===PIPE?' Transporters, ':' Hoppers, ')+(i?.total || 0)+' Sorters, Bulk='+ (net?.bulk.length||0)+', dispatched='+b.dispatched+
             ', delivered='+b.confirmed+', unconfirmed='+b.catches+', active='+!!b.active+', recovery='+!!b.recovery+', discoveries='+b.discoveries+
             ', discovery block reads='+b.reads+' | '+(b.blocked || 'ready'));
     }

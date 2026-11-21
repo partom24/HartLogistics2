@@ -2,12 +2,12 @@
   "format_version": 2,
   "header": {
     "name": "HartLogistics Fresh LAB BP",
-    "description": "Fresh LAB 0.4.1: 1.4.1 assets and controls; Hopper and Transporter routing",
+    "description": "Fresh LAB 0.5.0: Hopper, Transporter and Bulk Storage",
     "uuid": "f450bff5-6b68-42e5-a07d-616f87c01918",
     "version": [
       0,
-      4,
-      1
+      5,
+      0
     ],
     "min_engine_version": [
       1,
@@ -21,8 +21,8 @@
       "uuid": "df9e429b-3617-4870-a39d-8140a6e28242",
       "version": [
         0,
-        4,
-        1
+        5,
+        0
       ]
     },
     {
@@ -31,8 +31,8 @@
       "uuid": "565152e2-7f33-4785-b765-2293e19b1691",
       "version": [
         0,
-        4,
-        1
+        5,
+        0
       ],
       "entry": "scripts/main.js"
     }
@@ -46,8 +46,8 @@
       "uuid": "39f2d6c6-9b79-4754-a2e2-fd27c1ec1d63",
       "version": [
         0,
-        4,
-        1
+        5,
+        0
       ]
     }
   ],

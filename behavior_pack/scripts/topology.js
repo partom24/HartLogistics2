@@ -67,9 +67,12 @@ export function discover(receiver, registration, read, sorterId) {
         if(block(p).typeId===PIPE)throw Error('Hopper output enters a Transporter. Use a dedicated lane for each method.');
         terminal=p;
     }
-    for(const p of lane){
+    const bulk=new Map();
+    for(const [tapIndex,p] of lane.entries()){
         for (const side of neighbors) {
             const start = step(p,side);
+            if(block(start).typeId==='hartlogistics:bulk_storage' && !bulk.has(positionKey(start)))
+                bulk.set(positionKey(start),{...start,tapIndex});
             if (block(start).typeId!==sorterId) continue;
             column(start,p,up);
             column(start,p,down);
@@ -93,5 +96,5 @@ export function discover(receiver, registration, read, sorterId) {
     const ordered=[...spots.values()].filter(s=>!s.ambiguous);
     ordered.sort((a,b)=>tapOrder.get(positionKey(a.tap))-tapOrder.get(positionKey(b.tap))
         || a.x-b.x || a.z-b.z || a.y-b.y);
-    return {method, parents, lane, directions, terminal, taps:visited, spots:ordered};
+    return {bulk:[...bulk.values()],method, parents, lane, directions, terminal, taps:visited, spots:ordered};
 }

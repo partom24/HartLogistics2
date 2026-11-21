@@ -135,6 +135,9 @@
     },
     "hartlogistics_transporter": {
       "textures": "textures/blocks/hartlogistics_transporter"
+    },
+    "hartlogistics_bulk_storage": {
+      "textures": "textures/blocks/hartlogistics_bulk_storage"
     }
   }
 }

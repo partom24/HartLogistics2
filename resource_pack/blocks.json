@@ -6,5 +6,8 @@
   ],
   "hartlogistics:transporter": {
     "sound": "metal"
+  },
+  "hartlogistics:bulk_storage": {
+    "sound": "metal"
   }
 }

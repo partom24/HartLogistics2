@@ -1,0 +1,30 @@
+{
+  "format_version": "1.26.30",
+  "minecraft:block": {
+    "description": {
+      "identifier": "hartlogistics:bulk_storage",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "geometry.hartlogistics.bulk_storage",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "hartlogistics_bulk_storage",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:display_name": "Hart Bulk Storage",
+      "minecraft:movable": {
+        "movement_type": "immovable",
+        "sticky": "none"
+      },
+      "minecraft:destructible_by_explosion": false,
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 2
+      },
+      "minecraft:loot": "loot_tables/blocks/bulk_storage.json"
+    }
+  }
+}
