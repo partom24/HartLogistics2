@@ -49,7 +49,8 @@ class Stack {
 function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
                   blocked=false,legacy=false,direct=false,directSideChest=false,
                   directedTerminalChest=false,directedTerminalInert=false,
-                  managedBacklog=0}={}) {
+                  managedBacklog=0,remoteBank=false,remoteFilterId="minecraft:cobblestone",
+                  remoteCycle=false,remoteUnknownHopper=false}={}) {
   const metrics=counters();
   const blocks=new Map(), properties=new Map(), timers=[], intervals=[], listeners=new Map();
   let currentTick=0;
@@ -134,6 +135,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
   }
   const cols=[],recs=[],collectorSources=[],receiverOutputs=[];
   const directChests=[],directSideChests=[],nativeTerminals=[],nativeInertTerminals=[];
+  const remoteChests=[];
   for(let i=0;i<receivers;i++){
     const p={x:80000+i*20,y:70,z:0},id=key(DIM,p),queueKey="q"+(i+1);
     block("hartsorter:receiver",p);
@@ -173,6 +175,41 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
         ?{v:4,h:1,t:1,n:2,q:managedBacklog,r:52951,d:52951-managedBacklog}
         :{v:4,h:0,t:0,n:1,q:0,r:0,d:0}
     ));
+  }
+  if(remoteBank){
+    if(receivers<2)throw Error("Two-bank fixture needs two Receivers");
+    // Native bank #1: r0 -> face-connected visual pipe -> registered
+    // Collector c1 -> saved link to Receiver r1.
+    block("hartsorter:transporter",{x:80001,y:70,z:0});
+    for(let x=80001;x<=80003;x++)
+      block("hartsorter:transporter",{x,y:69,z:0});
+    const relay={x:80004,y:69,z:0};
+    block("hartsorter:collector",relay);
+    cols.push({id:key(DIM,relay),d:DIM,...relay,present:true,
+      link:recs[1].id,accepted:0});
+    // Native bank #2: r1 -> pipe -> verified source Hopper/Sorter
+    // -> native Filter chest, with an OPTIONAL unlinked terminal Collector.
+    block("hartsorter:transporter",{x:80021,y:70,z:0});
+    for(let x=80021;x<=80023;x++)
+      block("hartsorter:transporter",{x,y:69,z:0});
+    const terminal={x:80024,y:69,z:0};
+    block("hartsorter:collector",terminal);
+    cols.push({id:key(DIM,terminal),d:DIM,...terminal,present:true,
+      link:remoteCycle?recs[0].id:null,accepted:0});
+    if(remoteUnknownHopper)block("minecraft:hopper",
+      {x:80022,y:69,z:1},{items:[]});
+    block("minecraft:hopper",{x:80023,y:69,z:-1},{items:[]});
+    const sorter={x:80023,y:68,z:-1};
+    block("hartsorter:sorter",sorter,{states:{
+      "minecraft:cardinal_direction":"east","hartlogistics:mode":"filter"
+    }});
+    const remote=block("minecraft:chest",
+      {x:80024,y:68,z:-1},{items:[]});
+    remoteChests.push(remote.container);
+    block("minecraft:stone",{x:80024,y:67,z:-1});
+    block("minecraft:stone",{x:80023,y:67,z:-1});
+    registry.push({d:DIM,...sorter,m:"filter",
+      f:{match:{typeId:remoteFilterId}}});
   }
   for(let i=0;i<collectors;i++){
     const p={x:50000+i*20,y:70,z:0},id=key(DIM,p);
@@ -232,7 +269,7 @@ function fixture({sorters=24,collectors=2,receivers=2,stationary=false,
     }
   }
   function emit(name,ev){for(const callback of listeners.get(name)??[])callback(ev);}
-  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,directSideChests,nativeTerminals,nativeInertTerminals,properties,warnings,intervals,world,
+  return {metrics,loadFullRuntime,advance,emit,collectorSources,receiverOutputs,directChests,directSideChests,nativeTerminals,nativeInertTerminals,remoteChests,properties,warnings,intervals,world,
     get tick(){return currentTick;}};
 }
 function publish(label,fixture,ticks,extra={}) {
@@ -418,6 +455,43 @@ test("FULL-NATIVE-11 protected 16388 Q4 with two links stays intact; no full gra
     "No source-wide Hopper/Transporter scan on every tick: "+perTick["Dimension.getBlock"]);
   assert.ok(perTick["Block.typeId"]<2000,
     "No expensive unmanaged bank graph walk each tick: "+perTick["Block.typeId"]);
+});
+test("FULL-NATIVE-12 actual shipped two-bank Q4 -> saved Collector link -> live Filter chest, one journal",async()=>{
+  const f=fixture({sorters:0,collectors:1,receivers:2,remoteBank:true});
+  await f.loadFullRuntime();f.advance(7);
+  f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+  f.metrics.reset();f.advance(1);
+  const {counts}=publish("two real loaded Transporter bank runs, one explicit Collector->Receiver hop and 4 Q4->Filter native chest",f,1);
+  assert.equal(f.collectorSources[0].inspect()[0],0,"Source Collector enqueued exactly four");
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q1")).q,0,"Source Q4 should drain");
+  assert.equal(JSON.parse(f.properties.get("hartsorter:q4m_q2")).q,0,"Skipped intermediary Q4 stays empty");
+  assert.equal(f.remoteChests[0].inspect()[0],4,"All 4 reached the remote Filter home");
+  assert.equal(f.receiverOutputs[0].inspect()[0],0,"No unverified Hopper staging");
+  assert.equal(f.receiverOutputs[1].inspect()[0],0,"No intermediate Receiver staging");
+  assert.ok(n(counts,"World.setDynamicProperty.hartsorter:queue_journal_v1")>=4,
+    "The original Q4 enqueue/dequeue journal is the sole owner");
+  assert.equal(n(counts,"World.setDynamicProperty.hartsorter:journal_v1"),0,
+    "No fake physical Sorter custody writer");
+});
+test("FULL-NATIVE-13 unknown remote claim and a physical bank cycle cannot debit Q4",async()=>{
+  for(const opts of [
+    {remoteFilterId:"minecraft:dirt"},
+    {remoteCycle:true},
+    {remoteUnknownHopper:true}
+  ]){
+    const f=fixture({sorters:0,collectors:1,receivers:2,remoteBank:true,...opts});
+    await f.loadFullRuntime();f.advance(7);
+    f.collectorSources[0].setItem(0,new Stack("minecraft:cobblestone",4));
+    f.metrics.reset();f.advance(1);
+    assert.equal(f.remoteChests[0].inspect()[0],0,
+      "Unsafe remote bank must not write destination: "+JSON.stringify(opts));
+    assert.equal(f.receiverOutputs[0].inspect()[0],0);
+    assert.equal(f.receiverOutputs[1].inspect()[0],0);
+    const q=JSON.parse(f.properties.get("hartsorter:q4m_q1")).q;
+    assert.ok(q===0||q===4,"Source may only retain Q4 or pre-ingress HOLD");
+    assert.equal(4-q, f.collectorSources[0].inspect()[0]===4 ? 0:4,
+      "Source+Q4 conservation under route rejection");
+  }
 });
 test("FULL-NATIVE-04 idle native frames vs legacy mode/display maintenance are separate budgets",async()=>{
   const f=fixture({sorters:64,collectors:0,receivers:0,legacy:true});
