@@ -1,5 +1,5 @@
 /*
- * HartLogistics Fresh LAB addressed physical routing (0.5.3) — source-only.
+ * HartLogistics Fresh LAB addressed physical routing (0.5.4) — source-only.
  * Original block JSON, texture atlas and geometry copied from HartLogistics 1.4.1.
  * Filter data/metadata and indicator hit detection functions below are excerpted
  * verbatim from HartLogistics 1.4.1 (MPL-2.0), without its routing engine.
@@ -663,7 +663,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.3 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.4 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -1165,11 +1165,16 @@ function bulkCredit(a){
 }
 function bulkRefill(b){
     if(!b.net?.bulk.length || b.generation!==b.revision)return;
+    const d=b.cfg.dimension;
+    const hasStock=b.net.bulk.some(p=>{
+        const {state}=bulkRead(d,p);
+        return state.pending || Object.keys(state.items).length;
+    });
+    if(!hasStock || !coverRoute(b))return false;
     for(const a of bulkMembers(b)){
         const types=Object.keys(a.state.items);
         for(let i=0;i<types.length;i++){
             const id=types[(i+(b.bulkCursor||0))%types.length];
-            if(!coverRoute(b))return false;
             const item=new ItemStack(id,1);
             item.amount=Math.min(item.maxAmount,a.state.items[id]);
             const index=labBuildIndex(b);
@@ -1256,6 +1261,7 @@ function coverChunks(b,chunks) {
     }
     return ready;
 }
+// Refill polls every 32 ticks. Keep coverage through its next poll.
 function releaseIdleChunks() {
     for (const [key,entry] of routeChunks) {
         if (entry.ready && labTick-entry.last >= 32) {
@@ -1397,7 +1403,7 @@ function labLoadState(){
                 b.recovery=true;b.blocked='restart recovery: waiting for the original physical lane to empty';
             }
         }
-        log(`0.5.3 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
+        log(`0.5.4 dual transport routing ready; ${labCollectorKeys.length} linked Collector configurations, recovery lanes=${Object.values(labBanks).filter(b=>b.recovery).length}`);
     }catch(err){startupHold=String(err);log(`Routing startup state error: ${err}`);}
 }
 function labStats(source){

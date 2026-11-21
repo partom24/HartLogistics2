@@ -350,7 +350,12 @@ for(const [mode,z] of [['hopper',3500],['pipe',3510]]){
   let breakAttempt={block:member,player,cancel:false};
   for(const cb of world.beforeEvents.playerBreakBlock.handlers)cb(breakAttempt);
   assert.equal(breakAttempt.cancel,true);
+  const immediateLoad=world.tickingAreaManager.createTickingArea;
+  world.tickingAreaManager.createTickingArea=()=>({then(resolve){system.run(resolve);}});
+  // Begin refill after the bank's earlier coverage has expired.
+  vm.runInContext('routeChunks.clear()',context);
   dest.setItem(0,new Stack(itemId,32));ticks(600);
+  world.tickingAreaManager.createTickingArea=immediateLoad;
   assert.equal(dest.count(itemId),27*64);
   assert.equal(JSON.parse(properties.get(ledger)).items[itemId],32);
   assert.equal(evalBank(rig,'b.confirmed'),32);
