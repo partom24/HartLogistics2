@@ -44,7 +44,7 @@ REVIEWED_BLOBS={
     "resource_pack/manifest.json":"7ef72daa595b460fce1c41e9f5fbf2a75caf2faa",
     "behavior_pack/scripts/main.js":"2bde7ae6b13f546255f6f86da52f3ae9114ee667",
     "behavior_pack/scripts/urce_159_direct_sorter_home.js":"a2d81d035b4bcb478e99779b7b1bebe44666f51b",
-    "behavior_pack/scripts/urce_1513_verified_bank_filter.js":"df1cb988e3cfb4e60a7c35b00bc12ef9ac667f5a"
+    "behavior_pack/scripts/urce_1513_verified_bank_filter.js":"ebd89a3371340f3c088f5ea449e1e4db06abf2fb"
 }
 
 def git_blob(data:bytes)->str:
