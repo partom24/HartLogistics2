@@ -14,7 +14,8 @@
  * parallel registered columns, or native Hoppers do not imply an outgoing edge.
  * This is an exclusively CLOSED local native outlet, NOT a generic network
  * discovery algorithm. An outward-facing native Hopper may feed a physically
- * terminal chest, but Q4 must credit the positively selected Sorter home
+ * terminal chest or positively identified inert building material, but Q4
+ * must credit the positively selected Sorter home
  * directly rather than risk vanilla diverting claimed cargo into the Hopper.
  * Unknown side routes, foreign inventory or incomplete
  * registry/Bedrock observations HOLD. No global claim absence is inferred from
@@ -30,6 +31,57 @@ const SORTER="hartsorter:sorter";
 const HART_SIDE=new Set(["hartsorter:transporter","hartsorter:collector",
   "hartsorter:receiver","hartsorter:bulk_storage",SORTER,HOPPER]);
 const OFFSETS=[{x:1,z:0},{x:-1,z:0},{x:0,z:1},{x:0,z:-1}];
+
+// A *positive*, versioned catalog of inert native building materials whose
+// block type has no native Hopper input semantics. This intentionally excludes
+// composters, crafters, jukeboxes, containers, machinery, rails, liquids, air,
+// and unknown/addon blocks. Merely lacking a Script API inventory component
+// is NOT sufficient proof of no native item-transfer behavior.
+//
+// Do not use Block.isSolid: the official Bedrock API still marks it pre-release.
+// Vanilla block type + a required live component check are the stable inputs.
+const NATIVE_INERT_TERMINI=new Set([
+  "minecraft:stone","minecraft:stone_bricks",
+  "minecraft:cracked_stone_bricks","minecraft:mossy_stone_bricks",
+  "minecraft:chiseled_stone_bricks","minecraft:cobblestone",
+  "minecraft:mossy_cobblestone","minecraft:granite",
+  "minecraft:polished_granite","minecraft:diorite",
+  "minecraft:polished_diorite","minecraft:andesite",
+  "minecraft:polished_andesite","minecraft:deepslate",
+  "minecraft:cobbled_deepslate","minecraft:polished_deepslate",
+  "minecraft:deepslate_bricks","minecraft:cracked_deepslate_bricks",
+  "minecraft:deepslate_tiles","minecraft:cracked_deepslate_tiles",
+  "minecraft:chiseled_deepslate","minecraft:reinforced_deepslate",
+  "minecraft:tuff","minecraft:polished_tuff","minecraft:tuff_bricks",
+  "minecraft:chiseled_tuff","minecraft:chiseled_tuff_bricks",
+  "minecraft:dirt","minecraft:coarse_dirt","minecraft:grass_block",
+  "minecraft:netherrack","minecraft:nether_bricks",
+  "minecraft:red_nether_bricks","minecraft:end_stone",
+  "minecraft:end_stone_bricks","minecraft:obsidian",
+  "minecraft:crying_obsidian","minecraft:bedrock",
+  "minecraft:bricks","minecraft:clay","minecraft:sandstone",
+  "minecraft:cut_sandstone","minecraft:smooth_sandstone",
+  "minecraft:red_sandstone","minecraft:cut_red_sandstone",
+  "minecraft:smooth_red_sandstone","minecraft:quartz_block",
+  "minecraft:smooth_quartz","minecraft:quartz_bricks",
+  "minecraft:prismarine","minecraft:prismarine_bricks",
+  "minecraft:dark_prismarine","minecraft:glass",
+  "minecraft:ice","minecraft:packed_ice","minecraft:blue_ice",
+  "minecraft:coal_block","minecraft:iron_block",
+  "minecraft:gold_block","minecraft:diamond_block",
+  "minecraft:emerald_block","minecraft:lapis_block",
+  "minecraft:netherite_block","minecraft:copper_block",
+  "minecraft:amethyst_block","minecraft:planks"
+]);
+const NATIVE_COLOR_BLOCK=/^minecraft:(?:white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_(?:concrete|concrete_powder|terracotta|glazed_terracotta|wool|stained_glass)$/;
+const NATIVE_WOOD_PLANK=/^minecraft:(?:oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped|pale_oak)_planks$/;
+export function isKnownInertNativeStop(typeId) {
+  return typeof typeId==="string"&&(
+    NATIVE_INERT_TERMINI.has(typeId)||
+    NATIVE_COLOR_BLOCK.test(typeId)||
+    NATIVE_WOOD_PLANK.test(typeId));
+}
+
 const valid=e=>!!e&&typeof e.d==="string"&&e.d.length>0&&
   [e.x,e.y,e.z].every(Number.isSafeInteger);
 const fail=(reason,extra={})=>({status:"HOLD",reason,executePermitted:false,
@@ -81,12 +133,26 @@ export function inspectDirectSorterOutlet({receiver,readBlock,columns,
   if(direction!==0&&direction!==1) {
     const target=observed(readBlock,d,{x:x+out.x,y:y-1,z:z+out.z});
     if(!target)return fail("native_terminal_unavailable");
-    if(!["minecraft:chest","minecraft:trapped_chest","minecraft:barrel"].includes(target.typeId))
+    const storageType=["minecraft:chest","minecraft:trapped_chest",
+      "minecraft:barrel"].includes(target.typeId);
+    const inertType=isKnownInertNativeStop(target.typeId);
+    if(!storageType&&!inertType)
       return fail("output_hopper_not_downward_or_terminal");
+    // The known opaque native block is a dead-end, NOT an inventory or
+    // a supply edge. Do not infer this merely from 'getComponent undefined':
+    // the vanilla type MUST also be on the explicit inert-material catalog.
+    // Q4 still bypasses all lateral Hopper outputs and credits an item-home
+    // whose actual Sorter/storage admission was independently verified.
     try {
-      const inv=target.getComponent?.("minecraft:inventory")?.container;
-      if(!inv?.isValid)return fail("native_terminal_inventory_unavailable");
-    }catch(_){return fail("native_terminal_inventory_unavailable");}
+      if(typeof target.getComponent!=="function")
+        return fail("native_terminal_component_unavailable");
+      const inventory=target.getComponent("minecraft:inventory");
+      if(storageType) {
+        if(!inventory?.container?.isValid)
+          return fail("native_terminal_inventory_unavailable");
+      }else if(inventory||target.isAir===true||target.isLiquid===true)
+        return fail("native_inert_terminal_not_passive");
+    }catch(_){return fail("native_terminal_component_unavailable");}
     const under=observed(readBlock,d,{
       x:x+out.x,y:y-2,z:z+out.z
     });
