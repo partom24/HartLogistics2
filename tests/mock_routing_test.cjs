@@ -428,3 +428,9 @@ assert.equal(evalBank(coldBank,'b.net.lane.length'),52);
 assert.equal(evalBank(coldBank,'b.dispatched'),0);
 dim.getBlock=originalRead;
 console.log('PASS: discovery automatically loads three successive unavailable chunks');
+
+// Model two refill polls with cleanup running immediately before the second.
+vm.runInContext("routeChunks.set('refill-test',{id:'refill-test',ready:true,last:labTick})",context);
+assert.equal(vm.runInContext("labTick+=32;releaseIdleChunks();routeChunks.has('refill-test')",context),true);
+assert.equal(vm.runInContext("labTick+=16;releaseIdleChunks();routeChunks.has('refill-test')",context),false);
+console.log('PASS: ready area survives the next refill poll and expires after inactivity');
