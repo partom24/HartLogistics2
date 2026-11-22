@@ -17,3 +17,9 @@ The result is an in-memory projection for this terminal. No queue debit, setting
 ## Persist and verify the q2 settings
 
 The isolated installer now keeps the preview and dispatch commands available and adds `hartlab:q4_settings`. With the copied terminal loaded, run `scriptevent hartlab:q4_settings apply q2`. Expect 170 verified settings (168 Sorters, one Receiver and one Collector link). A separate roster records the expected keys. Matching settings are reused and a conflict yields HOLD. Restart copied BDS, return near q2, and run `scriptevent hartlab:q4_settings verify q2`. Expect 170 settings and zero settings written. These commands preserve cargo and do not start the routing scheduler.
+
+## One-item routed rehearsal
+
+Install the pinned isolated launcher, stay near the q2 terminal, and leave the lane, barrel and destination inventory undisturbed. From the copied BDS console run `scriptevent hartlab:q4_route send q2`. The initial account audit reads all original rows. The receipt records a destination and starting stack count before the physical offer. The isolated runtime admits only one ordinary unit and services its addressed Hopper tap. The completion line verifies both an issued debit and a one-unit increase at the selected native inventory. Normal automatic routing remains disabled. A pending or inconsistent receipt requires inspection before any further offer.
+
+After ROUTE VERIFIED restart, return near q2 and run `scriptevent hartlab:q4_route verify q2`. Expected aggregate: receiver=124521 held=1016 barrel=1 routed=1 total=125539. The old barrel status excludes the routed receipt. A HOLD is diagnostic evidence; retain the original barrel, destination, and journals.

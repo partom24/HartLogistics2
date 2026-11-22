@@ -1,7 +1,7 @@
 // Invoked by the normal Fresh mock with --q4-route, in its own process.
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
-module.exports=async function({bank,world,properties,place,dim,Stack,context,ticks,banks,event,drain,restart}){
+module.exports=async function({newRuntime,bank,world,properties,place,dim,Stack,context,ticks,banks,event,drain,restart}){
     const {routeOne}=await import('../../scripts/legacy-census/route-trial.js');
     const {dispatchTrial}=await import('../../behavior_pack/scripts/committedDispatch.js');
     const {q4LabStep}=await import('../../behavior_pack/scripts/q4Lab.js');
@@ -123,5 +123,33 @@ module.exports=async function({bank,world,properties,place,dim,Stack,context,tic
     verify();
     assert.deepEqual(await route(restart()),expected);
     ticks(96);verify();
+    properties.clear();for(const [k,v] of checkpoint)properties.set(k,v);
+    b.chests.at(-1).slots.fill(undefined);
+    rc.getRedstonePower=()=>0;
+    for(const block of b.sorters)block.getRedstonePower=()=>0;
+    const {rehearse}=await import('../../scripts/legacy-census/routed-rehearsal.js');
+    let step=0;
+    const advance=async()=>{
+        if(++step%8!==0)return;
+        for(let j=b.hoppers.length-2;j>=0;j--){
+            const inv=b.hoppers[j].inv;
+            if(inv.getItem(0))inv.transferItem(0,b.hoppers[j+1].inv);
+        }
+    };
+    const runIsolated=(command,runtime)=>rehearse(world,'q2',command,advance,make,
+        q=>transferConfiguration(world,q,false,noPause),runtime.prepareMigrationShipment,runtime.countMigrationItems);
+    const isolated=newRuntime(true);
+    rc.getRedstonePower=()=>15;
+    await assert.rejects(runIsolated('send',isolated),/powered/);
+    assert.equal(properties.has('hartlab:routed_destination1'),false);
+    rc.getRedstonePower=()=>0;
+    assert.deepEqual((await runIsolated('send',isolated)).audit,expected);
+    verify();
+    const restarted=newRuntime(true);
+    assert.deepEqual((await runIsolated('verify',restarted)).audit,expected);
+    assert.deepEqual((await runIsolated('send',restarted)).audit,expected);
+    verify();
+    b.chests.at(-1).slots.fill(undefined);
+    await assert.rejects(runIsolated('verify',restarted),/evidence differs/);
     console.log('PASS committed account through normal Hopper lane, original barrel receipt, held source, power, interrupted native write, fresh VM restart and replay');
 };

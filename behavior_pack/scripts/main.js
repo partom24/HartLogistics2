@@ -9,6 +9,7 @@
 import { world, system, ItemStack, BlockPermutation, EquipmentSlot,
          EnchantmentTypes, Potions } from '@minecraft/server';
 
+import { isolatedMigration } from './migration-mode.js';
 import { q4LabStep, q4Census } from './q4Lab.js';
 import { discover, HOPPER, PIPE, isTransport, neighbors, step, positionKey } from './topology.js';
 
@@ -536,11 +537,11 @@ function useReceiver(player,block){
 
 // Keep 1.4.1's item-use suppression: pearls, charges, etc. must not activate
 // while the player is interacting with the Sorter's filter/service face.
-world.beforeEvents.itemUse.subscribe(ev=>{
+if (!isolatedMigration) world.beforeEvents.itemUse.subscribe(ev=>{
     if(ev.itemStack && playerTargetsSorterServiceFace(ev.source))ev.cancel=true;
 });
-world.afterEvents.playerInteractWithBlock.subscribe(nativeFrameMirror);
-world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
+if (!isolatedMigration) world.afterEvents.playerInteractWithBlock.subscribe(nativeFrameMirror);
+if (!isolatedMigration) world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
     if(!ev.isFirstEvent)return;
     const id=ev.block.typeId;
     if(id==='hartlogistics:bulk_storage'){
@@ -603,7 +604,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
         if(b?.typeId===RECEIVER_ID)useReceiver(player,b);
     });
 });
-world.afterEvents.playerPlaceBlock.subscribe(ev=>{
+if (!isolatedMigration) world.afterEvents.playerPlaceBlock.subscribe(ev=>{
     invalidateRouting(ev.block.dimension.id,ev.block.location);
     refreshPipeNeighbors(ev.block.dimension.id,ev.block.location);
     const b=ev.block,p=b.location,d=b.dimension.id;
@@ -618,7 +619,7 @@ world.afterEvents.playerPlaceBlock.subscribe(ev=>{
         ev.player?.sendMessage('§6[Receiver] Placed. Select a Collector and click this Receiver to link.');
     }
 });
-world.beforeEvents.playerBreakBlock.subscribe(ev=>{
+if (!isolatedMigration) world.beforeEvents.playerBreakBlock.subscribe(ev=>{
     const b=ev.block;
     if(b?.typeId===COLLECTOR_ID){
         try{
@@ -658,7 +659,7 @@ world.beforeEvents.playerBreakBlock.subscribe(ev=>{
         clearEntry(live);
     });
 });
-world.afterEvents.entityHitBlock.subscribe(ev=>{
+if (!isolatedMigration) world.afterEvents.entityHitBlock.subscribe(ev=>{
     if(ev.damagingEntity?.typeId!=='minecraft:player')return;
     const e=frameOwner(ev.hitBlock);
     if(!e?.f && !e?.nativeQuarantine)return;
@@ -670,7 +671,7 @@ world.afterEvents.entityHitBlock.subscribe(ev=>{
         if(saveEntry(live))syncSorterModeVisual(live,b);
     });
 });
-world.afterEvents.playerBreakBlock.subscribe(ev=>{
+if (!isolatedMigration) world.afterEvents.playerBreakBlock.subscribe(ev=>{
     invalidateRouting(ev.dimension.id,ev.block.location);
     refreshPipeNeighbors(ev.dimension.id,ev.block.location);
     let typeId='';try{typeId=ev.brokenBlockPermutation.type.id;}catch(_){try{typeId=ev.brokenBlockPermutation.typeId;}catch(_){}}
@@ -681,7 +682,7 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-system.run(()=>log('0.5.13 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+if (!isolatedMigration) system.run(()=>log('0.5.13 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
 
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
@@ -815,7 +816,7 @@ function labDiscover(b) {
 // Each offset pairs an adjacent position with the output face pointing back to the Collector.
 const collectorFaces = [[0,1,0,0],[0,0,-1,3],[0,0,1,2],[-1,0,0,5],[1,0,0,4],[0,-1,0,null]];
 const POWERED = 'hartlogistics:powered';
-system.beforeEvents.startup.subscribe(({blockComponentRegistry}) => {
+if (!isolatedMigration) system.beforeEvents.startup.subscribe(({blockComponentRegistry}) => {
     blockComponentRegistry.registerCustomComponent('hartlogistics:flow_control', {
         onBreak({block,brokenBlockPermutation}){
             if(brokenBlockPermutation.type.id!==COLLECTOR_ID)return;
@@ -855,7 +856,7 @@ function collectorBuffer(block,create=false){
     return entity;
 }
 function collectorOutput(block,bankKey){
-    if(block?.typeId!==COLLECTOR_ID || block.permutation.getState(POWERED)!==false)return;
+    if(isolatedMigration || block?.typeId!==COLLECTOR_ID || block.permutation.getState(POWERED)!==false)return;
     const link=labLinkedReceiver(keyFor('c',block.dimension.id,block.location));
     if(link && link!==bankKey)return labBlockInventory(collectorBuffer(block,true));
 }
@@ -1889,9 +1890,9 @@ function labRoutingEvent(ev){
         }catch(err){log(String(err));source?.sendMessage('[Hart LAB] '+err);}
     });
 }
-system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
-system.run(labLoadState);
-system.runInterval(()=>{
+if (!isolatedMigration) system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
+if (!isolatedMigration) system.run(labLoadState);
+if (!isolatedMigration) system.runInterval(()=>{
     labTick++;
     for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b)){b.coveredAt=labTick;labTickActive(b);}}catch(err){labMarkHold(b,String(err));}}
     const banks=Object.values(labBanks);
@@ -1909,3 +1910,56 @@ system.runInterval(()=>{
     }
 },1);
 
+
+// Isolated copied-world one-item entry. Only the selected shipment receives ticks.
+export function prepareMigrationShipment(address,item) {
+    if(!isolatedMigration)throw Error('Migration entry requires isolated runtime');
+    const [dimension,x,y,z]=address.split('|');
+    const receiver={x:Number(x),y:Number(y),z:Number(z)};
+    const key=keyFor('r',dimension,receiver);
+    const journal=world.getDynamicProperty(LAB_ROUTE_STATE);
+    if(journal!==undefined && Object.keys(JSON.parse(journal)).length)throw Error('Existing shipment journal');
+    const b=labBankForReceiver(key);
+    b.generation=++labRevision;
+    b.discoveryChunks=undefined;
+    const block=labGet(dimension,receiver);
+    if(block?.typeId!==RECEIVER_ID || block.getRedstonePower()!==0)throw Error('Legacy Receiver powered or power unreadable');
+    if(!labDiscover(b) || b.net.method!==HOPPER || labBuildIndex(b).missing)
+        throw Error(b.blocked || 'Receiver or Hopper lane unavailable');
+    if(!labLineEmpty(b))throw Error('Existing cargo in terminal lane');
+    const target=labSelectTarget(b,item);
+    if(!target || !['minecraft:chest','minecraft:trapped_chest','minecraft:barrel'].includes(target.destinationType))
+        throw Error('No eligible native storage destination');
+    const sorter=labGet(dimension,target.p);
+    if(sorter?.getRedstonePower()!==0)throw Error('Selected Sorter powered or power unreadable');
+    const p=target.destination;
+    if(p.x===receiver.x && p.z===receiver.z && p.y===receiver.y+1)throw Error('Destination is the proof barrel');
+    const before=countMigrationItems(dimension,p,target.destinationType,item);
+    return {dimension,position:p,block:target.destinationType,before,
+        send(container){
+            const source={dimension,loc:receiver,container};
+            if(!labTryDispatch(b,key,source,0,item,target))throw Error(b.blocked || 'Lane refused admission');
+        },
+        async finish(pause){
+            const limit=b.net.lane.length*16+160;
+            for(let i=0;b.active && i<limit;i++){
+                await pause();labTick++;
+                if(b.recovery)throw Error('Shipment entered recovery; inspect lane');
+                labTickActive(b);
+            }
+            if(b.active || b.confirmed!==1 || countMigrationItems(dimension,p,target.destinationType,item)!==before+1)
+                throw Error('Destination increase unverified; inspect original lane');
+        }};
+}
+export function countMigrationItems(dimension,p,type,item){
+    const block=labGet(dimension,p);
+    if(block?.typeId!==type)throw Error('Destination missing or unloaded');
+    const inv=labBlockInventory(block);
+    if(!inv)throw Error('Destination unreadable');
+    let count=0;
+    for(let i=0;i<inv.size;i++){
+        const stack=inv.getItem(i);
+        if(stack && item.isStackableWith(stack))count+=stack.amount;
+    }
+    return count;
+}

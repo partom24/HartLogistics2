@@ -42,6 +42,7 @@ foreach ($pack in $packs) {
 $dispatch = Normalized (Join-Path $source 'scripts/legacy-census/dispatch-main.js')
 $preview = Normalized (Join-Path $source 'scripts/legacy-census/config-main.js')
 $transfer = Normalized (Join-Path $source 'scripts/legacy-census/config-transfer-main.js')
+$routed = Normalized (Join-Path $source 'scripts/legacy-census/routed-main.js')
 $matchesProbe = @(foreach ($candidate in $packs) {
     if ($candidate.Version -ne '1.4.1') { continue }
     if ($candidate.Entries.Count -ne 1 -or ([string]$candidate.Entries[0]).Replace('\','/') -notmatch '^(?:\./)?scripts/main\.js$') { continue }
@@ -49,7 +50,7 @@ $matchesProbe = @(foreach ($candidate in $packs) {
     if (!(Test-Path -LiteralPath $entry -PathType Leaf)) { continue }
     Assert-PhysicalPath $entry
     $current = Normalized $entry
-    if ($current -ceq $dispatch -or $current -ceq $preview -or $current -ceq $transfer) { $candidate }
+    if ($current -ceq $dispatch -or $current -ceq $preview -or $current -ceq $transfer -or $current -ceq $routed) { $candidate }
 })
 if ($matchesProbe.Count -ne 1) { throw "Expected one 1.4.1 manifest with the isolated dispatch or preview script. Found $($matchesProbe.Count). See inventory above." }
 $dest = Join-Path $matchesProbe[0].Path 'scripts'
@@ -60,7 +61,13 @@ $files = [ordered]@{
     'config-preview.js' = 'behavior_pack/scripts/config-preview.js'
     'config-main.js' = 'scripts/legacy-census/config-main.js'
     'config-transfer.js' = 'behavior_pack/scripts/config-transfer.js'
-    'main.js' = 'scripts/legacy-census/config-transfer-main.js'
+    'config-transfer-main.js' = 'scripts/legacy-census/config-transfer-main.js'
+    'route-audit.js' = 'behavior_pack/scripts/committedDispatch.js'
+    'route-trial.js' = 'scripts/legacy-census/route-trial.js'
+    'routed-rehearsal.js' = 'scripts/legacy-census/routed-rehearsal.js'
+    'fresh-routing.js' = 'behavior_pack/scripts/main.js'
+    'migration-mode.js' = 'scripts/legacy-census/migration-mode.js'
+    'main.js' = 'scripts/legacy-census/routed-main.js'
 }
 foreach ($module in @('q4Lab.js','committedDispatch.js')) {
     Assert-PhysicalPath (Join-Path $dest $module)
@@ -90,4 +97,4 @@ foreach ($name in $files.Keys) {
         else { [IO.File]::Move($temp,$path) }
     } finally { if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp } }
 }
-Write-Output 'Isolated configuration transfer installed.'
+Write-Output 'Isolated q2 route rehearsal installed.'

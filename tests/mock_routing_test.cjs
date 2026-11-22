@@ -59,10 +59,10 @@ function makeBlock(typeId,p){
 }
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
 const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
-function newRuntime(){
-    const context=vm.createContext({world,system,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
+function newRuntime(isolatedMigration=false){
+    const context=vm.createContext({world,system,isolatedMigration,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
     const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
-    vm.runInContext(src.replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
+    vm.runInContext(src.replace(/import \{ isolatedMigration[^;]+;/,'').replace(/export function /g,'function ').replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
     return context;
 }
 const context=newRuntime();
@@ -124,7 +124,7 @@ if(process.argv.includes('--q4-route')){
             drain();
         }
     }
-    require('./fixtures/q4_route.cjs')({bank,world,properties,place,dim,Stack,context,ticks,banks,event,drain,restart})
+    require('./fixtures/q4_route.cjs')({newRuntime,bank,world,properties,place,dim,Stack,context,ticks,banks,event,drain,restart})
         .catch(error=>{console.error(error);process.exitCode=1;});
     return;
 }

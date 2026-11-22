@@ -1,6 +1,6 @@
 // Offline integration entry only. Called with a frozen original-identity world
 // and a synchronous offer into the normal Fresh routing path.
-import {dispatchTrial} from '../../behavior_pack/scripts/committedDispatch.js';
+import {dispatchTrial} from './route-audit.js';
 
 const firstKey='hartlab:dispatch_trial1';
 const routeKey='hartlab:route_trial1';
