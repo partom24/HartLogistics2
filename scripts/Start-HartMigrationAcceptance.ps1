@@ -47,6 +47,9 @@ if(!$Apply){Write-Output 'Preview complete.';return}
 foreach($p in @(Get-CimInstance Win32_Process -Filter "Name='bedrock_server.exe'")){
     if(!$p.ExecutablePath -or $p.ExecutablePath -ieq $exe){throw 'Stop copied LAB BDS before applying'}
 }
+Add-Type -AssemblyName System.Windows.Forms
+$choice=[Windows.Forms.MessageBox]::Show("Start or resume Q4 migration on the copied ThomasServer LAB? This installs the migration packs and starts BDS. The drain can take over an hour.", "Hart Logistics migration", 'YesNo', 'Question', 'Button2')
+if($choice -ne 'Yes'){Write-Output 'Cancelled before installation.';return}
 $work=Join-Path $root ('migration-acceptance-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
 foreach($p in $packs){

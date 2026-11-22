@@ -789,3 +789,28 @@ for(const action of ['seed','prepare','commit','commit','status']){
 assert.equal(responses.length,5);
 assert.match(responses[4],/phase=committed source=0 receiver=250016 capacity=250016 total=250016/);
 console.log('PASS: synthetic Q4 transfer through a selected linked Receiver and script events');
+
+{
+    const isolated=newRuntime(true);
+    const src=new Container(1),dest=new Container(1);
+    const bow=new Stack('minecraft:crossbow',1,{maxAmount:1,nameTag:'Migration crossbow',damage:37});
+    src.setItem(0,bow);
+    Object.assign(isolated,{src,dest,bow});
+    vm.runInContext(`
+        routingStarted=true;
+        const fixtureBank={};
+        labBankForReceiver=()=>fixtureBank;
+        labDiscover=coverRoute=receiverAccepts=()=>true;
+        labBuildIndex=()=>({missing:0});
+        labSelectTarget=()=>({destination:{x:7,y:5,z:9}});
+        labDestinationContainer=()=>dest;
+        labTryDispatch=()=>{throw Error('Non-stackable entered physical hopper shipment');};
+        fixtureBank.recovery=true;
+    `,isolated);
+    const offer=()=>vm.runInContext("offerMigratedAccount('minecraft:overworld|1|2|3',bow,src)",isolated);
+    assert.equal(offer(),false);
+    vm.runInContext('fixtureBank.recovery=false',isolated);
+    assert.equal(offer(),true);
+    assert.equal(src.getItem(0),undefined);
+    assert.deepEqual(dest.getItem(0).props,bow.props);
+}

@@ -1985,8 +1985,35 @@ export function offerMigratedAccount(address,item,container){
     const loc={x:Number(x),y:Number(y),z:Number(z)};
     const key=keyFor('r',dimension,loc);
     const bank=labBankForReceiver(key);
-    if(bank.active || bank.recovery || !labDiscover(bank) || !coverRoute(bank) || !receiverAccepts(bank))return false;
-    if(labBuildIndex(bank).missing)return false;
-    const target=labSelectTarget(bank,item);
-    return !!target && labTryDispatch(bank,'migration:'+key,{dimension,loc,container},0,item,target);
+    const wait=reason=>{bank.migrationWait=reason;return false;};
+    if(bank.recovery)return wait('recovering original physical lane');
+    if(bank.active)return wait('in flight '+bank.active.type+' moved='+bank.active.moved+'/'+bank.active.sent);
+    if(!labDiscover(bank))return wait(bank.blocked || 'discovering route');
+    if(!coverRoute(bank))return wait(bank.blocked || 'waiting for route chunks');
+    if(!receiverAccepts(bank))return wait('Receiver powered or unavailable');
+    if(labBuildIndex(bank).missing)return wait('incomplete Sorter index');
+    let target;
+    try{target=labSelectTarget(bank,item);}catch(err){return wait(String(err));}
+    if(!target)return wait('no eligible destination with space for '+item.typeId);
+    const source={dimension,loc,container};
+    // A Q4 item has already passed native reconstruction and readback.
+    // A single non-stackable can go to the checked endpoint in this same tick.
+    if(item.maxAmount===1 && !target.pipeExit){
+        const dest=labDestinationContainer(target);
+        if(!dest || !labSafeTransfer(container,0,dest,item))return wait('destination unavailable or full');
+        bank.dispatched+=item.amount;
+        bank.confirmed+=item.amount;
+        bank.lastDestination=target.destination;
+        bank.migrationWait='delivered '+item.typeId;
+        return true;
+    }
+    const moved=labTryDispatch(bank,'migration:'+key,source,0,item,target);
+    bank.migrationWait=moved?'issued '+item.typeId:bank.blocked || 'waiting for admission';
+    return moved;
+}
+
+export function migrationWaitReason(address){
+    const [dimension,x,y,z]=address.split('|');
+    const bank=labBanks[keyFor('r',dimension,{x:Number(x),y:Number(y),z:Number(z)})];
+    return bank?.migrationWait || startupHold || 'waiting for first offer';
 }
