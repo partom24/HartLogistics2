@@ -2,6 +2,10 @@
 
 This LAB build discovers native Hopper lanes and connected Transporter banks from existing Collector-to-Receiver links. Original block identifiers, models, frame interactions and stored Sorter settings are retained.
 
+## Development scope
+
+Fresh LAB is the sole active Hart Logistics development line. Hart Logistics 1.4.1 and all 1.5.x versions, including URCE, are frozen references for migration planning and execution only. Implement migration tooling, compatibility changes, and routing improvements on `fresh-lab`. Preserve the historical sources as recorded.
+
 ## Near-term roadmap
 
 **Planned — legacy Q4 drain on the Fresh engine.** Consolidate verified upstream in-transit cargo at the entry Receiver of each network's final storage array. After consolidation, lock routing, notify each player once, and validate the migration before resuming normal Fresh delivery. The first milestone is a read-only legacy census followed by a restart-safe transfer from one synthetic Q4 source to one terminal Receiver in a copied LAB. 0.5.12 passed the 516-item mixed inline routing test. 0.5.13 adds the operator-driven census and synthetic Receiver transfer. [LAB test instructions](docs/Q4_LAB_ACCEPTANCE.md)
