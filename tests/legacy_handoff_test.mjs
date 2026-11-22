@@ -6,11 +6,12 @@ import {pathToFileURL} from 'node:url';
 
 const dir=mkdtempSync(join(tmpdir(),'hart-handoff-'));
 try{
-    for(const name of ['handoff','trace','q4Lab']){
+    for(const name of ['handoff','trace','q4Lab','startup-custody']){
         const source=name==='q4Lab'?'behavior_pack/scripts':'scripts/legacy-census';
         copyFileSync(source+'/'+name+'.js',join(dir,name+'.js'));
     }
     const {handoff}=await import(pathToFileURL(join(dir,'handoff.js')));
+    const {migrateCustody}=await import(pathToFileURL(join(dir,'startup-custody.js')));
     const {q4LabStep}=await import(pathToFileURL(join(dir,'q4Lab.js')));
     const source=new Map(),box={getDynamicProperty:k=>source.get(k),setDynamicProperty:(k,v)=>source.set(k,v)};
     q4LabStep(box,'hartlab:r_o_0_1_0','seed');
@@ -39,7 +40,9 @@ try{
                 disk.set(k,v);
                 if(writes===stop&&after)throw Error('interrupt');
             }};
-        return handoff(world,system,action,s=>lines.push(s)).then(()=>({writes,last:lines.at(-1)}));
+        const report=s=>lines.push(s);
+        const operation=action==='startup'?migrateCustody(world,system,report):handoff(world,system,action,report);
+        return operation.then(()=>({writes,last:lines.at(-1)}));
     };
     const prepared=new Map(seed);
     const preparation=await run(prepared,'prepare');
@@ -58,6 +61,16 @@ try{
             for(const [k,v] of seed)assert.equal(disk.get(k),v);
         }
     }
+    const automatic=new Map(seed);
+    assert.match((await run(automatic,'startup')).last,/committed source=32 receiver=32 held=32 total=64/);
+    assert.equal((await run(automatic,'startup')).writes,0);
+    for(let n=1;n<=preparation.writes+1;n++)for(const after of [false,true]){
+        const interrupted=new Map(seed);
+        await assert.rejects(run(interrupted,'startup',n,after),/interrupt/);
+        assert.match((await run(interrupted,'startup')).last,/committed source=32 receiver=32 held=32 total=64/);
+    }
+    automatic.set('hartlab:dispatch_trial1','evidence');
+    await assert.rejects(run(automatic,'startup'),/pre-rehearsal/);
     const def=[...prepared.keys()].find(k=>k.startsWith('hartlab:handoff1_def_'));
     prepared.set(def,'{}');
     await assert.rejects(run(prepared,'commit'),/disputed/);
