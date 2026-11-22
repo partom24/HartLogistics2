@@ -25,3 +25,9 @@ With the copied server stopped, update both census scripts from the same Git rev
 ### Locate the nonempty queues on the copied world
 
 The full census on the 24-queue copy reconciled to 125539 items: q2 69884, q14 53939, q6 1016 and q22 700. Run `scriptevent hartlab:q4_sources` in the legacy probe to join each nonempty queue to its saved Receiver, count its registered present inbound Collectors, and inspect the Receiver and output Hopper when readable. Absent, ambiguous and unreadable sources retain their quantities in the report. The command performs no cargo writes or chunk loads. It establishes the source end of the route. A downstream network trace is still required to choose a terminal.
+
+### Trace the hopper bus to a terminal candidate
+
+On the stopped ThomasServer LAB copy, install both files from `scripts/legacy-census/` and `behavior_pack/scripts/q4Lab.js` together in the original behavior pack's scripts directory. Start the copy and run `scriptevent hartlab:q4_trace` in the BDS console. Append a queue key to repeat a single route. Each result includes the original quantity, the physical hopper lane ends, and the registered Collector links traversed. A candidate is the Receiver feeding the final observed Sorter lane with a single chest or barrel at its end. This describes the fixed block layout. Mobile inventories and redstone item-ejection systems require operator inspection. Double chests, competing pulls, cycles, unresolved outputs and absent Receivers yield HOLD.
+
+The probe requests temporary ticking areas only for unreadable chunks and releases its requests after each queue. Loading a chunk can resume vanilla simulation. The probe performs no queue transfers or inventory writes. On the 24-queue LAB copy the expected accounting total is 125539, including 1016 held at q6, whose Receiver is physically absent. Inspect each candidate before using it for a future migration.

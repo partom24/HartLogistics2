@@ -2,6 +2,8 @@
 import {world,system} from '@minecraft/server';
 import {q4Census,scanLegacyQueues} from './q4Lab.js';
 
+import {traceLegacy} from './trace.js';
+
 const reader={
     getDynamicPropertyIds:()=>world.getDynamicPropertyIds(),
     getDynamicProperty:key=>world.getDynamicProperty(key)
@@ -60,7 +62,7 @@ function* mapSources(reader,report){
 
 let running=false;
 system.afterEvents.scriptEventReceive.subscribe(event=>{
-    if(!['hartlab:q4_census','hartlab:q4_census_all','hartlab:q4_sources'].includes(event.id))return;
+    if(!['hartlab:q4_census','hartlab:q4_census_all','hartlab:q4_sources','hartlab:q4_trace'].includes(event.id))return;
     const source=event.sourceEntity;
     function report(message){
         console.warn('[Hart legacy census] '+message);
@@ -69,6 +71,11 @@ system.afterEvents.scriptEventReceive.subscribe(event=>{
     if(event.id!=='hartlab:q4_census'){
         if(running){report('Already scanning');return;}
         running=true;
+        if(event.id==='hartlab:q4_trace'){
+            traceLegacy(reader,world,system,event.message.trim(),report)
+                .catch(error=>report('HOLD '+String(error))).finally(()=>{running=false;});
+            return;
+        }
         const scan=event.id==='hartlab:q4_sources'?mapSources(reader,report):scanLegacyQueues(reader,report);
         function advance(){
             try{
