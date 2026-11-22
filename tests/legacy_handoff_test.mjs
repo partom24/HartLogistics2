@@ -10,6 +10,11 @@ try{
         const source=name==='q4Lab'?'behavior_pack/scripts':'scripts/legacy-census';
         copyFileSync(source+'/'+name+'.js',join(dir,name+'.js'));
     }
+    for(const name of ['config-preview','topology','committedDispatch']){
+        copyFileSync('behavior_pack/scripts/'+name+'.js',join(dir,name+'.js'));
+    }
+    copyFileSync('scripts/acceptance/upgrade.js',join(dir,'upgrade.js'));
+    const {upgrade,releaseOne}=await import(pathToFileURL(join(dir,'upgrade.js')));
     const {handoff}=await import(pathToFileURL(join(dir,'handoff.js')));
     const {migrateCustody}=await import(pathToFileURL(join(dir,'startup-custody.js')));
     const {q4LabStep}=await import(pathToFileURL(join(dir,'q4Lab.js')));
@@ -41,6 +46,7 @@ try{
                 if(writes===stop&&after)throw Error('interrupt');
             }};
         const report=s=>lines.push(s);
+        if(action==='upgrade')return upgrade(world,system,report);
         const operation=action==='startup'?migrateCustody(world,system,report):handoff(world,system,action,report);
         return operation.then(()=>({writes,last:lines.at(-1)}));
     };
@@ -71,6 +77,20 @@ try{
     }
     automatic.set('hartlab:dispatch_trial1','evidence');
     await assert.rejects(run(automatic,'startup'),/pre-rehearsal/);
+    const freshDisk=new Map(seed);
+    freshDisk.set('hartsorter:registry_v1','[]');
+    const migrated=await run(freshDisk,'upgrade');
+    assert.equal(migrated.totals.total,64);
+    assert.equal(migrated.totals.sourceHeld,32);
+    assert.equal(migrated.totals.receiver,32);
+    assert.equal(migrated.settings,3);
+    assert.equal(migrated.accounts.length,1);
+    const diskWorld={getDynamicProperty:k=>freshDisk.get(k),setDynamicProperty:(k,v)=>freshDisk.set(k,v)};
+    const item=typeId=>({typeId,maxAmount:64,amount:1,clone(){return {...this};}});
+    let delivered=0;
+    releaseOne(diskWorld,migrated.accounts[0],item,(t,s,c)=>c.transferItem(0,{addItem(i){delivered+=i.amount;}}));
+    const reboot=await run(freshDisk,'upgrade');
+    assert.equal(delivered,32);assert.equal(reboot.totals.issued,32);assert.equal(reboot.accounts.length,0);
     const def=[...prepared.keys()].find(k=>k.startsWith('hartlab:handoff1_def_'));
     prepared.set(def,'{}');
     await assert.rejects(run(prepared,'commit'),/disputed/);

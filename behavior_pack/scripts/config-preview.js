@@ -9,7 +9,7 @@ const freshKey=(kind,p)=>'hartlab:'+kind+'_'+[dims.get(p.d),p.x,p.y,p.z].join('_
 function checkPosition(p){
     requireValue(p && dims.has(p.d) && [p.x,p.y,p.z].every(Number.isSafeInteger),'Invalid registry position');
 }
-function sorterRows(world){
+export function sorterRows(world){
     const get=k=>world.getDynamicProperty('hartsorter:'+k);
     const header=get('registry_v2');
     if(header===undefined){

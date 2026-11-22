@@ -4,7 +4,7 @@ import {scanQueue} from './q4Lab.js';
 const prefix='hartlab:handoff1_', receiptKey='hartlab:dispatch_trial1';
 const check=(condition,message)=>{if(!condition)throw Error(message);};
 
-function ordinary(raw){
+export function ordinary(raw){
     const d=JSON.parse(raw);
     // Only inert vanilla building materials with a fully understood definition.
     return /^minecraft:(stone|cobblestone|cobbled_deepslate|deepslate|dirt|gravel|sand|netherrack|oak_planks|stonebrick|stone_bricks|granite|andesite|diorite|blackstone|basalt|end_stone)$/.test(d.typeId)

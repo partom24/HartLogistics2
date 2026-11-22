@@ -537,11 +537,12 @@ function useReceiver(player,block){
 
 // Keep 1.4.1's item-use suppression: pearls, charges, etc. must not activate
 // while the player is interacting with the Sorter's filter/service face.
-if (!isolatedMigration) world.beforeEvents.itemUse.subscribe(ev=>{
+function registerRoutingInteractions(){
+world.beforeEvents.itemUse.subscribe(ev=>{
     if(ev.itemStack && playerTargetsSorterServiceFace(ev.source))ev.cancel=true;
 });
-if (!isolatedMigration) world.afterEvents.playerInteractWithBlock.subscribe(nativeFrameMirror);
-if (!isolatedMigration) world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
+world.afterEvents.playerInteractWithBlock.subscribe(nativeFrameMirror);
+world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
     if(!ev.isFirstEvent)return;
     const id=ev.block.typeId;
     if(id==='hartlogistics:bulk_storage'){
@@ -604,7 +605,7 @@ if (!isolatedMigration) world.beforeEvents.playerInteractWithBlock.subscribe(ev=
         if(b?.typeId===RECEIVER_ID)useReceiver(player,b);
     });
 });
-if (!isolatedMigration) world.afterEvents.playerPlaceBlock.subscribe(ev=>{
+world.afterEvents.playerPlaceBlock.subscribe(ev=>{
     invalidateRouting(ev.block.dimension.id,ev.block.location);
     refreshPipeNeighbors(ev.block.dimension.id,ev.block.location);
     const b=ev.block,p=b.location,d=b.dimension.id;
@@ -619,7 +620,7 @@ if (!isolatedMigration) world.afterEvents.playerPlaceBlock.subscribe(ev=>{
         ev.player?.sendMessage('§6[Receiver] Placed. Select a Collector and click this Receiver to link.');
     }
 });
-if (!isolatedMigration) world.beforeEvents.playerBreakBlock.subscribe(ev=>{
+world.beforeEvents.playerBreakBlock.subscribe(ev=>{
     const b=ev.block;
     if(b?.typeId===COLLECTOR_ID){
         try{
@@ -659,7 +660,7 @@ if (!isolatedMigration) world.beforeEvents.playerBreakBlock.subscribe(ev=>{
         clearEntry(live);
     });
 });
-if (!isolatedMigration) world.afterEvents.entityHitBlock.subscribe(ev=>{
+world.afterEvents.entityHitBlock.subscribe(ev=>{
     if(ev.damagingEntity?.typeId!=='minecraft:player')return;
     const e=frameOwner(ev.hitBlock);
     if(!e?.f && !e?.nativeQuarantine)return;
@@ -671,7 +672,7 @@ if (!isolatedMigration) world.afterEvents.entityHitBlock.subscribe(ev=>{
         if(saveEntry(live))syncSorterModeVisual(live,b);
     });
 });
-if (!isolatedMigration) world.afterEvents.playerBreakBlock.subscribe(ev=>{
+world.afterEvents.playerBreakBlock.subscribe(ev=>{
     invalidateRouting(ev.dimension.id,ev.block.location);
     refreshPipeNeighbors(ev.dimension.id,ev.block.location);
     let typeId='';try{typeId=ev.brokenBlockPermutation.type.id;}catch(_){try{typeId=ev.brokenBlockPermutation.typeId;}catch(_){}}
@@ -682,8 +683,10 @@ if (!isolatedMigration) world.afterEvents.playerBreakBlock.subscribe(ev=>{
     if(info?.f && !entryHasFrameImplant(info))giveOrDrop(ev.player,rebuildItem(info.f));
     if(info)clearEntry(info);
 });
-if (!isolatedMigration) system.run(()=>log('0.5.13 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+system.run(()=>log('0.5.13 ready — original 1.4.1 assets; Hopper and Transporter routing enabled.'));
+}
 
+const reportedMigrationBanks=new Set();
 const LAB_ROUTE_STATE = 'hartlab:transport_020';
 const labBanks = Object.create(null);
 let startupHold = '';
@@ -816,7 +819,7 @@ function labDiscover(b) {
 // Each offset pairs an adjacent position with the output face pointing back to the Collector.
 const collectorFaces = [[0,1,0,0],[0,0,-1,3],[0,0,1,2],[-1,0,0,5],[1,0,0,4],[0,-1,0,null]];
 const POWERED = 'hartlogistics:powered';
-if (!isolatedMigration) system.beforeEvents.startup.subscribe(({blockComponentRegistry}) => {
+if (isolatedMigration!==true) system.beforeEvents.startup.subscribe(({blockComponentRegistry}) => {
     blockComponentRegistry.registerCustomComponent('hartlogistics:flow_control', {
         onBreak({block,brokenBlockPermutation}){
             if(brokenBlockPermutation.type.id!==COLLECTOR_ID)return;
@@ -856,7 +859,7 @@ function collectorBuffer(block,create=false){
     return entity;
 }
 function collectorOutput(block,bankKey){
-    if(isolatedMigration || block?.typeId!==COLLECTOR_ID || block.permutation.getState(POWERED)!==false)return;
+    if(isolatedMigration===true || block?.typeId!==COLLECTOR_ID || block.permutation.getState(POWERED)!==false)return;
     const link=labLinkedReceiver(keyFor('c',block.dimension.id,block.location));
     if(link && link!==bankKey)return labBlockInventory(collectorBuffer(block,true));
 }
@@ -1121,6 +1124,10 @@ function labFinish(b){
     b.active=null;
     b.blocked='';b.cleanTicks=0;
     labPersistActive(b);
+    if(c.collector==='migration:'+b.cfg.name && c.moved>0 && !reportedMigrationBanks.has(b.cfg.name)){
+        reportedMigrationBanks.add(b.cfg.name);
+        log('MIGRATION DELIVERY receiver='+b.cfg.name+' item='+c.type+' quantity='+c.moved+' destination='+JSON.stringify(c.target.destination));
+    }
     if(undelivered)log(`${b.cfg.name}: ${c.moved}/${c.sent} deposited; ${undelivered} unconfirmed. Inspect the lane and its output.`);
 }
 function labPipeDispatch(b,source,slot,item,target){
@@ -1890,9 +1897,14 @@ function labRoutingEvent(ev){
         }catch(err){log(String(err));source?.sendMessage('[Hart LAB] '+err);}
     });
 }
-if (!isolatedMigration) system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
-if (!isolatedMigration) system.run(labLoadState);
-if (!isolatedMigration) system.runInterval(()=>{
+let routingStarted=false;
+export function startFreshRouting(){
+    if(routingStarted)throw Error('Routing already started');
+    routingStarted=true;
+    registerRoutingInteractions();
+system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
+system.run(labLoadState);
+system.runInterval(()=>{
     labTick++;
     for(const b of Object.values(labBanks))if(b.active){try{if(coverRoute(b)){b.coveredAt=labTick;labTickActive(b);}}catch(err){labMarkHold(b,String(err));}}
     const banks=Object.values(labBanks);
@@ -1909,6 +1921,9 @@ if (!isolatedMigration) system.runInterval(()=>{
         labProcessInputs();
     }
 },1);
+}
+if(!isolatedMigration)startFreshRouting();
+
 
 
 // Isolated copied-world one-item entry. Only the selected shipment receives ticks.
@@ -1962,4 +1977,16 @@ export function countMigrationItems(dimension,p,type,item){
         if(stack && item.isStackableWith(stack))count+=stack.amount;
     }
     return count;
+}
+
+export function offerMigratedAccount(address,item,container){
+    if(!routingStarted || startupHold)return false;
+    const [dimension,x,y,z]=address.split('|');
+    const loc={x:Number(x),y:Number(y),z:Number(z)};
+    const key=keyFor('r',dimension,loc);
+    const bank=labBankForReceiver(key);
+    if(bank.active || bank.recovery || !labDiscover(bank) || !coverRoute(bank) || !receiverAccepts(bank))return false;
+    if(labBuildIndex(bank).missing)return false;
+    const target=labSelectTarget(bank,item);
+    return !!target && labTryDispatch(bank,'migration:'+key,{dimension,loc,container},0,item,target);
 }
