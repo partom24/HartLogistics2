@@ -14,7 +14,7 @@ try{
         copyFileSync('behavior_pack/scripts/'+name+'.js',join(dir,name+'.js'));
     }
     copyFileSync('scripts/acceptance/upgrade.js',join(dir,'upgrade.js'));
-    const {upgrade,releaseOne}=await import(pathToFileURL(join(dir,'upgrade.js')));
+    const {upgrade}=await import(pathToFileURL(join(dir,'upgrade.js')));
     const {handoff}=await import(pathToFileURL(join(dir,'handoff.js')));
     const {migrateCustody}=await import(pathToFileURL(join(dir,'startup-custody.js')));
     const {q4LabStep}=await import(pathToFileURL(join(dir,'q4Lab.js')));
@@ -29,7 +29,6 @@ try{
     const collector={...receivers[0],x:1,y:0,id:'overworld|1|0|0',link:target.id};
     seed.set('hartsorter:logistics_v2',JSON.stringify({receivers,collectors:[collector]}));
     const system={runTimeout:fn=>queueMicrotask(fn)};
-    const item=typeId=>({typeId,maxAmount:64,amount:1,clone(){return {...this};}});
     const run=(disk,action,stop=Infinity,after=false)=>{
         let writes=0;const lines=[];
         const world={getDynamicProperty:k=>disk.get(k),getDynamicPropertyIds:()=>[...disk.keys()],
@@ -47,7 +46,7 @@ try{
                 if(writes===stop&&after)throw Error('interrupt');
             }};
         const report=s=>lines.push(s);
-        if(action==='upgrade')return upgrade(world,system,report,raw=>item(JSON.parse(raw).typeId));
+        if(action==='upgrade')return upgrade(world,system,report);
         const operation=action==='startup'?migrateCustody(world,system,report):handoff(world,system,action,report);
         return operation.then(()=>({writes,last:lines.at(-1)}));
     };
@@ -107,12 +106,16 @@ try{
     assert.equal(migrated.totals.sourceHeld,32);
     assert.equal(migrated.totals.receiver,32);
     assert.equal(migrated.settings,3);
-    assert.equal(migrated.accounts.length,1);
-    const diskWorld={getDynamicProperty:k=>freshDisk.get(k),setDynamicProperty:(k,v)=>freshDisk.set(k,v)};
-    let delivered=0;
-    releaseOne(diskWorld,migrated.accounts[0],(t,s,c)=>c.transferItem(0,{addItem(i){delivered+=i.amount;}}));
+    assert.equal(migrated.totals.issued,0);
+    assert.equal([...freshDisk.keys()].filter(k=>k.startsWith('hartlab:upgrade_spent_')).length,0);
+    const suffix=[...freshDisk.keys()].find(k=>k.startsWith('hartlab:handoff1_qty_q0_')).split('qty_')[1];
+    const debit='hartlab:upgrade_spent_'+suffix;
+    freshDisk.set(debit,JSON.stringify({spent:1,pending:0}));
     const reboot=await run(freshDisk,'upgrade');
-    assert.equal(delivered,32);assert.equal(reboot.totals.issued,32);assert.equal(reboot.accounts.length,0);
+    assert.equal(reboot.totals.issued,1);
+    assert.equal(reboot.totals.receiver,31);
+    freshDisk.set(debit,JSON.stringify({spent:1,pending:1}));
+    await assert.rejects(run(freshDisk,'upgrade'),/Unresolved earlier physical debit/);
     const def=[...prepared.keys()].find(k=>k.startsWith('hartlab:handoff1_def_'));
     prepared.set(def,'{}');
     await assert.rejects(run(prepared,'commit'),/disputed/);
