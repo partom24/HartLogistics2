@@ -39,24 +39,26 @@ Write-Output "World registration: $id version=$registeredVersion"
 foreach ($pack in $packs) {
     Write-Output "Manifest: $($pack.Path) version=$($pack.Version) script entries=[$($pack.Entries -join ', ')]"
 }
-if ($packs.Count -gt 1) { $packs = @($packs | Where-Object { $_.Version -eq $registeredVersion }) }
-if ($packs.Count -ne 1) { throw "Could not uniquely resolve the registered pack in the copied LAB. See manifest inventory above." }
-$pack = $packs[0]
-if ($pack.Entries.Count -ne 1 -or ([string]$pack.Entries[0]).Replace('\','/') -notmatch '^(?:\./)?scripts/main\.js$') {
-    throw "Unsupported installed script entry at $($pack.Path); expected a single scripts/main.js. See manifest inventory above."
-}
-$dest = Join-Path $pack.Path 'scripts'
+$dispatch = Normalized (Join-Path $source 'scripts/legacy-census/dispatch-main.js')
+$preview = Normalized (Join-Path $source 'scripts/legacy-census/config-main.js')
+$matchesProbe = @(foreach ($candidate in $packs) {
+    if ($candidate.Version -ne '1.4.1') { continue }
+    if ($candidate.Entries.Count -ne 1 -or ([string]$candidate.Entries[0]).Replace('\','/') -notmatch '^(?:\./)?scripts/main\.js$') { continue }
+    $entry = Join-Path $candidate.Path 'scripts\main.js'
+    if (!(Test-Path -LiteralPath $entry -PathType Leaf)) { continue }
+    Assert-PhysicalPath $entry
+    $current = Normalized $entry
+    if ($current -ceq $dispatch -or $current -ceq $preview) { $candidate }
+})
+if ($matchesProbe.Count -ne 1) { throw "Expected one 1.4.1 manifest with the isolated dispatch or preview script. Found $($matchesProbe.Count). See inventory above." }
+$dest = Join-Path $matchesProbe[0].Path 'scripts'
 $main = Join-Path $dest 'main.js'
-Assert-PhysicalPath $main
 $files = [ordered]@{
     'dispatch-main.js' = 'scripts/legacy-census/dispatch-main.js'
     'topology.js' = 'behavior_pack/scripts/topology.js'
     'config-preview.js' = 'behavior_pack/scripts/config-preview.js'
     'main.js' = 'scripts/legacy-census/config-main.js'
 }
-$current = Normalized $main
-if ($current -cne (Normalized (Join-Path $source $files['dispatch-main.js'])) -and
-    $current -cne (Normalized (Join-Path $source $files['main.js']))) { throw 'Expected isolated dispatch entry point' }
 foreach ($module in @('q4Lab.js','committedDispatch.js')) {
     Assert-PhysicalPath (Join-Path $dest $module)
 }
