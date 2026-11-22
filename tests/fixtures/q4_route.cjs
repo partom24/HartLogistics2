@@ -7,7 +7,11 @@ module.exports=async function({bank,world,properties,place,dim,Stack,context,tic
     const {q4LabStep}=await import('../../behavior_pack/scripts/q4Lab.js');
     const b=bank(37,12,18,-1,0,4,1);
     banks.push(b);
-    const [x,y,z]=b.rk.split('_').slice(-3).map(Number);
+    const old=b.rk.split('_').slice(-3).map(Number);
+    place('minecraft:air',...old);
+    const {x,y:laneY,z}=b.hoppers[0].location,y=laneY+1;
+    place('hartsorter:receiver',x,y,z);
+    b.rk='hartlab:r_o_'+[x,y,z].join('_');
     const target=[dim.id,x,y,z].join('|');
     const barrel=place('minecraft:barrel',x,y+1,z).inv;
     const sorter=b.sorters.at(-1);
@@ -30,6 +34,37 @@ module.exports=async function({bank,world,properties,place,dim,Stack,context,tic
         manifest.push([q,properties.get('hartsorter:q4m_'+q),action,q==='q2'?target:null,1]);
     }
     properties.set('hartlab:handoff1_control',JSON.stringify({v:1,phase:'committed',manifest}));
+    // Start with original registry bytes and no projected Fresh keys.
+    const rows=b.sorters.map(block=>{
+        const k='hartlab:s_o_'+Object.values(block.location).join('_');
+        const row=JSON.parse(properties.get(k));properties.delete(k);
+        return row;
+    });
+    delete rows.at(-1).m; // Historic implicit filter mode.
+    const collectorKey=[...properties.keys()].find(k=>k.startsWith('hartlab:c_'));
+    const [cx,cy,cz]=collectorKey.split('_').slice(-3).map(Number);
+    properties.delete(collectorKey);
+    properties.set('hartsorter:logistics_v2',JSON.stringify({
+        receivers:[{d:dim.id,x,y,z,id:target,present:true}],
+        collectors:[{d:dim.id,x:cx,y:cy,z:cz,id:[dim.id,cx,cy,cz].join('|'),present:true,link:target}]
+    }));
+    const payload=JSON.stringify(rows),split=Math.floor(payload.length/2);
+    properties.set('hartsorter:registry_v2',JSON.stringify({version:2,gen:1,shards:2,count:rows.length,chars:payload.length}));
+    properties.set('hartsorter:r2_1_0',payload.slice(0,split));
+    const second=payload.slice(split);
+    properties.set('hartsorter:registry_v1','[]'); // Stale fallback must never mask damage.
+    const {previewConfiguration}=await import('../../behavior_pack/scripts/config-preview.js');
+    assert.throws(()=>previewConfiguration(world,'q2'),/Missing active Sorter shard/);
+    properties.set('hartsorter:r2_1_1',second);
+    assert.throws(()=>previewConfiguration(world,'q6'),/No spendable/);
+    const before=[...properties];
+    const preview=previewConfiguration(world,'q2');
+    assert.deepEqual([...properties],before);
+    assert.equal(preview.sorters,4);
+    assert.equal(preview.links,1);
+    assert.equal(preview.modesFound.filter,4);
+    for(const [k,v] of preview.settings)properties.set(k,JSON.stringify(v));
+    assert.deepEqual(previewConfiguration(world,'q2'),preview);
     drain();event('hartlab:setup_io');drain();
     const pause=async()=>{}, make=id=>new Stack(id);
     await dispatchTrial(world,pause,make,'send q2',()=>{});
