@@ -1,7 +1,8 @@
 // Optional offline-copy inspection under the original behavior pack identity.
-import {world,system} from '@minecraft/server';
+import {world,system,ScriptEventSource} from '@minecraft/server';
 import {q4Census,scanLegacyQueues} from './q4Lab.js';
 
+import {handoff} from './handoff.js';
 import {traceLegacy} from './trace.js';
 
 const reader={
@@ -62,7 +63,7 @@ function* mapSources(reader,report){
 
 let running=false;
 system.afterEvents.scriptEventReceive.subscribe(event=>{
-    if(!['hartlab:q4_census','hartlab:q4_census_all','hartlab:q4_sources','hartlab:q4_trace','hartlab:q4_plan'].includes(event.id))return;
+    if(!['hartlab:q4_census','hartlab:q4_census_all','hartlab:q4_sources','hartlab:q4_trace','hartlab:q4_plan','hartlab:q4_handoff'].includes(event.id))return;
     const source=event.sourceEntity;
     function report(message){
         console.warn('[Hart legacy census] '+message);
@@ -70,7 +71,15 @@ system.afterEvents.scriptEventReceive.subscribe(event=>{
     }
     if(event.id!=='hartlab:q4_census'){
         if(running){report('Already scanning');return;}
+        if(event.id==='hartlab:q4_handoff' && event.sourceType!==ScriptEventSource.Server){
+            report('Run handoff from the BDS console');return;
+        }
         running=true;
+        if(event.id==='hartlab:q4_handoff'){
+            handoff(world,system,event.message.trim(),report)
+                .catch(error=>report('HOLD '+String(error))).finally(()=>{running=false;});
+            return;
+        }
         if(event.id==='hartlab:q4_trace' || event.id==='hartlab:q4_plan'){
             traceLegacy(reader,world,system,event.message.trim(),report,event.id==='hartlab:q4_plan')
                 .catch(error=>report('HOLD '+String(error))).finally(()=>{running=false;});

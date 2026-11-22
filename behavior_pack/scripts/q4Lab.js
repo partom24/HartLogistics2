@@ -34,7 +34,7 @@ function readRaw(world,key){
 
 // Read only committed rows. Quantity totals and the *full* definition are
 // checked independently of the compact row reference. No legacy repair calls.
-function* scanQueue(world,prefix,key,batched){
+export function* scanQueue(world,prefix,key,batched){
     const meta=JSON.parse(readRaw(world,prefix+'q4m_'+key));
     requireState(meta?.v===4 && ['h','t','n','q','r','d'].every(k=>
         Number.isSafeInteger(meta[k]) && meta[k]>=0) && meta.n>meta.t &&

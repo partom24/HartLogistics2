@@ -37,3 +37,11 @@ The first live trace found q2's 45-, 27- and 44-hopper banks, with a final open 
 ### Read-only migration decision test
 
 On the original-identity copied LAB with the updated census scripts, run `scriptevent hartlab:q4_plan`. Each nonempty queue gets one decision. A verified current Receiver can retain its cargo even with a full buffer, missing output hopper or unresolved downstream path. Transfer requires a unique traced downstream terminal. An absent, ambiguous or unreadable owner yields HOLD. This command reads Q4 metadata and physical routes. Full item-page verification and durable custody transfer are separate stages. The ThomasServer copy should report `PLAN COMPLETE committed=125539 transfer=69884 retain=54639 hold=1016`.
+
+### Real-balance custody rehearsal (original BP identity, copied LAB)
+
+Stop the copied BDS and copy scripts/legacy-census/{main.js,trace.js,handoff.js} and behavior_pack/scripts/q4Lab.js into scripts/ of the legacy probe pack. Keep the snapshot backup. Use the BDS console and the sole legacy-identity probe in the stopped-copy test workflow. Cargo routing stays offline throughout.
+
+Run `scriptevent hartlab:q4_handoff prepare`. It incrementally reads every committed Q4 row, validates original definition bytes and quantities, and stages independently readable per-source contributions grouped by target in the same pack namespace. Restart BDS, run `scriptevent hartlab:q4_handoff status`, and verify the prepared balance. Run `scriptevent hartlab:q4_handoff commit`, restart, then run status and commit again. Expected prepared: source 125539, receiver 0. Expected committed: source 1016, receiver 124523. Held 1016 is included in source in both phases. Repeat prepare to resume a partial prepare. Missing or disputed staged records after preparation yield HOLD.
+
+A single persisted control record changes ownership for the locked rehearsal. Legacy Q4 pages and metadata stay intact for comparison and recovery. These balances are private to the original behavior-pack UUID. The ordinary 1.4.1 writer ignores this ownership record. Keep it disabled. The independently identified Fresh pack still needs an import or an upgrade-compatible identity and a routing consumer before these accounts can dispatch. To return this copy to ordinary 1.4.1 routing, restore the pre-rehearsal snapshot.

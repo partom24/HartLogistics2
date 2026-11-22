@@ -113,9 +113,9 @@ async function planQueue(registry,key,read,pause){
     }
     try{
         const target=await traceQueue(registry,key,read,pause,()=>{});
-        return {action:target===owner.id?'retain':'transfer',detail:'source='+owner.id+' target='+target};
+        return {source:owner.id,target,action:target===owner.id?'retain':'transfer',detail:'source='+owner.id+' target='+target};
     }catch(error){
-        return {action:'retain',detail:'target='+owner.id+' downstream unresolved: '+String(error).split(' | ')[0]};
+        return {source:owner.id,target:owner.id,action:'retain',detail:'target='+owner.id+' downstream unresolved: '+String(error).split(' | ')[0]};
     }
 }
 
@@ -128,6 +128,7 @@ export async function traceLegacy(reader,world,system,selection,report,plan=fals
     if(!keys.length)throw Error('no visible queues');
     const pause=()=>new Promise(resolve=>system.runTimeout(resolve,1));
     const totals={transfer:0,retain:0,hold:0};
+    const decisions=[];
     let candidates=0,held=0,items=0;
     for(const key of keys){
         const meta=JSON.parse(reader.getDynamicProperty(prefix+key));
@@ -156,7 +157,8 @@ export async function traceLegacy(reader,world,system,selection,report,plan=fals
         }
         try{
             if(plan){
-                const {action,detail}=await planQueue(registry,key,read,pause);
+                const {action,detail,source,target}=await planQueue(registry,key,read,pause);
+                decisions.push({key,action,source,target,quantity:meta.q});
                 totals[action]+=meta.q;
                 report(key+' items='+meta.q+' '+action.toUpperCase()+' '+detail);
             }else{
@@ -175,7 +177,7 @@ export async function traceLegacy(reader,world,system,selection,report,plan=fals
     if(plan){
         if(!Number.isSafeInteger(items) || totals.transfer+totals.retain+totals.hold!==items)throw Error('plan total mismatch');
         report('PLAN COMPLETE committed='+items+' transfer='+totals.transfer+' retain='+totals.retain+' hold='+totals.hold);
-        return;
+        return decisions;
     }
     report('TRACE COMPLETE committed='+items+' candidates='+candidates+' holds='+held);
 }
