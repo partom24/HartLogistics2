@@ -43,8 +43,31 @@ async function full(expected){
 await full('committed=4 candidates=1 holds=0');
 assert.equal(removed,1);
 put('nether',10,-1,0,'minecraft:hopper');
-await full('competing downward hopper');
+await full('no Sorter column');
 assert.equal(removed,2);
 world.tickingAreaManager.hasCapacity=()=>false;
 await full('unreadable nether');
+world.tickingAreaManager.hasCapacity=()=>true;
+put('nether',10,-1,0,'hartsorter:sorter');
+put('nether',11,0,0,'minecraft:air');
+assert.equal(await run(),last.id); // Sorter bus with an open end.
+put('overworld',0,-1,0,'minecraft:hopper');
+put('overworld',1,-1,0,'hartsorter:collector');
+const second={...entry('overworld',1,-1,0),link:last.id};
+reg.collectors.push(second);
+assert.equal(await run(),last.id); // Two paths reach the same Receiver.
+const alternate=entry('overworld',20,1,0,'q8');
+reg.receivers.push(alternate);
+put('overworld',20,1,0,'hartsorter:receiver');
+put('overworld',20,0,0,'minecraft:hopper');
+put('overworld',20,-1,0,'hartsorter:sorter');
+second.link=alternate.id;
+await assert.rejects(run,/different terminal Receivers/);
+second.link=first.id;
+await assert.rejects(run,/cycle/); // One successful branch cannot hide a cycle.
+second.link=last.id;
+put('overworld',1,0,0,'minecraft:air');
+assert.equal(await run(),last.id); // Only the downward hopper accepts cargo.
+put('overworld',1,0,0,'minecraft:dropper');
+await assert.rejects(run,/unresolved minecraft:dropper/);
 console.log('Legacy route trace checks passed');

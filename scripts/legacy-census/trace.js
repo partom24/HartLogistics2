@@ -14,52 +14,91 @@ function checkEntry(entry){
 }
 
 export async function traceQueue(registry,key,read,pause,report){
-    let receiver=unique(registry.receivers.filter(r=>r.queueKey===key),'queue '+key);
-    const seen=new Set();
-    function visit(p){
-        const id=address(p);
-        if(seen.has(id))throw Error('cycle at '+id);
-        if(seen.size>=4096)throw Error('trace limit at '+id);
-        seen.add(id);
-    }
-    while(true){
-        checkEntry(receiver);
-        unique(registry.receivers.filter(r=>r.id===receiver.id),'Receiver '+receiver.id);
-        visit(receiver);
-        if((await read(receiver)).typeId!==RECEIVER)throw Error('missing Receiver '+receiver.id);
-        let p=step(receiver,offsets[0]), columns=0, hops=0;
-        let block=await read(p);
-        while(block.typeId===HOPPER){
-            visit(p);
-            if(++hops%8===0)await pause();
-            const direction=block.permutation.getState('facing_direction');
-            const offset=offsets[direction];
-            if(!offset)throw Error('unknown hopper direction at '+address(p));
-            const lower=await read(step(p,offsets[0]));
-            if(direction>1 && lower.typeId===HOPPER)throw Error('competing downward hopper at '+address(p));
-            if(lower.typeId==='hartsorter:sorter')columns++;
-            p=step(p,offset);
-            block=await read(p);
+    const first=unique(registry.receivers.filter(r=>r.queueKey===key),'queue '+key);
+    const pending=[], edges=new Map(), incoming=new Map(), targets=new Set(), holds=new Set();
+    function enqueue(receiver,p,sorted,from){
+        const id=JSON.stringify([receiver.id,address(p),sorted]);
+        if(!edges.has(id)){
+            if(edges.size>=4096)throw Error('trace limit at '+address(p));
+            edges.set(id,[]);
+            incoming.set(id,0);
+            pending.push({receiver,p,sorted,id});
         }
-        report('Receiver '+receiver.id+' hoppers='+hops+' Sorter columns='+columns+' output='+block.typeId+' at '+address(p));
-        if(!hops)throw Error('missing output hopper at '+address(p));
-        if(block.typeId===COLLECTOR){
-            const c=unique(registry.collectors.filter(c=>c.id===address(p)),'Collector '+address(p));
-            checkEntry(c);
-            report('Collector '+c.id+' links to '+c.link);
-            receiver=unique(registry.receivers.filter(r=>r.id===c.link),'linked Receiver '+c.link);
-            await pause();
-            continue;
+        if(from!==undefined){
+            edges.get(from).push(id);
+            incoming.set(id,incoming.get(id)+1);
         }
-        if(!columns)throw Error('no Sorter column on final lane '+receiver.id);
-        if(!['minecraft:chest','minecraft:trapped_chest','minecraft:barrel'].includes(block.typeId))
-            throw Error('unresolved lane end '+address(p));
-        if(block.getComponent('minecraft:inventory')?.container?.size!==27)
-            throw Error('unresolved container size at '+address(p));
-        if((await read(step(p,offsets[0]))).typeId===HOPPER)
-            throw Error('storage has downstream hopper at '+address(p));
-        return receiver.id;
     }
+    enqueue(first,first,false);
+    for(let i=0;i<pending.length;i++){
+        if(i%8===0)await pause();
+        const {receiver,p,sorted,id}=pending[i];
+        try{
+            if(p===receiver){
+                checkEntry(receiver);
+                unique(registry.receivers.filter(r=>r.id===receiver.id),'Receiver '+receiver.id);
+                if((await read(p)).typeId!==RECEIVER)throw Error('missing Receiver '+address(p));
+                const below=step(p,offsets[0]);
+                if((await read(below)).typeId!==HOPPER)throw Error('missing output hopper at '+address(below));
+                enqueue(receiver,below,false,id);
+                continue;
+            }
+            const block=await read(p);
+            if(block.typeId===HOPPER){
+                const lower=step(p,offsets[0]), lowerType=(await read(lower)).typeId;
+                const direction=block.permutation.getState('facing_direction');
+                if(!offsets[direction])throw Error('unknown hopper direction at '+address(p));
+                const forward=step(p,offsets[direction]);
+                if(direction>1 && lowerType===HOPPER){
+                    const forwardType=(await read(forward)).typeId;
+                    report('split at '+address(p)+' forward='+forwardType+' at '+address(forward)+' lower hopper='+address(lower));
+                    enqueue(receiver,lower,sorted,id);
+                    // An air block cannot receive the forward transfer.
+                    if(forwardType==='minecraft:air')continue;
+                }
+                enqueue(receiver,forward,sorted || lowerType==='hartsorter:sorter',id);
+                continue;
+            }
+            if(block.typeId===COLLECTOR){
+                const c=unique(registry.collectors.filter(c=>c.id===address(p)),'Collector '+address(p));
+                checkEntry(c);
+                report('Receiver '+receiver.id+' via Collector '+c.id+' links to '+c.link);
+                const next=unique(registry.receivers.filter(r=>r.id===c.link),'linked Receiver '+c.link);
+                enqueue(next,next,false,id);
+                continue;
+            }
+            if(['minecraft:chest','minecraft:trapped_chest','minecraft:barrel'].includes(block.typeId)){
+                if(block.getComponent('minecraft:inventory')?.container?.size!==27)
+                    throw Error('unresolved container size at '+address(p));
+                const lower=step(p,offsets[0]);
+                if((await read(lower)).typeId===HOPPER){
+                    enqueue(receiver,lower,sorted,id);
+                    continue;
+                }
+            }else if(block.typeId!=='minecraft:air'){
+                throw Error('unresolved '+block.typeId+' at '+address(p));
+            }
+            report('Receiver '+receiver.id+' lane end='+block.typeId+' at '+address(p)+' Sorter observed='+sorted);
+            if(!sorted)throw Error('no Sorter column on final lane '+receiver.id+' ending at '+address(p));
+            targets.add(receiver.id);
+        }catch(error){
+            holds.add(String(error));
+        }
+    }
+    // Shared downstream paths can merge. Only a directed cycle prevents
+    // repeatedly removing nodes with no remaining inbound edges.
+    const roots=[...incoming.keys()].filter(id=>incoming.get(id)===0);
+    for(let i=0;i<roots.length;i++){
+        for(const next of edges.get(roots[i])){
+            const count=incoming.get(next)-1;
+            incoming.set(next,count);
+            if(count===0)roots.push(next);
+        }
+    }
+    if(roots.length!==edges.size)holds.add('cycle in reachable route from '+first.id);
+    if(targets.size>1)holds.add('different terminal Receivers '+[...targets].join(', '));
+    if(holds.size)throw Error([...holds].join(' | '));
+    return unique([...targets],'terminal Receiver');
 }
 
 export async function traceLegacy(reader,world,system,selection,report){
