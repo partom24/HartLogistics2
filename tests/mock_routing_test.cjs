@@ -59,9 +59,13 @@ function makeBlock(typeId,p){
 }
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
 const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
-const context=vm.createContext({world,system,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
-const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
-vm.runInContext(src.replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
+function newRuntime(){
+    const context=vm.createContext({world,system,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
+    const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
+    vm.runInContext(src.replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
+    return context;
+}
+const context=newRuntime();
 function event(id){for(const cb of system.afterEvents.scriptEventReceive.handlers){cb({id,sourceEntity:{sendMessage(){}}});}}
 function drain(){for(let t=0;t<10&&queued.length;t++){
     const q=queued.splice(0);for(const x of q){if(x.t<=0)x.fn();else queued.push({fn:x.fn,t:x.t-1});}
@@ -95,6 +99,34 @@ function bank(x,y,z,dx,dz,length,height) {
     }
   }
   return {rk,input,hoppers,sorters,chests};
+}
+if(process.argv.includes('--column-budget')){
+    require('./fixtures/column_budget.cjs')({world,dim,Container,bank,properties,event,drain,intervals,Stack});
+    return;
+}
+if(process.argv.includes('--q4-route')){
+    const banks=[];
+    function restart(){
+        intervals.length=0;queued.length=0;
+        for(const group of [system.beforeEvents,system.afterEvents,world.beforeEvents,world.afterEvents])
+            for(const ev of Object.values(group))ev.handlers=[];
+        const fresh=newRuntime();
+        drain();event('hartlab:setup_io');drain();
+        return fresh;
+    }
+    function ticks(n){
+        for(let t=1;t<=n;t++){
+            for(const cb of intervals)cb.fn();
+            if(t%8===0)for(const b of banks)for(let i=b.hoppers.length-2;i>=0;i--){
+                const inv=b.hoppers[i].inv;
+                if(inv.getItem(0))inv.transferItem(0,b.hoppers[i+1].inv);
+            }
+            drain();
+        }
+    }
+    require('./fixtures/q4_route.cjs')({bank,world,properties,place,dim,Stack,context,ticks,banks,event,drain,restart})
+        .catch(error=>{console.error(error);process.exitCode=1;});
+    return;
 }
 const banks=[bank(125,-18,-77,-1,0,10,4),bank(-307,92,48,0,1,3,2)];
 drain();

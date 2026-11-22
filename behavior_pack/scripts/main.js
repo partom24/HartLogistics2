@@ -25,8 +25,17 @@ function keyFor(prefix, d, p) {
     return `hartlab:${prefix}_${dim}_${p.x}_${p.y}_${p.z}`;
 }
 function loc(block) { return block.location; }
+const dimensions = new Map();
+function dimensionFor(id) {
+    let dimension = dimensions.get(id);
+    if (!dimension) {
+        dimension = world.getDimension(id);
+        dimensions.set(id, dimension);
+    }
+    return dimension;
+}
 function getBlock(d,x,y,z) {
-    try { return world.getDimension(d).getBlock({x,y,z}); } catch (_) { return undefined; }
+    try { return dimensionFor(d).getBlock({x,y,z}); } catch (_) { return undefined; }
 }
 function sorterAt(e) {
     const b=getBlock(e.d,e.x,e.y,e.z);
@@ -823,8 +832,7 @@ system.beforeEvents.startup.subscribe(({blockComponentRegistry}) => {
         }
     });
 });
-function receiverAccepts(b) {
-    const block = labGet(b.cfg.dimension,b.cfg.receiver);
+function receiverAccepts(b, block=labGet(b.cfg.dimension,b.cfg.receiver)) {
     return block?.typeId === RECEIVER_ID && block.permutation.getState(POWERED) === false;
 }
 // A direct handoff keeps the original ItemStack in a saved native inventory.
@@ -1014,8 +1022,7 @@ function labLineEmpty(b){
             return false;
         }
         const hopper=labBlockInventory(block);
-        if(!hopper)return false;
-        for(let i=0;i<hopper.size;i++)if(hopper.getItem(i))return false;
+        if(!hopper || hopper.emptySlotsCount!==hopper.size)return false;
     }
     return true;
 }
@@ -1395,7 +1402,7 @@ function coverChunks(b,chunks) {
         let entry = routeChunks.get(key);
         if (!entry) {
             const point = {x:p.x,y:p.y,z:p.z};
-            const options = {dimension:world.getDimension(p.dimension),from:point,to:point};
+            const options = {dimension:dimensionFor(p.dimension),from:point,to:point};
             if (!manager.hasCapacity(options)) { labMarkHold(b,'Waiting for ticking chunk capacity'); return false; }
             const id = 'hart_route_'+key.replace(/:/g,'_');
             entry = {id,ready:false,last:labTick};
@@ -1625,7 +1632,8 @@ function labTickActive(b){
     if(!hopper||!destination){labStartRecovery(b,'Addressed Hopper or destination unavailable');return;}
     try{
         // Only the already-addressed destination Hopper is inspected.
-        for(let i=0;i<hopper.size;i++){
+        const slots=hopper.emptySlotsCount===hopper.size ? 0 : hopper.size;
+        for(let i=0;i<slots;i++){
             const item=hopper.getItem(i);
             if(!item||!labLiveReferenceMatches(a.reference,item))continue;
             if(item.amount>a.sent-a.moved){labStartRecovery(b,'Unexpected quantity at tap');return;}
@@ -1656,7 +1664,7 @@ function serviceInlineCoverage(b){
     if(labTick%(tracking?16:4)!==0)return;
     const d=b.cfg.dimension;
     const receiver=labGet(d,b.cfg.receiver);
-    if(receiver && !receiverAccepts(b)){
+    if(receiver && !receiverAccepts(b,receiver)){
         b.inlineCoverage=undefined;
         return;
     }
@@ -1684,9 +1692,11 @@ function serviceInlineCoverage(b){
 // carry external items along the lane. Only inspect outputs on a local match.
 function serviceLaneInputs(b,banks){
     if(startupHold || b.recovery || !b.cache?.passiveTaps.length ||
-        b.cacheRevision!==b.generation || !receiverAccepts(b))return;
+        b.cacheRevision!==b.generation)return;
     const taps=b.cache.passiveTaps;
-    for(let i=labTick%4;i<taps.length;i+=4){
+    const first=labTick%4;
+    if(first>=taps.length || !receiverAccepts(b))return;
+    for(let i=first;i<taps.length;i+=4){
         const {p,direction,candidates}=taps[i];
         const hopper=labGet(b.cfg.dimension,p);
         if(hopper?.typeId!==HOPPER || hopper.permutation.getState('toggle_bit') ||

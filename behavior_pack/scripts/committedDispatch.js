@@ -30,7 +30,7 @@ export async function dispatchTrial(world,pause,makeItem,command,report){
     const ids=world.getDynamicPropertyIds();
     check(!ids.some(k=>/^hartsorter:(queue_journal_v1$|journal_v1$|q[23])/.test(k)),'legacy journal or older queue present');
     const seen=new Set(), balances=new Map();
-    let held=0,total=0,choice;
+    let held=0,total=0,choice,chosenQuantity;
     for(const [key,meta,action,target,count] of control.manifest){
         check(/^q\d+$/.test(key)&&!seen.has(key),'invalid manifest queue '+key);
         seen.add(key);
@@ -55,8 +55,10 @@ export async function dispatchTrial(world,pause,makeItem,command,report){
         for(const [id,{raw,qty}] of entries){
             check(world.getDynamicProperty(prefix+'def_'+key+'_'+id)===raw &&
                 world.getDynamicProperty(prefix+'qty_'+key+'_'+id)===qty,'staged record mismatch '+key+' '+id);
-            if(key===queue && action!=='hold' && !choice && (!receipt || receipt.id===id) && ordinary(raw))
+            if(key===queue && action!=='hold' && !choice && (!receipt || receipt.id===id) && ordinary(raw)){
                 choice={queue:key,id,target,type:JSON.parse(raw).typeId};
+                chosenQuantity=qty;
+            }
         }
     }
     check(ids.filter(k=>k.startsWith('hartsorter:q4m_')).length===seen.size,'queue set changed');
@@ -98,4 +100,5 @@ export async function dispatchTrial(world,pause,makeItem,command,report){
     const receiver=[...balances.values()].reduce((a,b)=>a+b,0);
     check(Number.isSafeInteger(total)&&receiver+held+delivered===total,'custody mismatch');
     report('DISPATCH receiver='+receiver+' held='+held+' delivered='+delivered+' total='+total);
+    return {choice, remaining:choice ? chosenQuantity-delivered : 0, receiver, held, delivered, total};
 }
