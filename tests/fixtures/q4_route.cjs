@@ -63,7 +63,22 @@ module.exports=async function({bank,world,properties,place,dim,Stack,context,tic
     assert.equal(preview.sorters,4);
     assert.equal(preview.links,1);
     assert.equal(preview.modesFound.filter,4);
-    for(const [k,v] of preview.settings)properties.set(k,JSON.stringify(v));
+    const {transferConfiguration}=await import('../../behavior_pack/scripts/config-transfer.js');
+    const noPause=async()=>{};
+    await assert.rejects(transferConfiguration(world,'q2',false,noPause),/Missing or conflicting/);
+    let count=0;
+    const interrupted={...world,setDynamicProperty(k,v){
+        if(++count===4)throw Error('simulated stop');
+        world.setDynamicProperty(k,v);
+    }};
+    await assert.rejects(transferConfiguration(interrupted,'q2',true,noPause),/simulated stop/);
+    const partial=[...properties];
+    await assert.rejects(transferConfiguration(world,'q2',false,noPause),/Missing or conflicting/);
+    assert.deepEqual([...properties],partial);
+    const resumed=await transferConfiguration(world,'q2',true,noPause);
+    assert.equal(resumed.written,preview.settings.size-2);
+    assert.equal((await transferConfiguration(world,'q2',false,noPause)).written,0);
+    assert.equal((await transferConfiguration(world,'q2',true,noPause)).written,0);
     assert.deepEqual(previewConfiguration(world,'q2'),preview);
     drain();event('hartlab:setup_io');drain();
     const pause=async()=>{}, make=id=>new Stack(id);
