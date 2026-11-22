@@ -23,21 +23,29 @@ if ($levels.Count -ne 1 -or $levels[0] -cne 'level-name=ThomasServer') { throw '
 $active = @(ConvertFrom-PackJson ([IO.File]::ReadAllText((Join-Path $world 'world_behavior_packs.json'))))
 if (@($active | Where-Object { $_.pack_id -eq $id }).Count -ne 1 -or
     @($active | Where-Object { $_.pack_id -eq 'f450bff5-6b68-42e5-a07d-616f87c01918' }).Count) { throw 'Unexpected activated routing packs' }
+$registeredVersion = (($active | Where-Object { $_.pack_id -eq $id }).version -join '.')
 $packs = @(foreach ($base in @((Join-Path $root 'behavior_packs'),(Join-Path $world 'behavior_packs'))) {
-    if (Test-Path -LiteralPath $base) {
-        foreach ($dir in Get-ChildItem -LiteralPath $base -Directory) {
-            $manifest = Join-Path $dir.FullName 'manifest.json'
-            if (!(Test-Path -LiteralPath $manifest)) { continue }
-            $m = ConvertFrom-PackJson ([IO.File]::ReadAllText($manifest))
-            if ($m.header.uuid -eq $id) {
-                if (($m.header.version -join '.') -ne '1.4.1' -or @($m.modules | Where-Object { $_.type -eq 'script' -and $_.entry -eq 'scripts/main.js' }).Count -ne 1) { throw 'Unexpected legacy manifest' }
-                $dir.FullName
-            }
-        }
+    if (!(Test-Path -LiteralPath $base)) { continue }
+    foreach ($dir in Get-ChildItem -LiteralPath $base -Directory) {
+        $manifest = Join-Path $dir.FullName 'manifest.json'
+        if (!(Test-Path -LiteralPath $manifest -PathType Leaf)) { continue }
+        $m = ConvertFrom-PackJson ([IO.File]::ReadAllText($manifest))
+        if ($m.header.uuid -ne $id) { continue }
+        $modules = @($m.modules | Where-Object { $_.type -eq 'script' })
+        [pscustomobject]@{ Path=$dir.FullName; Version=($m.header.version -join '.'); Entries=@($modules | ForEach-Object { $_.entry }) }
     }
 })
-if ($packs.Count -ne 1) { throw "Expected exactly one original-identity pack, found $($packs.Count)" }
-$dest = Join-Path $packs[0] 'scripts'
+Write-Output "World registration: $id version=$registeredVersion"
+foreach ($pack in $packs) {
+    Write-Output "Manifest: $($pack.Path) version=$($pack.Version) script entries=[$($pack.Entries -join ', ')]"
+}
+if ($packs.Count -gt 1) { $packs = @($packs | Where-Object { $_.Version -eq $registeredVersion }) }
+if ($packs.Count -ne 1) { throw "Could not uniquely resolve the registered pack in the copied LAB. See manifest inventory above." }
+$pack = $packs[0]
+if ($pack.Entries.Count -ne 1 -or ([string]$pack.Entries[0]).Replace('\','/') -notmatch '^(?:\./)?scripts/main\.js$') {
+    throw "Unsupported installed script entry at $($pack.Path); expected a single scripts/main.js. See manifest inventory above."
+}
+$dest = Join-Path $pack.Path 'scripts'
 $main = Join-Path $dest 'main.js'
 Assert-PhysicalPath $main
 $files = [ordered]@{
