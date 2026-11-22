@@ -77,6 +77,28 @@ try{
     }
     automatic.set('hartlab:dispatch_trial1','evidence');
     await assert.rejects(run(automatic,'startup'),/pre-rehearsal/);
+    // Resume a settings HOLD after custody has already committed.
+    const resumeDisk=new Map(prepared);
+    await run(resumeDisk,'commit');
+    resumeDisk.set('hartlab:upgrade_phase_v1','locked');
+    const savedControl=resumeDisk.get('hartlab:handoff1_control');
+    const filter={match:{typeId:'minecraft:sand'}};
+    const cases=[
+        [{m:'historical',f:filter},'filter'], [{m:0},'wildcard'],
+        [{m:'',nativeQuarantine:1},'filter'], [{f:filter},'filter'],
+        [{m:'auto',f:filter},'auto'], [{m:'bypass'},'bypass'],
+        [{m:'filter'},'filter'], [{m:'wildcard',f:filter},'wildcard']
+    ];
+    const sorterRegistry=JSON.stringify(cases.map(([fields],x)=>({d:'overworld',x,y:2,z:0,...fields})));
+    resumeDisk.set('hartsorter:registry_v1',sorterRegistry);
+    const resumed=await run(resumeDisk,'upgrade');
+    assert.equal(resumeDisk.get('hartlab:handoff1_control'),savedControl);
+    assert.equal(resumeDisk.get('hartlab:upgrade_phase_v1'),'ready');
+    assert.equal(resumeDisk.get('hartsorter:registry_v1'),sorterRegistry);
+    assert.equal(resumed.totals.receiver,32);
+    assert.equal(resumed.totals.sourceHeld,32);
+    cases.forEach(([fields,m],x)=>assert.deepEqual(
+        JSON.parse(resumeDisk.get('hartlab:s_o_'+x+'_2_0')),{d:'overworld',x,y:2,z:0,...fields,m}));
     const freshDisk=new Map(seed);
     freshDisk.set('hartsorter:registry_v1','[]');
     const migrated=await run(freshDisk,'upgrade');

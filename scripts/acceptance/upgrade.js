@@ -1,5 +1,5 @@
 import {migrateCustody} from './startup-custody.js';
-import {sorterRows} from './config-preview.js';
+import {legacySorterMode,sorterRows} from './config-preview.js';
 import {ordinary} from './committedDispatch.js';
 
 const phaseKey='hartlab:upgrade_phase_v1';
@@ -37,9 +37,7 @@ async function migrateSettings(world,pause){
         add(key('c',row),{receiver:target??key('r',old)});
     }
     for(const row of sorterRows(world)){
-        const mode=row.m??(row.f?'filter':'wildcard');
-        if(!['filter','auto','wildcard','bypass'].includes(mode))throw Error('Unrecognized Sorter mode');
-        add(key('s',row),{...row,m:row.nativeQuarantine?'filter':mode});
+        add(key('s',row),{...row,m:row.nativeQuarantine?'filter':legacySorterMode(row)});
     }
     let n=0;
     for(const [k,v] of settings){

@@ -9,6 +9,11 @@ const freshKey=(kind,p)=>'hartlab:'+kind+'_'+[dims.get(p.d),p.x,p.y,p.z].join('_
 function checkPosition(p){
     requireValue(p && dims.has(p.d) && [p.x,p.y,p.z].every(Number.isSafeInteger),'Invalid registry position');
 }
+// Match the effective mode of the 1.4.1 runtime for historical registry values.
+export function legacySorterMode(row){
+    if(modes.includes(row.m))return row.m;
+    return row.f?'filter':'wildcard';
+}
 export function sorterRows(world){
     const get=k=>world.getDynamicProperty('hartsorter:'+k);
     const header=get('registry_v2');
@@ -71,8 +76,7 @@ export function previewConfiguration(world,queue){
         const id=address({...spot,d:receiver.d});
         const row=positions.get(id);
         requireValue(row && !row.nativeQuarantine,'Missing or quarantined Sorter '+id);
-        const mode=row.m??(row.f?'filter':'wildcard');
-        requireValue(modes.includes(mode),'Unknown Sorter mode '+id);
+        const mode=legacySorterMode(row);
         requireValue(!row.f || typeof row.f.match?.typeId==='string','Unreadable filter '+id);
         settings.set(freshKey('s',row),{...row,m:mode});
         modesFound[mode]++;
