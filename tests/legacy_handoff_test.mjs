@@ -29,6 +29,7 @@ try{
     const collector={...receivers[0],x:1,y:0,id:'overworld|1|0|0',link:target.id};
     seed.set('hartsorter:logistics_v2',JSON.stringify({receivers,collectors:[collector]}));
     const system={runTimeout:fn=>queueMicrotask(fn)};
+    const item=typeId=>({typeId,maxAmount:64,amount:1,clone(){return {...this};}});
     const run=(disk,action,stop=Infinity,after=false)=>{
         let writes=0;const lines=[];
         const world={getDynamicProperty:k=>disk.get(k),getDynamicPropertyIds:()=>[...disk.keys()],
@@ -46,7 +47,7 @@ try{
                 if(writes===stop&&after)throw Error('interrupt');
             }};
         const report=s=>lines.push(s);
-        if(action==='upgrade')return upgrade(world,system,report);
+        if(action==='upgrade')return upgrade(world,system,report,raw=>item(JSON.parse(raw).typeId));
         const operation=action==='startup'?migrateCustody(world,system,report):handoff(world,system,action,report);
         return operation.then(()=>({writes,last:lines.at(-1)}));
     };
@@ -108,9 +109,8 @@ try{
     assert.equal(migrated.settings,3);
     assert.equal(migrated.accounts.length,1);
     const diskWorld={getDynamicProperty:k=>freshDisk.get(k),setDynamicProperty:(k,v)=>freshDisk.set(k,v)};
-    const item=typeId=>({typeId,maxAmount:64,amount:1,clone(){return {...this};}});
     let delivered=0;
-    releaseOne(diskWorld,migrated.accounts[0],item,(t,s,c)=>c.transferItem(0,{addItem(i){delivered+=i.amount;}}));
+    releaseOne(diskWorld,migrated.accounts[0],(t,s,c)=>c.transferItem(0,{addItem(i){delivered+=i.amount;}}));
     const reboot=await run(freshDisk,'upgrade');
     assert.equal(delivered,32);assert.equal(reboot.totals.issued,32);assert.equal(reboot.accounts.length,0);
     const def=[...prepared.keys()].find(k=>k.startsWith('hartlab:handoff1_def_'));

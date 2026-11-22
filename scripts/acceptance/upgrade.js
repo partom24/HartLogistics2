@@ -1,6 +1,5 @@
 import {migrateCustody} from './startup-custody.js';
 import {legacySorterMode,sorterRows} from './config-preview.js';
-import {ordinary} from './committedDispatch.js';
 
 const phaseKey='hartlab:upgrade_phase_v1';
 const prefix='hartlab:handoff1_';
@@ -49,7 +48,7 @@ async function migrateSettings(world,pause){
     return settings.size;
 }
 
-export async function upgrade(world,system,report){
+export async function upgrade(world,system,report,restore){
     const pause=()=>new Promise(resolve=>system.runTimeout(resolve,1));
     const state=world.getDynamicProperty(phaseKey);
     if(state!==undefined && !['locked','ready'].includes(state))throw Error('Invalid migration phase');
@@ -63,6 +62,7 @@ export async function upgrade(world,system,report){
     if(control.phase!=='committed')throw Error('Custody missing');
     const rows=new Map(control.manifest.map(row=>[row[0],row]));
     const accounts=[];
+    const templates=new Map();
     const totals={sourceHeld:0,receiver:0,issued:0,uncertain:0,definitionHeld:0,total:0};
     let n=0;
     for(const k of world.getDynamicPropertyIds()){
@@ -81,8 +81,16 @@ export async function upgrade(world,system,report){
         if(![saved.spent,saved.pending].every(v=>Number.isSafeInteger(v)&&v>=0) || saved.spent+saved.pending>quantity)throw Error('Invalid debit '+suffix);
         const remaining=quantity-saved.spent-saved.pending;
         totals.issued+=saved.spent;totals.uncertain+=saved.pending;totals.receiver+=remaining;
-        if(saved.pending || !ordinary(raw)){totals.definitionHeld+=remaining;continue;}
-        if(remaining)accounts.push({target:row[3],type:JSON.parse(raw).typeId,quantity,progress,spent:saved.spent});
+        if(!remaining)continue;
+        if(saved.pending){totals.definitionHeld+=remaining;continue;}
+        if(!templates.has(raw)){
+            let template;
+            try{template=restore(raw);}catch(err){report('DEFINITION HOLD '+suffix+' '+err);}
+            templates.set(raw,template);
+        }
+        const template=templates.get(raw);
+        if(!template){totals.definitionHeld+=remaining;continue;}
+        accounts.push({target:row[3],template,quantity,progress,spent:saved.spent});
     }
     const original=control.manifest.reduce((sum,row)=>sum+JSON.parse(row[1]).q,0);
     if(original!==totals.total || totals.sourceHeld+totals.receiver+totals.issued+totals.uncertain!==original)throw Error('Custody reconciliation failed');
@@ -90,10 +98,10 @@ export async function upgrade(world,system,report){
     return {accounts,totals,settings};
 }
 
-export function releaseOne(world,a,makeItem,offer){
+export function releaseOne(world,a,offer){
     const saved=JSON.parse(world.getDynamicProperty(a.progress)??'{"spent":0,"pending":0}');
     if(saved.pending || saved.spent!==a.spent)throw Error('Debit needs reconciliation '+a.progress);
-    const item=makeItem(a.type);
+    const item=a.template.clone();
     item.amount=Math.min(item.maxAmount,a.quantity-a.spent);
     const amount=item.amount;
     let available=true;
