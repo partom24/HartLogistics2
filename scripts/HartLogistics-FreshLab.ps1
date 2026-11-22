@@ -13,6 +13,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'PackJson.ps1')
 $source = Split-Path -Parent $PSScriptRoot
 $serverRoot = 'C:\Servers\Thomas_MCBedrock - Copy (2)'
 $worldName = 'LabWorld'
@@ -67,7 +68,7 @@ function Assert-GitIdentity {
 function Read-Pack([string]$packPath,[string]$uuid) {
     $file = Join-Path $packPath 'manifest.json'
     Assert-That (Test-Path -LiteralPath $file -PathType Leaf) "Missing manifest: $file"
-    $p = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
+    $p = ConvertFrom-PackJson ([IO.File]::ReadAllText($file))
     Assert-That ($p.header.uuid -eq $uuid) "Unexpected pack identity in $file"
     Assert-That ($p.header.version.Count -eq 3) "Invalid pack version in $file"
     return $p
@@ -115,16 +116,11 @@ function Assert-LabStopped {
     }
 }
 function Write-Registry([string]$registry,[string]$uuid,[int[]]$version) {
-    $items = @()
-    if (Test-Path -LiteralPath $registry) {
-        $json = Get-Content -LiteralPath $registry -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($null -ne $json) { $items = @($json) }
-    }
-    $items = @($items | Where-Object { $_.pack_id -ne $uuid })
-    $items += [pscustomobject]@{ pack_id = $uuid; version = $version }
-    $out = ConvertTo-Json -InputObject @($items) -Depth 16
+    $text = if (Test-Path -LiteralPath $registry) { [IO.File]::ReadAllText($registry) } else { '[]' }
+    $out = Set-PackRegistryVersion $text $uuid $version
+    if ($out -ceq $text) { return }
     $tmp = $registry + '.stage-' + [guid]::NewGuid().ToString('N')
-    [System.IO.File]::WriteAllText($tmp, $out + [Environment]::NewLine, (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($tmp, $out, (New-Object System.Text.UTF8Encoding($false)))
     Move-Item -LiteralPath $tmp -Destination $registry -Force
 }
 function Install-Packs([string]$sha) {

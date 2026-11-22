@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param([switch]$Apply)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'PackJson.ps1')
 $root = 'C:\Servers\Thomas_MCBedrock - Copy (2)'
 $world = Join-Path $root 'worlds\ThomasServer'
 $source = Split-Path $PSScriptRoot
@@ -19,7 +20,7 @@ Assert-PhysicalPath $world
 $settings = Get-Content -LiteralPath (Join-Path $root 'server.properties')
 $levels = @($settings | Where-Object { $_ -match '^level-name=' })
 if ($levels.Count -ne 1 -or $levels[0] -cne 'level-name=ThomasServer') { throw 'Unexpected active world' }
-$active = (Get-Content -Raw -LiteralPath (Join-Path $world 'world_behavior_packs.json') | ConvertFrom-Json)
+$active = @(ConvertFrom-PackJson ([IO.File]::ReadAllText((Join-Path $world 'world_behavior_packs.json'))))
 if (@($active | Where-Object { $_.pack_id -eq $id }).Count -ne 1 -or
     @($active | Where-Object { $_.pack_id -eq 'f450bff5-6b68-42e5-a07d-616f87c01918' }).Count) { throw 'Unexpected activated routing packs' }
 $packs = @(foreach ($base in @((Join-Path $root 'behavior_packs'),(Join-Path $world 'behavior_packs'))) {
@@ -27,7 +28,7 @@ $packs = @(foreach ($base in @((Join-Path $root 'behavior_packs'),(Join-Path $wo
         foreach ($dir in Get-ChildItem -LiteralPath $base -Directory) {
             $manifest = Join-Path $dir.FullName 'manifest.json'
             if (!(Test-Path -LiteralPath $manifest)) { continue }
-            $m = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+            $m = ConvertFrom-PackJson ([IO.File]::ReadAllText($manifest))
             if ($m.header.uuid -eq $id) {
                 if (($m.header.version -join '.') -ne '1.4.1' -or @($m.modules | Where-Object { $_.type -eq 'script' -and $_.entry -eq 'scripts/main.js' }).Count -ne 1) { throw 'Unexpected legacy manifest' }
                 $dir.FullName
