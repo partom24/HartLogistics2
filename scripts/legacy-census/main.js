@@ -62,7 +62,7 @@ function* mapSources(reader,report){
 
 let running=false;
 system.afterEvents.scriptEventReceive.subscribe(event=>{
-    if(!['hartlab:q4_census','hartlab:q4_census_all','hartlab:q4_sources','hartlab:q4_trace'].includes(event.id))return;
+    if(!['hartlab:q4_census','hartlab:q4_census_all','hartlab:q4_sources','hartlab:q4_trace','hartlab:q4_plan'].includes(event.id))return;
     const source=event.sourceEntity;
     function report(message){
         console.warn('[Hart legacy census] '+message);
@@ -71,8 +71,8 @@ system.afterEvents.scriptEventReceive.subscribe(event=>{
     if(event.id!=='hartlab:q4_census'){
         if(running){report('Already scanning');return;}
         running=true;
-        if(event.id==='hartlab:q4_trace'){
-            traceLegacy(reader,world,system,event.message.trim(),report)
+        if(event.id==='hartlab:q4_trace' || event.id==='hartlab:q4_plan'){
+            traceLegacy(reader,world,system,event.message.trim(),report,event.id==='hartlab:q4_plan')
                 .catch(error=>report('HOLD '+String(error))).finally(()=>{running=false;});
             return;
         }

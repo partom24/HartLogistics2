@@ -101,7 +101,25 @@ export async function traceQueue(registry,key,read,pause,report){
     return unique([...targets],'terminal Receiver');
 }
 
-export async function traceLegacy(reader,world,system,selection,report){
+async function planQueue(registry,key,read,pause){
+    let owner;
+    try{
+        owner=unique(registry.receivers.filter(r=>r.queueKey===key),'queue '+key);
+        checkEntry(owner);
+        unique(registry.receivers.filter(r=>r.id===owner.id),'Receiver '+owner.id);
+        if((await read(owner)).typeId!==RECEIVER)throw Error('missing Receiver '+owner.id);
+    }catch(error){
+        return {action:'hold',detail:String(error)};
+    }
+    try{
+        const target=await traceQueue(registry,key,read,pause,()=>{});
+        return {action:target===owner.id?'retain':'transfer',detail:'source='+owner.id+' target='+target};
+    }catch(error){
+        return {action:'retain',detail:'target='+owner.id+' downstream unresolved: '+String(error).split(' | ')[0]};
+    }
+}
+
+export async function traceLegacy(reader,world,system,selection,report,plan=false){
     if(selection && !/^q\d+$/.test(selection))throw Error('expected queue key, e.g. q2');
     const registry=JSON.parse(reader.getDynamicProperty('hartsorter:logistics_v2'));
     if(!Array.isArray(registry?.receivers) || !Array.isArray(registry.collectors))throw Error('invalid registry');
@@ -109,6 +127,7 @@ export async function traceLegacy(reader,world,system,selection,report){
     const prefix='hartsorter:q4m_', keys=selection?[selection]:ids.map(id=>id.slice(prefix.length));
     if(!keys.length)throw Error('no visible queues');
     const pause=()=>new Promise(resolve=>system.runTimeout(resolve,1));
+    const totals={transfer:0,retain:0,hold:0};
     let candidates=0,held=0,items=0;
     for(const key of keys){
         const meta=JSON.parse(reader.getDynamicProperty(prefix+key));
@@ -136,16 +155,27 @@ export async function traceLegacy(reader,world,system,selection,report){
             return block;
         }
         try{
-            const target=await traceQueue(registry,key,read,pause,msg=>report(key+' '+msg));
-            candidates++;
-            report(key+' items='+meta.q+' terminal candidate='+target);
-        }catch(error){held++;report(key+' items='+meta.q+' HOLD '+String(error));}
+            if(plan){
+                const {action,detail}=await planQueue(registry,key,read,pause);
+                totals[action]+=meta.q;
+                report(key+' items='+meta.q+' '+action.toUpperCase()+' '+detail);
+            }else{
+                const target=await traceQueue(registry,key,read,pause,msg=>report(key+' '+msg));
+                candidates++;
+                report(key+' items='+meta.q+' terminal candidate='+target);
+            }
+        }catch(error){if(plan)throw error;held++;report(key+' items='+meta.q+' HOLD '+String(error));}
         finally{
             const errors=[];
             for(const id of areas)try{world.tickingAreaManager.removeTickingArea(id);}catch(error){errors.push(id+' '+error);}
             if(errors.length)throw Error('temporary area cleanup: '+errors.join(', '));
         }
         await pause();
+    }
+    if(plan){
+        if(!Number.isSafeInteger(items) || totals.transfer+totals.retain+totals.hold!==items)throw Error('plan total mismatch');
+        report('PLAN COMPLETE committed='+items+' transfer='+totals.transfer+' retain='+totals.retain+' hold='+totals.hold);
+        return;
     }
     report('TRACE COMPLETE committed='+items+' candidates='+candidates+' holds='+held);
 }

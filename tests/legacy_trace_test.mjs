@@ -71,3 +71,20 @@ assert.equal(await run(),last.id); // Only the downward hopper accepts cargo.
 put('overworld',1,0,0,'minecraft:dropper');
 await assert.rejects(run,/unresolved minecraft:dropper/);
 console.log('Legacy route trace checks passed');
+
+// A verified owner remains eligible even without a readable downstream route.
+put('overworld',1,0,0,'hartsorter:collector');
+const buffer=entry('nether',30,1,0,'q14'), absent=entry('nether',40,1,0,'q6');
+absent.present=false;
+reg.receivers.push(buffer,absent);
+put('nether',30,1,0,'hartsorter:receiver');
+const amounts={q2:69884,q14:53939,q7:700,q6:1016};
+const prefix='hartsorter:q4m_';
+const planReader={
+    getDynamicPropertyIds:()=>Object.keys(amounts).map(k=>prefix+k),
+    getDynamicProperty:id=>id.startsWith(prefix)?
+        JSON.stringify({v:4,q:amounts[id.slice(prefix.length)],r:amounts[id.slice(prefix.length)],d:0}):JSON.stringify(reg)
+};
+const planLines=[];
+await traceLegacy(planReader,world,system,'',s=>planLines.push(s),true);
+assert.ok(planLines.includes('PLAN COMPLETE committed=125539 transfer=69884 retain=54639 hold=1016'),planLines.join('\n'));
