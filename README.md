@@ -12,6 +12,14 @@ Fresh LAB is the sole active Hart Logistics development line. Hart Logistics 1.4
 
 [Drain sequence and acceptance criteria](docs/MIGRATION_141_TO_FRESH_057_20261121.md#near-term-q4-drain-milestone) · [Engine comparison and profiling evidence](docs/ENGINE_TICK_COMPARISON_20261121.md)
 
+## Prerelease roadmap
+
+**Persistent Collector and Receiver queues.** Give each endpoint a normal capacity of 250,000 items. Collectors retain cargo when their Receiver is full or unavailable and leave excess at the source. A powered Collector pauses intake. A powered Receiver accepts journaled credits while holding outbound delivery. Existing migration-expanded Receiver balances may drain before ordinary intake resumes at the normal limit.
+
+Offer Receiver queue batches through Fresh's existing preflight and dispatch. Blocked routes leave cargo queued. Journal Collector debits, Receiver credits, and physical handoffs so a restart reconciles each batch before it can be offered again. Use the same preflight for migrated Receiver balances. Preserve exact native metadata where supported and retain items at their source when custody cannot be verified.
+
+**Acceptance.** Feed a powered Receiver from two Collectors, restart while queued, and verify a blocked destination leaves the balance intact after unpowering. Clear the destination and verify exact delivery. Repeat at capacity, during interrupted physical handoff, and with metadata-rich items.
+
 ## Install and inspect
 
 Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Right-click a Collector to inspect its current link. Choose **Link Receiver** or **Relink Receiver**, right-click the intended Receiver within 60 seconds, and confirm the two addresses. **Unlink Receiver** also asks for confirmation. Right-clicking a Receiver on its own shows its linked Collectors. Sneak-interact to place blocks against either endpoint. Saved links register at startup. Placing or breaking blocks in a discovered area automatically refreshes the affected bank. Use `/scriptevent hartlab:status` to inspect both banks. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.
