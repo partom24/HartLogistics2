@@ -20,6 +20,10 @@ Offer Receiver queue batches through Fresh's existing preflight and dispatch. Bl
 
 **Acceptance.** Feed a powered Receiver from two Collectors, restart while queued, and verify a blocked destination leaves the balance intact after unpowering. Clear the destination and verify exact delivery. Repeat at capacity, during interrupted physical handoff, and with metadata-rich items.
 
+**Native metadata-rich storage and player interaction.** Evaluate internal native inventory slots for Collectors, Receivers, and Bulk Storage on a stable Bedrock Dedicated Server with custom block container support. Disable the built-in inventory UI. Right-click opens the Hart menu for status and existing controls. Players retrieve items through normal routing into an output container. Bulk inspection shows contents and slot usage without offering direct withdrawal.
+
+**Native storage acceptance.** On a copied world with experimental features disabled, verify already-placed and newly placed blocks, original item metadata across unload and restart, and that menu interaction, vanilla Hoppers, and breaking a loaded block cannot bypass Hart custody. Keep this work pending until those checks pass on stable BDS.
+
 ## Install and inspect
 
 Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Right-click a Collector to inspect its current link. Choose **Link Receiver** or **Relink Receiver**, right-click the intended Receiver within 60 seconds, and confirm the two addresses. **Unlink Receiver** also asks for confirmation. Right-clicking a Receiver on its own shows its linked Collectors. Sneak-interact to place blocks against either endpoint. Saved links register at startup. Placing or breaking blocks in a discovered area automatically refreshes the affected bank. Use `/scriptevent hartlab:status` to inspect both banks. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.
