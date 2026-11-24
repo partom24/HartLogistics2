@@ -58,6 +58,13 @@ foreach($p in $packs){
     Copy-Item -LiteralPath (Join-Path $repo "${kind}_pack") -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $p.path 'manifest.json') -Destination (Join-Path $stage 'manifest.json') -Force
     if($kind -eq 'behavior'){
+        $manifestPath=Join-Path $stage 'manifest.json'
+        $manifest=ConvertFrom-PackJson ([IO.File]::ReadAllText($manifestPath))
+        $ui=@($manifest.dependencies | Where-Object {$_.module_name -eq '@minecraft/server-ui'})
+        if(!$ui.Count){
+            $manifest.dependencies+=@{module_name='@minecraft/server-ui';version='2.0.0'}
+            [IO.File]::WriteAllText($manifestPath,($manifest | ConvertTo-Json -Depth 32))
+        }elseif($ui.Count -ne 1 -or $ui[0].version -ne '2.0.0'){throw 'Unexpected server-ui dependency'}
         $scripts=Join-Path $stage 'scripts'
         Move-Item (Join-Path $scripts 'main.js') (Join-Path $scripts 'fresh-runtime.js')
         foreach($name in @('trace.js','handoff.js','startup-custody.js')){

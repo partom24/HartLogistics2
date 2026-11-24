@@ -14,7 +14,7 @@ Fresh LAB is the sole active Hart Logistics development line. Hart Logistics 1.4
 
 ## Install and inspect
 
-Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Select a Collector and interact with its Receiver. The Receiver immediately reports its discovered transport blocks and Sorters. Saved links register at startup. Placing or breaking blocks in a discovered area automatically refreshes the affected bank. Use `/scriptevent hartlab:status` to inspect both banks. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.
+Use the source updater and pinned LAB installer described in [GIT_WORKFLOW.md](GIT_WORKFLOW.md). Right-click a Collector to inspect its current link. Choose **Link Receiver** or **Relink Receiver**, right-click the intended Receiver within 60 seconds, and confirm the two addresses. **Unlink Receiver** also asks for confirmation. Right-clicking a Receiver on its own shows its linked Collectors. Sneak-interact to place blocks against either endpoint. Saved links register at startup. Placing or breaking blocks in a discovered area automatically refreshes the affected bank. Use `/scriptevent hartlab:status` to inspect both banks. Setup inspects existing construction. The historical build_layout function is a world-building fixture and is unnecessary for discovery.
 
 ## How a Receiver finds its destinations
 

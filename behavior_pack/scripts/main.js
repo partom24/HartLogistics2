@@ -9,6 +9,7 @@
 import { world, system, ItemStack, BlockPermutation, EquipmentSlot,
          EnchantmentTypes, Potions } from '@minecraft/server';
 
+import { ActionFormData } from '@minecraft/server-ui';
 import { isolatedMigration } from './migration-mode.js';
 import { q4LabStep, q4Census } from './q4Lab.js';
 import { discover, HOPPER, PIPE, isTransport, neighbors, step, positionKey } from './topology.js';
@@ -18,7 +19,7 @@ const COLLECTOR_ID = 'hartsorter:collector';
 const RECEIVER_ID = 'hartsorter:receiver';
 const SORTER_MODE_STATE = 'hartlogistics:mode';
 const SORTER_MODES = ['filter','wildcard','auto','bypass'];
-const selectedCollector = new Map();
+const linkSessions = new Map();
 function log(msg) { console.warn(`[HartLogistics Fresh LAB] ${msg}`); }
 function keyFor(prefix, d, p) {
     const dim = (d === 'minecraft:overworld' || d === 'overworld') ? 'o'
@@ -507,37 +508,80 @@ function playerTargetsSorterServiceFace(player){
         return hit?.block?.typeId===SORTER_ID && hit.face===sorterRearFace(hit.block);
     }catch(_){return false;}
 }
-function selectCollector(player,block){
-    const id=keyFor('c',block.dimension.id,block.location);
-    selectedCollector.set(player.id,id);
-    const raw=world.getDynamicProperty(id);
-    let info;try{info=typeof raw==='string'?JSON.parse(raw):{};}catch(_){info={};}
-    player.sendMessage(`§b[Collector] Selected. ${info?.receiver?'Linked to '+info.receiver+'. ':'Not linked. '}Interact with a Receiver to link.`);
-    player.sendMessage('§7[Fresh LAB] Linked Collectors with input inventories use the linked Receiver transport lane.');
+function endpointLabel(key){
+    const p=labKeyParse(key);
+    return p ? `${p.d.replace('minecraft:','')} (${p.x}, ${p.y}, ${p.z})` : key;
 }
-function useReceiver(player,block){
-    const id=keyFor('r',block.dimension.id,block.location);
-    const selection=selectedCollector.get(player.id);
-    if(selection){
-        let info={};try{const raw=world.getDynamicProperty(selection);if(typeof raw==='string')info=JSON.parse(raw);}catch(_){}
-        info.receiver=id;
-        try{world.setDynamicProperty(selection,JSON.stringify(info));}
-        catch(err){log(`Link save failed: ${err}`);player.sendMessage('§c[Collector] Link not saved.');return;}
-        routingCollectorAdded(selection);
-        selectedCollector.delete(player.id);
-        player.sendMessage(`§a[Hart Logistics] Collector linked to Receiver at ${block.location.x}, ${block.location.y}, ${block.location.z}.`);
-        const bank=labBankForReceiver(id);
-        const net=labDiscover(bank);
-        player.sendMessage(net
-            ? `§a[Receiver] Registered ${net.lane.length} ${net.method===PIPE?'Transporters':'Hoppers'} and ${labBuildIndex(bank).total} Sorters.`
-            : '§e[Receiver] '+bank.blocked);
-    }else player.sendMessage('§7[Receiver] Select a Collector first, then click this Receiver to link.');
-    player.sendMessage('§7[Fresh LAB] The Receiver discovers its connected Hopper or Transporter lane.');
+function requireEndpoint(key,type){
+    const p=labKeyParse(key);
+    if(!p || labGet(p.d,p)?.typeId!==type)throw Error('Endpoint unavailable. Open the Collector menu again.');
 }
-
+async function endpointMenu(player,block){
+    const playerId=player.id;
+    const collector=block.typeId===COLLECTOR_ID;
+    const key=keyFor(collector?'c':'r',block.dimension.id,block.location);
+    const pending=linkSessions.get(playerId);
+    const selecting=!collector && pending?.armed && system.currentTick<pending.expires;
+    const session=selecting ? pending : {};
+    session.armed=false;
+    if(collector)session.source=key;
+    else session.target=key;
+    linkSessions.set(playerId,session);
+    try{
+        const form=new ActionFormData();
+        let unlink=false;
+        if(collector){
+            session.original=world.getDynamicProperty(key);
+            const data=JSON.parse(session.original??'{}');
+            form.title('Hart Collector').body(endpointLabel(key)+'\nReceiver: '+(data.receiver?endpointLabel(data.receiver):'Unlinked'))
+                .button(data.receiver?'Relink Receiver':'Link Receiver');
+            if(data.receiver)form.button('Unlink Receiver');
+            form.button('Close');
+            const answer=await form.show(player);
+            if(linkSessions.get(playerId)!==session || answer.canceled)return;
+            requireEndpoint(key,COLLECTOR_ID);
+            if(answer.selection===0){
+                session.expires=system.currentTick+1200;
+                player.sendMessage('[Hart Logistics] Right-click the intended Receiver within 60 seconds.');
+                session.armed=true;
+                return;
+            }
+            if(!data.receiver || answer.selection!==1)return;
+            unlink=true;
+            session.target=data.receiver;
+        }else if(!selecting){
+            const linked=labCollectorKeys.filter(id=>labLinkedReceiver(id)===key);
+            form.title('Hart Receiver').body(endpointLabel(key)+'\nLinked Collectors: '+linked.length+
+                (linked.length?'\n'+linked.map(endpointLabel).join('\n'):'')).button('Close');
+            await form.show(player);
+            return;
+        }
+        const confirmation=new ActionFormData().title(unlink?'Unlink Receiver?':'Link Receiver?')
+            .body('Collector: '+endpointLabel(session.source)+'\nReceiver: '+endpointLabel(session.target))
+            .button(unlink?'Unlink':'Confirm link').button('Cancel');
+        const answer=await confirmation.show(player);
+        if(linkSessions.get(playerId)!==session || answer.canceled || answer.selection!==0)return;
+        requireEndpoint(session.source,COLLECTOR_ID);
+        if(!unlink)requireEndpoint(session.target,RECEIVER_ID);
+        if(world.getDynamicProperty(session.source)!==session.original)throw Error('Collector settings changed. Open its menu again.');
+        const info=JSON.parse(session.original??'{}');
+        if(unlink)delete info.receiver;
+        else info.receiver=session.target;
+        const saved=JSON.stringify(info);
+        world.setDynamicProperty(session.source,saved);
+        if(world.getDynamicProperty(session.source)!==saved)throw Error('Could not verify the saved link.');
+        routingCollectorChanged(session.source);
+        player.sendMessage(unlink?'[Hart Logistics] Receiver unlinked.':'[Hart Logistics] Linked to '+endpointLabel(session.target));
+    }catch(error){
+        if(linkSessions.get(playerId)===session)player.sendMessage('[Hart Logistics] '+error);
+    }finally{
+        if(linkSessions.get(playerId)===session && !session.armed)linkSessions.delete(playerId);
+    }
+}
 // Keep 1.4.1's item-use suppression: pearls, charges, etc. must not activate
 // while the player is interacting with the Sorter's filter/service face.
 function registerRoutingInteractions(){
+world.afterEvents.playerLeave.subscribe(ev=>linkSessions.delete(ev.playerId));
 world.beforeEvents.itemUse.subscribe(ev=>{
     if(ev.itemStack && playerTargetsSorterServiceFace(ev.source))ev.cancel=true;
 });
@@ -601,8 +645,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe(ev=>{
     const d=ev.block.dimension.id,p=ev.block.location,player=ev.player;
     system.run(()=>{
         const b=getBlock(d,p.x,p.y,p.z);
-        if(b?.typeId===COLLECTOR_ID)selectCollector(player,b);
-        if(b?.typeId===RECEIVER_ID)useReceiver(player,b);
+        if(b?.typeId===id)void endpointMenu(player,b);
     });
 });
 world.afterEvents.playerPlaceBlock.subscribe(ev=>{
@@ -614,10 +657,9 @@ world.afterEvents.playerPlaceBlock.subscribe(ev=>{
         if(e){syncSorterModeVisual(e,b);system.runTimeout(()=>nativeFrameFresh(d,p.x,p.y,p.z),1);}
         else ev.player?.sendMessage('§c[Sorter] Could not save configuration.');
     }else if(b.typeId===COLLECTOR_ID){
-        selectedCollector.set(ev.player.id,keyFor('c',d,p));
-        ev.player?.sendMessage('§b[Collector] Placed and selected. Click a Hart Receiver to link.');
+        ev.player?.sendMessage('§b[Collector] Open the Collector menu to link a Receiver.');
     }else if(b.typeId===RECEIVER_ID){
-        ev.player?.sendMessage('§6[Receiver] Placed. Select a Collector and click this Receiver to link.');
+        ev.player?.sendMessage('§6[Receiver] Placed. Open the Receiver menu to inspect incoming links.');
     }
 });
 world.beforeEvents.playerBreakBlock.subscribe(ev=>{
@@ -676,6 +718,12 @@ world.afterEvents.playerBreakBlock.subscribe(ev=>{
     invalidateRouting(ev.dimension.id,ev.block.location);
     refreshPipeNeighbors(ev.dimension.id,ev.block.location);
     let typeId='';try{typeId=ev.brokenBlockPermutation.type.id;}catch(_){try{typeId=ev.brokenBlockPermutation.typeId;}catch(_){}}
+    if(typeId===COLLECTOR_ID || typeId===RECEIVER_ID){
+        const key=keyFor(typeId===COLLECTOR_ID?'c':'r',ev.dimension.id,ev.block.location);
+        for(const [id,session] of linkSessions){
+            if(session.source===key || session.target===key)linkSessions.delete(id);
+        }
+    }
     if(typeId!==SORTER_ID)return;
     const e={d:ev.dimension.id,...ev.block.location};
     const k=keyFor('s',e.d,e);
@@ -702,13 +750,14 @@ function invalidateRouting(d,p){
         queueRegistration(b);
     }
 }
-function routingCollectorAdded(key){
-    if(!labCollectorKeys.includes(key))labCollectorKeys.push(key);
+function routingCollectorChanged(key){
     const receiver=labLinkedReceiver(key);
+    const index=labCollectorKeys.indexOf(key);
     if(receiver){
+        if(index<0)labCollectorKeys.push(key);
         const bank=labBankForReceiver(receiver);
         if(bank)queueRegistration(bank);
-    }
+    }else if(index>=0)labCollectorKeys.splice(index,1);
 }
 // Coalesce build edits and reuse the same discovery cache for status and dispatch.
 function queueRegistration(bank){
@@ -1776,7 +1825,7 @@ function labProcessInputs(){
 function labLoadState(){
     try{
         const ids=world.getDynamicPropertyIds();
-        for(const key of ids)if(/^hartlab:c_[one]_/.test(key))routingCollectorAdded(key);
+        for(const key of ids)if(/^hartlab:c_[one]_/.test(key))routingCollectorChanged(key);
         const raw=world.getDynamicProperty(LAB_ROUTE_STATE);
         if(typeof raw==='string'){
             const saved=JSON.parse(raw);

@@ -4,6 +4,14 @@ const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const root=path.resolve(__dirname,'../behavior_pack/scripts/main.js');
 const topology=fs.readFileSync(path.join(path.dirname(root),'topology.js'),'utf8').replace(/export /g,'');
 const src=fs.readFileSync(root,'utf8').replace(/import\s*\{[^}]*\}\s*from\s*'@minecraft\/server';/s,'');
+const forms=[];
+class MockActionForm {
+    constructor(){this.buttons=[];}
+    title(s){this.heading=s;return this;}
+    body(s){this.description=s;return this;}
+    button(s){this.buttons.push(s);return this;}
+    show(player){this.player=player;forms.push(this);return new Promise(resolve=>{this.answer=resolve;});}
+}
 const queued=[],intervals=[],handlers={};
 const makeEvents=()=>({subscribe(fn){(this.handlers||(this.handlers=[])).push(fn);}});
 const system={beforeEvents:{startup:makeEvents()},run(fn){queued.push({fn,t:0});},runTimeout(fn,t=0){queued.push({fn,t});},
@@ -58,11 +66,11 @@ function makeBlock(typeId,p){
   b.setPermutation=(per)=>{b.permutation=per;};return b;
 }
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
-const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
+const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerLeave:makeEvents(),playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
 function newRuntime(isolatedMigration=false){
-    const context=vm.createContext({world,system,isolatedMigration,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
+    const context=vm.createContext({world,system,ActionFormData:MockActionForm,isolatedMigration,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
     const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
-    vm.runInContext(src.replace(/import \{ isolatedMigration[^;]+;/,'').replace(/export function /g,'function ').replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
+    vm.runInContext(src.replace("import { ActionFormData } from '@minecraft/server-ui';",'').replace(/import \{ isolatedMigration[^;]+;/,'').replace(/export function /g,'function ').replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
     return context;
 }
 const context=newRuntime();
@@ -346,18 +354,62 @@ console.log('PASS: simultaneous Hopper and Transporter banks, 10 pipes/40 Sorter
 
 // Parallel rows with one block of clearance between their footprints. Use the
 // player link interaction with empty inputs and inspect the cache directly.
+async function finishRoutingTests(){
+system.currentTick=5;
 const adjacentH=bank(2200,80,1024,-1,0,10,4);
 const adjacentT=bank(2200,80,1027,-1,0,10,4);
 const player={id:'builder',sendMessage(){}};
-function linkRig(z){
+function click(block,who=player){
+  const ev={isFirstEvent:true,block,player:who};
+  for(const cb of world.beforeEvents.playerInteractWithBlock.handlers)cb(ev);
+  drain();
+  return ev;
+}
+async function answer(form,label){
+  const index=form.buttons.indexOf(label);
+  assert.ok(index>=0,label);
+  form.answer({selection:index,canceled:false});
+  await new Promise(resolve=>setImmediate(resolve));
+}
+async function linkRig(z){
   const collector=getBlock({x:2204,y:80,z}),receiver=getBlock({x:2201,y:80,z});
-  Object.assign(context,{builder:player,collectorBlock:collector,receiverBlock:receiver});
-  properties.delete('hartlab:c_o_2204_80_'+z);
-  vm.runInContext('selectCollector(builder,collectorBlock);useReceiver(builder,receiverBlock)',context);
+  const other=getBlock({x:2201,y:80,z:z===1024?1027:1024});
+  const key='hartlab:c_o_2204_80_'+z, prior=properties.get(key);
+  for(const fn of world.afterEvents.playerPlaceBlock.handlers)fn({block:collector,player});
+  assert.ok(click(collector).cancel);
+  await answer(forms.at(-1),'Close');
+  click(other);
+  assert.equal(forms.at(-1).heading,'Hart Receiver');
+  await answer(forms.at(-1),'Close');
+  assert.equal(properties.get(key),prior);
+  assert.equal(click(receiver,{...player,isSneaking:true}).cancel,undefined);
+  click(collector);await answer(forms.at(-1),'Relink Receiver');
+  click(other,{...player,id:'second-player'});
+  assert.equal(forms.at(-1).heading,'Hart Receiver');
+  await answer(forms.at(-1),'Close');
+  click(other);await answer(forms.at(-1),'Cancel');
+  assert.equal(properties.get(key),prior);
+  click(collector);await answer(forms.at(-1),'Unlink Receiver');
+  await answer(forms.at(-1),'Unlink');
+  assert.equal(JSON.parse(properties.get(key)).receiver,undefined);
+  click(collector);await answer(forms.at(-1),'Link Receiver');
+  system.currentTick+=1201;
+  click(other);assert.equal(forms.at(-1).heading,'Hart Receiver');
+  await answer(forms.at(-1),'Close');
+  click(collector);await answer(forms.at(-1),'Link Receiver');
+  click(other);
+  properties.set(key,JSON.stringify({marker:1}));
+  await answer(forms.at(-1),'Confirm link');
+  assert.deepEqual(JSON.parse(properties.get(key)),{marker:1});
+  click(collector);await answer(forms.at(-1),'Link Receiver');
+  click(receiver);await answer(forms.at(-1),'Confirm link');
+  assert.equal(JSON.parse(properties.get(key)).marker,1);
+  assert.equal(JSON.parse(properties.get(key)).receiver,'hartlab:r_o_2201_80_'+z);
 }
 for(const h of adjacentT.hoppers)h.setType('hartlogistics:transporter');
 adjacentT.hoppers[0].setType('minecraft:air');
-linkRig(1024);linkRig(1027);drain();
+await linkRig(1024);await linkRig(1027);drain();
+console.log('PASS: endpoint inspection, explicit link, relink cancellation, player isolation, timeout, unlink and concurrent change');
 assert.equal(evalBank(adjacentH,'b.cache.total'),40);
 assert.equal(evalBank(adjacentT,'b.net'),null);
 const inlet=adjacentT.hoppers[0];
@@ -814,3 +866,6 @@ console.log('PASS: synthetic Q4 transfer through a selected linked Receiver and 
     assert.equal(src.getItem(0),undefined);
     assert.deepEqual(dest.getItem(0).props,bow.props);
 }
+
+}
+finishRoutingTests().catch(error=>{console.error(error);process.exitCode=1;});
