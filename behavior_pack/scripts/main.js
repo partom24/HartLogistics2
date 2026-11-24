@@ -56,11 +56,11 @@ function entryForBlock(block, create=false) {
     return e;
 }
 function saveEntry(e) {
-    try { world.setDynamicProperty(keyFor('s',e.d,e),JSON.stringify(e));invalidateRouting(e.d,e);return true; }
+    try { const key=keyFor('s',e.d,e);world.setDynamicProperty(key,JSON.stringify(e));rememberLocalSorter(key,true);invalidateRouting(e.d,e);return true; }
     catch(err){log(`Write failed at ${e.d} ${e.x},${e.y},${e.z}: ${err}`);return false;}
 }
 function clearEntry(e) {
-    try { world.setDynamicProperty(keyFor('s',e.d,e),undefined);invalidateRouting(e.d,e); } catch(err) {log(`Clear failed: ${err}`);}
+    try { const key=keyFor('s',e.d,e);world.setDynamicProperty(key,undefined);rememberLocalSorter(key,false);invalidateRouting(e.d,e); } catch(err) {log(`Clear failed: ${err}`);}
 }
 function sorterMode(e) {return SORTER_MODES.includes(e?.m) ? e.m : 'wildcard';}
 function syncSorterModeVisual(e,b=sorterAt(e)) {
@@ -880,6 +880,15 @@ if (isolatedMigration!==true) system.beforeEvents.startup.subscribe(({blockCompo
         },
         onRedstoneUpdate({block, powerLevel}) {
             const powered = powerLevel > 0;
+            if(block.typeId===COLLECTOR_ID){
+                const key=keyFor('c',block.dimension.id,block.location);
+                if(!powered)ejectionRise.delete(key);
+                else if(block.permutation.getState(POWERED)===false){
+                    const tick=system.currentTick;
+                    ejectionRise.set(key,tick);
+                    system.runTimeout(()=>{if(ejectionRise.get(key)===tick)ejectionRise.delete(key);},7);
+                }
+            }
             if (block.permutation.getState(POWERED) !== powered)
                 block.setPermutation(block.permutation.withState(POWERED, powered));
         }
@@ -937,7 +946,7 @@ function labCollectorSources(key,inspect=false){
                 const container=labBlockInventory(block);
                 if(container)feeders.push({loc,dimension:p.d,container});
             }
-        }else if(!direct && !hasFeeder){
+        }else if(!direct && !hasFeeder && !isEjector(block)){
             const container=labBlockInventory(block);
             if(container)direct={loc,dimension:p.d,container};
         }
@@ -1826,6 +1835,7 @@ function labLoadState(){
     try{
         const ids=world.getDynamicPropertyIds();
         for(const key of ids)if(/^hartlab:c_[one]_/.test(key))routingCollectorChanged(key);
+        for(const key of ids)if(labKeyParse(key)?.kind==='s')rememberLocalSorter(key,true);
         const raw=world.getDynamicProperty(LAB_ROUTE_STATE);
         if(typeof raw==='string'){
             const saved=JSON.parse(raw);
@@ -1946,11 +1956,143 @@ function labRoutingEvent(ev){
         }catch(err){log(String(err));source?.sendMessage('[Hart LAB] '+err);}
     });
 }
+const localSorters = new Set();
+let localSorterCursor;
+let localSorterScanDirty=true;
+
+function rememberLocalSorter(key,present){
+    if(present===localSorters.has(key))return;
+    if(present)localSorters.add(key);
+    else localSorters.delete(key);
+    localSorterScanDirty=true;
+}
+
+function serviceLocalSorters(banks){
+    if(startupHold || !localSorters.size)return;
+    if(localSorterScanDirty){
+        localSorterCursor=localSorters.values();
+        localSorterScanDirty=false;
+    }
+    for(let n=0;n<Math.min(32,localSorters.size);n++){
+        let next=localSorterCursor.next();
+        if(next.done){
+            localSorterCursor=localSorters.values();
+            next=localSorterCursor.next();
+        }
+        try{serviceLocalColumn(labKeyParse(next.value),banks);}
+        catch(error){log('Local Sorter: '+error);}
+    }
+}
+
+function serviceLocalColumn(p,banks){
+    const top=labGet(p.d,p);
+    if(top?.typeId!==SORTER_ID)return;
+    const above={x:p.x,y:p.y+1,z:p.z};
+    const hopper=labGet(p.d,above);
+    if(hopper?.typeId!==HOPPER || hopper.permutation.getState('toggle_bit'))return;
+    const input=labBlockInventory(hopper);
+    if(!input || input.emptySlotsCount===input.size)return;
+    const key=positionKey(above);
+    if(banks.some(bank=>bank.cfg.dimension===p.d &&
+        (bank.net?.taps.has(key) || bank.active?.lane.some(pos=>positionKey(pos)===key) ||
+         (!bank.net && bank.discoveryChunks && bank.watched?.has(key)))))return;
+    const column=[];
+    for(let y=p.y;;y--){
+        const sorter=labGet(p.d,{x:p.x,y,z:p.z});
+        if(sorter?.typeId!==SORTER_ID)break;
+        if(sorter.getRedstonePower()!==0)continue;
+        const data=entryForBlock(sorter);
+        const mode=sorterMode(data??{m:sorter.permutation.getState(SORTER_MODE_STATE)});
+        const face=facingOffset(sorter);
+        if(!face || data?.nativeQuarantine || mode==='bypass')continue;
+        const position={x:p.x+face.x,y:y+face.y,z:p.z+face.z};
+        const block=labGet(p.d,position);
+        const id=block?.typeId;
+        const storage=/^minecraft:(?:chest|trapped_chest|barrel|(?:.*_)?shulker_box)$/.test(id);
+        if(storage || id===COLLECTOR_ID)column.unshift({position,block,storage,mode,filter:data?.f});
+    }
+    const source={loc:above,dimension:p.d,container:input};
+    for(let slot=0;slot<input.size;slot++){
+        const item=input.getItem(slot);
+        if(!item || world.getDynamicProperty(mrSlotKey(source,slot))!==undefined)continue;
+        for(const mode of ['filter','auto','wildcard']){
+            for(const out of column){
+                if(out.mode!==mode || (mode==='filter' && (!out.filter || !matchesFilter(item,out.filter))))continue;
+                const container=out.storage?labBlockInventory(out.block):collectorOutput(out.block);
+                if(!container || (mode==='auto' && !labHasMatchingSeed(container,item)))continue;
+                const moved=bulkOrdinary(item)?labSafeTransfer(input,slot,container,item):
+                    mrMoveToInventory(source,slot,item,{position:out.position,container},p.d);
+                if(moved)return;
+            }
+        }
+    }
+}
+
+const ejectionRise = new Map();
+function isEjector(block){
+    return block?.typeId==='minecraft:dropper' || block?.typeId==='minecraft:dispenser';
+}
+function captureEjection(entity,origin,dimension,attempt=0){
+    if(startupHold || !entity.isValid)return;
+    const base={x:Math.floor(origin.x),y:Math.floor(origin.y),z:Math.floor(origin.z)};
+    for(let x=base.x-1;x<=base.x+1;x++)for(let y=base.y-1;y<=base.y+1;y++)for(let z=base.z-1;z<=base.z+1;z++){
+        if(origin.x<x-0.35 || origin.x>x+1.35 || origin.y<y-0.35 || origin.y>y+1.35 ||
+            origin.z<z-0.35 || origin.z>z+1.35)continue;
+        const p={x,y,z}, collector=labGet(dimension,p);
+        if(collector?.typeId!==COLLECTOR_ID)continue;
+        const key=keyFor('c',dimension,p);
+        if(!labLinkedReceiver(key))continue;
+        const powered=collector.permutation.getState(POWERED);
+        const rise=ejectionRise.get(key);
+        for(const [dx,dy,dz,toward] of collectorFaces){
+            const emitter=labGet(dimension,{x:x+dx,y:y+dy,z:z+dz});
+            if(!isEjector(emitter) || emitter.permutation.getState('facing_direction')!==(toward??1) ||
+                !emitter.permutation.getState('triggered_bit'))continue;
+            // The initial position must be near the emitter face, within the Collector.
+            const along=(origin.x-x-0.5)*dx+(origin.y-y-0.5)*dy+(origin.z-z-0.5)*dz;
+            if(along<0.15 || along>0.85)continue;
+            if(powered!==false && (powered!==true || rise===undefined || system.currentTick-rise>6))return;
+            const item=entity.getComponent('minecraft:item')?.itemStack;
+            if(!item)break;
+            const buffer=labBlockInventory(collectorBuffer(collector,true));
+            if(!buffer)return;
+            for(let slot=0;slot<buffer.size;slot++){
+                const fence=mrSlotKey({loc:p,dimension},slot);
+                if(buffer.getItem(slot) || world.getDynamicProperty(fence)!==undefined)continue;
+                world.setDynamicProperty(fence,JSON.stringify({source:p,dimension,slot,entity:entity.id,item:item.typeId,amount:item.amount}));
+                buffer.setItem(slot,item);
+                const received=buffer.getItem(slot);
+                if(received?.typeId!==item.typeId || received.amount!==item.amount)throw Error('Ejection buffer write uncertain');
+                try{entity.remove();}
+                catch(error){
+                    if(!entity.isValid)throw error;
+                }
+                if(entity.isValid){
+                    buffer.setItem(slot,undefined);
+                    if(buffer.getItem(slot))throw Error('Could not roll back ejection buffer');
+                }
+                world.setDynamicProperty(fence,undefined);
+                return;
+            }
+            return;
+        }
+    }
+    if(attempt<4)system.runTimeout(()=>tryEjection(entity,origin,dimension,attempt+1),1);
+}
+function tryEjection(entity,origin,dimension,attempt=0){
+    try{captureEjection(entity,origin,dimension,attempt);}
+    catch(error){log('Collector ejection held for inspection: '+error);}
+}
+
 let routingStarted=false;
 export function startFreshRouting(){
     if(routingStarted)throw Error('Routing already started');
     routingStarted=true;
     registerRoutingInteractions();
+    world.afterEvents.entitySpawn.subscribe(({entity})=>{
+        if(entity.typeId==='minecraft:item')
+            tryEjection(entity,entity.location,entity.dimension.id);
+    });
 system.afterEvents.scriptEventReceive.subscribe(labRoutingEvent);
 system.run(labLoadState);
 system.runInterval(()=>{
@@ -1968,6 +2110,7 @@ system.runInterval(()=>{
             }
         }
         labProcessInputs();
+        serviceLocalSorters(banks);
     }
 },1);
 }

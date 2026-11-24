@@ -60,13 +60,14 @@ function makeBlock(typeId,p){
   if(typeId==='minecraft:hopper')b.inv=new Container(5);
   if(typeId==='minecraft:chest')b.inv=new Container(27);
   if(typeId==='minecraft:barrel')b.inv=new Container(27);
+  b.getRedstonePower=()=>b.power??0;
   b.getComponent=(name)=>name==='minecraft:inventory'&&b.inv?{container:b.inv}:undefined;
   b.setType=(id)=>{b.typeId=id;b.inv=id==='minecraft:barrel'||id==='minecraft:chest'?new Container(27):id==='minecraft:hopper'?new Container(5):undefined;};
   b.permutation={getState(n){return b.states[n];},withState(n,v){b.states[n]=v;return b.permutation;}};
   b.setPermutation=(per)=>{b.permutation=per;};return b;
 }
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
-const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{playerLeave:makeEvents(),playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
+const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{entitySpawn:makeEvents(),playerLeave:makeEvents(),playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
 function newRuntime(isolatedMigration=false){
     const context=vm.createContext({world,system,ActionFormData:MockActionForm,isolatedMigration,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
     const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
@@ -581,6 +582,65 @@ dim.spawnEntity=(typeId,location)=>{
         remove:()=>helpers.delete(id)};
     helpers.set(id,e);return e;
 };
+// Legacy local column and a Receiver lane carrying the same cargo concurrently.
+const localHopper=place('minecraft:hopper',-1200,71,-300);
+const localSorter=place('hartsorter:sorter',-1200,70,-300);
+const localChest=place('minecraft:chest',-1200,70,-299);
+const wrongSide=place('minecraft:chest',-1200,70,-301);
+properties.set('hartlab:s_o_-1200_70_-300',JSON.stringify({d:dim.id,...localSorter.location,m:'auto'}));
+localChest.inv.setItem(0,new Stack(wanted,1));
+localHopper.inv.setItem(0,new Stack(wanted,3));
+localSorter.power=15;
+vm.runInContext('labLoadState()',context);drain();ticks(96);
+assert.equal(localHopper.inv.count(wanted),3);
+localSorter.power=0;
+ticks(96);
+assert.equal(localChest.inv.count(wanted),4);
+assert.equal(wrongSide.inv.count(wanted),0);
+const protectedBank=bank(-1400,70,-360,-1,0,3,1);
+banks.push(protectedBank);
+const firstKey='hartlab:s_o_-1400_69_-360';
+const first=JSON.parse(properties.get(firstKey));
+properties.set(firstKey,JSON.stringify({...first,m:'wildcard'}));
+const routedType=fixtureItem(2,1);
+protectedBank.input.setItem(0,new Stack(routedType,8));
+localHopper.inv.setItem(0,new Stack(wanted,5));
+vm.runInContext('labLoadState()',context);drain();ticks(192);
+assert.equal(protectedBank.chests[0].count(routedType),0);
+assert.equal(protectedBank.chests[2].count(routedType),8);
+assert.equal(localChest.inv.count(wanted),9);
+
+
+const pulseBank=bank(-1300,70,-330,-1,0,2,1);
+for(const h of pulseBank.hoppers)h.setType(pipeId);
+const pulseCollector=getBlock({x:-1296,y:70,z:-330});
+const emitter=place('minecraft:dropper',-1295,70,-330);
+emitter.states.facing_direction=4;
+emitter.states.triggered_bit=true;
+emitter.inv=new Container(9);
+emitter.inv.setItem(0,new Stack(fixtureItem(0,1),9));
+const eject=(location={x:-1295.1,y:70.5,z:-329.5})=>{
+    const stack=new Stack(fixtureItem(0,1),1);
+    const entity={typeId:'minecraft:item',dimension:dim,location,isValid:true,
+        getComponent:()=>({itemStack:stack}),remove(){this.isValid=false;}};
+    for(const cb of world.afterEvents.entitySpawn.handlers)cb({entity});
+    return entity;
+};
+vm.runInContext('labLoadState()',context);drain();
+assert.equal(eject().isValid,false);
+assert.equal(emitter.inv.count(fixtureItem(0,1)),9);
+emitter.typeId='minecraft:dispenser';
+power(pulseCollector,15);
+assert.equal(eject().isValid,false);
+system.currentTick+=7;
+assert.equal(eject().isValid,true);
+power(pulseCollector,0);
+assert.equal(eject({x:-1295.7,y:70.5,z:-329.5}).isValid,true);
+ticks(96);
+assert.equal(pulseBank.chests[0].count(fixtureItem(0,1)),2);
+assert.equal(emitter.inv.count(fixtureItem(0,1)),9);
+console.log('PASS: standalone facing-side AUTO and redstone, dropper/dispenser intake, pulse grace and sustained-power refusal');
+
 for(const directPipe of [true,false]){
     const x=directPipe?10010:10110,z=450;
     const upstream=bank(x,70,z,-1,0,2,1);
