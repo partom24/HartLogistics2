@@ -997,6 +997,7 @@ function labBuildIndex(b){
 function labAdjacentInventories(candidate,strict=false,nativeOnly=false){
     const block=labGet(candidate.p.d,candidate.p);
     if(block?.typeId!==SORTER_ID){if(strict)throw Error('Sorter unavailable');return [];}
+    if(block.getRedstonePower()!==0)return [];
     const facing=facingOffset(block);
     if(!facing)return [];
     const all=[facing,{x:1,y:0,z:0},{x:-1,y:0,z:0},{x:0,y:0,z:1},
@@ -1011,6 +1012,7 @@ function labAdjacentInventories(candidate,strict=false,nativeOnly=false){
         // compatible vanilla/custom inventory blocks are valid destinations.
         const neighbor=labGet(candidate.p.d,p);
         if(strict && !neighbor)throw Error('Output neighbor unavailable');
+        if(neighbor?.typeId===HOPPER && neighbor.permutation.getState('toggle_bit'))continue;
         if(nativeOnly && neighbor?.typeId===COLLECTOR_ID){found.push({position:p,relay:true});continue;}
         const inv=neighbor?.typeId===COLLECTOR_ID ? collectorOutput(neighbor,candidate.bankKey) : strict ? neighbor.getComponent('minecraft:inventory')?.container : labBlockInventory(neighbor);
         if(inv && !candidate.lane.has(k))found.push({position:p,container:inv});
@@ -1052,7 +1054,7 @@ function labCanFitEntire(inv,item){
     return false;
 }
 function labMatchingOutputs(index,item){
-    const filters=(index.filters.get(item.typeId)||[]).filter(c=>matchesFilter(item,c.filter));
+    const filters=(index.filters.get(item.typeId)||[]).filter(c=>matchesFilter(item,c.filter) && labGet(c.p.d,c.p)?.getRedstonePower()===0);
     const autos=index.autos.filter(c=>labAdjacentInventories(c,true).some(({container})=>labHasMatchingSeed(container,item)));
     return filters.concat(autos);
 }
@@ -1128,7 +1130,8 @@ function extendHopperShipment(b,key){
     if(b.coveredAt!==labTick || !a || a.extended || a.collector!==key || a.revision!==b.generation ||
         !bulkOrdinary(a.reference) || !receiverAccepts(b))return false;
     const dest=labDestinationContainer(a.target);
-    const inlet=labContainer(b.cfg.dimension,a.lane[0]);
+    const inlet=unlockedHopperInventory(b.cfg.dimension,a.lane[0]);
+    if(labGet(a.target.p.d,a.target.p)?.getRedstonePower()!==0)return false;
     if(!dest || !inlet)return false;
     for(const source of labCollectorSources(key)){
         if(source.dimension===b.cfg.dimension && b.net.taps.has(positionKey(source.loc)))continue;
@@ -1204,11 +1207,16 @@ function labPipeDispatch(b,source,slot,item,target){
     if(moved){b.blocked='';b.lastDestination=target.destination;}
     return moved>0;
 }
+function unlockedHopperInventory(d,p){
+    const hopper=labGet(d,p);
+    if(hopper?.typeId===HOPPER && !hopper.permutation.getState('toggle_bit'))
+        return labBlockInventory(hopper);
+}
 function labTryDispatch(b,key,source,slot,item,target,start=0){
     const cfg=b.cfg;
     if(b.net.method===PIPE)return labPipeDispatch(b,source,slot,item,target);
     if(!labLineEmpty(b)){b.blocked='hopper line contains existing items; waiting for it to drain';return false;}
-    const first=labContainer(cfg.dimension,b.net.lane[start]);
+    const first=unlockedHopperInventory(cfg.dimension,b.net.lane[start]);
     if(!first||!labCanFitEntire(first,item)){
         b.blocked='first hopper unavailable/full';return false;
     }
@@ -1540,11 +1548,12 @@ function* mrOutputs(bank,item){
             throw Error('Unreadable MR book enchantments');
     }
     const filters=sameType.filter(c=>matchesFilter(item,c.filter));
-    let claimed=filters.length>0;
+    let claimed=false;
     for(const list of [filters,index.autos,index.wildcards]){
         for(const c of list){
             const outputs=labAdjacentInventories(c,true,true);
             for(const out of outputs){
+                if(c.mode==='filter')claimed=true;
                 if(c.mode==='auto'){
                     if(!out.container || !mrSeedMatches(out.container,item))continue;
                     claimed=true;
@@ -1689,7 +1698,8 @@ function labTickActive(b){
     if(a.revision!==b.generation){
         labStartRecovery(b,'Routing configuration invalidated during shipment');return;
     }
-    if(labGet(c.dimension,a.target.p)?.typeId!==SORTER_ID){
+    const sorter=labGet(c.dimension,a.target.p);
+    if(sorter?.typeId!==SORTER_ID){
         labStartRecovery(b,'Addressed Sorter missing or unavailable');return;
     }
     const tap=labGet(c.dimension,a.target.p.tap);
@@ -1697,8 +1707,13 @@ function labTickActive(b){
     const destination=labDestinationContainer(a.target);
     if(!hopper||!destination){labStartRecovery(b,'Addressed Hopper or destination unavailable');return;}
     try{
+        const output=labGet(c.dimension,a.target.destination);
+        const paused=sorter.getRedstonePower()!==0 || tap.permutation.getState('toggle_bit') ||
+            (output?.typeId===HOPPER && output.permutation.getState('toggle_bit'));
+        // Vanilla may still move cargo along the lane. Keep the shipment reserved
+        // and let regular empty-lane accounting settle any cargo that passes.
         // Only the already-addressed destination Hopper is inspected.
-        const slots=hopper.emptySlotsCount===hopper.size ? 0 : hopper.size;
+        const slots=paused || hopper.emptySlotsCount===hopper.size ? 0 : hopper.size;
         for(let i=0;i<slots;i++){
             const item=hopper.getItem(i);
             if(!item||!labLiveReferenceMatches(a.reference,item))continue;

@@ -608,6 +608,22 @@ localHopper.inv.setItem(0,new Stack(wanted,5));
 vm.runInContext('labLoadState()',context);drain();ticks(192);
 assert.equal(protectedBank.chests[0].count(routedType),0);
 assert.equal(protectedBank.chests[2].count(routedType),8);
+protectedBank.sorters[2].power=15;
+protectedBank.hoppers[0].states.toggle_bit=true;
+protectedBank.input.setItem(0,new Stack(routedType,4));
+ticks(48);
+assert.equal(protectedBank.input.count(routedType),4);
+assert.equal(protectedBank.chests[0].count(routedType),0);
+protectedBank.hoppers[0].states.toggle_bit=false;
+ticks(96);
+assert.equal(protectedBank.chests[0].count(routedType),4);
+assert.equal(protectedBank.chests[2].count(routedType),8);
+protectedBank.sorters[2].power=0;
+protectedBank.input.setItem(0,new Stack(routedType,3));
+ticks(96);
+assert.equal(protectedBank.chests[2].count(routedType),11);
+console.log('PASS: locked Receiver inlet holds source and powered Filter yields to Wildcard until unpowered');
+
 assert.equal(localChest.inv.count(wanted),9);
 
 
