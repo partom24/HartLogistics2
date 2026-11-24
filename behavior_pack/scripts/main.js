@@ -7,7 +7,7 @@
  * License: MPL-2.0 (see LICENSE and NOTICE.md).
  */
 import { world, system, ItemStack, BlockPermutation, EquipmentSlot,
-         EnchantmentTypes, Potions } from '@minecraft/server';
+         EnchantmentTypes, Potions, CommandPermissionLevel } from '@minecraft/server';
 
 import { ActionFormData } from '@minecraft/server-ui';
 import { isolatedMigration } from './migration-mode.js';
@@ -1889,6 +1889,20 @@ function labStats(source){
     if(!receivers.size)lines.push('No linked Receivers found.');
     for(const line of lines){log(line);source?.sendMessage('[Hart LAB] '+line);}
 }
+system.beforeEvents.startup.subscribe(({customCommandRegistry})=>{
+    customCommandRegistry.registerCommand({
+        name:'hartlogistics:status',
+        description:'Show Hart Logistics routing diagnostics.',
+        permissionLevel:CommandPermissionLevel.GameDirectors,
+        cheatsRequired:false,
+    }, origin=>{
+        const source=origin.sourceEntity;
+        system.run(()=>{
+            try{labStats(source);}
+            catch(error){log('Status unavailable: '+error);}
+        });
+    });
+});
 function labRoutingEvent(ev){
     if(!ev.id.startsWith('hartlab:'))return;
     const source=ev.sourceEntity, command=ev.id.slice(8);

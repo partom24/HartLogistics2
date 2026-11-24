@@ -69,7 +69,7 @@ function makeBlock(typeId,p){
 function place(type,x,y,z){blocks.set(`${x},${y},${z}`,makeBlock(type,{x,y,z}));return getBlock({x,y,z});}
 const world={tickingAreaManager:{maxChunkCount:1000,hasCapacity(){return true;},createTickingArea(){return {then(ready){ready();}};},removeTickingArea(){}},getDimension(){return dim;},getDynamicProperty(k){return properties.get(k);},setDynamicProperty(k,v){if(v===undefined)properties.delete(k);else properties.set(k,v);},getDynamicPropertyIds(){return [...properties.keys()];},beforeEvents:{itemUse:makeEvents(),playerInteractWithBlock:makeEvents(),playerBreakBlock:makeEvents()},afterEvents:{entitySpawn:makeEvents(),playerLeave:makeEvents(),playerInteractWithBlock:makeEvents(),playerPlaceBlock:makeEvents(),entityHitBlock:makeEvents(),playerBreakBlock:makeEvents()}};
 function newRuntime(isolatedMigration=false){
-    const context=vm.createContext({world,system,ActionFormData:MockActionForm,isolatedMigration,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
+    const context=vm.createContext({world,system,ActionFormData:MockActionForm,CommandPermissionLevel:{GameDirectors:1},isolatedMigration,ItemStack:Stack,BlockPermutation:{resolve(){return {};}},EquipmentSlot:{Mainhand:'Mainhand'},EnchantmentTypes:{get(){return undefined;}},Potions:{},console:{warn(){}}});
     const q4Lab=fs.readFileSync(path.join(path.dirname(root),'q4Lab.js'),'utf8').replace(/export /g,'');
     vm.runInContext(src.replace("import { ActionFormData } from '@minecraft/server-ui';",'').replace(/import \{ isolatedMigration[^;]+;/,'').replace(/export function /g,'function ').replace(/import \{ q4LabStep[^;]+;/,()=>q4Lab).replace(/import \{ discover[^;]+;/,()=>topology),context,{filename:'main.js'});
     return context;
@@ -547,6 +547,23 @@ console.log('PASS: ready area survives the next refill poll and expires after in
 // Drive the registered native update callback through a complete powered/unpowered cycle.
 let flow;
 system.beforeEvents.startup.handlers[0]({blockComponentRegistry:{registerCustomComponent(id,component){flow=component;}}});
+let statusCommand;
+for(const startup of system.beforeEvents.startup.handlers.slice(1)){
+    startup({customCommandRegistry:{registerCommand(spec,callback){
+        assert.equal(spec.name,'hartlogistics:status');
+        assert.equal(spec.permissionLevel,1);
+        assert.equal(spec.cheatsRequired,false);
+        statusCommand=callback;
+    }}});
+}
+const statusMessages=[];
+statusCommand({sourceEntity:{sendMessage:message=>statusMessages.push(message)}});
+assert.equal(statusMessages.length,0);
+drain();
+assert.ok(statusMessages.some(message=>message.includes('Temporary routing chunks')));
+assert.ok(statusMessages.some(message=>message.includes('readable Sorters')));
+statusCommand({});drain();
+console.log('PASS: legacy operator status command uses deferred Fresh diagnostics');
 function power(block,level){flow.onRedstoneUpdate({block,powerLevel:level});}
 const pausedBank=bank(9050,70,150,-1,0,3,1);
 for(const h of pausedBank.hoppers)h.setType('hartlogistics:transporter');
